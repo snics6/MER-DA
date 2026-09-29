@@ -14,3 +14,6 @@ __pycache__/
 
 # ---- WSL が付ける残骸 ----
 *:Zone.Identifier
+
+# ---- 実行ログ ----
+logs/

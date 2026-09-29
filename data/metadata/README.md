@@ -21,9 +21,9 @@
 | `crema-d_utterance_manifest.csv` | 4,900 | 4,900 | 同上 |
 
 **「使う行」は `load_manifest()` が返す行数**である（4 クラスに入り，映像か音声がある行）。
-**`docs/paper-notes.md` の数値はこの母数で数える。**
+**論文の件数はこの母数で数える。**
 
-    ./run/pipeline.sh manifest      # 6 つとも作り直して監査する
+    ./run/build_data.sh manifest    # 6 つとも作り直して監査する
 
 ### 前身のマニフェストにあった誤り（作り直した理由）
 
@@ -35,14 +35,14 @@
 | **AFEW** | 話者が**作品名**だった（公式 XML に俳優名があるのに） | のべ 373 本＝32% が漏れ |
 | MOSEI | 誤りなし（強度 0.5 以上で立つ，という規則を総当たりで特定し再現した） | — |
 
-詳細は `docs/paper-notes.md`。監査は `measure/audit_manifest.py`（生データと照合する）。
+監査は `measure/audit_manifest.py`（生データと照合する）。
 
 ### `mosei_channel_map.csv`
 
 MOSEI の話者は生データに無い。YouTube のチャンネル ID を `video_id` に対応づけた表で，
 **取得の処理は再現できない**（動画が消えている可能性もある）ので切り出して保存してある。
 **分かるのは 3,225 本中 1,122 本（35%）だけ**で，残りは動画 ID を話者の代わりにする。
-**MOSEI の話者分離は不完全である**（`docs/paper-notes.md` に限界として書く）。
+**MOSEI の話者分離は不完全である**（論文では限界として書く）。
 
 ---
 
@@ -55,7 +55,7 @@ MOSEI の話者は生データに無い。YouTube のチャンネル ID を `vid
 | `sample_id` | 発話の名前。コーパス内で一意 |
 | `corpus` | `IEMOCAP` / `MOSEI` / `MELD` / `AFEW` / `RAVDESS` / `CREMA-D` |
 | `split` | 元のコーパスの区分。**本研究は話者で切るので，この列で学習と評価を分けない** |
-| `speaker_id` | 話者。**話者分割はこの列で行う**（`CLAUDE.md` 取り決め 2） |
+| `speaker_id` | 話者。**話者分割はこの列で行う**（`data/README.md` 注意点 4） |
 | `label_4` | 0=中立 1=喜び 2=悲しみ 3=怒り。**空の行は落とされる** |
 | `dialog_type` | IEMOCAP のみ `impro` / `script`。**必ず分ける**（取り決め 5） |
 | `marker_side` | IEMOCAP のみ。マーカーを付けた人の性別。**発話者が画面の左右どちらかを決めるのに使う**（`common.speaker_side`） |
@@ -94,13 +94,4 @@ MOSEI の話者は生データに無い。YouTube のチャンネル ID を `vid
 | RAVDESS・CREMA-D | 読む文が固定（2 種・12 種）なので記録はするが**測らない** |
 
 **MELD の転写の 28.1% に文字化けがある。**修復の実装と実測値は
-[../../docs/feature-spec.md](../../docs/feature-spec.md)「言葉の前処理」を見ること。
-
----
-
-## 前身の README について
-
-前身が書いた同名の文書は [../../inherited/metadata-README-from-predecessor.md](../../inherited/metadata-README-from-predecessor.md)
-に移した。**読むだけ。**本リポジトリに存在しない場所（`scripts/preprocessing/`・
-`D:/CrossCorpusMER/features/`・`docs/data/`）を正本として指しているので，
-**そこに書かれた手順をそのまま実行しない。**
+[../../docs/feature-spec.md](../../docs/feature-spec.md)を見ること。

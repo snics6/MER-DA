@@ -1,10 +1,10 @@
 # data/ — 特徴キャッシュとマニフェスト
 
-**`~/MER/data/` を 2026-09-29 に複製したものである．**ファイル名・配置・中身は MER と
-同一なので，MER の読み込みコード（`measure/data.py`）がそのまま動く．
+生データ `/mnt/d/Databases/`（読むだけ）から `features/build_*.py` が作ったものである．
+**ここにあるのはすべてその成果物であり，生データは含まない．**
+読み込みは `measure/data.py`，作り直しは `run/build_data.sh`（下の「作り直し方」）．
 
-元をたどれば生データ `/mnt/d/Databases/`（読むだけ）から `~/MER/features/build_*.py` が
-作ったものである．**ここにあるのはすべてその成果物であり，生データは含まない．**
+**この `data/` が本研究のデータの正本である．**直すときはここで作り直し，git で差分を見る．
 
 ---
 
@@ -16,14 +16,14 @@
 | `cache/*.npz` | 特徴 28 本 | 1.1 GB |
 | `cache/faces_*.csv.gz` | 顔検出の結果（フレーム番号と矩形座標）5 本 | 17.6 MB |
 
-MER の `cache/parts/`（抽出の途中経過 159 本・1.1 GB）は複製していない．統合済みなので
+抽出の途中経過 `cache/parts/`（作り直すと生じる．1.1 GB 規模）は，統合済みの
 完成 npz があれば要らない．**顔の座標は消さないこと．**表情モデルを差し替えても
 まったく同じ画素を切り出せる唯一の手段であり，第 2 エンコーダはこれで作られている．
 
 ## エンコーダ
 
 **どれも 6 コーパスで微調整していない．**微調整済みを使うと「データのずれ」と
-「エンコーダの癖」が分離できなくなる（MER `CLAUDE.md` 取り決め 1）．
+「エンコーダの癖」が分離できなくなる．
 
 | モダリティ | | モデル | 次元 | ファイル名 |
 |---|---|---|---:|---|
@@ -80,7 +80,7 @@ video_clip_CREMA-D    4900   4899 100.0%
 ## 使い方
 
 **`np.load` して `X` をそのまま使ってはいけない．**次の 5 つを必ず通す．
-MER では `measure/data.py` の `load_group(群, エンコーダ)` が一手に引き受けている．
+`measure/data.py` の `load_group(群, エンコーダ)` が一手に引き受けている．
 
 1. **ラベルをマニフェストから貼り直す**（下記 1）
 2. `ok` が偽の行と，特徴に NaN・Inf のある行を落とす
@@ -99,7 +99,7 @@ IEMOCAP-impro / IEMOCAP-script / MOSEI / MELD / AFEW / RAVDESS / CREMA-D
 ## 注意点
 
 1. **ラベルの正本は `metadata/*.csv` だけである．**npz の `label_4` は抽出した時点の
-   ものが焼き付いており，マニフェストを直しても古いまま残る．MER の前身は
+   ものが焼き付いており，マニフェストを直しても古いまま残る．前身の研究では
    ここが崩れて IEMOCAP の 57% に誤ったラベルが付いていた．**必ず貼り直す．**
 
 2. **npz の行順は抽出したときのファイル走査順であり，モダリティごとに違う．**
@@ -123,22 +123,34 @@ IEMOCAP-impro / IEMOCAP-script / MOSEI / MELD / AFEW / RAVDESS / CREMA-D
 7. **ラベルは 4 つ，指標は均衡精度（UAR）．**クラスごとの正解率を平均したもので，
    でたらめに答えれば 25% になる．
 
-8. **正本は `~/MER/data/` 側である．**マニフェストを直したり特徴を作り直したりしたら，
-   MER 側で行い，ここへ複製し直す．**片方だけ直すとラベルの正本が 2 つになる．**
+8. **git に入っていないものがある．**`cache/*.npz`（1.1 GB）は除外している．
+   消えたら `run/build_data.sh` で作り直すしかない（生データと GPU で丸 1 日）．
+   顔の座標 `cache/faces_*.csv.gz` とマニフェストは git に入っている．
 
 ---
 
 ## 作り直し方
 
-MER 側で行う．生データ `/mnt/d/Databases/` と GPU が要る．
+生データ `/mnt/d/Databases/`（読むだけ）と GPU が要る．台本は `run/build_data.sh`．
 
 ```
-~/MER/features/build_manifest_iemocap.py    発話の一覧（コーパスごとに 5 本）
-~/MER/features/build_video.py               映像 第 1（顔検出 → ResNet-50）
-~/MER/features/build_video_clip.py          映像 第 2（保存した顔座標 → CLIP）
-~/MER/features/build_audio.py               音声（--model で第 1／第 2 を切替）
-~/MER/features/build_text.py                言葉（--model で第 1／第 2 を切替）
+./run/build_data.sh manifest    発話一覧 7 本を作り直して監査する（分）
+./run/build_data.sh check       話者の診断と話者分割の検査（分）
+./run/build_data.sh feat1       映像 第 1・音声 第 1・言葉 第 1（半日）
+./run/build_data.sh feat2       第 2 エンコーダ．映像は feat1 の顔座標を読む（半日）
 ```
 
-作り方の正本は `~/MER/docs/feature-spec.md`．**重みは `~/MER/weights/` にある**
-（`FER_static_ResNet50_AffectNet.pt`・`yolov8n-face.pt`．git 対象外）．
+中身は次のスクリプトである．
+
+```
+features/build_manifest_*.py    発話一覧（コーパスごとに 5 本）
+features/build_video.py         映像 第 1（顔検出 → ResNet-50）
+features/build_video_clip.py    映像 第 2（保存した顔座標 → CLIP）
+features/build_audio.py         音声（--model で第 1／第 2 を切替）
+features/build_text.py          言葉（--model で第 1／第 2 を切替）
+```
+
+作り方の正本は `docs/feature-spec.md`．**重みは `weights/` にある**
+（`FER_static_ResNet50_AffectNet.pt`・`yolov8n-face.pt`．git 対象外．
+**入手元は未記録**．要確認）．Hugging Face のモデルは初回に自動で取得される．
+Python 環境は `requirements.txt` の冒頭に作り方がある（`.venv/`）．
