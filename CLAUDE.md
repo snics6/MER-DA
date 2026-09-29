@@ -17,6 +17,9 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | 研究の目的・理論・実験計画・仮説・未決事項 | **`researchvision.md`**（ここを磨いていく） |
 | データの中身・扱い方・作り直し方 | **`data/README.md`**（発話一覧の詳細は `data/metadata/README.md`） |
 | 特徴の作り方 | `docs/feature-spec.md` |
+| 実験の手順（条件・分割・ずれを消す操作） | `docs/experiment-protocol.md` |
+| ずれの指標の定義と注意 | `docs/shift-metrics.md` |
+| 先行研究の要点 | `docs/related-work.md` |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `researchvision.md` が勝つ．**
 食い違いを見つけたら，勝った側に合わせて負けた側を直す（放置しない）．
@@ -55,7 +58,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | `data/cache/*.npz` | 特徴 28 本（1.1 GB）．消えたら `run/build_data.sh` で作り直す | × |
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
-| `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・監査 | ○ |
+| `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |
 | `run/build_data.sh` | データの作り直し台本 | ○ |
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |
@@ -66,6 +69,8 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 
 ## 進め方
 
+- **実験コードを書く前に `docs/experiment-protocol.md` を読む**
+- **ずれの指標は `measure/shift.py`，ずれを消す操作は `measure/ablate.py` を必ず通す．**実験コードで書き直さない．変えたら `measure/test_shift.py` を流し，根拠の md（`docs/shift-metrics.md`・`docs/experiment-protocol.md`）も直す
 - **長時間の処理（特徴抽出・学習・評価）は勝手に起動しない．**
   まずコマンド・所要見込み・上書きするファイルを示して確認を取る
 - 長時間処理は **tmux セッション `mer-da`** の中で回す

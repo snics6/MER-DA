@@ -375,6 +375,8 @@ M5〜M8とQ4〜Q8は2〜3週目に回す。
 
 ## 付録A　指標の定義と導出
 
+実装と，値がモデルやデータの形で動く点の注意は `docs/shift-metrics.md`（実装は `measure/shift.py`）。
+
 ### A.1 proxy A-distance
 
 ソースに0、ターゲットに1のドメインラベルを付け、同数ずつ用意する。$\mathcal H$ が補集合で閉じていれば、分類器 $\eta$ のドメイン識別誤り率は
@@ -487,3 +489,13 @@ $$
 **MER/SER側の近接研究**
 - [Y. Ahn, S. J. Lee, J. W. Shin，"Cross-Corpus Speech Emotion Recognition Based on Few-Shot Learning and Domain Adaptation，" IEEE Signal Processing Letters，vol. 28，pp. 1190–1194，2021](https://doi.org/10.1109/LSP.2021.3086395)
 - [J. Tavernor, E. Mower Provost，"More Similar than Dissimilar: Modeling Annotators for Cross-Corpus Speech Emotion Recognition，" ASRU，2025](https://arxiv.org/abs/2509.12295)
+
+## 付録B　未決事項（期限つき）
+
+| 項目 | 候補 | 期限 | 詳細 |
+|---|---|---|---|
+| 分類器の正則化の強さ C | 固定 1.0＋感度確認 {0.1, 10} | 2026-10-02（案） | `docs/experiment-protocol.md` 1 節 |
+| 反復回数 R | 10 | 2026-10-02（案） | 同 2 節 |
+| ソースが要らなくなる K（K*）の定義 | 合併−ターゲットのみの UAR 差の 95% 区間が 0 を上回る最大の K | 2026-10-02（案） | 同 3 節 |
+| 結果の置き場所 | `results/` | 2026-10-02（案） | 同 5 節 |
+| 入力・覆い方の指標を測る空間 | 生の特徴空間は飽和した（試運転）．感情に関係する部分空間など | 地図の実験の後 | `docs/shift-metrics.md` 4.6 |
