@@ -70,15 +70,12 @@ def raw_count(corpus: str) -> int | None:
             return sum(1 for _ in P("/mnt/d/Databases/AFEW").glob("*/*/*.avi"))
         if corpus == "MOSEI":       # 発話一覧の行数
             return len(pd.read_csv("/mnt/d/Databases/CMU-MOSEI/label/label.csv"))
-        if corpus == "RAVDESS":     # 話し声・音声のみ・4 クラスに入る感情だけ
-            keep = {"01", "03", "04", "05"}
+        if corpus == "RAVDESS":     # 話し声・音声のみ・全感情
             return sum(1 for f in P("/mnt/d/Databases/RAVDESS/audio_speech").rglob("*.wav")
                        if (q := f.stem.split("-")) and len(q) == 7
-                       and q[0] == "03" and q[1] == "01" and q[2] in keep)
-        if corpus == "CREMA-D":     # 4 クラスに入る感情だけ
-            keep = {"NEU", "HAP", "SAD", "ANG"}
-            return sum(1 for f in P("/mnt/d/Databases/CREMA-D/AudioWAV").glob("*.wav")
-                       if len(q := f.stem.split("_")) >= 3 and q[2] in keep)
+                       and q[0] == "03" and q[1] == "01")
+        if corpus == "CREMA-D":     # 全感情
+            return sum(1 for _ in P("/mnt/d/Databases/CREMA-D/AudioWAV").glob("*.wav"))
     except Exception as e:          # 生データが無い環境でも監査は続ける
         print(f"  ({corpus} の生データを数えられない: {e})")
     return None

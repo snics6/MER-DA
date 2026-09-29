@@ -17,8 +17,8 @@
 | `mosei_utterance_manifest.csv` | 22,856 | 18,919 | `features/build_manifest_mosei.py` |
 | `meld_utterance_manifest.csv` | 13,708 | 11,352 | `features/build_manifest_meld.py` |
 | `afew_utterance_manifest.csv` | 1,156 | 795 | `features/build_manifest_afew.py` |
-| `ravdess_utterance_manifest.csv` | 672 | 672 | `features/build_manifest_extra.py` |
-| `crema-d_utterance_manifest.csv` | 4,900 | 4,900 | 同上 |
+| `ravdess_utterance_manifest.csv` | 1,440 | 672 | `features/build_manifest_extra.py` |
+| `crema-d_utterance_manifest.csv` | 7,442 | 4,900 | 同上 |
 
 **「使う行」は `load_manifest()` が返す行数**である（4 クラスに入り，映像か音声がある行）。
 **論文の件数はこの母数で数える。**
@@ -64,7 +64,13 @@ MOSEI の話者は生データに無い。YouTube のチャンネル ID を `vid
 | `transcript` | 人が書き起こした文。AFEW は全件空 |
 | `exclude` | `false` 以外の行は落とされる |
 
-`label_4` が空，または映像も音声も無い行は，読み込み時に落とされる。
+`load_manifest()` が読まない列も残してある。**元の感情は `emotion_raw`**（全コーパス），
+RAVDESS・CREMA-D は強さを `emotion_intensity` に持つ。IEMOCAP の happy と excited はここで区別できる。
+
+**発話一覧は全感情の行を持つ**（2026-09-29 から．元データのラベルを尊重する）。
+`label_4` はそのうち 4 クラスに当てはまる行にだけ付いている。
+**いまの `load_manifest()` は `label_4` が空の行と，映像も音声も無い行を落とす**ので，
+特徴の抽出と読み込みは 4 クラスの行だけを扱う。
 
 ---
 
@@ -72,12 +78,12 @@ MOSEI の話者は生データに無い。YouTube のチャンネル ID を `vid
 
 | コーパス | 決め方 |
 |---|---|
-| IEMOCAP | 注釈から。**台本（script）のラベルは注釈ではなく芝居の番号で決まっている**ので，即興と混ぜられない |
-| MOSEI | CMU 配布の注釈から |
+| IEMOCAP | 注釈ファイルの代表ラベル（多数決）から。label_4 は neu・hap・exc・sad・ang（exc は Happy）。`emotion_raw` では hap と exc を分けて持つ |
+| MOSEI | CMU 配布の注釈（6 感情の強さ）から。強さ 0.5 以上が 1 つなら その感情，2 つ以上なら `multi_label`，0 なら `neutral`。**`neutral` と `multi_label` は注釈者が付けた名前ではなく，この規則で決めたもの** |
 | MELD | 公式 CSV の感情ラベルから |
 | AFEW | 公式のフォルダ名（感情別）から |
-| RAVDESS | ファイル名の 3 番目の数字。01→中立 03→喜び 04→悲しみ 05→怒り。**02（calm）は中立に混ぜない**。06〜08 は落とす |
-| CREMA-D | ファイル名の 3 番目。NEU/HAP/SAD/ANG を採用。DIS・FEA は落とす |
+| RAVDESS | ファイル名の 3 番目の数字。01→中立 03→喜び 04→悲しみ 05→怒り。**02（calm）は中立に混ぜない**。06〜08 は label_4 を空にする |
+| CREMA-D | ファイル名の 3 番目。NEU/HAP/SAD/ANG に label_4 を付ける。DIS・FEA は空 |
 
 ---
 

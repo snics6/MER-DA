@@ -1,0 +1,67 @@
+項目,判定,詳細,corpus
+sample_id が一意,○,重複 0 件,IEMOCAP
+必要な列が揃う,○,全 8 列,IEMOCAP
+label_4 が 0〜3,○,範囲外 0 件,IEMOCAP
+label_4 と名前が一致,○,食い違い 0 件,IEMOCAP
+path_video が実在,○,あり 10039/10039・不在 0（先頭 300 件を確認）,IEMOCAP
+path_video が重複しない,○,重複 0 件,IEMOCAP
+path_audio が実在,○,あり 10039/10039・不在 0（先頭 300 件を確認）,IEMOCAP
+path_audio が重複しない,○,重複 0 件,IEMOCAP
+speaker_id が空でない,○,話者 10 人,IEMOCAP
+書き起こしの文字化け,—,0 件,IEMOCAP
+生データの件数と一致,○,マニフェスト 10039 / 生データ 10039,IEMOCAP
+sample_id が一意,○,重複 0 件,MOSEI
+必要な列が揃う,○,全 8 列,MOSEI
+label_4 が 0〜3,○,範囲外 0 件,MOSEI
+label_4 と名前が一致,○,食い違い 0 件,MOSEI
+path_video が実在,○,あり 22856/22856・不在 0（先頭 300 件を確認）,MOSEI
+path_video が重複しない,○,重複 0 件,MOSEI
+path_audio が実在,○,あり 0/22856・不在 0（先頭 300 件を確認）,MOSEI
+path_audio が重複しない,○,重複 0 件,MOSEI
+speaker_id が空でない,○,話者 2675 人,MOSEI
+書き起こしの文字化け,—,0 件,MOSEI
+生データの件数と一致,○,マニフェスト 22856 / 生データ 22856,MOSEI
+sample_id が一意,○,重複 0 件,MELD
+必要な列が揃う,○,全 8 列,MELD
+label_4 が 0〜3,○,範囲外 0 件,MELD
+label_4 と名前が一致,○,食い違い 0 件,MELD
+path_video が実在,○,あり 13707/13708・不在 0（先頭 300 件を確認）,MELD
+path_video が重複しない,○,重複 0 件,MELD
+path_audio が実在,○,あり 0/13708・不在 0（先頭 300 件を確認）,MELD
+path_audio が重複しない,○,重複 0 件,MELD
+speaker_id が空でない,○,話者 304 人,MELD
+書き起こしの文字化け,—,3741 件（27.3%）・build_text.py が修復する,MELD
+生データの件数と一致,○,マニフェスト 13708 / 生データ 13708,MELD
+sample_id が一意,○,重複 0 件,AFEW
+必要な列が揃う,○,全 8 列,AFEW
+label_4 が 0〜3,○,範囲外 0 件,AFEW
+label_4 と名前が一致,○,食い違い 0 件,AFEW
+path_video が実在,○,あり 1156/1156・不在 0（先頭 300 件を確認）,AFEW
+path_video が重複しない,○,重複 0 件,AFEW
+path_audio が実在,○,あり 0/1156・不在 0（先頭 300 件を確認）,AFEW
+path_audio が重複しない,○,重複 0 件,AFEW
+speaker_id が空でない,○,話者 349 人,AFEW
+書き起こしの文字化け,—,0 件,AFEW
+生データの件数と一致,○,マニフェスト 1156 / 生データ 1156,AFEW
+sample_id が一意,○,重複 0 件,RAVDESS
+必要な列が揃う,○,全 8 列,RAVDESS
+label_4 が 0〜3,○,範囲外 0 件,RAVDESS
+label_4 と名前が一致,○,食い違い 0 件,RAVDESS
+path_video が実在,○,あり 0/1440・不在 0（先頭 300 件を確認）,RAVDESS
+path_video が重複しない,○,重複 0 件,RAVDESS
+path_audio が実在,○,あり 1440/1440・不在 0（先頭 300 件を確認）,RAVDESS
+path_audio が重複しない,○,重複 0 件,RAVDESS
+speaker_id が空でない,○,話者 24 人,RAVDESS
+書き起こしの文字化け,—,0 件,RAVDESS
+生データの件数と一致,○,マニフェスト 1440 / 生データ 1440,RAVDESS
+sample_id が一意,○,重複 0 件,CREMA-D
+必要な列が揃う,○,全 8 列,CREMA-D
+label_4 が 0〜3,○,範囲外 0 件,CREMA-D
+label_4 と名前が一致,○,食い違い 0 件,CREMA-D
+path_video が実在,○,あり 7442/7442・不在 0（先頭 300 件を確認）,CREMA-D
+path_video が重複しない,○,重複 0 件,CREMA-D
+path_audio が実在,○,あり 7442/7442・不在 0（先頭 300 件を確認）,CREMA-D
+path_audio が重複しない,○,重複 0 件,CREMA-D
+speaker_id が空でない,○,話者 91 人,CREMA-D
+書き起こしの文字化け,—,0 件,CREMA-D
+生データの件数と一致,○,マニフェスト 7442 / 生データ 7442,CREMA-D
