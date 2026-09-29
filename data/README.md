@@ -152,5 +152,5 @@ features/build_text.py          言葉（--model で第 1／第 2 を切替）
 
 作り方の正本は `docs/feature-spec.md`．**重みは `weights/` にある**
 （`FER_static_ResNet50_AffectNet.pt`・`yolov8n-face.pt`．git 対象外．
-**入手元は未記録**．要確認）．Hugging Face のモデルは初回に自動で取得される．
+入手元と sha256 は [../docs/weights.md](../docs/weights.md)）．Hugging Face のモデルは初回に自動で取得される．
 Python 環境は `requirements.txt` の冒頭に作り方がある（`.venv/`）．
