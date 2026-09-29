@@ -269,6 +269,12 @@ def mlls_prior(probs_t: np.ndarray, prior_s: np.ndarray,
     return q
 
 
+def kish_neff(w: np.ndarray) -> float:
+    """重み付き学習の実効標本数 (Σw)²/Σw²（Kish）。クラス均等重みの損を見積もる（protocol 7.3）。"""
+    w = np.asarray(w, float)
+    return float(w.sum() ** 2 / np.sum(w ** 2))
+
+
 # ---------------------------------------------------------------- 軸 4：付け方
 
 def confusion(y_true: np.ndarray, y_pred: np.ndarray, k: int = N_CLASSES) -> np.ndarray:

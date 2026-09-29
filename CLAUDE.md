@@ -17,13 +17,14 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | 研究の目的・理論・実験計画・仮説・未決事項 | **`researchvision.md`**（ここを磨いていく） |
 | データの中身・扱い方・作り直し方 | **`data/README.md`**（発話一覧の詳細は `data/metadata/README.md`） |
 | 特徴の作り方 | `docs/feature-spec.md` |
+| 実験の方針・決定事項・未決事項（常に更新．更新記録つき） | **`docs/experiment-policy.md`** |
 | 実験の手順（条件・分割・ずれを消す操作） | `docs/experiment-protocol.md` |
 | ずれの指標の定義と注意 | `docs/shift-metrics.md` |
 | 先行研究の要点 | `docs/related-work.md` |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `researchvision.md` が勝つ．**
 食い違いを見つけたら，勝った側に合わせて負けた側を直す（放置しない）．
-本ファイルは要点と取り決めだけを持つ．**未決事項は `researchvision.md` に期限つきで書き，ここには置かない．**
+本ファイルは要点と取り決めだけを持つ．**未決事項は期限つきで，研究全体のものは `researchvision.md`，実験のものは `docs/experiment-policy.md` に書き，ここには置かない．**方針を変えたら `docs/experiment-policy.md` の更新記録に 1 行足す．
 
 中核の理論：`A theory of learning from different domains.pdf`（Ben-David et al., 2010．Theorem 3）
 

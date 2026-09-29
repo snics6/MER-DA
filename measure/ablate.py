@@ -123,12 +123,30 @@ def near_target_subset(Xs: np.ndarray, Xt_unlabeled: np.ndarray, size: int) -> n
 
 def flip_labels(y: np.ndarray, rho: float, rng: np.random.Generator,
                 k: int = N_CLASSES) -> np.ndarray:
-    """D3：ラベルの割合 rho を，**ほかの感情へ一様に**付け替える（Wang 2019 の εy に相当）。"""
+    """D3s：ラベルの割合 rho を，**ほかの感情へ一様に**付け替える（Wang 2019 の εy に相当）。
+
+    各発話で最も確率の高い感情は変わらない（rho < 3/4 のとき）ので，**付け方のずれは生じず，
+    信号が弱まるだけ**（protocol 7.4 節）。付け方のずれを足すのは `flip_labels_pair`（D3a）。
+    """
     y = np.asarray(y).copy()
     n_flip = int(round(rho * len(y)))
     idx = rng.choice(len(y), size=n_flip, replace=False)
     shift = rng.integers(1, k, size=n_flip)             # 0 を除くので必ず別のクラス
     y[idx] = (y[idx] + shift) % k
+    return y
+
+
+def flip_labels_pair(y: np.ndarray, src: int, dst: int, rho: float,
+                     rng: np.random.Generator) -> np.ndarray:
+    """D3a：感情 src の発話のうち割合 rho を，感情 dst へ付け替える（付け方のずれを足す）。
+
+    src と dst の境界の対数オッズが log(1/(1−2ρ)) だけ動く（protocol 7.4 節）。
+    一様な付け替え（`flip_labels`，D3s）と違い，理想的な分類器が変わる。
+    """
+    y = np.asarray(y).copy()
+    cand = np.flatnonzero(y == src)
+    idx = rng.choice(cand, size=int(round(rho * len(cand))), replace=False)
+    y[idx] = dst
     return y
 
 

@@ -115,7 +115,11 @@ def main() -> int:
     ok &= check("P2 割合合わせ", np.allclose(np.bincount(y[i]) / len(i), [0.7, 0.1, 0.1, 0.1], atol=0.01),
                 f"{np.round(np.bincount(y[i]) / len(i), 3)}（{len(i)} 本）")
     yf = ablate.flip_labels(y, 0.2, rng)
-    ok &= check("D3 付け替え", abs(np.mean(yf != y) - 0.2) < 1e-3, f"付け替え率 {np.mean(yf != y):.3f}")
+    ok &= check("D3s 一様な付け替え", abs(np.mean(yf != y) - 0.2) < 1e-3, f"付け替え率 {np.mean(yf != y):.3f}")
+    yp = ablate.flip_labels_pair(y, 0, 2, 0.3, rng)
+    moved = np.mean(yp[y == 0] == 2)
+    ok &= check("D3a 対の付け替え", abs(moved - 0.3) < 1e-2 and np.all(yp[y != 0] == y[y != 0]),
+                f"Neutral→Sad の割合 {moved:.3f}，他は不変")
     true_b = np.array([1.0, -0.5, 0.0, -0.5])
     Xk, yk = draw([200] * 4)
     logit = clf.decision_function(Xk)
@@ -133,6 +137,32 @@ def main() -> int:
     ok &= check("C1 近傍選択", np.mean(sel < 200) > 0.95, f"ターゲット側から選んだ割合 {np.mean(sel < 200):.3f}")
     Xz, n_per = ablate.standardize_by_speaker(gauss(rng, 100, mean=3.0, d=4), spk(100, 5, "q"))
     ok &= check("I2 話者標準化", np.abs(Xz.mean(0)).max() < 1e-9, f"平均の最大 {np.abs(Xz.mean(0)).max():.1e}")
+
+    # ---- 理論の検算（protocol 7.3・7.4 の導出）
+    eta = rng.dirichlet(np.ones(4), size=20000)
+    for rho in (0.1, 0.2, 0.4):
+        k = 4
+        eta_s = eta * (1 - rho * k / (k - 1)) + rho / (k - 1)          # D3s 後の事後確率
+        same = np.all(eta_s.argmax(1) == eta.argmax(1))
+        srt, srt_s = np.sort(eta, 1), np.sort(eta_s, 1)
+        ratio = (srt_s[:, -1] - srt_s[:, -2]) / (srt[:, -1] - srt[:, -2])
+        ok &= check(f"7.4 一様な付け替え ρ={rho}", same and np.allclose(ratio, 1 - rho * k / (k - 1)),
+                    f"最大の感情は不変，余裕は {ratio.mean():.3f} 倍（理論 {1 - rho * k / (k - 1):.3f}）")
+    rho = 0.2
+    e2 = eta.copy()
+    e2[:, 0], e2[:, 2] = (1 - rho) * eta[:, 0], eta[:, 2] + rho * eta[:, 0]   # D3a：0→2
+    pick0 = e2[:, 0] > e2[:, 2]
+    pred = eta[:, 0] / eta[:, 2] > 1 / (1 - 2 * rho)
+    ok &= check("7.4 対の付け替えの境界", np.all(pick0 == pred),
+                f"0 と 2 の境界が比 1/(1−2ρ)={1 / (1 - 2 * rho):.3f} に動く")
+    worst = 0.0
+    for _ in range(2000):
+        Cs, Ct = rng.dirichlet(np.ones(4), 4), rng.dirichlet(np.ones(4), 4)
+        gap = abs(np.mean(np.diag(Cs)) - np.mean(np.diag(Ct)))
+        worst = max(worst, gap / (3 * shift.delta_ce(Cs, Ct)[0]))
+    ok &= check("7.3 |UAR差| ≤ 3Δ_CE", worst <= 1 + 1e-12, f"乱数の混同行列 2,000 組で 比の最大 {worst:.3f}（≤1 なら成立）")
+    w = np.r_[np.full(300, 1 / 300), np.full(50, 1 / 50)]
+    ok &= check("Kish n_eff", abs(shift.kish_neff(w) - 171.43) < 0.01, f"{shift.kish_neff(w):.2f}（理論 171.43）")
 
     print("すべて通過" if ok else "失敗あり")
     return 0 if ok else 1
