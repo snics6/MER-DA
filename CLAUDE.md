@@ -60,6 +60,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
 | `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |
+| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），検算（`test_map.py`・`test_summarize.py`）．結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
 | `run/build_data.sh` | データの作り直し台本 | ○ |
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |
