@@ -37,7 +37,24 @@ def running_kinds() -> dict[str, str]:
     return kinds
 
 
+SHIFT_STAGES = {"gpu": "labeling.csv", "input": "zero.csv", "space": "space_choice.json"}
+
+
+def read_shift_dir(d: Path, running: dict[str, str]) -> dict:
+    """ずれの指標のフォルダ：反復は無いので，段ごとの出力の有無を見る。"""
+    done = {st: (d / f).exists() for st, f in SHIFT_STAGES.items()}
+    choice = None
+    if done["space"]:
+        choice = json.loads((d / "space_choice.json").read_text()).get("choice")
+    return {"dir": str(d.relative_to(ROOT)), "stages_done": done,
+            "state": "complete" if all(done.values()) else "partial",
+            "running": any(k.startswith("shift_map_" + d.name[len("shift_"):]) for k in running),
+            "space_choice": choice}
+
+
 def read_dir(d: Path, running: dict[str, str]) -> dict:
+    if d.name.startswith("shift_"):
+        return read_shift_dir(d, running)
     targets, runs = {}, []
     for p in sorted(d.glob("*.csv")):
         for line in p.read_text().splitlines():
@@ -86,6 +103,12 @@ def main() -> int:
              "| 実験 | 状態 | 実行中 | 終わった反復（最小〜最大／30） | ターゲットごと | コミット |",
              "|---|---|---|---|---|---|"]
     for name, e in status["experiments"].items():
+        if "stages_done" in e:                           # ずれの指標
+            per = "，".join(f"{st} {'○' if ok else '×'}" for st, ok in e["stages_done"].items())
+            if e["space_choice"]:
+                per += f"（空間 {e['space_choice']}）"
+            lines.append(f"| `{name}` | {e['state']} | {'○' if e['running'] else ''} | − | {per} | |")
+            continue
         per = "，".join(f"{t} {v['reps_done']}" for t, v in e["targets"].items())
         lines.append(f"| `{name}` | {e['state']} | {'○' if e['running'] else ''} | "
                      f"{e['reps_done_min']}〜{e['reps_done_max']} | {per} | "
