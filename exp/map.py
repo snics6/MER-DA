@@ -190,12 +190,13 @@ class Trained:
 
 
 def train(X: torch.Tensor, y: np.ndarray, person: np.ndarray, first: np.ndarray,
-          seed: int, other_seed: int | None = None, init: Trained | None = None
-          ) -> Trained:
+          seed: int, other_seed: int | None = None, init: Trained | None = None,
+          anchor: Trained | None = None) -> Trained:
     """交差検証で C を選び（成績は first の行で測る），全体で候補の C すべてを解く。
 
     init を渡すと温め直す。ソース部分（first でない行）の袋の分け方が init と同じなら
     袋ごとに init の袋の解から，違えば init の最終の解から始める。
+    anchor を渡すと，係数を anchor（選ばれた C の最終の解）へ引き寄せる罰則で解く（M5）。
     """
     t0 = time.perf_counter()
     yt = labels(y)
@@ -215,7 +216,9 @@ def train(X: torch.Tensor, y: np.ndarray, person: np.ndarray, first: np.ndarray,
     # 交差検証の袋と全体を，候補の C すべてについて束ねて一度に解く（logreg.fit_batch）
     fits = logreg.fit_batch(X, yt, [folds != j for j in used] + [np.ones(len(y), bool)],
                             C_GRID, [start(j) for j in used]
-                            + [None if init is None else init.final])
+                            + [None if init is None else init.final],
+                            anchor=None if anchor is None else anchor.final,
+                            anchor_c=None if anchor is None else anchor.C)
     final, fold_fits = fits[-1], dict(zip(used, fits[:-1]))
     cv = None
     if used:

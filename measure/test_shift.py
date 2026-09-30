@@ -78,6 +78,41 @@ def main() -> int:
     z = shift.zero_point(X, spk(900, 30, "p"), n=N, reps=2)
     ok &= check("ゼロ点", z["pad"] < 0.4, f"PAD {z['pad']:.3f}，coverage {z['coverage_t_by_s']:.3f}")
 
+    # ---- 測る空間（md 0.1）：PCA 64 次元でも同一分布は小さく，ずれは大きい
+    a128, b128 = gauss(rng, N, d=128), gauss(rng, N, d=128)
+    c128 = gauss(rng, N, mean=0.3, d=128)
+    g_a, g_b = spk(N, 20, "a"), spk(N, 20, "b")
+    m_same = shift.input_metrics(a128, g_a, b128, g_b, n=200, reps=2, space="pca64")
+    m_diff = shift.input_metrics(a128, g_a, c128, g_b, n=200, reps=2, space="pca64")
+    ok &= check("PCA 64 次元の空間", m_same["pad"] < 0.4 < 1.0 < m_diff["pad"]
+                and m_same["dim"] == 128 and m_same["space"] == "pca64",
+                f"PAD 同一 {m_same['pad']:.3f} / ずれ {m_diff['pad']:.3f}")
+    # 次元が小さい空間（対数オッズの 4 次元）でも全部の指標が値を返す
+    m4 = shift.input_metrics(gauss(rng, N, d=4), g_a, gauss(rng, N, mean=1.0, d=4), g_b,
+                             n=200, reps=2)
+    ok &= check("4 次元でも動く", all(np.isfinite(m4[k]) for k in
+                                   ("pad", "mmd2", "frechet", "coverage_t_by_s", "cov_dominance")),
+                f"PAD {m4['pad']:.3f}，フレシェ {m4['frechet']:.3f}，c {m4['cov_dominance']:.3f}")
+    # 広がりが 0 の方向がある空間（和が一定の 4 つの点数）でも共分散の支配が落ちない
+    L4 = gauss(rng, N, d=4)
+    L4 -= L4.mean(1, keepdims=True)                   # 4 つの和が 0 → 実質 3 次元
+    L4s = gauss(rng, N, scale=2.0, d=4)
+    L4s -= L4s.mean(1, keepdims=True)
+    cd4 = shift.cov_dominance(L4s, L4)
+    ok &= check("広がり 0 の方向を除く", np.isfinite(cd4) and cd4 > 1.0,
+                f"広いソースの c {cd4:.2f}（1 より大きいのが正しい）")
+    # 割合をそろえた抜き出し（md C9）
+    yb = np.repeat([0, 1, 2, 3], [400, 100, 60, 40])
+    ib = shift.subsample_balanced(yb, 160, rng)
+    ok &= check("感情ごとに同数を抜く", np.all(np.bincount(yb[ib], minlength=4) == 40),
+                f"{np.bincount(yb[ib], minlength=4)}")
+    try:
+        shift.subsample_balanced(yb, 200, rng)
+        short_ok = False
+    except ValueError:
+        short_ok = True
+    ok &= check("足りなければ例外", short_ok, "感情 3 が 40 本しかない所で 50 本は抜かない")
+
     # ---- 軸 3：割合
     ys, yt = np.repeat([0, 1, 2, 3], [25, 25, 25, 25]), np.repeat([0, 1, 2, 3], [70, 10, 10, 10])
     ok &= check("label_l1", abs(shift.label_l1(ys, yt) - 0.9) < 1e-9, f"{shift.label_l1(ys, yt):.3f}（理論 0.900）")

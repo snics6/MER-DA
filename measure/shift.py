@@ -28,7 +28,7 @@ from scipy.optimize import minimize
 from scipy.special import log_softmax, softmax
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 
@@ -38,6 +38,9 @@ R_DEFAULT = 20           # 抜き出しの繰り返し回数。md C2
 PCA_DIM = 64             # 共分散を使う指標の次元。md C6（r ≪ n）
 K_NN = 5                 # coverage の近傍数。md 2.1（Naeem 2020）
 PAD_C_GRID = (0.01, 0.1, 1.0)
+PAD_TOL = 1e-8           # 判別器の止める基準。sklearn の既定 1e-4 では判定が 1〜2 本ずれた。md 1.1
+SPACES = ("raw", "pca64")   # 入力の指標を測る空間。対数オッズの空間は特徴として渡す。md 0.1
+EIG_FLOOR = 1e-10        # 共分散の支配で除く方向：最大の固有値に対するこの比より小さい方向。md 2.2
 
 
 # ---------------------------------------------------------------- 前処理
@@ -49,6 +52,21 @@ def subsample(n_total: int, n: int, rng: np.random.Generator) -> np.ndarray:
     return np.sort(rng.choice(n_total, size=n, replace=False))
 
 
+def subsample_balanced(y: np.ndarray, n: int, rng: np.random.Generator,
+                       k: int = N_CLASSES) -> np.ndarray:
+    """感情ごとに n/k 本ずつ抜く（md C9：割合をそろえた版）。足りなければ例外。"""
+    if n % k:
+        raise ValueError(f"n={n} が感情の数 {k} で割り切れない")
+    y = np.asarray(y)
+    idx = []
+    for c in range(k):
+        cand = np.flatnonzero(y == c)
+        if len(cand) < n // k:
+            raise ValueError(f"感情 {c} が {len(cand)} 本しかなく {n // k} 本を抜けない")
+        idx.append(rng.choice(cand, size=n // k, replace=False))
+    return np.sort(np.concatenate(idx))
+
+
 def pooled_standardize(Xs: np.ndarray, Xt: np.ndarray
                        ) -> tuple[np.ndarray, np.ndarray]:
     """2 標本を合わせた平均・標準偏差で各次元を標準化する（md C4）。"""
@@ -56,10 +74,16 @@ def pooled_standardize(Xs: np.ndarray, Xt: np.ndarray
     return sc.transform(Xs), sc.transform(Xt)
 
 
+def _rank(r: int, d: int, n: int) -> int:
+    """PCA の次元。特徴の次元と標本数を超えない（対数オッズの 4 次元でも落ちないように）。"""
+    return max(1, min(r, d, n - 1))
+
+
 def pooled_pca(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM
                ) -> tuple[np.ndarray, np.ndarray]:
-    """合わせて標準化し，合わせた PCA で r 次元に落とす（md C6）。"""
+    """合わせて標準化し，合わせた PCA で r 次元に落とす（md C6）。次元は `_rank` で切る。"""
     Xs, Xt = pooled_standardize(Xs, Xt)
+    r = _rank(r, Xs.shape[1], len(Xs) + len(Xt))
     p = PCA(n_components=r, random_state=0).fit(np.vstack([Xs, Xt]))
     return p.transform(Xs), p.transform(Xt)
 
@@ -80,18 +104,21 @@ def pad(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray,
     g = np.r_[np.char.add("s:", np.asarray(gs, str)),
               np.char.add("t:", np.asarray(gt, str))]
     wrong = 0
-    for tr, te in GroupKFold(n_splits=n_folds).split(X, d, g):
+    # 話者を分けたまま，各袋に両側の話者が入るようにそろえる（md 1.1．GroupKFold では
+    # IEMOCAP のゼロ点（片側 5 人）で学習側が片方の群だけになった）
+    for tr, te in StratifiedGroupKFold(n_splits=n_folds).split(X, d, g):
         sc = StandardScaler().fit(X[tr])
         Xtr, Xte = sc.transform(X[tr]), sc.transform(X[te])
         best_c, best_err = PAD_C_GRID[0], np.inf
         for c in PAD_C_GRID:                          # 内側：話者で 3 分割
             errs = []
-            for itr, iva in GroupKFold(n_splits=3).split(Xtr, d[tr], g[tr]):
-                m = LogisticRegression(C=c, max_iter=2000).fit(Xtr[itr], d[tr][itr])
+            for itr, iva in StratifiedGroupKFold(n_splits=3).split(Xtr, d[tr], g[tr]):
+                m = LogisticRegression(C=c, max_iter=100000, tol=PAD_TOL).fit(
+                    Xtr[itr], d[tr][itr])
                 errs.append(np.mean(m.predict(Xtr[iva]) != d[tr][iva]))
             if np.mean(errs) < best_err:
                 best_c, best_err = c, float(np.mean(errs))
-        m = LogisticRegression(C=best_c, max_iter=2000).fit(Xtr, d[tr])
+        m = LogisticRegression(C=best_c, max_iter=100000, tol=PAD_TOL).fit(Xtr, d[tr])
         wrong += int(np.sum(m.predict(Xte) != d[te]))
     eps = wrong / len(X)
     return max(0.0, 2.0 * (1.0 - 2.0 * eps))
@@ -161,27 +188,42 @@ def cov_dominance(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM) -> float:
     最小固有値は小さい固有値の誤差に弱い。r を変えて安定するか確かめること。
     """
     Xs, Xt = pooled_standardize(Xs, Xt)
-    p = PCA(n_components=r, random_state=0).fit(Xt)
+    p = PCA(n_components=_rank(r, Xt.shape[1], len(Xt)), random_state=0).fit(Xt)
     Ps, Pt = p.transform(Xs), p.transform(Xt)
     Ss, St = np.cov(Ps, rowvar=False), np.cov(Pt, rowvar=False)
+    Ss, St = np.atleast_2d(Ss), np.atleast_2d(St)
     w, V = np.linalg.eigh(St)
+    keep = w > EIG_FLOOR * w.max()          # 広がりがほぼ 0 の方向は除く（md 2.2．落ちないように）
+    V, w = V[:, keep], w[keep]
     St_ih = V @ np.diag(1.0 / np.sqrt(w)) @ V.T
-    return float(np.linalg.eigvalsh(St_ih @ Ss @ St_ih).min())
+    M = V.T @ (St_ih @ Ss @ St_ih) @ V       # 残した方向の中だけで比べる
+    return float(np.linalg.eigvalsh((M + M.T) / 2).min())
 
 
 # ---------------------------------------------------------------- まとめて測る
 
 def input_metrics(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray,
-                  n: int = N_DEFAULT, reps: int = R_DEFAULT, seed: int = 0
-                  ) -> dict[str, float]:
-    """軸 1・2 の指標を，両側 n 本の抜き出しを reps 回くり返して平均と標準偏差で返す。"""
+                  n: int = N_DEFAULT, reps: int = R_DEFAULT, seed: int = 0,
+                  space: str = "raw", ys: np.ndarray | None = None,
+                  yt: np.ndarray | None = None) -> dict:
+    """軸 1・2 の指標を，両側 n 本の抜き出しを reps 回くり返して平均と標準偏差で返す。
+
+    space：`raw`＝渡した特徴のまま，`pca64`＝抜き出した 2 標本を合わせて標準化し PCA で
+    `PCA_DIM` 次元に落としてから測る（md 0.1）。対数オッズの空間は，それを特徴として渡す。
+    ys・yt を渡すと感情ごとに同数を抜く（md C9。n は 4 の倍数）。
+    """
+    if space not in SPACES:
+        raise ValueError(f"space は {SPACES} のどれか: {space}")
     rng = np.random.default_rng(seed)
     gs, gt = np.asarray(gs), np.asarray(gt)
+    balanced = ys is not None and yt is not None
     rows = []
     for _ in range(reps):
-        i = subsample(len(Xs), n, rng)
-        j = subsample(len(Xt), n, rng)
+        i = subsample_balanced(ys, n, rng) if balanced else subsample(len(Xs), n, rng)
+        j = subsample_balanced(yt, n, rng) if balanced else subsample(len(Xt), n, rng)
         a, b = Xs[i], Xt[j]
+        if space == "pca64":
+            a, b = pooled_pca(a, b, PCA_DIM)
         dens_t, cov_t = density_coverage(b, a)        # ターゲットがソースに覆われる
         dens_s, cov_s = density_coverage(a, b)        # 逆向き
         rows.append({
@@ -192,13 +234,14 @@ def input_metrics(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray
             "coverage_s_by_t": cov_s, "density_s_by_t": dens_s,
             "cov_dominance": cov_dominance(a, b),
         })
-    out: dict[str, float] = {}
+    out: dict = {}
     for key in rows[0]:
         v = np.array([r[key] for r in rows])
         out[key] = float(v.mean())
         out[key + "_sd"] = float(v.std(ddof=1)) if len(v) > 1 else float("nan")
     out["coverage_expected"] = expected_coverage(n, n)
     out["n"], out["reps"] = n, reps
+    out["space"], out["balanced"], out["dim"] = space, balanced, int(Xs.shape[1])
     return out
 
 
@@ -213,11 +256,14 @@ def speaker_halves(g: np.ndarray, seed: int) -> tuple[np.ndarray, np.ndarray]:
 
 
 def zero_point(X: np.ndarray, g: np.ndarray, n: int = N_DEFAULT,
-               reps: int = R_DEFAULT, seed: int = 0) -> dict[str, float]:
+               reps: int = R_DEFAULT, seed: int = 0, space: str = "raw",
+               y: np.ndarray | None = None) -> dict:
     """同じ群を話者で 2 つに割り，`input_metrics` と同じ手順で測った値（md C1）。"""
     g = np.asarray(g)
     a, b = speaker_halves(g, seed)
-    return input_metrics(X[a], g[a], X[b], g[b], n=n, reps=reps, seed=seed)
+    ya, yb = (None, None) if y is None else (np.asarray(y)[a], np.asarray(y)[b])
+    return input_metrics(X[a], g[a], X[b], g[b], n=n, reps=reps, seed=seed,
+                         space=space, ys=ya, yt=yb)
 
 
 # ---------------------------------------------------------------- 軸 3：割合

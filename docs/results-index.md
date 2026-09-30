@@ -90,12 +90,29 @@
 |---|---|
 | `results/map_timing_audio_wavlm.csv` | 計算時間の試走（2 ターゲット・反復 1 回で中断）．分析に使わない |
 
-### 3.4 これから作るもの（予定）
+### 3.4 ずれの指標（軸 1〜4）
+
+| 項目 | 内容 |
+|---|---|
+| 場所 | `results/shift_<kind>/` |
+| 作り方 | `./.venv/bin/python exp/shift_map.py {gpu,input,space} --kind <kind>`（段ごとの中身は `exp/shift_map.py` の先頭） |
+| 根拠 | `docs/shift-metrics.md`（0.1 節に測る空間），`researchvision.md` 6.5.1 共通の決まり 6（空間の選び方） |
+| ファイル | `labeling.csv`（軸 4：ソースのみの分類器の UAR・混同行列・Δ_CE・BER・P4-1 の検算．`cross_fit` が真の組は，同じ人物を除いて学び直した分類器で採点），`label.csv`（軸 3：割合の差．記述用と MLLS の推定），`input.csv`（軸 1・2．`space` は raw／pca64／logit，`balanced` は割合をそろえた版），`zero.csv`（ゼロ点），`space_choice.json`（規則の当てはめ），`logits/`（空間 logit の点数） |
+| 注意 | 空間 logit は 4 つの点数を和 0 の 3 次元の座標で表したもの．MLLS による割合の推定は，コーパス間では誤差が大きい（音声で ‖q − p_t‖₁ が 0.34〜1.71） |
+
+### 3.5 ずれを消す・足す操作（速報）
+
+| 項目 | 内容 |
+|---|---|
+| 場所 | `results/ops_<kind>/<ターゲット>.csv`（地図と同じ列に `op` を足したもの） |
+| 作り方 | `./.venv/bin/python exp/ops.py --kind <kind> --reps 0`（操作の一覧は `exp/ops.py` の先頭） |
+| 比べる相手 | 地図（3.1）の同じ `(target, source, K, rep)` の行．テストと K 本の抜き方は地図と同じ |
+| 注意 | 速報は反復 1 回．主判定に使う設定だけ（`experiment-policy.md` 2 節） |
+
+### 3.6 これから作るもの（予定）
 
 | 予定の場所 | 中身 | 根拠 |
 |---|---|---|
-| `results/shift_<kind>/` | ずれの指標（軸 1〜4）．軸 1・2 を測る空間は事前登録の規則で選ぶ | `shift-metrics.md`，`researchvision.md` 6.5.1 共通の決まり 6 |
-| `results/ops_<kind>/` | ずれを消す・足す操作．速報は主判定に使う設定だけを反復 1 回 | `experiment-protocol.md` 4 節，`researchvision.md` 6.5.1 |
 | 未定 | 事前登録した予言の判定 | `researchvision.md` 6.5.1 |
 
-作ったら，この節から 3.1 と同じ形の節に移す．
+作ったら，この節から上と同じ形の節に移す．

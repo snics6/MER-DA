@@ -129,13 +129,19 @@ MAX_HALVING = 50         # 歩幅を半分にする回数の上限。超えた�
 
 
 def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
-              Cs: tuple[float, ...], inits: list[Fitted | None] | None = None
+              Cs: tuple[float, ...], inits: list[Fitted | None] | None = None,
+              anchor: Fitted | None = None, anchor_c: float | None = None
               ) -> list[Fitted]:
     """masks[g]（学習に使う行）ごとに，候補の C すべてを束ねて解く。`fit` と同じ問題を解く。
 
     問 p = g·len(Cs) + i は，行 masks[g] で標準化し，C = Cs[i] で解く。
     計算は生の特徴の上で行う：標準化した特徴 z = (x − μ)/σ に対する (W, b) の出力は
     x @ (W/σ)ᵀ + (b − (μ/σ) Wᵀ) なので，全問の係数を並べて**行列積 1 回**で出力を出す。
+
+    **anchor を渡すと，罰則を ‖W − W_anchor‖² / (2CS) にする**（仮説転移 M5．Kuzborskij &
+    Orabona 2017）。W_anchor は anchor の C=anchor_c の解を，各問の標準化へ写したもの
+    （生の特徴の上で同じ出力．`moved_to`）。C が小さいほど anchor に強く引き寄せる。
+    anchor を渡したときは，出発点も anchor にする（inits は使わない）。
     """
     n, d = X.shape
     k, nC, G = N_CLASSES, len(Cs), len(masks)
@@ -149,6 +155,9 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     S = torch.empty(B, dtype=DTYPE, device=dev)
     C = torch.tensor([c for _ in range(G) for c in Cs], dtype=DTYPE, device=dev)
     theta = torch.zeros(B, P, dtype=DTYPE, device=dev)
+    Wanc = torch.zeros(B, k, d, dtype=DTYPE, device=dev)     # 罰則の中心（既定は 0）
+    if anchor is not None:
+        inits = [anchor] * G
     for g, m in enumerate(masks):
         m = torch.as_tensor(np.array(m), device=dev)
         Xm = X[m]
@@ -161,8 +170,10 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
             p = g * nC + i
             mu[p], sd[p], Mw[:, p], S[p] = mu_g, sd_g, sw, sw.sum()
             if inits[g] is not None:
-                W0, b0 = inits[g].moved_to(mu_g, sd_g, c)
+                W0, b0 = inits[g].moved_to(mu_g, sd_g, anchor_c if anchor is not None else c)
                 theta[p, :k * d], theta[p, k * d:] = W0.reshape(-1), b0
+                if anchor is not None:
+                    Wanc[p] = W0
     yy = y.view(n, 1, 1).expand(n, B, 1)
     mu_sd = mu / sd
 
@@ -173,7 +184,7 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         c0 = b - torch.einsum("bd,bkd->bk", mu_sd, W)
         L = (X @ A.T).view(n, B, k) + c0
         nll = -torch.log_softmax(L, 2).gather(2, yy).squeeze(2)          # (n, B)
-        f = (Mw * nll).sum(0) / S + (W * W).sum((1, 2)) / (2 * C * S)
+        f = (Mw * nll).sum(0) / S + ((W - Wanc) ** 2).sum((1, 2)) / (2 * C * S)
         (grad,) = torch.autograd.grad(f.sum(), th)
         return f.detach(), grad
 
