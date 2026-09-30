@@ -11,6 +11,7 @@
   反復ごとの UAR の t 区間は「抽出と分割の揺れ」だけを表す（話者を集め直す揺れは含まない）
 - `kstar.csv`：組ごとの K*＝差の 95% 区間の下端が 0 を上回る**最大の** K（protocol 3 節）。
   どの K でも上回らなければ `none`。**反復が 30 回そろっていない組は `provisional`**。
+  **反復が 2 回未満の組は区間が作れないので `na`（状態 `single_rep`）**。
   **IEMOCAP がターゲットの組は区間の計算法が未決**（テスト話者の組み合わせが 5・7 通りしかなく，
   30 回は独立でない。policy 3 節）なので `iemocap_interval_undecided` と書く
 - `c_rule.csv`：作り方 × K ごとの，C の決まり方（cv / tie / fixed）の割合
@@ -98,9 +99,13 @@ def pair_table(df: pd.DataFrame) -> pd.DataFrame:
 def kstar_table(pairs: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for (t, s), g in pairs.groupby(["target", "source"], observed=True):
+        n = int(g["n_rep"].min())
+        if n < 2:                                         # 区間が作れない（速報の 1 回など）
+            rows.append({"target": t, "source": s, "K_star": "na", "n_rep": n,
+                         "status": "single_rep"})
+            continue
         sig = g[g["diff_lo"] > 0]
         kstar = str(sig["K"].max()) if len(sig) else "none"
-        n = int(g["n_rep"].min())
         status = ("iemocap_interval_undecided" if t in IEMOCAP_TARGETS
                   else "final" if n >= R_FULL else "provisional")
         rows.append({"target": t, "source": s, "K_star": kstar, "n_rep": n, "status": status})
@@ -134,8 +139,10 @@ def fig_target(pairs: pd.DataFrame, target: str, kind: str, path: Path) -> None:
     fig, axes = plt.subplots(nrow, ncol, figsize=(10, 3.1 * nrow), sharey=True,
                              squeeze=False, facecolor=SURFACE)
     x = np.arange(len(K_ORDER))
-    lo_all = min(g[["tgt_lo", "merged_lo", "src_lo"]].min().min(), 0.25)
-    hi_all = g[["tgt_hi", "merged_hi", "src_hi"]].max().max()
+    cols_lo = ["tgt_lo", "merged_lo", "src_lo", "tgt_mean", "merged_mean", "src_mean"]
+    cols_hi = ["tgt_hi", "merged_hi", "src_hi", "tgt_mean", "merged_mean", "src_mean"]
+    lo_all = min(float(np.nanmin(g[cols_lo].to_numpy())), 0.25)   # 区間が無ければ平均から
+    hi_all = float(np.nanmax(g[cols_hi].to_numpy()))
     for ax, s in zip(axes.flat, sources):
         h = g[g.source == s].set_index("K").reindex(K_ORDER)
         _style(ax)
@@ -159,7 +166,9 @@ def fig_target(pairs: pd.DataFrame, target: str, kind: str, path: Path) -> None:
         ax.set_xlabel("K (labelled target clips per emotion)", fontsize=9, color=INK2)
     handles, labels = axes.flat[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper right", ncol=3, frameon=False, fontsize=9)
-    fig.suptitle(f"target: {target}   [{kind}]   dotted = chance (0.25), bars = 95% CI",
+    n_min = int(g["n_rep"].min())
+    bars = "bars = 95% CI" if n_min >= 2 else "single rep: no CI"
+    fig.suptitle(f"target: {target}   [{kind}]   dotted = chance (0.25), {bars}",
                  x=0.01, ha="left", fontsize=10, color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(path, dpi=130, facecolor=SURFACE)
@@ -198,7 +207,10 @@ def fig_gain(pairs: pd.DataFrame, kind: str, path: Path) -> None:
             ax.set_ylabel("target", fontsize=8, color=INK2)
     fig.colorbar(im, ax=axes, shrink=0.6,
                  label="merged − target only (UAR points; * = 95% CI excludes 0)")
-    fig.suptitle(f"Gain from adding the source  [{kind}]  (blank = not run yet or same group)",
+    n_min = int(pairs["n_rep"].min())
+    note = "" if n_min >= 2 else "  SINGLE REP: no CI, no * marks"
+    fig.suptitle(f"Gain from adding the source  [{kind}]  reps {n_min}–{int(pairs['n_rep'].max())}"
+                 f"  (blank = not run yet or same group){note}",
                  x=0.01, ha="left", fontsize=11, color=INK)
     fig.savefig(path, dpi=130, facecolor=SURFACE)
     plt.close(fig)
