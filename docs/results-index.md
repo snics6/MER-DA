@@ -22,6 +22,7 @@
 | 6 | `docs/related-work.md`，`docs/related-work-notes.md` | 先行研究の要点と，論文ごとの詳しいメモ |
 | 7 | `data/README.md` | データの中身と作り方 |
 | 8 | `docs/exploratory-analyses.md` | **研究の主軸の分析（E1〜）**：方法，主な数値，発表用のわかりやすい説明，限界 |
+| 9 | `docs/paper-positioning.md` | **論文の位置づけ**：先行研究との関係（書き方を直す点，足す文献），研究の価値，IEEE Access で想定される指摘．**本文の新しさ・関連研究・限界はこれに合わせて書く** |
 
 ## 2. 結果を使うときの決まり
 
