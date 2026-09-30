@@ -93,6 +93,14 @@ def correlations(d: pd.DataFrame) -> list[dict]:
     return rows
 
 
+def reps_note(corr: pd.DataFrame) -> str:
+    """種類ごとの地図の回数（最小〜最大）を図の題に書く文字列にする。"""
+    g = corr.groupby("kind")[["n_rep_min", "n_rep_max"]].agg({"n_rep_min": "min", "n_rep_max": "max"})
+    short = lambda k: k.replace("fuse-", "f:").replace("_wavlm", "").replace("_roberta", "")  # noqa: E731
+    return ", ".join(f"{short(k)} {int(r.n_rep_min)}" + (f"–{int(r.n_rep_max)}" if r.n_rep_max != r.n_rep_min else "")
+                     for k, r in g.reindex([k for k in KINDS if k in g.index]).iterrows())
+
+
 def fig_rho(corr: pd.DataFrame, path: Path) -> None:
     kinds = [k for k in KINDS if k in set(corr.kind)]
     fig, axes = plt.subplots(1, len(RESPONSES), figsize=(4.2 * len(RESPONSES), 6.4),
@@ -116,7 +124,7 @@ def fig_rho(corr: pd.DataFrame, path: Path) -> None:
         ax.set_yticks(range(len(METRICS)), list(METRICS.values()), fontsize=7)
         ax.set_title(RESPONSES[resp], fontsize=9, color=INK, loc="left")
     fig.suptitle("EXPLORATORY (not the pre-registered test): Spearman ρ across pairs between "
-                 "shift metrics and map results.  audio = 10–11 reps, others = 1 rep",
+                 f"shift metrics and map results.  reps: {reps_note(corr)}",
                  x=0.01, ha="left", fontsize=9, color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(path, dpi=130, facecolor=SURFACE)
@@ -124,6 +132,7 @@ def fig_rho(corr: pd.DataFrame, path: Path) -> None:
 
 
 def fig_rank(d: pd.DataFrame, path: Path) -> None:
+    lo, hi = int(d.n_rep.min()), int(d.n_rep.max())
     panels = [("kstar", "pad", "P1-2 preview: K* vs PAD"),
               ("worst", "delta_ce", "P2-1 preview: worst gain vs Δ_CE"),
               ("worst", "coverage_t_by_s", "P2-1 preview: worst gain vs coverage"),
@@ -144,7 +153,7 @@ def fig_rank(d: pd.DataFrame, path: Path) -> None:
         ax.set_xlabel(f"rank of {METRICS[met]}", fontsize=8, color=INK2)
         ax.set_ylabel(f"rank of {RESPONSES[resp]}", fontsize=8, color=INK2)
         ax.grid(axis="x", color=GRID, linewidth=0.6)
-    fig.suptitle("EXPLORATORY, audio (WavLM), 10–11 of 30 reps.  K* excludes IEMOCAP targets "
+    fig.suptitle(f"EXPLORATORY, audio (WavLM), {lo}–{hi} of 30 reps.  K* excludes IEMOCAP targets "
                  "(interval method undecided)", x=0.01, ha="left", fontsize=9, color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(path, dpi=130, facecolor=SURFACE)
