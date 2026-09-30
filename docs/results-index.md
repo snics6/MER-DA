@@ -115,7 +115,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 説明と主な数値 | **`docs/exploratory-analyses.md`**（E1：組をそのまま並べた順位相関，E2：ターゲットとソースの効果を分けた解析，E3：新しいターゲットに対するソースの順位の予想，E4：どの指標が予想に役立つか，E6：音声と映像の違いの切り分け，E5：ソースの選び方の比較） |
+| 説明と主な数値 | **`docs/exploratory-analyses.md`**（E1：組をそのまま並べた順位相関，E2：ターゲットとソースの効果を分けた解析，E3：新しいターゲットに対するソースの順位の予想，E4：どの指標が予想に役立つか，E5：ソースの選び方の比較，E6：音声と映像の違いの切り分け） |
 | 保存した結果 | `results/explore_relation/snapshots/<日時>/`（その時点の地図の回数とコミット番号は `state.json`）．`results/explore_relation/` の直下は，台本を流すたびに上書きされる |
 | 作り方 | `./.venv/bin/python exp/explore_relation.py` → `exp/explore_decomp.py` → `exp/explore_select.py` → `exp/explore_metrics.py` → `exp/explore_strategies.py` |
 | 注意 | **確かめた結果として扱わない．**E2 は HuBERT で確かめる仮説 H7 として `researchvision.md` 6.5.2 に事前登録した |
