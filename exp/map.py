@@ -67,7 +67,7 @@ sys.path.insert(0, str(ROOT / "exp"))
 import common  # noqa: E402
 import logreg  # noqa: E402
 import shift  # noqa: E402
-from data import GROUP_SPEC, MODALITIES, groups_for, load_group  # noqa: E402
+from data import GROUP_SPEC, MODALITIES, groups_for, load_any  # noqa: E402
 from split import check_disjoint, speaker_folds  # noqa: E402
 
 C_GRID = (0.01, 0.1, 1.0, 10.0)      # protocol 1 節
@@ -100,7 +100,8 @@ class Group:
 
 
 def load(name: str, kind: str) -> Group:
-    df, X = load_group(name, kind)
+    """kind は単一のエンコーダ名（例 audio_wavlm）か融合名（例 fuse-audio-video）。"""
+    df, X = load_any(name, kind)
     sp = df["speaker_group"].astype(str).reset_index(drop=True)
     person = (GROUP_SPEC[name][0] + ":" + sp).to_numpy()
     return Group(name, logreg.to_device(X), df["label_4"].to_numpy(), sp, person)

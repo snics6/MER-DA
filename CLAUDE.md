@@ -21,6 +21,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | 実験の手順（条件・分割・ずれを消す操作） | `docs/experiment-protocol.md` |
 | ずれの指標の定義と注意 | `docs/shift-metrics.md` |
 | 先行研究の要点 | `docs/related-work.md` |
+| 結果の場所・作り方・使ってよい状態（執筆・発表の入口） | `docs/results-index.md`（進み具合は `results/status.md`） |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `researchvision.md` が勝つ．**
 食い違いを見つけたら，勝った側に合わせて負けた側を直す（放置しない）．
@@ -60,7 +61,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
 | `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |
-| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），検算（`test_map.py`・`test_summarize.py`）．結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
+| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），検算（`test_map.py`・`test_summarize.py`）．結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
 | `run/build_data.sh` | データの作り直し台本 | ○ |
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |
