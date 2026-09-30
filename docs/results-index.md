@@ -15,12 +15,13 @@
 | # | ファイル | 何が分かるか |
 |---|---|---|
 | 1 | `CLAUDE.md` | データの取り決め（話者分割，ラベル 4 つ，主指標 UAR），正本の優先順位 |
-| 2 | `researchvision.md` | 研究の目的・理論（Ben-David 2010 Theorem 3 ほか）・仮説．**事前登録は 6.5 節（H1〜H6）と 6.5.1 節（予言 P1〜P4 と確かめ方）** |
+| 2 | `researchvision.md` | 研究の目的・理論（Ben-David 2010 Theorem 3 ほか）・仮説．**2026-09-30 の方針転換は 0.1 節**（主軸は地図と E シリーズ）．事前登録は 6.5 節（H1〜H6），6.5.1 節（予言 P1〜P4），6.5.2 節（H7） |
 | 3 | `docs/experiment-policy.md` | 実験の決定事項と未決事項（日付と根拠つき．更新記録あり） |
 | 4 | `docs/experiment-protocol.md` | 手順（条件・分割・ずれを消す操作）と，理論からの予言の導出（7 節） |
 | 5 | `docs/shift-metrics.md` | ずれの指標の定義と注意 |
 | 6 | `docs/related-work.md`，`docs/related-work-notes.md` | 先行研究の要点と，論文ごとの詳しいメモ |
 | 7 | `data/README.md` | データの中身と作り方 |
+| 8 | `docs/exploratory-analyses.md` | **研究の主軸の分析（E1〜）**：方法，主な数値，発表用のわかりやすい説明，限界 |
 
 ## 2. 結果を使うときの決まり
 
