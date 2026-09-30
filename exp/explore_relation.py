@@ -1,0 +1,170 @@
+"""【探索的・途中の見立て】②のずれの指標と，①の地図の結果の関係を，組をまたぐ順位相関で見る。
+
+**事前登録（`researchvision.md` 6.5.1）の判定ではない。**登録した判定は，30 回そろった結果で，
+登録した手順（主判定・Holm）で行う。ここでは，いまある回数の結果で傾向を見るだけにする。
+
+    ./.venv/bin/python exp/explore_relation.py
+
+入力：`results/map_<kind>/summary/{pairs,kstar}.csv`（先に `summarize_map.py` を流す），
+`results/shift_<kind>/{input,label,labeling}.csv` と `space_choice.json`（選ばれた空間の行だけ使う）。
+出力：`results/explore_relation/`
+
+| ファイル | 中身 |
+|---|---|
+| `corr.csv` | 種類 × 結果の量 × 指標ごとの Spearman の ρ，p 値（目安），組の数，地図の回数 |
+| `fig_rho.png` | 上の ρ を種類ごとに並べた表 |
+| `fig_rank_audio.png` | 音声の主な組み合わせの，順位で描いた散布図（順位に引いた直線の傾きが ρ） |
+
+結果の量（組ごと）：`gain_K1`・`gain_K5`＝合併 − ターゲットのみ の UAR の差の平均（K=1・5），
+`worst`＝K をまたいだ差の平均の最小値（予言 P2-1 の m），`kstar`＝暫定の K*（順位：none < 1 < 5 < … < all．
+反復 2 回以上の種類だけ．IEMOCAP がターゲットの組は除く．policy 3 節）。
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import matplotlib
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "exp"))
+from summarize_map import (C_MERGED, GRID, INK, INK2, MUTED, SURFACE, DIVERGING,  # noqa: E402
+                           IEMOCAP_TARGETS, _style)
+
+KINDS = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-audio-text",
+         "fuse-video-text", "fuse-audio-video-text")
+KSTAR_RANK = {"none": 0, "1": 1, "5": 2, "10": 3, "25": 4, "50": 5, "all": 6}
+METRICS = {                               # 列名 → 表示名（軸）
+    "pad": "PAD (axis 1)", "pad_bal": "PAD, class-balanced (axis 1)", "mmd2": "MMD² (axis 1)",
+    "frechet": "Fréchet (axis 1)", "coverage_t_by_s": "coverage (axis 2)",
+    "density_t_by_s": "density (axis 2)",
+    "cov_dominance": "cov. dominance c (axis 2)", "l1_true": "label-prior L1 (axis 3)",
+    "r_src": "R_src = 1 − UAR(src only) (axis 4)", "delta_ce": "Δ_CE (axis 4)",
+}
+RESPONSES = {"gain_K1": "gain at K=1", "gain_K5": "gain at K=5", "worst": "worst gain over K",
+             "kstar": "K* (provisional)"}
+
+
+def per_pair(kind: str) -> pd.DataFrame | None:
+    m, s = ROOT / "results" / f"map_{kind}" / "summary", ROOT / "results" / f"shift_{kind}"
+    if not (m / "pairs.csv").exists() or not (s / "space_choice.json").exists():
+        return None
+    pairs = pd.read_csv(m / "pairs.csv", dtype={"K": str})
+    piv = pairs.pivot_table(index=["target", "source"], columns="K", values="diff_mean")
+    out = pd.DataFrame({"gain_K1": piv["1"], "gain_K5": piv["5"], "worst": piv.min(axis=1)})
+    out["n_rep"] = pairs.groupby(["target", "source"])["n_rep"].min()
+    ks = pd.read_csv(m / "kstar.csv", dtype=str).set_index(["target", "source"])
+    out["kstar"] = [KSTAR_RANK.get(ks.loc[i, "K_star"], np.nan)
+                    if ks.loc[i, "status"] not in ("single_rep", "iemocap_interval_undecided")
+                    else np.nan for i in out.index]
+    space = json.loads((s / "space_choice.json").read_text())["choice"]
+    inp_all = pd.read_csv(s / "input.csv", comment="#")
+    inp = inp_all[(inp_all.space == space) & (~inp_all.balanced)].set_index(["target", "source"])
+    bal = inp_all[(inp_all.space == space) & (inp_all.balanced)].set_index(["target", "source"])
+    lab = pd.read_csv(s / "labeling.csv", comment="#").set_index(["target", "source"])
+    lb = pd.read_csv(s / "label.csv", comment="#").set_index(["target", "source"])
+    for c in ("pad", "mmd2", "frechet", "coverage_t_by_s", "density_t_by_s", "cov_dominance"):
+        out[c] = inp[c]
+    out["pad_bal"] = bal["pad"]
+    out["r_src"], out["delta_ce"], out["l1_true"] = lab["r_src"], lab["delta_ce"], lb["l1_true"]
+    out["kind"], out["space"] = kind, space
+    return out.reset_index()
+
+
+def correlations(d: pd.DataFrame) -> list[dict]:
+    rows = []
+    for resp in RESPONSES:
+        for met in METRICS:
+            x = d[[resp, met]].dropna()
+            if len(x) < 5 or x[resp].nunique() < 2:
+                continue
+            rho, p = stats.spearmanr(x[resp], x[met])
+            rows.append({"kind": d.kind.iloc[0], "response": resp, "metric": met,
+                         "rho": rho, "p": p, "n_pairs": len(x),
+                         "n_rep_min": int(d.n_rep.min()), "n_rep_max": int(d.n_rep.max())})
+    return rows
+
+
+def fig_rho(corr: pd.DataFrame, path: Path) -> None:
+    kinds = [k for k in KINDS if k in set(corr.kind)]
+    fig, axes = plt.subplots(1, len(RESPONSES), figsize=(4.2 * len(RESPONSES), 6.4),
+                             facecolor=SURFACE, sharey=True)
+    for ax, resp in zip(axes, RESPONSES):
+        h = corr[corr.response == resp]
+        M = np.full((len(METRICS), len(kinds)), np.nan)
+        N = np.zeros_like(M, dtype=int)
+        for r in h.itertuples():
+            i, j = list(METRICS).index(r.metric), kinds.index(r.kind)
+            M[i, j], N[i, j] = r.rho, r.n_pairs
+        ax.imshow(M, cmap=DIVERGING, vmin=-1, vmax=1, aspect="auto")
+        for i in range(M.shape[0]):
+            for j in range(M.shape[1]):
+                if np.isfinite(M[i, j]):
+                    ax.text(j, i, f"{M[i, j]:+.2f}\n(n={N[i, j]})", ha="center", va="center",
+                            fontsize=6.5, color="#ffffff" if abs(M[i, j]) > 0.55 else INK)
+        ax.set_xticks(range(len(kinds)), [k.replace("fuse-", "f:").replace("_wavlm", "")
+                                          .replace("_roberta", "") for k in kinds],
+                      rotation=45, ha="right", fontsize=7)
+        ax.set_yticks(range(len(METRICS)), list(METRICS.values()), fontsize=7)
+        ax.set_title(RESPONSES[resp], fontsize=9, color=INK, loc="left")
+    fig.suptitle("EXPLORATORY (not the pre-registered test): Spearman ρ across pairs between "
+                 "shift metrics and map results.  audio = 10–11 reps, others = 1 rep",
+                 x=0.01, ha="left", fontsize=9, color=INK)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(path, dpi=130, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def fig_rank(d: pd.DataFrame, path: Path) -> None:
+    panels = [("kstar", "pad", "P1-2 preview: K* vs PAD"),
+              ("worst", "delta_ce", "P2-1 preview: worst gain vs Δ_CE"),
+              ("worst", "coverage_t_by_s", "P2-1 preview: worst gain vs coverage"),
+              ("gain_K1", "r_src", "gain at K=1 vs R_src")]
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.0 * len(panels), 3.8), facecolor=SURFACE)
+    for ax, (resp, met, title) in zip(axes, panels):
+        x = d[[resp, met]].dropna()
+        _style(ax)
+        rx, ry = stats.rankdata(x[met]), stats.rankdata(x[resp])
+        ax.scatter(rx, ry, s=28, color=C_MERGED, edgecolor=SURFACE, linewidth=1.5, zorder=3)
+        if len(x) >= 3:
+            b, a = np.polyfit(rx, ry, 1)
+            xx = np.array([rx.min(), rx.max()])
+            ax.plot(xx, a + b * xx, color=MUTED, linewidth=1.5)
+            rho = stats.spearmanr(x[resp], x[met])[0]
+            ax.set_title(f"{title}\nρ = {rho:+.2f}  (n = {len(x)} pairs)", fontsize=8.5,
+                         color=INK, loc="left")
+        ax.set_xlabel(f"rank of {METRICS[met]}", fontsize=8, color=INK2)
+        ax.set_ylabel(f"rank of {RESPONSES[resp]}", fontsize=8, color=INK2)
+        ax.grid(axis="x", color=GRID, linewidth=0.6)
+    fig.suptitle("EXPLORATORY, audio (WavLM), 10–11 of 30 reps.  K* excludes IEMOCAP targets "
+                 "(interval method undecided)", x=0.01, ha="left", fontsize=9, color=INK)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(path, dpi=130, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def main() -> int:
+    out = ROOT / "results" / "explore_relation"
+    out.mkdir(parents=True, exist_ok=True)
+    data = [d for k in KINDS if (d := per_pair(k)) is not None]
+    per = pd.concat(data, ignore_index=True)
+    per.to_csv(out / "per_pair.csv", index=False)
+    corr = pd.DataFrame([r for d in data for r in correlations(d)])
+    corr.to_csv(out / "corr.csv", index=False)
+    fig_rho(corr, out / "fig_rho.png")
+    fig_rank(per[per.kind == "audio_wavlm"], out / "fig_rank_audio.png")
+    print(f"種類: {[d.kind.iloc[0] for d in data]}")
+    print(f"書いた: {out}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

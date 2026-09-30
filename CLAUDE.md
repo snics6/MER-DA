@@ -22,6 +22,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | ずれの指標の定義と注意 | `docs/shift-metrics.md` |
 | 先行研究の要点 | `docs/related-work.md` |
 | 結果の場所・作り方・使ってよい状態（執筆・発表の入口） | `docs/results-index.md`（進み具合は `results/status.md`） |
+| 探索的な解析の方法・数値・限界（事前登録の判定とは別） | `docs/exploratory-analyses.md` |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `researchvision.md` が勝つ．**
 食い違いを見つけたら，勝った側に合わせて負けた側を直す（放置しない）．

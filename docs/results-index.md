@@ -109,7 +109,16 @@
 | 比べる相手 | 地図（3.1）の同じ `(target, source, K, rep)` の行．テストと K 本の抜き方は地図と同じ |
 | 注意 | 速報は反復 1 回．主判定に使う設定だけ（`experiment-policy.md` 2 節） |
 
-### 3.6 これから作るもの（予定）
+### 3.6 探索的な解析（途中の見立て）
+
+| 項目 | 内容 |
+|---|---|
+| 説明と主な数値 | **`docs/exploratory-analyses.md`**（E1：組をそのまま並べた順位相関，E2：ターゲットとソースの効果を分けた解析） |
+| 保存した結果 | `results/explore_relation/snapshots/<日時>/`（その時点の地図の回数とコミット番号は `state.json`）．`results/explore_relation/` の直下は，台本を流すたびに上書きされる |
+| 作り方 | `./.venv/bin/python exp/explore_relation.py` → `exp/explore_decomp.py` |
+| 注意 | **確かめた結果として扱わない．**E2 は HuBERT で確かめる仮説 H7 として `researchvision.md` 6.5.2 に事前登録した |
+
+### 3.7 これから作るもの（予定）
 
 | 予定の場所 | 中身 | 根拠 |
 |---|---|---|
