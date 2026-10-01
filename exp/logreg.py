@@ -130,8 +130,8 @@ MAX_HALVING = 50         # 歩幅を半分にする回数の上限。超えた�
 
 def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
               Cs: tuple[float, ...], inits: list[Fitted | None] | None = None,
-              anchor: Fitted | None = None, anchor_c: float | None = None
-              ) -> list[Fitted]:
+              anchor: Fitted | None = None, anchor_c: float | None = None,
+              weights: list[torch.Tensor | None] | None = None) -> list[Fitted]:
     """masks[g]（学習に使う行）ごとに，候補の C すべてを束ねて解く。`fit` と同じ問題を解く。
 
     問 p = g·len(Cs) + i は，行 masks[g] で標準化し，C = Cs[i] で解く。
@@ -142,6 +142,9 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     Orabona 2017）。W_anchor は anchor の C=anchor_c の解を，各問の標準化へ写したもの
     （生の特徴の上で同じ出力．`moved_to`）。C が小さいほど anchor に強く引き寄せる。
     anchor を渡したときは，出発点も anchor にする（inits は使わない）。
+
+    weights[g] を渡すと，masks[g] の行の重みを感情の釣り合いの重み（`balanced_weights`）の
+    代わりにそれにする（長さ n．使うのは masks[g] の行だけ）。罰則の S は重みの和。
     """
     n, d = X.shape
     k, nC, G = N_CLASSES, len(Cs), len(masks)
@@ -165,7 +168,10 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         sd_g = Xm.std(0, correction=0)
         sd_g = torch.where(sd_g > 1e-12, sd_g, torch.ones_like(sd_g))
         sw = torch.zeros(n, dtype=DTYPE, device=dev)
-        sw[m] = balanced_weights(y[m])
+        if weights is not None and weights[g] is not None:
+            sw[m] = weights[g].to(dev, DTYPE)[m]
+        else:
+            sw[m] = balanced_weights(y[m])
         for i, c in enumerate(Cs):
             p = g * nC + i
             mu[p], sd[p], Mw[:, p], S[p] = mu_g, sd_g, sw, sw.sum()
