@@ -42,7 +42,7 @@
 | 項目 | 内容 |
 |---|---|
 | 場所 | `results/map_<kind>/<ターゲット>.csv`．1 行 1 条件．**反復 1 回が終わるたびに追記** |
-| kind | `audio_wavlm`（本番 30 回を実行中），`video`，`text_roberta`，`fuse-audio-video`，`fuse-audio-text`，`fuse-video-text`，`fuse-audio-video-text`（速報 1 回）．第 2 エンコーダ（`audio_hubert` など）は未実施 |
+| kind | `audio_wavlm`（本番 30 回を実行中），`video`，`text_roberta`，`fuse-audio-video`，`fuse-audio-text`，`fuse-video-text`，`fuse-audio-video-text`（5 回．2026-10-01 に完了）．第 2 エンコーダ（`audio_hubert` など）は未実施 |
 | 作り方 | `./.venv/bin/python exp/map.py --kind <kind> [--reps …] [--resume]`（コードは `exp/map.py`・`exp/logreg.py`） |
 | 手順の根拠 | `experiment-protocol.md` 2〜3 節，`experiment-policy.md` 2 節 |
 | 追跡 | 各ファイルの `#` で始まる行（実行ごとの設定とコミット番号），`results/map_<kind>/code/<開始時刻>/`（実行したコードの写し）．**`map_audio_wavlm` は未コミットの状態で起動した**（記録は `6845855+dirty`）が，写しの `map.py`・`logreg.py` はコミット `ea8a79a` と同じ（2026-09-30 確認） |
