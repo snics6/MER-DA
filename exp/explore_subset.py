@@ -39,9 +39,9 @@ def e34(kind: str, groups: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
         dk["rsrc_K"], dk["dce_K"] = 1 - dk[f"uar_t_K{K}"], dk[f"dce_K{K}"]
         targets = sorted(dk.target.unique())
         for m in options:
-            for t, rho, top1, reg in loto(dk, targets, [] if m is None else [m]):
+            for t, rho, top1, reg, tb, tw in loto(dk, targets, [] if m is None else [m]):
                 single.append({"K": K, "metric": m or "none", "target": t, "rho": rho,
-                               "top1": top1, "regret": reg})
+                               "top1": top1, "regret": reg, "tau_b": tb, "tau_w": tw})
         for t in targets:
             inner = dk[(dk.target != t) & (dk.source != t)]
             inner_targets = [u for u in targets if u != t]
@@ -51,20 +51,22 @@ def e34(kind: str, groups: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
                 if r > best_rho:
                     best, best_rho = m, r
             test = dk[dk.target == t]
-            rho, top1, reg = score(fit_predict(inner, test, "gain", [] if best is None else [best]),
-                                   test.gain.to_numpy())
+            rho, top1, reg, tb, tw = score(fit_predict(inner, test, "gain",
+                                                       [] if best is None else [best]),
+                                           test.gain.to_numpy())
             nested.append({"K": K, "target": t, "chosen": best or "none", "rho": rho,
-                           "top1": top1, "regret": reg})
+                           "top1": top1, "regret": reg, "tau_b": tb, "tau_w": tw})
     return pd.DataFrame(single), pd.DataFrame(nested)
 
 
 def main() -> int:
     single, nested = e34(KIND, SIX)
-    single.groupby(["K", "metric"])[["rho", "top1", "regret"]].mean().reset_index().to_csv(
+    single.groupby(["K", "metric"])[["rho", "tau_b", "tau_w", "top1", "regret"]].mean().reset_index().to_csv(
         OUT / "e7_e34_single.csv", index=False)
     nested.to_csv(OUT / "e7_e34_nested.csv", index=False)
     e5 = pd.DataFrame(ES.run_kind(KIND, SIX))
-    (e5.groupby(["K", "strategy"]).agg(rho=("rho", "mean"), top1=("top1", "mean"),
+    (e5.groupby(["K", "strategy"]).agg(rho=("rho", "mean"), tau_b=("tau_b", "mean"),
+                                       tau_w=("tau_w", "mean"), top1=("top1", "mean"),
                                        regret=("regret", "mean"), n_targets=("target", "nunique"))
        .reset_index().to_csv(OUT / "e7_e5_summary.csv", index=False))
     print(f"書いた: {OUT}")

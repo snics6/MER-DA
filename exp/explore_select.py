@@ -45,6 +45,12 @@ MODELS = {"source": [], "+pad": ["pad"], "+coverage": ["coverage_t_by_s"],
           "+pad+coverage+rsrc_K": ["pad", "coverage_t_by_s", "rsrc_K"]}
 
 
+def taus(pred: np.ndarray, actual: np.ndarray) -> dict[str, float]:
+    """Kendall の τ-b（同点を扱う）と重みつき τ（Vigna 2015．上位ほど重い．scipy の既定で両向きの平均）。"""
+    return {"tau_b": float(stats.kendalltau(pred, actual, variant="b")[0]),
+            "tau_w": float(stats.weightedtau(pred, actual)[0])}
+
+
 def table(kind: str) -> pd.DataFrame:
     per = pd.read_csv(OUT / "per_pair.csv")
     d = per[per.kind == kind][["target", "source", "pad", "coverage_t_by_s"]]
@@ -88,11 +94,12 @@ def main() -> int:
                                  "rho": stats.spearmanr(pred, actual)[0],
                                  "top1": bool(np.argmax(pred) == np.argmax(actual)),
                                  "regret": (best - pick) * 100, "n_sources": len(test),
-                                 "n_train_pairs": len(train)})
+                                 "n_train_pairs": len(train), **taus(pred, actual)})
     by = pd.DataFrame(rows)
     by.to_csv(OUT / "select_by_target.csv", index=False)
     sm = (by.groupby(["kind", "K", "model"])
-            .agg(rho=("rho", "mean"), top1=("top1", "mean"), regret=("regret", "mean"),
+            .agg(rho=("rho", "mean"), tau_b=("tau_b", "mean"), tau_w=("tau_w", "mean"),
+                 top1=("top1", "mean"), regret=("regret", "mean"),
                  n_targets=("target", "nunique")).reset_index())
     sm.to_csv(OUT / "select_summary.csv", index=False)
     fig(sm, OUT / "fig_select.png")

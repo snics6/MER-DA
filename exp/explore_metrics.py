@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
 from explore_decomp import gains_all_k  # noqa: E402
-from explore_select import fit_predict  # noqa: E402
+from explore_select import fit_predict, taus  # noqa: E402
 from summarize_map import C_MERGED, C_TGT, GRID, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
 OUT = ROOT / "results" / "explore_relation"
@@ -70,9 +70,11 @@ def table(kind: str) -> tuple[pd.DataFrame, list[str]]:
     return d, cands
 
 
-def score(pred: np.ndarray, actual: np.ndarray) -> tuple[float, bool, float]:
+def score(pred: np.ndarray, actual: np.ndarray) -> tuple[float, bool, float, float, float]:
+    """(ρ, 1 位を当てたか, 損, τ-b, 重みつき τ)。入れ子の選択の基準には ρ（先頭）を使う。"""
+    t = taus(pred, actual)
     return (stats.spearmanr(pred, actual)[0], bool(np.argmax(pred) == np.argmax(actual)),
-            (actual.max() - actual[int(np.argmax(pred))]) * 100)
+            (actual.max() - actual[int(np.argmax(pred))]) * 100, t["tau_b"], t["tau_w"])
 
 
 def loto(dk: pd.DataFrame, targets: list[str], xs: list[str]) -> list[tuple[str, float, bool, float]]:
@@ -95,9 +97,9 @@ def main() -> int:
             dk["rsrc_K"], dk["dce_K"] = 1 - dk[f"uar_t_K{K}"], dk[f"dce_K{K}"]
             targets = sorted(dk.target.unique())
             for m in options:
-                for t, rho, top1, reg in loto(dk, targets, [] if m is None else [m]):
+                for t, rho, top1, reg, tb, tw in loto(dk, targets, [] if m is None else [m]):
                     single.append({"kind": kind, "K": K, "metric": m or "none", "target": t,
-                                   "rho": rho, "top1": top1, "regret": reg})
+                                   "rho": rho, "top1": top1, "regret": reg, "tau_b": tb, "tau_w": tw})
             for t in targets:                                # 入れ子：t を見ずに指標を選ぶ
                 inner = dk[(dk.target != t) & (dk.source != t)]
                 inner_targets = [u for u in targets if u != t]
@@ -108,21 +110,24 @@ def main() -> int:
                         best, best_rho = m, r
                 train = dk[(dk.target != t) & (dk.source != t)]
                 test = dk[dk.target == t]
-                rho, top1, reg = score(fit_predict(train, test, "gain", [] if best is None else [best]),
-                                       test.gain.to_numpy())
+                rho, top1, reg, tb, tw = score(fit_predict(train, test, "gain",
+                                                           [] if best is None else [best]),
+                                               test.gain.to_numpy())
                 nested.append({"kind": kind, "K": K, "target": t, "chosen": best or "none",
-                               "rho": rho, "top1": top1, "regret": reg})
+                               "rho": rho, "top1": top1, "regret": reg, "tau_b": tb, "tau_w": tw})
     s1, sn = pd.DataFrame(single), pd.DataFrame(nested)
     s1.to_csv(OUT / "e4_single_by_target.csv", index=False)
     sn.to_csv(OUT / "e4_nested.csv", index=False)
-    agg = (s1.groupby(["kind", "K", "metric"]).agg(rho=("rho", "mean"), top1=("top1", "mean"),
+    agg = (s1.groupby(["kind", "K", "metric"]).agg(rho=("rho", "mean"), tau_b=("tau_b", "mean"),
+                                                   tau_w=("tau_w", "mean"), top1=("top1", "mean"),
                                                    regret=("regret", "mean")).reset_index())
     none = agg[agg.metric == "none"].set_index(["kind", "K"])
     agg["d_rho"] = agg.apply(lambda r: r.rho - none.loc[(r.kind, r.K), "rho"], axis=1)
     agg["d_regret"] = agg.apply(lambda r: r.regret - none.loc[(r.kind, r.K), "regret"], axis=1)
+    agg["d_tau_b"] = agg.apply(lambda r: r.tau_b - none.loc[(r.kind, r.K), "tau_b"], axis=1)
     agg.to_csv(OUT / "e4_single.csv", index=False)
 
-    small = agg[agg.K.isin(K_SMALL)].groupby(["kind", "metric"])[["d_rho", "d_regret"]].mean()
+    small = agg[agg.K.isin(K_SMALL)].groupby(["kind", "metric"])[["d_rho", "d_tau_b", "d_regret"]].mean()
     part = pd.read_csv(OUT / "decomp_partial.csv")
     part = part[part.response.isin(["gain_K1", "gain_K5", "kstar"])]
     part = part.pivot_table(index=["kind", "metric"], columns="response", values="r_partial_rank")

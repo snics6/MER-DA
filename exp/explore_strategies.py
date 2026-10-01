@@ -45,7 +45,7 @@ sys.path.insert(0, str(ROOT / "exp"))
 import map as M  # noqa: E402
 from data import GROUP_SPEC, load_any  # noqa: E402
 from explore_metrics import loto, table as metric_table  # noqa: E402
-from explore_select import fit_predict  # noqa: E402
+from explore_select import fit_predict, taus  # noqa: E402
 from shift_map import sum_zero_coords  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
@@ -103,12 +103,13 @@ def logme(F: np.ndarray, y: np.ndarray, k: int = 4, iters: int = 100) -> float:
 def evaluate(scores: np.ndarray, gains: np.ndarray) -> dict:
     ok = np.isfinite(scores)
     if not ok.any():
-        return {"rho": np.nan, "top1": np.nan, "regret": np.nan}
+        return {"rho": np.nan, "top1": np.nan, "regret": np.nan, "tau_b": np.nan, "tau_w": np.nan}
     s = np.where(ok, scores, -np.inf)
     pick = int(np.argmax(s))
+    t = taus(s, gains) if ok.all() else {"tau_b": np.nan, "tau_w": np.nan}
     return {"rho": stats.spearmanr(s, gains)[0] if ok.all() else np.nan,
             "top1": float(pick == int(np.argmax(gains))),
-            "regret": (gains.max() - gains[pick]) * 100}
+            "regret": (gains.max() - gains[pick]) * 100, **t}
 
 
 def groups_light(kind: str, names: list[str]) -> dict:
@@ -150,7 +151,7 @@ def run_kind(kind: str, groups: list[str] | None = None) -> list[dict]:
             g_true = np.array([gains.loc[(t, s), K] for s in srcs])
             base = {"kind": kind, "K": K, "target": t, "n_sources": len(srcs)}
             # でたらめ：期待値
-            out.append({**base, "strategy": "random", "rep": -1, "rho": 0.0,
+            out.append({**base, "strategy": "random", "rep": -1, "rho": 0.0, "tau_b": 0.0, "tau_w": 0.0,
                         "top1": 1 / len(srcs), "regret": float(np.mean(g_true.max() - g_true)) * 100})
             # ほかのターゲットから作る方法（反復に依らない）
             train = dk[(dk.target != t) & (dk.source != t)]
@@ -229,7 +230,7 @@ def main() -> int:
     rows = [r for kind in KINDS for r in run_kind(kind)]
     by = pd.DataFrame(rows)
     by.to_csv(OUT / "e5_by_target.csv", index=False)
-    per_t = by.groupby(["kind", "K", "strategy", "target"])[["rho", "top1", "regret"]].mean()
+    per_t = by.groupby(["kind", "K", "strategy", "target"])[["rho", "tau_b", "tau_w", "top1", "regret"]].mean()
     n_reps = by[by.rep >= 0].groupby(["kind"]).rep.nunique()
     sm = per_t.groupby(["kind", "K", "strategy"]).mean().reset_index()
     sm["n_targets"] = per_t.reset_index().groupby(["kind", "K", "strategy"]).target.nunique().values
