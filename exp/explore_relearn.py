@@ -190,7 +190,65 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
     return {k: pd.DataFrame(v) for k, v in out.items()} | {"_reps": tr}
 
 
+def analyse_cwt(kind: str) -> dict[str, pd.DataFrame] | None:
+    """H3 と H4 を同時に取り除いた合併（`mech.py --mode cwt` → `results/mech2_<kind>/`）を，
+    地図の合併・中心をそろえた合併・α を選んだ合併・ターゲットのみと比べる。"""
+    c2 = read(f"mech2_{kind}")
+    if c2.empty:
+        return None
+    tr = done_reps(c2)
+    mp = read(f"map_{kind}").merge(tr)
+    mech = read(f"mech_{kind}").merge(tr)
+    t = mp[mp.method == "tgt_only"][["target", "K", "rep", "uar"]].rename(columns={"uar": "t"})
+    m = mp[mp.method == "merged"][["target", "source", "K", "rep", "uar"]].rename(columns={"uar": "m"})
+    cw = c2[(c2.op == "cwt") & (c2.method == "merged")]
+    x = cw[["target", "source", "K", "rep", "uar", "alpha"]].rename(columns={"uar": "cwt"}).merge(m).merge(t)
+    for op, col in (("center", "center"), ("wt", "wt")):
+        y = mech[(mech.op == op) & (mech.method == "merged")][["target", "source", "K", "rep", "uar"]]
+        x = x.merge(y.rename(columns={"uar": col}), how="left")
+    e10 = pd.read_csv(OUT / "e10_pair.csv")
+    e10 = e10[e10.kind == kind].set_index(["target", "source"]).eff_lda
+    groups = groups_for(kind)
+    settings = [(kind, groups)] + ([(f"{kind} 6 groups", SIX)] if kind == "audio_wavlm" else [])
+    rows, alphas, pairs = [], [], []
+    for name, gs in settings:
+        h0 = x[x.target.isin(gs) & x.source.isin(gs)]
+        for K in K_ORDER:
+            h = h0[h0.K == K]
+            if h.empty:
+                continue
+            pp = h.groupby(["target", "source"], as_index=False)[["cwt", "m", "t", "center", "wt"]].mean()
+            pp["eff_lda"] = [e10.get((a, b), np.nan) for a, b in zip(pp.target, pp.source)]
+            pp["loss_cwt"] = pp.cwt - pp.t
+            row = {"setting": name, "K": K, "n_pairs": len(pp), "n_rows": len(h)}
+            for col in ("m", "center", "wt", "cwt"):
+                if pp[col].notna().all():
+                    g = pp[col] - pp.t
+                    row[f"gain_{col}"] = float(g.mean())
+                    row[f"neg1_{col}"] = int((g < -0.01).sum())
+                    row[f"worst_{col}"] = float(g.min())
+            row["rho_losscwt_efflda"] = rho(pp.loss_cwt, pp.eff_lda)
+            pr = partial_rank(pp.dropna(subset=["eff_lda"]), "loss_cwt", "eff_lda")
+            row["r_partial_losscwt_efflda"] = pr["r_partial_rank"] if pr else np.nan
+            row["p_partial_losscwt_efflda"] = pr["p"] if pr else np.nan
+            neg = pp[pp.loss_cwt < -0.01]
+            row["eff_lda_neg_mean"] = float(neg.eff_lda.mean()) if len(neg) else np.nan
+            row["eff_lda_rest_mean"] = float(pp[pp.loss_cwt >= -0.01].eff_lda.mean())
+            rows.append(row)
+            for a in sorted(h.alpha.astype(str).unique()):
+                alphas.append({"setting": name, "K": K, "alpha": a,
+                               "share_chosen": float((h.alpha.astype(str) == a).mean())})
+            pairs.append(pp.assign(setting=name, K=K))
+    return {"cwt": pd.DataFrame(rows), "cwt_alpha": pd.DataFrame(alphas),
+            "cwt_pairs": pd.concat(pairs, ignore_index=True) if pairs else pd.DataFrame()}
+
+
 def main() -> int:
+    cw = {k: analyse_cwt(k) for k in KINDS}
+    cw = {k: v for k, v in cw.items() if v is not None}
+    for name in ("cwt", "cwt_alpha", "cwt_pairs"):
+        if cw:
+            pd.concat([r[name] for r in cw.values()], ignore_index=True).to_csv(OUT / f"e12_{name}.csv", index=False)
     res = {k: analyse(k) for k in KINDS}
     res = {k: v for k, v in res.items() if v is not None}
     if not res:
