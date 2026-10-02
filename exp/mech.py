@@ -25,7 +25,12 @@ K が大きいときの負の得が消えるか。
 同じ（成績は保留側のターゲットの行だけで測る）。最良の (α, C) を選ぶ。同点なら nat，次に α の小さい方を
 採り，C の同点は地図の規則（`map.choose_c`）。全候補のテストの UAR も残す（オラクル．分析専用）。
 
+**H3 と H4 を同時に取り除く（`--mode cwt`）**：中心をそろえた特徴で合併を学び，α を候補 `ALPHAS_CWT`
+（0.9 を足した 5 つ）から C と一緒に交差検証で選ぶ（op cwt）。出発点に使う中心をそろえたソースのみの行も書く。
+既定の書き出し先は `results/mech2_<kind>/`。
+
     ./.venv/bin/python exp/mech.py --kind audio_wavlm --reps 0 1 2
+    ./.venv/bin/python exp/mech.py --mode cwt --kind audio_wavlm --reps 0
 """
 from __future__ import annotations
 
@@ -47,13 +52,20 @@ import shift  # noqa: E402
 from data import groups_for  # noqa: E402
 
 ALPHAS = ("nat", 0.25, 0.5, 0.75)
+ALPHAS_CWT = ("nat", 0.25, 0.5, 0.75, 0.9)
 K_SRC = M.K_GRID                          # D1 の K
 K_CENTER = ("1", "5", "25", "all")        # 中心をそろえた合併の K
 K_WT = ("5", "25", "all")                 # α を選ぶ合併の K
-EXTRA = (["alpha", "alpha_cv"]
-         + [f"cv_a{a}_C{c:g}" for a in ALPHAS for c in M.C_GRID]
-         + [f"test_a{a}_C{c:g}" for a in ALPHAS for c in M.C_GRID])
-COLUMNS = ["op"] + M.COLUMNS + EXTRA
+K_CWT = ("1", "5", "25", "all")           # 中心をそろえて α を選ぶ合併の K
+
+
+def columns(alphas) -> list[str]:
+    return (["op"] + M.COLUMNS + ["alpha", "alpha_cv"]
+            + [f"cv_a{a}_C{c:g}" for a in alphas for c in M.C_GRID]
+            + [f"test_a{a}_C{c:g}" for a in alphas for c in M.C_GRID])
+
+
+COLUMNS = columns(ALPHAS)
 
 
 def expected_rows(n_src: int, k_src: int, k_center: int, k_wt: int) -> int:
@@ -100,7 +112,7 @@ def alpha_weights(y: np.ndarray, first: np.ndarray, m: np.ndarray, a) -> torch.T
 
 
 def train_alpha(X: torch.Tensor, y: np.ndarray, person: np.ndarray, first: np.ndarray,
-                seed: int, other_seed: int, init: M.Trained) -> dict:
+                seed: int, other_seed: int, init: M.Trained, alphas=ALPHAS) -> dict:
     """α と C を交差検証で選ぶ。袋の作り方と温め直しは `map.train` と同じ。"""
     t0 = time.perf_counter()
     yt = M.labels(y)
@@ -114,7 +126,7 @@ def train_alpha(X: torch.Tensor, y: np.ndarray, person: np.ndarray, first: np.nd
     if not all(len(np.unique(y[folds != j])) == M.N_CLASSES for j in used):
         used = []
     masks, ws, inits, tags = [], [], [], []
-    for a in ALPHAS:
+    for a in alphas:
         for j in used + [None]:
             m = np.ones(len(y), bool) if j is None else folds != j
             masks.append(m)
@@ -126,7 +138,7 @@ def train_alpha(X: torch.Tensor, y: np.ndarray, person: np.ndarray, first: np.nd
     cv = None
     if used:
         cv = {}
-        for a in ALPHAS:
+        for a in alphas:
             pred = {c: np.full(len(y), -1) for c in M.C_GRID}
             for (aa, j), f in zip(tags, fits):
                 if aa != a or j is None:
@@ -138,7 +150,7 @@ def train_alpha(X: torch.Tensor, y: np.ndarray, person: np.ndarray, first: np.nd
             for c in M.C_GRID:
                 cv[(a, c)] = shift.uar(y[first], pred[c][first])
         best = (None, None, -np.inf)
-        for a in ALPHAS:                                   # 同点なら先の候補（nat，小さい α）
+        for a in alphas:                                   # 同点なら先の候補（nat，小さい α）
             c, _ = M.choose_c({c: cv[(a, c)] for c in M.C_GRID})
             if cv[(a, c)] > best[2] + 1e-12:
                 best = (a, c, cv[(a, c)])
@@ -223,6 +235,42 @@ def run_rep(tgt: M.Group, sources: list[M.Group], r: int, kind: str, cache: dict
     return rows
 
 
+def run_rep_cwt(tgt: M.Group, sources: list[M.Group], r: int, kind: str, cache: dict,
+                k_cwt) -> list[dict]:
+    """H3 と H4 を同時に取り除く：中心をそろえた特徴で，α を選ぶ合併。"""
+    te = M.test_mask(tgt, r)
+    pool = np.flatnonzero(~te)
+    order = M.kshot_order(tgt, pool, r)
+    test_persons = np.unique(tgt.person[te])
+    y_test = tgt.y[te]
+    base = {"target": tgt.name, "rep": r, "kind": kind, "n_test": int(te.sum())}
+    Xt = centered(tgt.X, False)
+    X_test = M.rows(Xt, te)
+    rows = []
+    for s in sources:
+        keep = ~np.isin(s.person, test_persons)
+        ex = tuple(np.intersect1d(test_persons, s.person))
+        ys, ps = s.y[keep], s.person[keep]
+        Xs = centered(M.rows(s.X, keep), False)
+        sbase = {**base, "source": s.name}
+        key = ("src", "center", s.name, ex)
+        cached = key in cache
+        if not cached:
+            cache[key] = M.train(Xs, ys, ps, np.ones(len(ys), bool), M.SRC_CV_SEED)
+        rows.append({**sbase, "op": "center", "method": "src_only", "K": "", "n_src": len(ys),
+                     "n_tgt": 0, **M.score(cache[key], X_test, y_test, cached)})
+        for K in k_cwt:
+            idx = M.take_k(order, K)
+            n = len(idx)
+            first = np.r_[np.ones(n, bool), np.zeros(len(ys), bool)]
+            t = train_alpha(torch.cat([M.rows(Xt, idx), Xs]), np.r_[tgt.y[idx], ys],
+                            np.r_[tgt.person[idx], ps], first, r, M.SRC_CV_SEED, cache[key],
+                            ALPHAS_CWT)
+            rows.append({**sbase, "op": "cwt", "method": "merged", "K": K, "n_src": len(ys),
+                         "n_tgt": n, **score_alpha(t, X_test, y_test)})
+    return rows
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="得の仕組みの仮説 H3・H4 の確かめ（E12）")
     ap.add_argument("--kind", default=M.MODALITIES["audio"][0])
@@ -232,21 +280,26 @@ def main() -> None:
     ap.add_argument("--K-src", nargs="+", default=list(K_SRC), choices=M.K_GRID)
     ap.add_argument("--K-center", nargs="+", default=list(K_CENTER), choices=M.K_GRID)
     ap.add_argument("--K-wt", nargs="+", default=list(K_WT), choices=M.K_GRID)
+    ap.add_argument("--mode", default="full", choices=["full", "cwt"])
+    ap.add_argument("--K-cwt", nargs="+", default=list(K_CWT), choices=M.K_GRID)
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args()
-    args.cold, args.K = False, sorted(set(args.K_src + args.K_center + args.K_wt),
-                                      key=M.K_GRID.index)
+    cwt = args.mode == "cwt"
+    ks = args.K_cwt if cwt else args.K_src + args.K_center + args.K_wt
+    args.cold, args.K = False, sorted(set(ks), key=M.K_GRID.index)
+    cols = columns(ALPHAS_CWT) if cwt else COLUMNS
 
     avail = groups_for(args.kind)
     args.target, args.source = args.target or avail, args.source or avail
-    out_dir = args.out_dir or ROOT / "results" / f"mech_{args.kind}"
+    out_dir = args.out_dir or ROOT / "results" / f"{'mech2' if cwt else 'mech'}_{args.kind}"
     out_dir.mkdir(parents=True, exist_ok=True)
     done: dict[str, set[int]] = {}
     for tname in args.target:
         path = out_dir / f"{tname}.csv"
-        want = expected_rows(len([s for s in args.source if s != tname]), len(args.K_src),
-                             len(args.K_center), len(args.K_wt))
+        n_src = len([s for s in args.source if s != tname])
+        want = (n_src * (1 + len(args.K_cwt)) if cwt else
+                expected_rows(n_src, len(args.K_src), len(args.K_center), len(args.K_wt)))
         done[tname] = set()
         if path.exists():
             if not args.resume:
@@ -257,8 +310,9 @@ def main() -> None:
             done[tname] = set(int(r) for r in cnt.index)
 
     prov = M.provenance(args)
-    prov.update({"script": "exp/mech.py", "alphas": list(ALPHAS), "K_src": args.K_src,
-                 "K_center": args.K_center, "K_wt": args.K_wt})
+    prov.update({"script": "exp/mech.py", "mode": args.mode,
+                 "alphas": list(ALPHAS_CWT if cwt else ALPHAS), "K_src": args.K_src,
+                 "K_center": args.K_center, "K_wt": args.K_wt, "K_cwt": args.K_cwt})
     code = M.snapshot_code(out_dir.resolve(), prov["started"])
     prov["code"] = str(code.relative_to(ROOT) if code.is_relative_to(ROOT) else code)
     data = {g: M.load(g, args.kind) for g in dict.fromkeys(args.target + args.source)}
@@ -266,7 +320,7 @@ def main() -> None:
         with open(out_dir / f"{tname}.csv", "a") as f:
             f.write("# " + json.dumps(prov, ensure_ascii=False) + "\n")
             if not done[tname]:
-                pd.DataFrame(columns=COLUMNS).to_csv(f, index=False)
+                pd.DataFrame(columns=cols).to_csv(f, index=False)
 
     cache: dict = {}
     t_all = time.perf_counter()
@@ -276,10 +330,11 @@ def main() -> None:
                 continue
             sources = [data[s] for s in args.source if s != tname]
             t0 = time.perf_counter()
-            rows = run_rep(data[tname], sources, r, args.kind, cache, args.K_src,
-                           args.K_center, args.K_wt)
-            pd.DataFrame(rows, columns=COLUMNS).to_csv(out_dir / f"{tname}.csv", mode="a",
-                                                       header=False, index=False)
+            rows = (run_rep_cwt(data[tname], sources, r, args.kind, cache, args.K_cwt) if cwt else
+                    run_rep(data[tname], sources, r, args.kind, cache, args.K_src,
+                            args.K_center, args.K_wt))
+            pd.DataFrame(rows, columns=cols).to_csv(out_dir / f"{tname}.csv", mode="a",
+                                                    header=False, index=False)
             print(f"{tname} r={r}: {len(rows)} 行 {time.perf_counter() - t0:.1f} 秒"
                   f"（累計 {time.perf_counter() - t_all:.0f} 秒）", flush=True)
     print(f"終わり: {out_dir}", flush=True)
