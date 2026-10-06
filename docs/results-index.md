@@ -129,6 +129,16 @@
 | 比べる相手 | 地図（3.1）の同じ `(target, source, K, rep)` の行．テストと K 本の抜き方は地図と同じ．`wt` の α=nat の列は地図の合併と一致する（確認済み） |
 | 注意 | 反復 0〜2 だけ．音声と映像 |
 
+### 3.6.2 仮説 H7 の判定（HuBERT）
+
+| 項目 | 内容 |
+|---|---|
+| 場所 | `results/check_h7/`（`primary.csv`：主判定 4 つと判定，`secondary.csv`：副判定，`share.csv`：ばらつきの内訳，`raw_corr.csv`：組をそのまま並べた順位相関，`fig_h7.png`，`provenance.json`） |
+| 作り方 | `./.venv/bin/python exp/summarize_map.py --dir results/map_audio_hubert` → `./.venv/bin/python exp/check_h7.py` |
+| 根拠 | `researchvision.md` 6.5.2（登録した手順．末尾に判定の結果を追記した） |
+| 説明と主な数値 | `docs/exploratory-analyses.md` の「HuBERT での確かめ」（2026-10-06）．4 つとも「判定できない」 |
+| 注意 | 比べるために WavLM の値も同じ表に出す．WavLM の値は結果を見た後に方法を決めた探索的な値で，判定には使わない |
+
 ### 3.7 これから作るもの（予定）
 
 | 予定の場所 | 中身 | 根拠 |
