@@ -93,3 +93,4 @@
 | 2026-10-02 | E12 の後に，H3 と H4 を同時に取り除く学び直し（中心をそろえて α を選ぶ．候補に 0.9 を足す．音声・反復 0．`exp/mech.py --mode cwt` → `results/mech2_audio_wavlm/`）を挟んだ（利用者の承認）．地図の再開はその後（23 時半ごろ終わる見込み） |
 | 2026-10-02 | E12 の続き（H3 と H4 を同時に取り除く．音声・反復 0）を記録した．16:58 に本番の音声の地図を再開した |
 | 2026-10-06 | 得の仕組みの仮説（E11〜E14）の名前を H1〜H6 から MH1〜MH6 に付け替えた．`researchvision.md` 6.5 節に事前登録した H1〜H6 と区別するためである．この表の 2026-10-02 の行の H1〜H5 は MH1〜MH5 を指す．文書（`docs/exploratory-analyses.md`・`docs/results-index.md`）とコード（`exp/explore_mechanism.py`・`explore_relearn.py`・`explore_speakers.py`・`mech.py`）の名前を直した．保存済みの図と `e11_primary.csv` は，計算し直すまで旧名のまま |
+| 2026-10-06 | HuBERT（`audio_hubert`）の軸 1・2 を測る空間は，登録した規則（`researchvision.md` 6.5.1 共通の決まり 6）で logit に決まった．`exp/shift_map.py space` が 2026-10-02 21:08 に UAR と K* を見ずに選んだ（PAD が 1.9 未満の組：logit 42 組中 42，pca64 20，raw 20．`results/shift_audio_hubert/space_choice.json`）．H7 の K* との関係を計算する前にここに記録した |
