@@ -1,15 +1,15 @@
-"""【探索的】得の仕組みの仮説 H3・H4 を，学び直した結果で確かめる（E12．学び直しは `exp/mech.py`）。
+"""【探索的】得の仕組みの仮説 MH3・MH4 を，学び直した結果で確かめる（E12．学び直しは `exp/mech.py`）。
 
 比べる相手は地図（`results/map_<kind>/`）の同じ (target, source, K, rep) の行。`mech.py` が終えた反復だけを使う。
 
-H3（中心のずれ）
+MH3（中心のずれ）
 - ソースのみ：中心をそろえる（center）・標準化もそろえる（I1）と UAR がどれだけ上がるか。上がり幅が，
   ソースのみの答えの偏り TV（E11）・`shift_emo`・`shift_total` の大きい組ほど大きいか
-- D1（ソースのみの出力に，K 本で学んだ感情ごとのずらしを足す）：上がり幅が，合併 − ソースのみ（E11 の H3c）と
+- D1（ソースのみの出力に，K 本で学んだ感情ごとのずらしを足す）：上がり幅が，合併 − ソースのみ（E11 の MH3c）と
   一致するか。少数の例の働きが位置のずれの修正なら，D1 だけで合併の上がり幅の大部分が出るはず
 - 中心をそろえた合併：地図の合併よりどれだけ上がるか。そろえた後は，合併 − ソースのみが小さくなるか
 
-H4（ターゲットが埋もれる）
+MH4（ターゲットが埋もれる）
 - α を交差検証で選んだ合併（wt）の得が，地図の合併（nat）の得より大きいか。特に K ≥ 25 で負の得が消えるか
 - wt − nat の上がり幅が，同じターゲット・同じ K の中で，大きいソースほど大きいか
 - 選ばれた α の分布。テストで最良の α（オラクル）との差
@@ -97,7 +97,7 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
     for name, gs in settings:
         sel = lambda d: d[d.target.isin(gs) & d.source.isin(gs)]  # noqa: E731
 
-        # ---- H3：ソースのみの中心・標準化
+        # ---- MH3：ソースのみの中心・標準化
         for op in ("center", "I1"):
             x = sel(mech[(mech.op == op) & (mech.method == "src_only")])[["target", "source", "rep", "uar"]]
             x = x.merge(s).assign(d=lambda h: h.uar - h.s)
@@ -115,7 +115,7 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
                 row[f"p_partial_{q}"] = pr["p"] if pr else np.nan
             out["src"].append(row)
 
-        # ---- H3c：D1 の上がり幅と，合併の上がり幅
+        # ---- MH3c：D1 の上がり幅と，合併の上がり幅
         for op in ("none", "center"):
             x = sel(mech[(mech.op == op) & (mech.method == "src_only+D1")])[["target", "source", "K", "rep", "uar"]]
             base = s if op == "none" else sel(mech[(mech.op == "center") & (mech.method == "src_only")])[
@@ -137,7 +137,7 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
                                   "r_partial_d1s_tv": pr["r_partial_rank"] if pr else np.nan,
                                   "p_partial_d1s_tv": pr["p"] if pr else np.nan})
 
-        # ---- H3：中心をそろえた合併
+        # ---- MH3：中心をそろえた合併
         x = sel(mech[(mech.op == "center") & (mech.method == "merged")])[["target", "source", "K", "rep", "uar"]]
         sc = sel(mech[(mech.op == "center") & (mech.method == "src_only")])[["target", "source", "rep", "uar"]]
         x = x.rename(columns={"uar": "mc"}).merge(m).merge(t).merge(s).merge(sc.rename(columns={"uar": "sc"}))
@@ -157,7 +157,7 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
                                   "r_partial_diff_tv": pr["r_partial_rank"] if pr else np.nan,
                                   "p_partial_diff_tv": pr["p"] if pr else np.nan})
 
-        # ---- H4：α を選んだ合併
+        # ---- MH4：α を選んだ合併
         w = sel(mech[(mech.op == "wt") & (mech.method == "merged")]).copy()
         w = w.merge(m).merge(t)
         test_cols = {(a, c): f"test_a{a}_C{c}" for a in ALPHAS for c in C_GRID}
@@ -191,7 +191,7 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
 
 
 def analyse_cwt(kind: str) -> dict[str, pd.DataFrame] | None:
-    """H3 と H4 を同時に取り除いた合併（`mech.py --mode cwt` → `results/mech2_<kind>/`）を，
+    """MH3 と MH4 を同時に取り除いた合併（`mech.py --mode cwt` → `results/mech2_<kind>/`）を，
     地図の合併・中心をそろえた合併・α を選んだ合併・ターゲットのみと比べる。"""
     c2 = read(f"mech2_{kind}")
     if c2.empty:
@@ -276,7 +276,7 @@ def fig(path: Path) -> None:
     h.plot.bar(ax=ax, color=[C_MERGED, C_SRC], rot=0)
     ax.axhline(0, color=MUTED, linewidth=0.8)
     ax.set_ylabel("source-only UAR change", fontsize=8, color=INK2)
-    ax.set_title("H3: centring / per-corpus standardisation", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH3: centring / per-corpus standardisation", fontsize=8.5, color=INK, loc="left")
     ax.legend(frameon=False, fontsize=7)
     ax = axes[1]
     _style(ax)
@@ -287,7 +287,7 @@ def fig(path: Path) -> None:
     ax.set_xticks(range(6), K_ORDER)
     ax.axhline(0, color=MUTED, linewidth=0.8)
     ax.legend(frameon=False, fontsize=6)
-    ax.set_title("H3c: offset-only fix (D1) vs merged", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH3c: offset-only fix (D1) vs merged", fontsize=8.5, color=INK, loc="left")
     ax = axes[2]
     _style(ax)
     for s, g in wt.groupby("setting"):
@@ -299,7 +299,7 @@ def fig(path: Path) -> None:
     ax.axhline(0, color=MUTED, linewidth=0.8)
     ax.set_ylabel("gain over target-only", fontsize=8, color=INK2)
     ax.legend(frameon=False, fontsize=6)
-    ax.set_title("H4: choosing the target weight α", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH4: choosing the target weight α", fontsize=8.5, color=INK, loc="left")
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor=SURFACE)
     plt.close(fig)

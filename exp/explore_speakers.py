@@ -1,4 +1,4 @@
-"""【探索的】H6：位置のずれはコーパス全体で 1 つではなく話者ごとに違うか（E14）。
+"""【探索的】MH6：位置のずれはコーパス全体で 1 つではなく話者ごとに違うか（E14）。
 
 ソースのみの分類器がターゲットに出した 4 つの点数（`results/shift_<kind>/logits/`）と，ターゲットの話者を使う。
 新しい学習はしない。
@@ -12,7 +12,7 @@
   - ラベルを使わない版：点数から，その話者の全発話の点数の平均を引き，コーパス全体の平均を足す（実際に使える操作）
 - 話者ごとの成績のばらつき：話者ごとの UAR（2 本以上ある感情だけ）の標準偏差
 
-予言（H6）
+予言（MH6）
 1. 悪い組（ソースのみの UAR の組に固有の部分が低い組）ほど，S と話者ごとの成績のばらつきが大きい
 2. コーパス全体で中心をそろえた後（E12 の center）に残る損は，S が大きい組ほど大きい
 3.（参考）話者ごとに位置をそろえると，点数の上でも成績が上がる
@@ -187,7 +187,7 @@ def fig(D: pd.DataFrame, path: Path) -> None:
     ax.set_xlabel("share of within-emotion score spread due to speakers", fontsize=8, color=INK2)
     ax.set_ylabel("source-only UAR on target", fontsize=8, color=INK2)
     ax.legend(frameon=False, fontsize=7)
-    ax.set_title("H6: speaker offsets vs source-only accuracy", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH6: speaker offsets vs source-only accuracy", fontsize=8.5, color=INK, loc="left")
     ax = axes[1]
     _style(ax)
     for k, c in col.items():

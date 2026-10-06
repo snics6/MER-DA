@@ -1,4 +1,4 @@
-"""【探索的】得の仕組みの仮説 H1〜H5 の予言を，今ある地図と特徴空間の量で確かめる（E11）。
+"""【探索的】得の仕組みの仮説 MH1〜MH5 の予言を，今ある地図と特徴空間の量で確かめる（E11）。
 
 仮説と式は `docs/exploratory-analyses.md` E11 節。共通のモデルは，2 つの感情を直線で分ける場面で，
 ターゲットでの成績が「向きの良さ d」と「位置のずれ o」で決まるというもの。4 感情の UAR は，
@@ -6,21 +6,21 @@
 正解率 `uar4(d)` で d に換算する（実効の離れ方 d_eff = uar4⁻¹(UAR)）。
 
 予言と確かめ方（いずれも学び直しはしない）
-- **H1（雑音の削減）**：K=1 の得 ≈ ソースのみ − ターゲットのみ（K=1）。組ごとに回帰し，傾きと決定係数を見る。
+- **MH1（雑音の削減）**：K=1 の得 ≈ ソースのみ − ターゲットのみ（K=1）。組ごとに回帰し，傾きと決定係数を見る。
   反復をまたいだ UAR の標準偏差を，ターゲットのみと合併で比べる
-- **H2（向きのずれ）**：ターゲットのみの学習曲線 d_eff(K) = Δ_t/√(1 + q_t/K) をターゲットごとに当てはめ，
+- **MH2（向きのずれ）**：ターゲットのみの学習曲線 d_eff(K) = Δ_t/√(1 + q_t/K) をターゲットごとに当てはめ，
   向きの効率 e（`e10_pair.csv` の `eff_lda`，または地図のソースのみから e_emp = d_eff(ソースのみ)/Δ_t）から
   交わる K を K_x = q_t e²/(1 − e²) と予言する。観測した交わる K（反復平均の得の符号が変わる K を
   log K で線形補間）と順位相関をとる
-- **H3（中心のずれ）**：ソースのみの分類器の答えの偏り（`labeling.csv` の混同行列の列ごとの平均と
+- **MH3（中心のずれ）**：ソースのみの分類器の答えの偏り（`labeling.csv` の混同行列の列ごとの平均と
   0.25 の差の総変動距離 TV）と `shift_emo` の組に固有の関係。偏る感情が，ずれ δ = c_t − c_s を
   ソースの感情の矢印に射影した β_k の最大の感情と一致するか（偶然なら 1/4）
-- **H3c（少数の例が位置のずれを直す）**：合併 − ソースのみ（K 本を足して良くなった幅）が，ソースのみの
+- **MH3c（少数の例が位置のずれを直す）**：合併 − ソースのみ（K 本を足して良くなった幅）が，ソースのみの
   答えの偏り TV と，ターゲットがソースからどれだけ離れているか（PAD，フレシェ距離）と組に固有に関係するか
-- **H4（ターゲットが埋もれる）**：ターゲットとソースのみの間で合併がどこにいるか
+- **MH4（ターゲットが埋もれる）**：ターゲットとソースのみの間で合併がどこにいるか
   φ = (合併 − ソースのみ)/(ターゲットのみ − ソースのみ) が，同じターゲット・同じ K の中で，
   ターゲットの割合 α = n_tgt/(n_src + n_tgt) の大きいソースほど大きいか。K ≥ 25 のソースの効果と log n_src
-- **H5（表し方の軸）**：E8 の 1 本の軸の位置と，コーパスの感情の分かれ方（`dprime`，`own_lda`）の順位相関。
+- **MH5（表し方の軸）**：E8 の 1 本の軸の位置と，コーパスの感情の分かれ方（`dprime`，`own_lda`）の順位相関。
   組の得の組に固有の部分と −|x_t − x_s| の偏相関
 - **まとめのモデル**：d_merged(K) = Δ_t (e + (1 − e) α_K^γ) として，γ だけを種類ごとに当てはめ，
   全組 × 全 K の得をどれだけ再現するかを見る
@@ -147,7 +147,7 @@ def kstar(g: pd.DataFrame) -> pd.Series:
     return pd.Series(out)
 
 
-# ---------------------------------------------------------------- H2：学習曲線
+# ---------------------------------------------------------------- MH2：学習曲線
 
 def curve(K, delta, q):
     return delta / np.sqrt(1 + q / K)
@@ -192,7 +192,7 @@ def kx_pred(q: float, e: float, K_all: float) -> float:
     return q * e ** 2 / (1 - e ** 2)
 
 
-# ---------------------------------------------------------------- H3：ずれの向き
+# ---------------------------------------------------------------- MH3：ずれの向き
 
 def beta_table(kind: str) -> pd.DataFrame:
     """β_k = ⟨δ, d_k^s⟩/‖d_k^s‖²（E9 と同じ空間）。"""
@@ -254,7 +254,7 @@ def main() -> int:
         g = sub(maps[kind], groups)
         geom = kind in GEOM_KINDS
 
-        # ---- H1
+        # ---- MH1
         for K in ("1", "5"):
             h = g[g.K == K]
             x, y = (h.s - h.t).to_numpy(), h.gain.to_numpy()
@@ -270,7 +270,7 @@ def main() -> int:
                        "sd_m": float(h.sd_m.mean()), "sd_ratio": float((h.sd_t / h.sd_m).median()),
                        "mean_alpha": float(h.alpha.mean())})
 
-        # ---- H2
+        # ---- MH2
         cv = fit_curves(g)
         curves_out.append(cv.assign(setting=name).reset_index())
         P = g[g.K == "1"][["target", "source", "s"]].copy()
@@ -307,10 +307,10 @@ def main() -> int:
                 h2.append({"setting": name, "e": f"{a} vs {b}", "observed": "", "n_pairs": len(P),
                            "rho_pred_obs": rho, "p": p})
             r, p1 = one_sided(partial_rank(P, "kx_obs", "log_e2_e_geom"))
-            primary.append({"setting": name, "test": "H2 K_x ~ e_geom (partial)", "stat": r, "p": p1})
+            primary.append({"setting": name, "test": "MH2 K_x ~ e_geom (partial)", "stat": r, "p": p1})
         h2pair.append(P.assign(setting=name))
 
-        # ---- H3（幾何のある種類）
+        # ---- MH3（幾何のある種類）
         if geom:
             B = bias_table(kind).merge(beta_table(kind), on=["target", "source"])
             B = B.merge(e9[e9.kind == kind][["target", "source", "shift_emo", "shift_total"]],
@@ -331,11 +331,11 @@ def main() -> int:
             row["r_srcuar_tv"], row["p_srcuar_tv"] = (pr["r_partial_rank"], pr["p"]) if pr else (np.nan, np.nan)
             row["tv_mean"], row["tv_max"] = float(B.tv.mean()), float(B.tv.max())
             h3.append(row)
-            primary.append({"setting": name, "test": "H3 top predicted = top beta", "stat": row["match_rate"], "p": bt.pvalue})
+            primary.append({"setting": name, "test": "MH3 top predicted = top beta", "stat": row["match_rate"], "p": bt.pvalue})
             r, p1 = one_sided(partial_rank(B, "tv", "shift_emo"))
-            primary.append({"setting": name, "test": "H3 TV ~ shift_emo (partial)", "stat": r, "p": p1})
+            primary.append({"setting": name, "test": "MH3 TV ~ shift_emo (partial)", "stat": r, "p": p1})
 
-            # ---- H3c：K 本を足して良くなった幅
+            # ---- MH3c：K 本を足して良くなった幅
             D = per[per.kind == kind][["target", "source", "pad", "frechet"]]
             for K in ("1", "5", "10", "25"):
                 h = g[g.K == K].assign(m_s=lambda x: x.m - x.s).merge(B, on=["target", "source"]).merge(D)
@@ -348,9 +348,9 @@ def main() -> int:
                                 "mean_m_minus_s": float(h.m_s.mean())})
             r, p1 = one_sided(partial_rank(
                 g[g.K == "5"].assign(m_s=lambda x: x.m - x.s).merge(B, on=["target", "source"]), "m_s", "tv"))
-            primary.append({"setting": name, "test": "H3c merged - src at K=5 ~ TV (partial)", "stat": r, "p": p1})
+            primary.append({"setting": name, "test": "MH3c merged - src at K=5 ~ TV (partial)", "stat": r, "p": p1})
 
-        # ---- H4
+        # ---- MH4
         signs = []
         for K in K_ORDER[1:]:
             rhos = []
@@ -365,7 +365,7 @@ def main() -> int:
                            "n_positive": int((rhos > 0).sum())})
         if len(signs) >= 6:
             w = stats.wilcoxon(signs, alternative="greater")
-            primary.append({"setting": name, "test": "H4 phi ~ alpha within target", "stat": float(np.mean(signs)), "p": w.pvalue})
+            primary.append({"setting": name, "test": "MH4 phi ~ alpha within target", "stat": float(np.mean(signs)), "p": w.pvalue})
         n_src = g.groupby("source").n_src.mean()
         for K in K_ORDER:
             f = fit(g[g.K == K], "gain")
@@ -374,7 +374,7 @@ def main() -> int:
             rho, p = stats.spearmanr(b, np.log(n_src.reindex(b.index)))
             h4src.append({"setting": name, "K": K, "n_sources": len(b), "rho_b_logn": rho, "p": p})
 
-        # ---- H5（幾何のある種類）
+        # ---- MH5（幾何のある種類）
         if geom:
             cp = e9c[e9c.kind == kind].set_index("group")
             own = e10c[e10c.kind == kind].set_index("group").own_lda
@@ -401,7 +401,7 @@ def main() -> int:
                                "p_efflda_negabsdiff": pe["p"] if pe else np.nan})
                     if K == "5" and xname == "dprime":
                         r, p1 = one_sided(pr)
-                        primary.append({"setting": name, "test": "H5 gain K=5 ~ -|d' diff| (partial)",
+                        primary.append({"setting": name, "test": "MH5 gain K=5 ~ -|d' diff| (partial)",
                                         "stat": r, "p": p1})
 
         # ---- まとめのモデル
@@ -468,7 +468,7 @@ def fig(maps, outs, path: Path) -> None:
     ax.set_xlabel("source-only − target-only (K=1)", fontsize=8, color=INK2)
     ax.set_ylabel("gain at K=1", fontsize=8, color=INK2)
     ax.legend(frameon=False, fontsize=7)
-    ax.set_title("H1: gain at K=1 vs source-only advantage", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH1: gain at K=1 vs source-only advantage", fontsize=8.5, color=INK, loc="left")
     ax = axes[1]
     _style(ax)
     P = outs["e11_h2_pair.csv"]
@@ -479,14 +479,14 @@ def fig(maps, outs, path: Path) -> None:
     ax.set_yscale("log")
     ax.set_xlabel("predicted crossing K (geometry)", fontsize=8, color=INK2)
     ax.set_ylabel("observed crossing K", fontsize=8, color=INK2)
-    ax.set_title("H2: K where target-only overtakes merged", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH2: K where target-only overtakes merged", fontsize=8.5, color=INK, loc="left")
     ax = axes[2]
     _style(ax)
     h = outs["e11_h3.csv"]
     ax.bar(range(len(h)), h.match_rate, color=C_MERGED)
     ax.axhline(0.25, color=MUTED, linewidth=0.8, linestyle=":")
     ax.set_xticks(range(len(h)), h.setting, fontsize=7, rotation=15)
-    ax.set_title("H3: over-predicted emotion = shift direction (chance 0.25)", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH3: over-predicted emotion = shift direction (chance 0.25)", fontsize=8.5, color=INK, loc="left")
     ax = axes[3]
     _style(ax)
     for k, c in col.items():
@@ -496,7 +496,7 @@ def fig(maps, outs, path: Path) -> None:
     ax.axhline(0, color=MUTED, linewidth=0.8)
     ax.set_xlabel("bias of source-only answers (TV)", fontsize=8, color=INK2)
     ax.set_ylabel("merged − source-only at K=5", fontsize=8, color=INK2)
-    ax.set_title("H3c: few target examples fix biased answers", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH3c: few target examples fix biased answers", fontsize=8.5, color=INK, loc="left")
     ax = axes[4]
     _style(ax)
     for k, c in col.items():
@@ -506,7 +506,7 @@ def fig(maps, outs, path: Path) -> None:
     ax.set_ylim(-1.5, 2.5)
     ax.set_xlabel("target share of training data α", fontsize=8, color=INK2)
     ax.set_ylabel("φ = (merged − src)/(tgt − src)", fontsize=8, color=INK2)
-    ax.set_title("H4: merged moves toward target as α grows", fontsize=8.5, color=INK, loc="left")
+    ax.set_title("MH4: merged moves toward target as α grows", fontsize=8.5, color=INK, loc="left")
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor=SURFACE)
     plt.close(fig)

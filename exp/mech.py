@@ -1,9 +1,9 @@
-"""得の仕組みの仮説 H3・H4 を，学び直して確かめる（`docs/exploratory-analyses.md` E12）。
+"""得の仕組みの仮説 MH3・MH4 を，学び直して確かめる（`docs/exploratory-analyses.md` E12）。
 
 地図（`map.py`）と**同じテスト・同じ K 本**（乱数はターゲットと反復番号だけで決まる）で学び直す。
 比べる相手（操作なし）は，地図の結果（`results/map_<kind>/`）の同じ (target, source, K, rep) の行。
 
-**H3（中心のずれが境目の位置をずらす）**：ラベルを使わずに中心をそろえると，ソースのみの成績が上がるか。
+**MH3（中心のずれが境目の位置をずらす）**：ラベルを使わずに中心をそろえると，ソースのみの成績が上がるか。
 
 | op | method | 施すこと |
 |---|---|---|
@@ -12,7 +12,7 @@
 | none・center | src_only+D1 | ソースのみの分類器の出力に，K 本で学んだ感情ごとのずらしを足す（`ops.py` の D1） |
 | center | merged | 中心をそろえた特徴で合併を学ぶ |
 
-**H4（ターゲットがソースに埋もれる）**：学習データのうちターゲットが占める重みの割合 α を選ぶと，
+**MH4（ターゲットがソースに埋もれる）**：学習データのうちターゲットが占める重みの割合 α を選ぶと，
 K が大きいときの負の得が消えるか。
 
 | op | method | 施すこと |
@@ -25,7 +25,7 @@ K が大きいときの負の得が消えるか。
 同じ（成績は保留側のターゲットの行だけで測る）。最良の (α, C) を選ぶ。同点なら nat，次に α の小さい方を
 採り，C の同点は地図の規則（`map.choose_c`）。全候補のテストの UAR も残す（オラクル．分析専用）。
 
-**H3 と H4 を同時に取り除く（`--mode cwt`）**：中心をそろえた特徴で合併を学び，α を候補 `ALPHAS_CWT`
+**MH3 と MH4 を同時に取り除く（`--mode cwt`）**：中心をそろえた特徴で合併を学び，α を候補 `ALPHAS_CWT`
 （0.9 を足した 5 つ）から C と一緒に交差検証で選ぶ（op cwt）。出発点に使う中心をそろえたソースのみの行も書く。
 既定の書き出し先は `results/mech2_<kind>/`。
 
@@ -237,7 +237,7 @@ def run_rep(tgt: M.Group, sources: list[M.Group], r: int, kind: str, cache: dict
 
 def run_rep_cwt(tgt: M.Group, sources: list[M.Group], r: int, kind: str, cache: dict,
                 k_cwt) -> list[dict]:
-    """H3 と H4 を同時に取り除く：中心をそろえた特徴で，α を選ぶ合併。"""
+    """MH3 と MH4 を同時に取り除く：中心をそろえた特徴で，α を選ぶ合併。"""
     te = M.test_mask(tgt, r)
     pool = np.flatnonzero(~te)
     order = M.kshot_order(tgt, pool, r)
@@ -272,7 +272,7 @@ def run_rep_cwt(tgt: M.Group, sources: list[M.Group], r: int, kind: str, cache: 
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="得の仕組みの仮説 H3・H4 の確かめ（E12）")
+    ap = argparse.ArgumentParser(description="得の仕組みの仮説 MH3・MH4 の確かめ（E12）")
     ap.add_argument("--kind", default=M.MODALITIES["audio"][0])
     ap.add_argument("--target", nargs="+")
     ap.add_argument("--source", nargs="+")
