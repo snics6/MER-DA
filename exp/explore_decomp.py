@@ -88,7 +88,7 @@ def partial_rank(d: pd.DataFrame, resp: str, met: str) -> dict | None:
     se = np.sqrt((e @ e) / df * np.linalg.inv(X1.T @ X1)[-1, -1])
     ry = y - X0 @ np.linalg.lstsq(X0, y, rcond=None)[0]
     rm = m - X0 @ np.linalg.lstsq(X0, m, rcond=None)[0]
-    return {"r_partial_rank": float(np.corrcoef(ry, rm)[0, 1]),
+    return {"r_partial_rank": float(np.corrcoef(ry, rm)[0, 1]), "t": float(beta[-1] / se),
             "p": float(2 * stats.t.sf(abs(beta[-1] / se), df)), "df": int(df), "n": len(y)}
 
 
