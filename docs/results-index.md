@@ -139,6 +139,16 @@
 | 説明と主な数値 | `docs/exploratory-analyses.md` の「HuBERT での確かめ」（2026-10-06）．4 つとも「判定できない」 |
 | 注意 | 比べるために WavLM の値も同じ表に出す．WavLM の値は結果を見た後に方法を決めた探索的な値で，判定には使わない |
 
+### 3.6.3 得の仕組みの仮説 MH1〜MH5 の判定（HuBERT）
+
+| 項目 | 内容 |
+|---|---|
+| 場所 | `results/check_mh/`（`primary.csv`：主判定 6 つと判定，`secondary.csv`：副判定，`pairs.csv`：組ごとの量，`curves.csv`：学習曲線，`e13.csv`：位置による損と向きによる損，`encoders.csv`：2 つのエンコーダの比較，`fig_mh.png`，`provenance.json`） |
+| 作り方 | `./.venv/bin/python exp/check_mh.py`（約 7 分．CPU のみ）．`--only audio_wavlm` で E11 の値の再現だけを確かめる |
+| 根拠 | `researchvision.md` 6.5.3（登録した手順．末尾に判定の結果を追記した） |
+| 説明と主な数値 | `docs/exploratory-analyses.md` の「HuBERT での確かめ：得の仕組みの仮説 MH1〜MH5」（2026-10-07）．MH2・MH4・MH5 は支持，MH3a・MH3b・MH3c は判定できない |
+| 注意 | 比べるために WavLM の値も同じ表に出す．WavLM の値は結果を見た後に方法を決めた探索的な値で，判定には使わない．学び直しの実験（E12）は含まない |
+
 ### 3.7 これから作るもの（予定）
 
 | 予定の場所 | 中身 | 根拠 |
