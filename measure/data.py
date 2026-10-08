@@ -63,7 +63,7 @@ def has_modality(group: str, modality: str) -> bool:
     if modality == "text":
         return group in GROUPS_WITH_TEXT
     if modality == "video" and group == "RAVDESS":
-        return False        # 発話一覧に映像の場所（path_video）を入れていない．生データは取得済みで，入れるかは researchvision.md 7 節
+        return False        # 発話一覧に映像の場所（path_video）を入れていない．生データは取得済みで，入れるかは docs/researchvision.md 7 節
     return True
 
 

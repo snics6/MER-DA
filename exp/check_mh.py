@@ -1,4 +1,4 @@
-"""研究計画（`researchvision.md` 8.4）に登録した，得の仕組みの仮説 MH1〜MH5 の主な検定を，第 2 エンコーダ（HuBERT）の地図で確かめる。
+"""研究計画（`docs/researchvision.md` 8.4）に登録した，得の仕組みの仮説 MH1〜MH5 の主な検定を，第 2 エンコーダ（HuBERT）の地図で確かめる。
 
 主判定は `docs/exploratory-analyses.md` E11 の主な検定 6 つと同じ量・同じ向き・同じ検定である。計算は
 `explore_mechanism.py`（E11）・`explore_geometry.py`（E9）・`explore_shape.py`（E10）・`explore_pairs.py`（E13）の
@@ -266,7 +266,7 @@ def fig(prim: pd.DataFrame, path: Path) -> None:
         ax.set_ylim(min(-0.3, ax.get_ylim()[0]), max(0.95, ax.get_ylim()[1]))
         ax.set_title(f"{t}: {LABEL[t]}", fontsize=7.5, color=INK, loc="left")
     axes[0].set_ylabel("statistic (one-sided, predicted > 0; MH3a vs 0.25)", fontsize=7.5, color=INK2)
-    fig.suptitle("Mechanism hypotheses MH2–MH5 (researchvision.md 8.4): HuBERT (judged) vs WavLM "
+    fig.suptitle("Mechanism hypotheses MH2–MH5 (docs/researchvision.md 8.4): HuBERT (judged) vs WavLM "
                  "(exploratory), audio 7 groups, 30 reps", fontsize=9, color=INK, x=0.01, ha="left")
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor=SURFACE)

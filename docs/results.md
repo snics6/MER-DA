@@ -19,7 +19,7 @@
 |---|---|---|
 | 1 | `CLAUDE.md` | データの取り決め（話者分割，ラベル 4 つ，主指標 UAR）と，文書の正本の優先順位 |
 | 2 | `docs/results.md`（この文書） | 各主張の最新の状態（3 節）と，結果ファイルの場所・作り方・使ってよい状態（4 節） |
-| 3 | `researchvision.md` | 研究の目的と理論（Ben-David 2010 Theorem 3 ほか），『分析の軸』（MH1〜MH5），『論文の計画』，『決定事項』，『未決事項』，更新記録，『事前登録した仮説と判定』．論文 1 は MH を軸にした分析論文として IEEE Access に 2026-10 末までに投稿し，論文 2 は 2026-11 の予定である．論文 1 の中心の主張はまだ決めていない |
+| 3 | `docs/researchvision.md` | 研究の目的と理論（Ben-David 2010 Theorem 3 ほか），『分析の軸』（MH1〜MH5），『論文の計画』，『決定事項』，『未決事項』，更新記録，『事前登録した仮説と判定』．論文 1 は MH を軸にした分析論文として IEEE Access に 2026-10 末までに投稿し，論文 2 は 2026-11 の予定である．論文 1 の中心の主張はまだ決めていない |
 | 4 | `docs/related-work.md` | 先行研究の要点と，1 節の論文 1 の位置づけ（先行研究との関係，研究の価値，IEEE Access で想定される指摘）．**論文の新しさ・関連研究・限界はこれに合わせて書く** |
 | 5 | `docs/methods.md` | 実験の手順（条件，分割，ずれを消す操作，理論からの予言の導出）と，ずれの指標の定義と注意 |
 | 6 | `data/README.md` | データと特徴の中身と作り方 |
@@ -30,9 +30,9 @@
 - **数値は結果ファイルから取り，出典（ファイル・列・条件）を添える．**集計は 4 節の台本の出力から引く．執筆側で新しい値を計算しない
 - **最新の値はこの文書の 3 節から取る．**`docs/exploratory-analyses.md` に残る古い反復回数の値を写さない
 - **状態が `complete` でない結果（`partial`，`quick (R=1)`）は，論文の主張の数値に使わない．**速報（反復 1 回）は傾向を見るためだけに使う
-- **K* は反復が 30 回そろうまで暫定である**（`kstar.csv` の `status` 列が `provisional`．言葉を含む 4 種類は 5 回なので暫定）．**IEMOCAP がターゲットの組は，K* の区間の計算法が未決である**（`status` 列が `iemocap_interval_undecided`．`researchvision.md` の『未決事項』）
+- **K* は反復が 30 回そろうまで暫定である**（`kstar.csv` の `status` 列が `provisional`．言葉を含む 4 種類は 5 回なので暫定）．**IEMOCAP がターゲットの組は，K* の区間の計算法が未決である**（`status` 列が `iemocap_interval_undecided`．`docs/researchvision.md` の『未決事項』）
 - **オラクルの列（`uar_oracle`，`C_oracle`，`test_uar_C*`）は分析専用である．**手法の性能として報告しない（`CLAUDE.md`）
-- **事前登録した判定は，`researchvision.md` の『事前登録した仮説と判定』に登録した手順でだけ行う．**H1〜H6 と P1〜P4 はまだ判定しておらず，H7 と MH の HuBERT での確認は判定済みである（3.5 節）
+- **事前登録した判定は，`docs/researchvision.md` の『事前登録した仮説と判定』に登録した手順でだけ行う．**H1〜H6 と P1〜P4 はまだ判定しておらず，H7 と MH の HuBERT での確認は判定済みである（3.5 節）
 - **E シリーズは，結果を見た後に方法を決めた探索的な結果である．**登録した判定と区別して書く（3.1 節の「確かめ方」）
 - UAR はでたらめに当てると 0.25 になる
 
@@ -64,13 +64,13 @@ HuBERT の設定を Hu7・Hu6 と書くのは，事前登録した仮説 H7 と�
 - ×：予言と逆の向き
 - —：計算していない
 
-**確かめ方**：「登録」と書いたものだけが，結果を見る前に手順を `researchvision.md` の『事前登録した仮説と判定』に登録して確かめた結果である（仮説 H7 と，Hu7 での MH の確認）．それ以外は，結果を見た後に方法を決めた探索的な結果である．
+**確かめ方**：「登録」と書いたものだけが，結果を見る前に手順を `docs/researchvision.md` の『事前登録した仮説と判定』に登録して確かめた結果である（仮説 H7 と，Hu7 での MH の確認）．それ以外は，結果を見た後に方法を決めた探索的な結果である．
 
 **偏相関**：ターゲットの効果とソースの効果を除いた残りどうしの順位の相関（E2 と同じ方法）．「組に固有の部分の関係」とも書く．
 
 ### 3.2 MH シリーズ（研究の軸）
 
-MH1〜MH5 は `researchvision.md` の『分析の軸』である．方法は `docs/exploratory-analyses.md` の E11〜E13 にある．
+MH1〜MH5 は `docs/researchvision.md` の『分析の軸』である．方法は `docs/exploratory-analyses.md` の E11〜E13 にある．
 
 #### 3.2.1 各仮説の現状
 
@@ -176,7 +176,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 
 ### 3.5 事前登録の判定
 
-登録の中身と判定の結果は，`researchvision.md` の『事前登録した仮説と判定』にある．
+登録の中身と判定の結果は，`docs/researchvision.md` の『事前登録した仮説と判定』にある．
 
 | 登録 | 中身 | 状態 |
 |---|---|---|
@@ -196,7 +196,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 | 場所 | `results/map_<kind>/<ターゲット>.csv`．1 行 1 条件．**反復 1 回が終わるたびに追記** |
 | kind | 30 回：`audio_wavlm`（2026-10-02 に完了），`audio_hubert`（第 2 エンコーダ．2026-10-04），`video`（2026-10-07），`fuse-audio-video`（2026-10-08）．5 回：`text_roberta`，`fuse-audio-text`，`fuse-video-text`，`fuse-audio-video-text`（2026-10-01 に完了） |
 | 作り方 | `./.venv/bin/python exp/map.py --kind <kind> [--reps …] [--resume]`（コードは `exp/map.py`・`exp/logreg.py`） |
-| 手順の根拠 | `docs/methods.md`（条件・分割・C の選び方），`researchvision.md` の『決定事項』（C の候補，R=30，K* の定義と区間，テストの袋，入れ子の K 本） |
+| 手順の根拠 | `docs/methods.md`（条件・分割・C の選び方），`docs/researchvision.md` の『決定事項』（C の候補，R=30，K* の定義と区間，テストの袋，入れ子の K 本） |
 | 追跡 | 各ファイルの `#` で始まる行（実行ごとの設定とコミット番号），`results/map_<kind>/code/<開始時刻>/`（実行したコードの写し）．**`map_audio_wavlm` は未コミットの状態で起動した**（記録は `6845855+dirty`）が，写しの `map.py`・`logreg.py` はコミット `ea8a79a` と同じ（2026-09-30 確認） |
 | 読み方 | `pd.read_csv(path, comment="#", dtype={"K": str, "source": str})` |
 
@@ -218,7 +218,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 | `sec`，`n_iter`，`n_loop` | 計算時間と反復回数（計算量の記録） |
 | `init`，`cached` | 温め直しの出発点（`none`／`folds`／`final`），② を使い回した行か |
 
-合併とターゲットのみの比較は，`(target, K, rep)` で対にして差をとる（対の差の t 区間．`researchvision.md` の『決定事項』）．
+合併とターゲットのみの比較は，`(target, K, rep)` で対にして差をとる（対の差の t 区間．`docs/researchvision.md` の『決定事項』）．
 
 **まとめ**：`./.venv/bin/python exp/summarize_map.py --dir results/map_<kind>` で `results/map_<kind>/summary/` に次を作る（保存済みの反復の分だけで作る）．`exp/rerun_main.py` も最初の段でこれを流す．
 
@@ -244,7 +244,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 |---|---|
 | 場所 | `results/shift_<kind>/`（8 種類すべて済み） |
 | 作り方 | `./.venv/bin/python exp/shift_map.py {gpu,input,space} --kind <kind>`（段ごとの中身は `exp/shift_map.py` の先頭） |
-| 根拠 | `docs/methods.md`（指標の定義と測る空間），`researchvision.md` の『予言 P1〜P4』の共通の決まり 6（空間の選び方） |
+| 根拠 | `docs/methods.md`（指標の定義と測る空間），`docs/researchvision.md` の『予言 P1〜P4』の共通の決まり 6（空間の選び方） |
 | ファイル | `labeling.csv`（軸 4：ソースのみの分類器の UAR・混同行列・Δ_CE・BER・P4-1 の検算．`cross_fit` が真の組は，同じ人物を除いて学び直した分類器で採点），`label.csv`（軸 3：割合の差．記述用と MLLS の推定），`input.csv`（軸 1・2．`space` は raw／pca64／logit，`balanced` は割合をそろえた版），`zero.csv`（ゼロ点），`space_choice.json`（規則の当てはめ），`logits/`（空間 logit の点数） |
 | 注意 | 空間 logit は 4 つの点数を和 0 の 3 次元の座標で表したもの．MLLS による割合の推定は，コーパス間では誤差が大きい（音声で ‖q − p_t‖₁ が 0.34〜1.71） |
 
@@ -256,7 +256,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 | 場所 | `results/ops_<kind>/<ターゲット>.csv`（地図と同じ列に `op` を足したもの） |
 | 作り方 | `./.venv/bin/python exp/ops.py --kind <kind> --reps 0`（操作の一覧は `exp/ops.py` の先頭） |
 | 比べる相手 | 地図（4.1 節）の同じ `(target, source, K, rep)` の行．テストと K 本の抜き方は地図と同じ |
-| 速報の範囲 | 『予言 P1〜P4』の主判定に使う設定だけ（`researchvision.md` の『決定事項』） |
+| 速報の範囲 | 『予言 P1〜P4』の主判定に使う設定だけ（`docs/researchvision.md` の『決定事項』） |
 
 ### 4.5 探索的な解析（E シリーズ）
 
@@ -286,7 +286,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 |---|---|
 | 場所 | `results/check_mh/`（`primary.csv`：主判定 6 つと判定，`secondary.csv`：副判定，`pairs.csv`：組ごとの量，`curves.csv`：学習曲線，`e13.csv`：位置による損と向きによる損，`encoders.csv`：2 つのエンコーダの比較，`fig_mh.png`，`provenance.json`） |
 | 作り方 | `./.venv/bin/python exp/check_mh.py`（約 7 分．CPU のみ．`rerun_main.py` も最後の段で流す）．`--only audio_wavlm` で E11 の値の再現だけを確かめる |
-| 根拠 | `researchvision.md` の『MH の HuBERT での確認』（登録した手順と判定の結果） |
+| 根拠 | `docs/researchvision.md` の『MH の HuBERT での確認』（登録した手順と判定の結果） |
 | 説明と主な数値 | `docs/exploratory-analyses.md` の「HuBERT での確かめ：得の仕組みの仮説 MH1〜MH5」（2026-10-07）．MH2・MH4・MH5 は支持，MH3a・MH3b・MH3c は判定できない．値は 3.2.2 節の Hu7・Hu6 の列 |
 | 注意 | 比べるために WavLM の値も同じ表に出す．WavLM の値は結果を見た後に方法を決めた探索的な値で，判定には使わない．学び直しの実験（E12）は含まない |
 
@@ -297,7 +297,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 | 仕分け | 端（3.4.2 節）．論文では触れないか，限界の節で 1 文触れる案である |
 | 場所 | `results/check_h7/`（`primary.csv`：主判定 4 つと判定，`secondary.csv`：副判定，`share.csv`：ばらつきの内訳，`raw_corr.csv`：組をそのまま並べた順位相関，`fig_h7.png`，`provenance.json`） |
 | 作り方 | `./.venv/bin/python exp/summarize_map.py --dir results/map_audio_hubert` → `./.venv/bin/python exp/side/check_h7.py` |
-| 根拠 | `researchvision.md` の『H7』（登録した手順と判定の結果） |
+| 根拠 | `docs/researchvision.md` の『H7』（登録した手順と判定の結果） |
 | 説明と主な数値 | `docs/exploratory-analyses.md` の「HuBERT での確かめ：E2 の関係は第 2 エンコーダで再現するか」（2026-10-06）．4 つとも「判定できない」（向きはすべて予言どおり） |
 | 注意 | 比べるために WavLM の値も同じ表に出す．WavLM の値は結果を見た後に方法を決めた探索的な値で，判定には使わない |
 
@@ -313,7 +313,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 | 予定の場所 | 中身 | 条件・根拠 |
 |---|---|---|
 | `results/explore_relation/snapshots/<日時>_main/` | 本筋の正式な流し直し（`exp/rerun_main.py`）．E8 を 30 回の地図で計算し直し，E12 に HuBERT を足す．終わったら 3.2.3 節の表に HuBERT の列を足し，3.4.1 節の E8 の行を直す | HuBERT の学び直し（4.6 節）が終わった後に流す．整理前と整理後のコードで本筋と端の出力 76 本がすべて一致することは，2026-10-08 に確かめた |
-| 未定 | 予言 P1〜P4 の判定 | 後回し（4.4 節）．`researchvision.md` の『予言 P1〜P4』 |
+| 未定 | 予言 P1〜P4 の判定 | 後回し（4.4 節）．`docs/researchvision.md` の『予言 P1〜P4』 |
 
 作ったら，この節から上と同じ形の節に移す．
 

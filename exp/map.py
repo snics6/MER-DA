@@ -6,7 +6,7 @@
     src_only  ② ソースだけ（K に依らないので K の列は空）
     merged    ③ ソース全件＋ターゲットの K 本
 
-手順の決定は `researchvision.md` 6.2。要点：
+手順の決定は `docs/researchvision.md` 6.2。要点：
 
 - **テスト**：ターゲットの話者を 5 袋に分け（`speaker_folds`，種 r），r mod 5 番の袋を使う
 - **K 本**：残りから感情ごとに K 本。**K をまたいで入れ子**にする（K=5 の 20 本は
@@ -119,7 +119,7 @@ def labels(y: np.ndarray) -> torch.Tensor:
 # ---------------------------------------------------------------- 分割と K 本
 
 def test_mask(g: Group, r: int) -> np.ndarray:
-    """反復 r のテスト：話者 5 袋のうち r mod 5 番の袋（`researchvision.md` 6.2）。"""
+    """反復 r のテスト：話者 5 袋のうち r mod 5 番の袋（`docs/researchvision.md` 6.2）。"""
     f = speaker_folds(g.speaker, k=N_TEST_FOLDS, seed=r)
     check_disjoint(g.speaker, f)
     return (f == r % N_TEST_FOLDS).to_numpy()

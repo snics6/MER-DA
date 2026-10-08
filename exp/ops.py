@@ -1,10 +1,10 @@
-"""ずれを消す・足す操作の実験（`docs/methods.md` 5 節，`researchvision.md` 8.2）．2026-09-30 から後回し．速報（反復 1 回）だけを回した。
+"""ずれを消す・足す操作の実験（`docs/methods.md` 5 節，`docs/researchvision.md` 8.2）．2026-09-30 から後回し．速報（反復 1 回）だけを回した。
 
 地図（`map.py`）と**同じテスト・同じ K 本**（乱数はターゲットと反復番号だけで決まる）で，
 ソースに操作を施して学び直す。比べる相手（操作なし）は，地図の結果（`results/map_<kind>/`）の
 同じ (target, source, K, rep) の行である。操作はすべて `measure/ablate.py` を通す。
 
-速報で回す操作（`researchvision.md` 6.1．事前登録の主判定に使う設定）：
+速報で回す操作（`docs/researchvision.md` 6.1．事前登録の主判定に使う設定）：
 
 | op | method | 施すこと | 予言 |
 |---|---|---|---|
@@ -47,8 +47,8 @@ from data import groups_for  # noqa: E402
 
 OPS_MERGED = ("I1", "C1", "C1ctrl", "P2", "P2ctrl", "D3s0.4", "D3a0.2")
 FLIPS = {"D3s0.2": ("s", 0.2), "D3s0.4": ("s", 0.4), "D3a0.2": ("a", 0.2)}
-D3A_PAIR = (0, 2)                 # Neutral → Sad（`docs/methods.md` 5.3.4 の例．`researchvision.md` 8.2 で登録）
-C1_FRAC = 0.5                     # n' = 0.5 n（`researchvision.md` 8.2 の主判定）
+D3A_PAIR = (0, 2)                 # Neutral → Sad（`docs/methods.md` 5.3.4 の例．`docs/researchvision.md` 8.2 で登録）
+C1_FRAC = 0.5                     # n' = 0.5 n（`docs/researchvision.md` 8.2 の主判定）
 COLUMNS = ["op"] + M.COLUMNS
 
 

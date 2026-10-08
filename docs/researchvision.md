@@ -32,7 +32,7 @@
 目標は，MER のドメイン適応（DA）についての数学的な知見を出すことである（DA の一般理論での新しさは目標にしない）．
 論文 2 では，この知見をもとに新しい手法を提案する．
 
-中核の理論は Ben-David et al.（2010）の Theorem 3（`A theory of learning from different domains.pdf`）である．
+中核の理論は Ben-David et al.（2010）の Theorem 3（リポジトリ直下の `A theory of learning from different domains.pdf`）である．
 
 ---
 
