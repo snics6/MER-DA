@@ -1,0 +1,260 @@
+"""【探索的】E16：少数のターゲットの例は，合併の分類器の向きと位置をどう変えるか（E15 の拡張）。
+
+導出は `docs/exploratory-analyses.md` E16。E15 の λ の式は「向きはソースから受け取る」と置いたが，
+実際の合併の分類器（E15 の段階 B）は K=1 で向きが悪くなり，K=10 で良くなる（映像は K=5 でも悪い）。
+ここでは，合併の解をソースのみの解からのニュートン法の 1 歩として書く：
+
+    ΔW = G H⁻¹,   G = Σ_{j∈抜いた K 本} s_j (e_{y_j} − p_j) x_jᵀ,   H = H_S + Σ_j s_j κ_j x_j x_jᵀ
+    H_S = diag(A_s + I/C, N_s κ_s),   x = [z − z̄; 1]
+
+（多クラスの曲がりの行列を κ(I − 𝟙𝟙ᵀ/k) で近似すると，感情ごとの行が同じ H を持つ．E15 の λ の式は，
+残差 e − p を位置のずれの平均だけで近似したもの）。抜いた K 本ごとに ΔW を計算し，ターゲットのテストの
+点数に足して，感情の対ごとの d・o を予言する。H⁻¹ はウッドベリーの公式で H_S⁻¹ から作る。
+
+d の変化の分け方（ターゲット全発話で評価．30 通りのでたらめな抜き方の平均）：
+
+    d_m / d_s ≈ (1 + I) / √(1 + S + N)
+    I：平均の動きが 2 感情の点数の差を広げる分（情報）
+    S：平均の動きが点数の散らばりを変える分（スイッチの雑音など）
+    N：抜き方の揺れが散らばりに足す分（抜き方の雑音）
+
+    ./.venv/bin/python exp/explore_direction.py [--kinds audio_wavlm ...]
+
+入力：地図の C，特徴，ソースのみの分類器の点数（`results/shift_<kind>/logits/`），E15 の段階 B の点数
+（`results/merged_scores_<kind>/`）。出力：`results/explore_relation/e16_*.csv`・`fig_e16.png`
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+import matplotlib
+import numpy as np
+import pandas as pd
+from scipy import stats
+from scipy.special import softmax
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "exp"))
+sys.path.insert(0, str(ROOT / "measure"))
+sys.path.insert(0, str(ROOT / "features"))
+import common  # noqa: E402
+from data import groups_for, load_any  # noqa: E402
+from explore_synergy import KINDS, KS, N_CLASSES, kappa, load_map, src_parts  # noqa: E402
+from pair_table import OUT  # noqa: E402
+from split import speaker_folds  # noqa: E402
+
+PAIRS = [(k, j) for k in range(N_CLASSES) for j in range(k + 1, N_CLASSES)]
+REPS = range(10)
+N_MC = 30
+O_MIN = 0.3
+
+
+# ---------------------------------------------------------------- ニュートン法の 1 歩
+
+def hs_inv(sp: dict, C: float):
+    """H_S⁻¹ を掛ける関数（H_S = diag(A_s + I/C, N_s κ_s)）。M は (d+1, m)。"""
+    V, inv = sp["V"], 1.0 / (sp["ev"] + 1.0 / C)
+    a = sp["a"]
+    def f(M: np.ndarray) -> np.ndarray:
+        out = np.empty_like(M)
+        out[:-1] = V @ ((V.T @ M[:-1]) * inv[:, None])
+        out[-1] = M[-1] / a
+        return out
+    return f
+
+
+def newton_step(Hinv, X: np.ndarray, P: np.ndarray, y: np.ndarray, sw: np.ndarray) -> np.ndarray:
+    """抜いた行 X（m, d+1），ソースのみの確率 P（m, k），ラベル y，重み sw から ΔW（k, d+1）を返す。"""
+    k = P.shape[1]
+    R = np.eye(k)[y] - P
+    G = (R * sw[:, None]).T @ X                                   # (k, d+1)
+    D = sw * (1 - (P ** 2).sum(1)) / (k - 1)
+    HiX = Hinv(X.T)                                               # (d+1, m)
+    GHi = Hinv(G.T).T                                             # (k, d+1)
+    inner = np.diag(1.0 / D) + X @ HiX                            # (m, m)
+    return GHi - (GHi @ X.T) @ np.linalg.solve(inner, HiX.T)
+
+
+def d_o(L: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """感情の対ごとの (d, o)。E13 と同じ式。"""
+    out = []
+    for k, j in PAIRS:
+        zk, zj = L[y == k, k] - L[y == k, j], L[y == j, k] - L[y == j, j]
+        sd = np.sqrt((zk.var(ddof=1) + zj.var(ddof=1)) / 2)
+        out.append(((zk.mean() - zj.mean()) / sd, -(zk.mean() + zj.mean()) / 2 / sd))
+    return np.array(out)
+
+
+def sep_var_mid(L: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """感情の対ごとの (2 つの山の平均の差，散らばり（分散の平均），中点)。"""
+    out = []
+    for k, j in PAIRS:
+        zk, zj = L[y == k, k] - L[y == k, j], L[y == j, k] - L[y == j, j]
+        out.append((zk.mean() - zj.mean(), (zk.var(ddof=1) + zj.var(ddof=1)) / 2, (zk.mean() + zj.mean()) / 2))
+    return np.array(out)
+
+
+def decompose(L0: np.ndarray, y: np.ndarray, dLs: list[np.ndarray]) -> dict:
+    """d_m/d_s ≈ (1 + I)/√(1 + S + N) の I・S・N（感情の対ごと）。dLs は抜き方ごとの点数の変化。"""
+    base = sep_var_mid(L0, y)
+    mean_dL = np.mean(dLs, axis=0)
+    mu = sep_var_mid(L0 + mean_dL, y)
+    var_each = np.mean([sep_var_mid(L0 + dL, y)[:, 1] for dL in dLs], axis=0)
+    I = (mu[:, 0] - base[:, 0]) / base[:, 0]
+    S = (mu[:, 1] - base[:, 1]) / base[:, 1]
+    N = (var_each - mu[:, 1]) / base[:, 1]
+    return {"I": I, "S": S, "N": N}
+
+
+# ---------------------------------------------------------------- 実データ
+
+def balanced_sw(n_src_c: np.ndarray, K: int) -> np.ndarray:
+    """合併の学習データ（ソースのクラス c に n_c 本，ターゲットに K 本ずつ）のターゲットの 1 本の重み（クラスごと）。"""
+    n_c = n_src_c + K
+    return n_c.sum() / (N_CLASSES * n_c)
+
+
+def map_draw(df: pd.DataFrame, name: str, r: int, K: int) -> tuple[np.ndarray, np.ndarray]:
+    """地図と同じテストの袋と K 本（`exp/map.py` の test_mask・kshot_order・take_k を CPU で）。"""
+    f = speaker_folds(df.speaker_group.astype(str).reset_index(drop=True), k=5, seed=r).to_numpy()
+    te = f == r % 5
+    pool = np.flatnonzero(~te)
+    y = df.label_4.to_numpy()
+    rng = common.rng_for(f"map-kshot:{name}", r)
+    order = [rng.permutation(pool[y[pool] == c]) for c in range(N_CLASSES)]
+    return te, np.sort(np.concatenate([o[:K] for o in order]))
+
+
+def run_kind(kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    mp = load_map(kind)
+    groups = groups_for(kind)
+    data = {g: load_any(g, kind) for g in groups}
+    rows, dec = [], []
+    rng = np.random.default_rng(0)
+    for s in groups:
+        dfs, Xs = data[s]
+        ys = dfs.label_4.to_numpy()
+        mu, sd = Xs.mean(0), Xs.std(0)
+        sd = np.where(sd > 1e-12, sd, 1.0)
+        Zs = ((Xs - mu) / sd).astype(np.float64)
+        z = np.load(ROOT / "results" / f"shift_{kind}" / "logits" / f"{s}.npz")
+        ks_all = kappa(z["oof"])
+        n_src_c = np.bincount(ys, minlength=N_CLASSES)
+        sps = {K: src_parts(Zs, ys, ks_all, int(K)) for K in KS}
+        for t in groups:
+            if t == s:
+                continue
+            dft, Xt = data[t]
+            yt = dft.label_4.to_numpy()
+            Zt = ((Xt - mu) / sd).astype(np.float64)
+            Lt = z[f"t_{t}"]
+            Pt = softmax(Lt, axis=1)
+            B = np.load(ROOT / "results" / f"merged_scores_{kind}" / f"{t}.npz")
+            g = mp[(mp.target == t) & (mp.source == s)]
+            for K in KS:
+                sp = sps[K]
+                Xa = np.c_[Zt - sp["zbar"], np.ones(len(Zt))]
+                swc = balanced_sw(n_src_c, int(K))
+                for r in REPS:
+                    te, idx = map_draw(dft, t, r, int(K))
+                    if not np.array_equal(np.flatnonzero(te), B[f"test_idx_r{r}"]):
+                        raise SystemExit(f"{kind} {t} 反復 {r}：テストの袋が段階 B と合わない")
+                    C = float(g[(g.K == K) & (g.rep == r)].C_m.iloc[0])
+                    dW = newton_step(hs_inv(sp, C), Xa[idx], Pt[idx], yt[idx], swc[yt[idx]])
+                    Ls_te, Lm_te = B[f"s_{s}_r{r}"].astype(np.float64), B[f"m_{s}_K{K}_r{r}"].astype(np.float64)
+                    Lp_te = Ls_te + Xa[te] @ dW.T
+                    y_te = yt[te]
+                    ds, dm, dp = d_o(Ls_te, y_te), d_o(Lm_te, y_te), d_o(Lp_te, y_te)
+                    for (k, j), a, b, c in zip(PAIRS, ds, dm, dp):
+                        rows.append({"kind": kind, "target": t, "source": s, "K": K, "rep": r, "pair": f"{k}-{j}",
+                                     "C": C, "d_s": a[0], "o_s": a[1], "d_m": b[0], "o_m": b[1],
+                                     "d_pred": c[0], "o_pred": c[1]})
+                # 分け方：ターゲット全発話で評価，でたらめな抜き方 N_MC 通り．C は反復 0〜9 で最も多く選ばれた値
+                C = float(g[(g.K == K) & (g.rep < 10)].C_m.mode().iloc[0])
+                Hinv = hs_inv(sp, C)
+                dLs = []
+                for _ in range(N_MC):
+                    idx = np.sort(np.concatenate([rng.choice(np.flatnonzero(yt == c), int(K), replace=False)
+                                                  for c in range(N_CLASSES)]))
+                    dLs.append(Xa @ newton_step(Hinv, Xa[idx], Pt[idx], yt[idx], swc[yt[idx]]).T)
+                dd = decompose(Lt, yt, dLs)
+                for (k, j), I, S_, N_ in zip(PAIRS, dd["I"], dd["S"], dd["N"]):
+                    dec.append({"kind": kind, "target": t, "source": s, "K": K, "pair": f"{k}-{j}", "C": C,
+                                "I": I, "S": S_, "N": N_})
+        print(f"  {kind} ソース {s} 済み", flush=True)
+    return pd.DataFrame(rows), pd.DataFrame(dec)
+
+
+def summarize(R: pd.DataFrame, D: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    R = R.assign(dc_obs=R.d_m - R.d_s, dc_pred=R.d_pred - R.d_s)
+    P = R.groupby(["kind", "target", "source", "K"]).agg(
+        dc_obs=("dc_obs", "mean"), dc_pred=("dc_pred", "mean"), d_s=("d_s", "mean")).reset_index()
+    lam = []
+    for key, g in R.groupby(["kind", "target", "source", "K"]):
+        v = g[g.o_s.abs() >= O_MIN]
+        f = lambda col: 1 - float((np.sign(v.o_s) * v[col]).sum() / v.o_s.abs().sum()) if len(v) else np.nan  # noqa: E731
+        lam.append({**dict(zip(["kind", "target", "source", "K"], key)), "lam_obs": f("o_m"), "lam_newton": f("o_pred")})
+    P = P.merge(pd.DataFrame(lam), on=["kind", "target", "source", "K"])
+    Dp = D.groupby(["kind", "target", "source", "K"])[["I", "S", "N"]].mean().reset_index()
+    P = P.merge(Dp, on=["kind", "target", "source", "K"])
+    T = []
+    for kind, g in P.groupby("kind", sort=False):
+        row = {"setting": KINDS[kind], "n": len(g)}
+        row["spearman_dc"], row["p_dc"] = stats.spearmanr(g.dc_pred, g.dc_obs, alternative="greater")
+        row["spearman_lam"], row["p_lam"] = stats.spearmanr(g.lam_newton, g.lam_obs, alternative="greater",
+                                                            nan_policy="omit")
+        e = R[R.kind == kind]
+        row["spearman_dc_emotionpair"] = stats.spearmanr(e.d_pred - e.d_s, e.d_m - e.d_s)[0]
+        for K, h in g.groupby("K"):
+            row[f"dc_obs_K{K}"], row[f"dc_pred_K{K}"] = h.dc_obs.mean(), h.dc_pred.mean()
+            row[f"spearman_dc_K{K}"] = stats.spearmanr(h.dc_pred, h.dc_obs)[0]
+            row[f"lam_obs_K{K}"], row[f"lam_newton_K{K}"] = h.lam_obs.mean(), h.lam_newton.mean()
+            row[f"I_K{K}"], row[f"S_K{K}"], row[f"N_K{K}"] = h.I.mean(), h.S.mean(), h.N.mean()
+        T.append(row)
+    return P, pd.DataFrame(T), Dp
+
+
+def fig(P: pd.DataFrame, path: Path) -> None:
+    kinds = list(dict.fromkeys(P.kind))
+    f, axes = plt.subplots(1, len(kinds), figsize=(4 * len(kinds), 4), squeeze=False)
+    for ax, k in zip(axes[0], kinds):
+        for K, h in P[P.kind == k].groupby("K"):
+            ax.scatter(h.dc_pred, h.dc_obs, s=12, label=f"K={K}")
+        lim = [P.dc_obs.min() - 0.02, P.dc_obs.max() + 0.02]
+        ax.plot(lim, lim, "k--", lw=1); ax.axhline(0, color="gray", lw=0.5); ax.axvline(0, color="gray", lw=0.5)
+        ax.set_title(KINDS[k]); ax.set_xlabel("predicted d_m - d_s"); ax.set_ylabel("observed d_m - d_s")
+        ax.legend(fontsize=7)
+    f.tight_layout(); f.savefig(path, dpi=120); plt.close(f)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
+    args = ap.parse_args()
+    Rs, Ds = [], []
+    for kind in args.kinds:
+        t0 = time.time()
+        R, D = run_kind(kind)
+        Rs.append(R); Ds.append(D)
+        print(f"{kind}: {time.time() - t0:.0f} 秒", flush=True)
+    R, D = pd.concat(Rs), pd.concat(Ds)
+    R.to_csv(OUT / "e16_rows.csv", index=False)
+    D.to_csv(OUT / "e16_decomp_rows.csv", index=False)
+    P, T, _ = summarize(R, D)
+    P.to_csv(OUT / "e16_pairs.csv", index=False)
+    T.to_csv(OUT / "e16_tests.csv", index=False)
+    fig(P, OUT / "fig_e16.png")
+    pd.set_option("display.width", 250)
+    print(T.round(3).T.to_string())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
