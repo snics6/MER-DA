@@ -113,12 +113,14 @@ def lowrank(d: pd.DataFrame, groups: list[str], col: str, rng) -> dict:
 def main() -> int:
     rng = np.random.default_rng(0)
     R = {k: per_rep(k) for k in ("audio_wavlm", "video", "fuse-audio-video")}
-    reps10, reps5 = list(range(10)), list(range(5))
+    # 全ターゲットでそろった反復をすべて使う（2026-10-09 まで音声は 0〜9，映像と音声＋映像は 0〜4 に固定していた）
+    reps = {k: sorted(set.intersection(*[set(g.rep) for _, g in r.groupby("target")])) for k, r in R.items()}
+    tag = {k: f"reps {v[0]}-{v[-1]}" for k, v in reps.items()}
     seven = sorted(R["audio_wavlm"].target.unique())
-    settings = [("audio 7 groups (reps 0-9)", "audio_wavlm", seven, reps10),
-                ("audio 6 groups (reps 0-9)", "audio_wavlm", SIX, reps10),
-                ("video (reps 0-4)", "video", SIX, reps5),
-                ("audio+video (reps 0-4)", "fuse-audio-video", SIX, reps5)]
+    settings = [(f"audio 7 groups ({tag['audio_wavlm']})", "audio_wavlm", seven, reps["audio_wavlm"]),
+                (f"audio 6 groups ({tag['audio_wavlm']})", "audio_wavlm", SIX, reps["audio_wavlm"]),
+                (f"video ({tag['video']})", "video", SIX, reps["video"]),
+                (f"audio+video ({tag['fuse-audio-video']})", "fuse-audio-video", SIX, reps["fuse-audio-video"])]
     low, axis, scale, sym = [], [], [], []
     for name, kind, groups, reps in settings:
         groups = sorted(groups)
