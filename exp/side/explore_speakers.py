@@ -17,7 +17,7 @@
 2. コーパス全体で中心をそろえた後（E12 の center）に残る損は，S が大きい組ほど大きい
 3.（参考）話者ごとに位置をそろえると，点数の上でも成績が上がる
 
-    ./.venv/bin/python exp/explore_speakers.py
+    ./.venv/bin/python exp/side/explore_speakers.py
 
 出力：`results/explore_relation/e14_*.csv`・`fig_e14.png`
 """
@@ -35,16 +35,15 @@ from scipy import stats
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 import shift  # noqa: E402
 from data import groups_for, load_any  # noqa: E402
 from explore_mechanism import partial_rank  # noqa: E402
-from explore_modality import SIX, fit  # noqa: E402
+from pair_table import OUT, SIX, fit  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 KINDS = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-audio-text",
          "fuse-video-text", "fuse-audio-video-text")
 PAIRS = [(k, j) for k in range(4) for j in range(k + 1, 4)]

@@ -44,13 +44,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for, load_any  # noqa: E402
-from explore_decomp import design, holm, partial_rank  # noqa: E402
 from explore_geometry import KINDS, K_ORDER, common_reps, standardize  # noqa: E402
-from explore_modality import SIX, fit, gains  # noqa: E402
+from pair_table import OUT, SIX, design, fit, gains, holm, partial_rank  # noqa: E402
 from split import speaker_folds  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 PAIRS = [(k, j) for k in range(4) for j in range(k + 1, 4)]
 MAIN_Q = ["tdp_mean", "tdp_lda", "eff_mean", "eff_lda"]
 JOINT = {"eff_lda+shift_emo": ["eff_lda", "shift_emo"], "align+shift_emo": ["align", "shift_emo"],

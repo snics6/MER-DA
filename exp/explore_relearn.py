@@ -14,13 +14,19 @@ MH4（ターゲットが埋もれる）
 - wt − nat の上がり幅が，同じターゲット・同じ K の中で，大きいソースほど大きいか
 - 選ばれた α の分布。テストで最良の α（オラクル）との差
 
-    ./.venv/bin/python exp/explore_relearn.py
+    ./.venv/bin/python exp/explore_relearn.py                      # 3 種類すべて（結果がある分だけ）
+    ./.venv/bin/python exp/explore_relearn.py --kinds audio_hubert # 種類を選ぶ
+
+種類は音声（WavLM），映像，音声（HuBERT．最後の確認に使う別のエンコーダ）。音声の種類では RAVDESS を除く
+6 群の設定も出す。`shift_emo`・`shift_total` は E9 の `e9_pair.csv` から読み，そこに無い種類（HuBERT）は
+`explore_geometry.geometry` でその場で計算する。
 
 出力：`results/explore_relation/e12_*.csv`・`fig_e12.png`
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -37,12 +43,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for  # noqa: E402
+from explore_geometry import geometry  # noqa: E402
 from explore_mechanism import bias_table, partial_rank  # noqa: E402
-from explore_modality import SIX  # noqa: E402
+from pair_table import OUT, SIX  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
-KINDS = ("audio_wavlm", "video")
+KINDS = ("audio_wavlm", "video", "audio_hubert")
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
 ALPHAS = ("nat", "0.25", "0.5", "0.75")
 C_GRID = ("0.01", "0.1", "1", "10")
@@ -76,6 +82,15 @@ def wilcox(x) -> float:
     return float(stats.wilcoxon(x).pvalue) if len(x) >= 6 else np.nan
 
 
+def e9_pairs(kind: str) -> pd.DataFrame:
+    """組ごとの `shift_emo`・`shift_total`（E9）。`e9_pair.csv` に無い種類はその場で計算する。"""
+    e9 = pd.read_csv(OUT / "e9_pair.csv")
+    e9 = e9[e9.kind == kind]
+    if e9.empty:
+        e9 = geometry(kind)[1]
+    return e9[["target", "source", "shift_emo", "shift_total"]]
+
+
 def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
     mech = read(f"mech_{kind}")
     if mech.empty:
@@ -88,10 +103,9 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
     s = mp[mp.method == "src_only"][["target", "source", "rep", "uar"]].rename(columns={"uar": "s"})
     m = mp[mp.method == "merged"][["target", "source", "K", "rep", "uar"]].rename(columns={"uar": "m"})
     B = bias_table(kind)[["target", "source", "tv"]]
-    e9 = pd.read_csv(OUT / "e9_pair.csv")
-    e9 = e9[e9.kind == kind][["target", "source", "shift_emo", "shift_total"]]
+    e9 = e9_pairs(kind)
     groups = groups_for(kind)
-    settings = [(kind, groups)] + ([(f"{kind} 6 groups", SIX)] if kind == "audio_wavlm" else [])
+    settings = [(kind, groups)] + ([(f"{kind} 6 groups", SIX)] if kind.startswith("audio_") else [])
     out = {k: [] for k in ("src", "d1", "center", "wt", "wt_alpha")}
 
     for name, gs in settings:
@@ -209,7 +223,7 @@ def analyse_cwt(kind: str) -> dict[str, pd.DataFrame] | None:
     e10 = pd.read_csv(OUT / "e10_pair.csv")
     e10 = e10[e10.kind == kind].set_index(["target", "source"]).eff_lda
     groups = groups_for(kind)
-    settings = [(kind, groups)] + ([(f"{kind} 6 groups", SIX)] if kind == "audio_wavlm" else [])
+    settings = [(kind, groups)] + ([(f"{kind} 6 groups", SIX)] if kind.startswith("audio_") else [])
     rows, alphas, pairs = [], [], []
     for name, gs in settings:
         h0 = x[x.target.isin(gs) & x.source.isin(gs)]
@@ -244,12 +258,15 @@ def analyse_cwt(kind: str) -> dict[str, pd.DataFrame] | None:
 
 
 def main() -> int:
-    cw = {k: analyse_cwt(k) for k in KINDS}
+    ap = argparse.ArgumentParser(description="E12：学び直しの結果の解析")
+    ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=KINDS)
+    kinds = ap.parse_args().kinds
+    cw = {k: analyse_cwt(k) for k in kinds}
     cw = {k: v for k, v in cw.items() if v is not None}
     for name in ("cwt", "cwt_alpha", "cwt_pairs"):
         if cw:
             pd.concat([r[name] for r in cw.values()], ignore_index=True).to_csv(OUT / f"e12_{name}.csv", index=False)
-    res = {k: analyse(k) for k in KINDS}
+    res = {k: analyse(k) for k in kinds}
     res = {k: v for k, v in res.items() if v is not None}
     if not res:
         print("mech の結果がまだ無い")

@@ -15,7 +15,7 @@
 比べるために，WavLM（`audio_wavlm`．こちらは結果を見た後の探索的な値）も同じ手順で計算して並べる。
 
     ./.venv/bin/python exp/summarize_map.py --dir results/map_audio_hubert
-    ./.venv/bin/python exp/check_h7.py
+    ./.venv/bin/python exp/side/check_h7.py
 
 出力：`results/check_h7/primary.csv`・`secondary.csv`・`share.csv`・`raw_corr.csv`・`fig_h7.png`・`provenance.json`
 """
@@ -36,13 +36,12 @@ from scipy import stats
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_decomp import decompose, design, holm, partial_rank  # noqa: E402
-from explore_relation import per_pair  # noqa: E402
+from pair_table import OUT_ROOT, decompose, design, holm, partial_rank, per_pair  # noqa: E402
 from summarize_map import C_MERGED, GRID, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "check_h7"
+OUT = OUT_ROOT / "check_h7"
 KINDS = ("audio_hubert", "audio_wavlm")           # 先頭が判定に使う種類
 PRIMARY = [("H7a", "pad", "g_small", -1), ("H7b", "pad", "kstar", -1),
            ("H7c", "coverage_t_by_s", "g_small", +1), ("H7d", "coverage_t_by_s", "kstar", +1)]

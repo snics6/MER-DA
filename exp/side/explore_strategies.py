@@ -20,8 +20,8 @@ LogME は本来，事前学習モデルを選ぶ指標である。ここでは�
 ソースで学んだ分類器の出力を特徴とみなす。ソースの分類器の出力は `results/shift_<kind>/logits/`（②の段で保存．
 同じコーパスの組は交差当てはめ），K 本の抜き方は地図と同じ乱数（`map.kshot_order`）から作り直す。
 
-    ./.venv/bin/python exp/explore_relation.py && ./.venv/bin/python exp/explore_decomp.py
-    ./.venv/bin/python exp/explore_strategies.py
+    ./.venv/bin/python exp/explore_decomp.py      # 先に（per_pair.csv）
+    ./.venv/bin/python exp/side/explore_strategies.py
 
 出力：`results/explore_relation/e5_by_target.csv`・`e5_summary.csv`・`fig_e5.png`
 """
@@ -40,16 +40,16 @@ from scipy.special import softmax
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
 import map as M  # noqa: E402
 from data import GROUP_SPEC, load_any  # noqa: E402
 from explore_metrics import loto, table as metric_table  # noqa: E402
 from explore_select import fit_predict, taus  # noqa: E402
+from pair_table import OUT  # noqa: E402
 from shift_map import sum_zero_coords  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 KINDS = ("audio_wavlm", "video", "fuse-audio-video")
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
 LABEL_FREE = ["pad", "pad_bal", "mmd2", "frechet", "coverage_t_by_s", "density_t_by_s",

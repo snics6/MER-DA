@@ -13,8 +13,8 @@
 当たりの測り方（ターゲットごとに求めて平均する）：予測と実際の得の Spearman の ρ，1 位を当てたか，
 予測 1 位のソースを選んだときの損（実際の 1 位の得 − 予測 1 位の得．UAR の点）。
 
-    ./.venv/bin/python exp/explore_relation.py    # 先に（per_pair.csv）
-    ./.venv/bin/python exp/explore_select.py
+    ./.venv/bin/python exp/explore_decomp.py      # 先に（per_pair.csv）
+    ./.venv/bin/python exp/side/explore_select.py
 
 出力：`results/explore_relation/select_by_target.csv`・`select_summary.csv`・`fig_select.png`
 """
@@ -32,12 +32,11 @@ from scipy import stats
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_decomp import design, gains_all_k  # noqa: E402
+from pair_table import OUT, design, gains_all_k  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 KINDS = ("audio_wavlm", "video", "fuse-audio-video")          # 候補ソースが 5 つ以上ある種類
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
 MODELS = {"source": [], "+pad": ["pad"], "+coverage": ["coverage_t_by_s"],

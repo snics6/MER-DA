@@ -11,14 +11,15 @@
   組どうしが同じコーパスを共有することによる似通いは a_t・b_s として除かれる。
   残りの自由度は 組の数 − (ターゲットの数 + ソースの数 − 1) なので，p 値はさらに目安にとどまる
 
-    ./.venv/bin/python exp/explore_relation.py     # 先に（per_pair.csv を作る）
-    ./.venv/bin/python exp/explore_decomp.py
+    ./.venv/bin/python exp/explore_decomp.py      # per_pair.csv も作る（2026-10-08 から）
 
 - **自由度を正しく数えた検定**（`decomp_partial.csv`）：順位に直した v を v = μ + a_t + b_s + β·指標 に
   当てはめ，β の t 検定を残りの自由度で行う（偏相関）。音声は 36 検定に Holm をかけた `p_holm` も出す
 
-出力：`results/explore_relation/decomp_share.csv`・`decomp_corr.csv`・`decomp_partial.csv`・
-`fig_decomp_share.png`・`fig_decomp_resid_audio.png`
+出力：`results/explore_relation/per_pair.csv`（組ごとの表．`pair_table.per_pair`）・`decomp_share.csv`・
+`decomp_corr.csv`・`decomp_partial.csv`・`fig_decomp_share.png`・`fig_decomp_resid_audio.png`
+
+分解の道具（`design`・`decompose`・`partial_rank`・`holm`・`gains_all_k`）は `pair_table.py` にある。
 """
 
 from __future__ import annotations
@@ -36,76 +37,18 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_relation import KINDS, METRICS, per_pair  # noqa: E402
+from pair_table import (KINDS, METRICS, OUT, decompose, gains_all_k, holm,  # noqa: E402
+                        partial_rank, per_pair)
 from summarize_map import C_MERGED, C_SRC, C_TGT, GRID, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
 RESP = ["gain_K1", "gain_K5", "worst", "kstar"]
 
 
-def design(d: pd.DataFrame, use_t: bool, use_s: bool) -> np.ndarray:
-    cols = [np.ones(len(d))]
-    for use, col in ((use_t, "target"), (use_s, "source")):
-        if use:
-            levels = sorted(d[col].unique())
-            cols += [(d[col] == lv).to_numpy(float) for lv in levels[1:]]
-    return np.column_stack(cols)
-
-
-def r2(y: np.ndarray, X: np.ndarray) -> tuple[float, np.ndarray]:
-    beta, *_ = np.linalg.lstsq(X, y, rcond=None)
-    e = y - X @ beta
-    sst = float(((y - y.mean()) ** 2).sum())
-    return (1 - float((e ** 2).sum()) / sst if sst > 0 else np.nan), e
-
-
-def decompose(d: pd.DataFrame, col: str) -> dict | None:
-    x = d[["target", "source", col]].dropna()
-    if len(x) < 8 or x[col].nunique() < 2:
-        return None
-    y = x[col].to_numpy(float)
-    rt, _ = r2(y, design(x, True, False))
-    rs, _ = r2(y, design(x, False, True))
-    rts, e = r2(y, design(x, True, True))
-    df_res = len(x) - (x.target.nunique() + x.source.nunique() - 1)
-    return {"n_pairs": len(x), "df_resid": df_res, "r2_target": rt, "r2_source": rs,
-            "r2_both": rts, "pair_specific": 1 - rts,
-            "resid": pd.Series(e, index=pd.MultiIndex.from_frame(x[["target", "source"]]))}
-
-
-def partial_rank(d: pd.DataFrame, resp: str, met: str) -> dict | None:
-    """順位に直し，ターゲットとソースの指示変数を入れた回帰で，指標の係数を t 検定する。"""
-    x = d[["target", "source", resp, met]].dropna()
-    if len(x) < 8:
-        return None
-    y, m = stats.rankdata(x[resp]), stats.rankdata(x[met])
-    X0 = design(x, True, True)
-    X1 = np.column_stack([X0, m])
-    beta, *_ = np.linalg.lstsq(X1, y, rcond=None)
-    e = y - X1 @ beta
-    df = len(y) - np.linalg.matrix_rank(X1)
-    se = np.sqrt((e @ e) / df * np.linalg.inv(X1.T @ X1)[-1, -1])
-    ry = y - X0 @ np.linalg.lstsq(X0, y, rcond=None)[0]
-    rm = m - X0 @ np.linalg.lstsq(X0, m, rcond=None)[0]
-    return {"r_partial_rank": float(np.corrcoef(ry, rm)[0, 1]), "t": float(beta[-1] / se),
-            "p": float(2 * stats.t.sf(abs(beta[-1] / se), df)), "df": int(df), "n": len(y)}
-
-
-def holm(p: np.ndarray) -> np.ndarray:
-    o = np.argsort(p)
-    adj = np.minimum(np.maximum.accumulate((len(p) - np.arange(len(p))) * p[o]), 1)
-    out = np.empty_like(adj)
-    out[o] = adj
-    return out
-
-
-def gains_all_k(kind: str) -> pd.DataFrame:
-    p = pd.read_csv(ROOT / "results" / f"map_{kind}" / "summary" / "pairs.csv", dtype={"K": str})
-    return p.pivot_table(index=["target", "source"], columns="K", values="diff_mean").reset_index()
-
-
 def main() -> int:
+    OUT.mkdir(parents=True, exist_ok=True)
+    data = [d for k in KINDS if (d := per_pair(k)) is not None]
+    pd.concat(data, ignore_index=True).to_csv(OUT / "per_pair.csv", index=False)
     per = pd.read_csv(OUT / "per_pair.csv")
     shares, corrs, partials, resid_audio = [], [], [], {}
     for kind in [k for k in KINDS if k in set(per.kind)]:

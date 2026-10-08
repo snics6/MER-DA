@@ -29,11 +29,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_decomp import design  # noqa: E402
-from explore_modality import SIX, fit  # noqa: E402
+from pair_table import OUT, SIX, fit  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
 N_PERM = 500
 EPS = 1e-3

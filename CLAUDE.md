@@ -66,7 +66,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
 | `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |
-| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），ずれの指標を全組で測る（`shift_map.py`），ずれを消す・足す操作（`ops.py`），仕組みの仮説の学び直し（`mech.py`），探索的な解析 E1〜E14（`explore_*.py`．対応は `docs/results-index.md` 3.6），登録した判定（`check_h7.py`・`check_mh.py`），検算（`test_map.py`・`test_summarize.py`）．地図の結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
+| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），ずれの指標を全組で測る（`shift_map.py`），ずれを消す・足す操作（`ops.py`），仕組みの仮説の学び直し（`mech.py`），本筋の探索的な解析（`explore_*.py`．共通の道具は `pair_table.py`，まとめて流すのは `rerun_main.py`．対応は `docs/results-index.md` 3.6），HuBERT での MH の判定（`check_mh.py`），端の解析（`side/`．E1・E3〜E7・E14・H7），検算（`test_map.py`・`test_summarize.py`）．地図の結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
 | `run/build_data.sh` | データの作り直し台本 | ○ |
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |

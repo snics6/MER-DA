@@ -3,7 +3,7 @@
 **事前登録（`researchvision.md` 6.5.1）の判定ではない。**登録した判定は，30 回そろった結果で，
 登録した手順（主判定・Holm）で行う。ここでは，いまある回数の結果で傾向を見るだけにする。
 
-    ./.venv/bin/python exp/explore_relation.py
+    ./.venv/bin/python exp/side/explore_relation.py
 
 入力：`results/map_<kind>/summary/{pairs,kstar}.csv`（先に `summarize_map.py` を流す），
 `results/shift_<kind>/{input,label,labeling}.csv` と `space_choice.json`（選ばれた空間の行だけ使う）。
@@ -22,7 +22,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -34,49 +33,14 @@ from scipy import stats
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
+from pair_table import KINDS, METRICS, OUT, per_pair  # noqa: E402
 from summarize_map import (C_MERGED, GRID, INK, INK2, MUTED, SURFACE, DIVERGING,  # noqa: E402
                            IEMOCAP_TARGETS, _style)
 
-KINDS = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-audio-text",
-         "fuse-video-text", "fuse-audio-video-text")
-KSTAR_RANK = {"none": 0, "1": 1, "5": 2, "10": 3, "25": 4, "50": 5, "all": 6}
-METRICS = {                               # 列名 → 表示名（軸）
-    "pad": "PAD (axis 1)", "pad_bal": "PAD, class-balanced (axis 1)", "mmd2": "MMD² (axis 1)",
-    "frechet": "Fréchet (axis 1)", "coverage_t_by_s": "coverage (axis 2)",
-    "density_t_by_s": "density (axis 2)",
-    "cov_dominance": "cov. dominance c (axis 2)", "l1_true": "label-prior L1 (axis 3)",
-    "r_src": "R_src = 1 − UAR(src only) (axis 4)", "delta_ce": "Δ_CE (axis 4)",
-}
 RESPONSES = {"gain_K1": "gain at K=1", "gain_K5": "gain at K=5", "worst": "worst gain over K",
              "kstar": "K* (provisional)"}
-
-
-def per_pair(kind: str) -> pd.DataFrame | None:
-    m, s = ROOT / "results" / f"map_{kind}" / "summary", ROOT / "results" / f"shift_{kind}"
-    if not (m / "pairs.csv").exists() or not (s / "space_choice.json").exists():
-        return None
-    pairs = pd.read_csv(m / "pairs.csv", dtype={"K": str})
-    piv = pairs.pivot_table(index=["target", "source"], columns="K", values="diff_mean")
-    out = pd.DataFrame({"gain_K1": piv["1"], "gain_K5": piv["5"], "worst": piv.min(axis=1)})
-    out["n_rep"] = pairs.groupby(["target", "source"])["n_rep"].min()
-    ks = pd.read_csv(m / "kstar.csv", dtype=str).set_index(["target", "source"])
-    out["kstar"] = [KSTAR_RANK.get(ks.loc[i, "K_star"], np.nan)
-                    if ks.loc[i, "status"] not in ("single_rep", "iemocap_interval_undecided")
-                    else np.nan for i in out.index]
-    space = json.loads((s / "space_choice.json").read_text())["choice"]
-    inp_all = pd.read_csv(s / "input.csv", comment="#")
-    inp = inp_all[(inp_all.space == space) & (~inp_all.balanced)].set_index(["target", "source"])
-    bal = inp_all[(inp_all.space == space) & (inp_all.balanced)].set_index(["target", "source"])
-    lab = pd.read_csv(s / "labeling.csv", comment="#").set_index(["target", "source"])
-    lb = pd.read_csv(s / "label.csv", comment="#").set_index(["target", "source"])
-    for c in ("pad", "mmd2", "frechet", "coverage_t_by_s", "density_t_by_s", "cov_dominance"):
-        out[c] = inp[c]
-    out["pad_bal"] = bal["pad"]
-    out["r_src"], out["delta_ce"], out["l1_true"] = lab["r_src"], lab["delta_ce"], lb["l1_true"]
-    out["kind"], out["space"] = kind, space
-    return out.reset_index()
 
 
 def correlations(d: pd.DataFrame) -> list[dict]:
@@ -161,7 +125,7 @@ def fig_rank(d: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> int:
-    out = ROOT / "results" / "explore_relation"
+    out = OUT
     out.mkdir(parents=True, exist_ok=True)
     data = [d for k in KINDS if (d := per_pair(k)) is not None]
     per = pd.concat(data, ignore_index=True)

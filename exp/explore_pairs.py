@@ -42,11 +42,10 @@ sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for, load_any  # noqa: E402
 from explore_geometry import standardize  # noqa: E402
 from explore_mechanism import partial_rank  # noqa: E402
-from explore_modality import SIX, fit  # noqa: E402
+from pair_table import OUT, SIX, fit  # noqa: E402
 from split import speaker_folds  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 KINDS = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-audio-text",
          "fuse-video-text", "fuse-audio-video-text")
 EMO = ["neutral", "happy", "sad", "angry"]

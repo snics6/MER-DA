@@ -13,8 +13,8 @@
 MMD²，フレシェ距離，coverage と density の両向き，共分散の支配），推定した割合の差（MLLS），
 K 本だけで測れる量（R_src と Δ_CE．反復 0 の抽出）。ターゲットの全ラベルを使う量は使わない。
 
-    ./.venv/bin/python exp/explore_relation.py && ./.venv/bin/python exp/explore_decomp.py
-    ./.venv/bin/python exp/explore_metrics.py
+    ./.venv/bin/python exp/explore_decomp.py      # 先に（per_pair.csv・decomp_partial.csv）
+    ./.venv/bin/python exp/side/explore_metrics.py
 
 出力：`results/explore_relation/e4_single.csv`・`e4_nested.csv`・`e4_importance.csv`・`fig_e4_importance.png`
 """
@@ -33,13 +33,12 @@ from scipy import stats
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_decomp import gains_all_k  # noqa: E402
+from pair_table import OUT, gains_all_k  # noqa: E402
 from explore_select import fit_predict, taus  # noqa: E402
 from summarize_map import C_MERGED, C_TGT, GRID, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 KINDS = ("audio_wavlm", "video", "fuse-audio-video")
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
 K_SMALL = ["1", "5", "10", "25"]

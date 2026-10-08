@@ -117,8 +117,8 @@
 | 項目 | 内容 |
 |---|---|
 | 説明と主な数値 | **`docs/exploratory-analyses.md`**（E1：組をそのまま並べた順位相関，E2：ターゲットとソースの効果を分けた解析，E3：新しいターゲットに対するソースの順位の予想，E4：どの指標が予想に役立つか，E5：ソースの選び方の比較，E6：音声と映像の違いの切り分け，E7：RAVDESS を除いた音声でのソースの選び方，E8：足し算の分け方の妥当性，E9：特徴空間の形（感情の向きのそろい方）による説明，E10：ソースの境目の向きがターゲットの感情を分けるか，E11：得の仕組みの仮説 MH1〜MH5 の予言，E12：MH3・MH4 の学び直し，E13：ソースのみの分類器の d と o を感情の対ごとに測る，E14：話者ごとの位置のずれ（MH6）） |
-| 保存した結果 | `results/explore_relation/snapshots/<日時>/`（その時点の地図の回数とコミット番号は `state.json`）．`results/explore_relation/` の直下は，台本を流すたびに上書きされる |
-| 作り方 | 計算し直すとき（E1〜E5，E11）：`./.venv/bin/python exp/explore_relation.py` → `exp/explore_decomp.py` → `exp/explore_select.py` → `exp/explore_metrics.py` → `exp/explore_strategies.py` → `exp/explore_mechanism.py`（4 回目は 2026-10-08）．ほかの解析の台本：E6 `explore_modality.py`，E7 `explore_subset.py`，E8 `explore_factor.py`，E9 `explore_geometry.py`，E10 `explore_shape.py`，E12 `explore_relearn.py`，E13 `explore_pairs.py`，E14 `explore_speakers.py`（いずれも `exp/`） |
+| 保存した結果 | `results/explore_relation/snapshots/<日時>/`（その時点の地図の回数とコミット番号は `state.json`・`status.json`・`commit.txt`，2026-10-08 以降の `_main` は `manifest.json`）．`results/explore_relation/` の直下は，台本を流すたびに上書きされる．**`*_rerun/` の `_stale/` の中は，その回に計算し直していない前の回の写しなので使わない**（元のスナップショットは `_stale/README.md`） |
+| 作り方 | **本筋**：`./.venv/bin/python exp/rerun_main.py`（地図のまとめ → E2 → E8 → E9 → E10 → E11 → E13 → E12 → HuBERT での MH の確認を順に流し，その回に書いたファイルだけを `snapshots/<日時>_main/` に写す．`manifest.json` にコミット番号・反復の数・段ごとに書いたファイル．環境変数 `MERDA_OUT_ROOT` で出力先を変えられる）．台本は E2 `explore_decomp.py`，E8 `explore_factor.py`，E9 `explore_geometry.py`，E10 `explore_shape.py`，E11 `explore_mechanism.py`，E12 `explore_relearn.py`，E13 `explore_pairs.py`，共通の道具 `pair_table.py`（いずれも `exp/`）．**端**（2026-10-08 に `exp/side/` へ移した）：E1 `explore_relation.py`，E3 `explore_select.py`，E4 `explore_metrics.py`，E5 `explore_strategies.py`，E6 `explore_modality.py`，E7 `explore_subset.py`，E14 `explore_speakers.py`，H7 `check_h7.py` |
 | 本筋と端 | 2026-10-08 に仕分けた（`docs/findings.md` 3 節）．論文の本筋は E2 のばらつきの内訳，E8（付録），E9・E10 の量の定義，E11，E12，E13，HuBERT での MH の確認．それ以外は端（消さずに残す） |
 | 注意 | **確かめた結果として扱わない．**E2 は HuBERT で確かめる仮説 H7 として `researchvision.md` 6.5.2 に，E11 の主な検定は 6.5.3 に事前登録した．各主張の最新の状態は `docs/findings.md` |
 
@@ -130,14 +130,14 @@
 | 作り方 | `./.venv/bin/python exp/mech.py --kind <kind> --reps 0 1 2`，続きは `./.venv/bin/python exp/mech.py --mode cwt --kind audio_wavlm --reps 0`（操作の一覧は `exp/mech.py` の先頭）．解析は `./.venv/bin/python exp/explore_relearn.py` |
 | 比べる相手 | 地図（3.1）の同じ `(target, source, K, rep)` の行．テストと K 本の抜き方は地図と同じ．`wt` の α=nat の列は地図の合併と一致する（確認済み） |
 | 状態 | 音声（WavLM）と映像の反復 0〜2 は 2026-10-02 に完了．続き（cwt）は WavLM の反復 0 だけで完了．HuBERT（`results/mech_audio_hubert/`）の反復 0〜2 は 2026-10-08 13:08 から実行中 |
-| 注意 | `exp/explore_relearn.py` は WavLM と映像だけを解析する（`KINDS`）．HuBERT の結果を解析するには台本を直す必要がある |
+| 解析 | `./.venv/bin/python exp/explore_relearn.py [--kinds …]`．音声（WavLM）・映像・音声（HuBERT）の 3 種類（2026-10-08 に HuBERT を足した） |
 
 ### 3.6.2 仮説 H7 の判定（HuBERT）
 
 | 項目 | 内容 |
 |---|---|
 | 場所 | `results/check_h7/`（`primary.csv`：主判定 4 つと判定，`secondary.csv`：副判定，`share.csv`：ばらつきの内訳，`raw_corr.csv`：組をそのまま並べた順位相関，`fig_h7.png`，`provenance.json`） |
-| 作り方 | `./.venv/bin/python exp/summarize_map.py --dir results/map_audio_hubert` → `./.venv/bin/python exp/check_h7.py` |
+| 作り方 | `./.venv/bin/python exp/summarize_map.py --dir results/map_audio_hubert` → `./.venv/bin/python exp/side/check_h7.py`（2026-10-08 に端へ移した） |
 | 根拠 | `researchvision.md` 6.5.2（登録した手順．末尾に判定の結果を追記した） |
 | 説明と主な数値 | `docs/exploratory-analyses.md` の「HuBERT での確かめ」（2026-10-06）．4 つとも「判定できない」 |
 | 注意 | 比べるために WavLM の値も同じ表に出す．WavLM の値は結果を見た後に方法を決めた探索的な値で，判定には使わない |

@@ -11,7 +11,7 @@ E2 では，K=5 の得のばらつきのうち「組に固有の部分」が，�
    距離の指標の組に固有の部分を，それぞれ音声と映像で相関をとる。組に固有の部分の相関は，
    段 2 の一致の度合いで割り戻した値（揺れで薄まる前の相関の目安）も出す
 
-    ./.venv/bin/python exp/explore_modality.py
+    ./.venv/bin/python exp/side/explore_modality.py
 
 出力：`results/explore_relation/e6_share.csv`・`e6_reliability.csv`・`e6_crossmodal.csv`・`fig_e6.png`
 """
@@ -30,47 +30,13 @@ from scipy import stats
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_decomp import design  # noqa: E402
+from pair_table import OUT, SIX, fit, gains  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, GRID, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
-SIX = ["IEMOCAP-impro", "IEMOCAP-script", "MOSEI", "MELD", "AFEW", "CREMA-D"]   # 映像の群
 DIST = ["pad", "mmd2", "frechet", "coverage_t_by_s", "density_t_by_s"]
-
-
-def gains(kind: str) -> pd.DataFrame:
-    """反復ごとの得（合併 − ターゲットのみ）。列：target, source, K, rep, gain。"""
-    rows = []
-    for p in sorted((ROOT / "results" / f"map_{kind}").glob("*.csv")):
-        d = pd.read_csv(p, comment="#", dtype={"K": str, "source": str},
-                        usecols=["target", "source", "method", "K", "rep", "uar"])
-        t = d[d.method == "tgt_only"].set_index(["K", "rep"])["uar"]
-        m = d[d.method == "merged"].copy()
-        m["gain"] = m["uar"].to_numpy() - t.loc[list(zip(m.K, m.rep))].to_numpy()
-        rows.append(m[["target", "source", "K", "rep", "gain"]])
-    return pd.concat(rows, ignore_index=True)
-
-
-def fit(d: pd.DataFrame, col: str) -> dict:
-    """v = μ + a_t + b_s + e を当てはめ，内訳・効果・残りを返す。"""
-    y = d[col].to_numpy(float)
-    sst = float(((y - y.mean()) ** 2).sum())
-
-    def r2(X):
-        beta, *_ = np.linalg.lstsq(X, y, rcond=None)
-        e = y - X @ beta
-        return 1 - float(e @ e) / sst, beta, e
-    rt, _, _ = r2(design(d, True, False))
-    rts, beta, e = r2(design(d, True, True))
-    tl, sl = sorted(d.target.unique()), sorted(d.source.unique())
-    a = dict(zip(tl, np.r_[0.0, beta[1:len(tl)]]))
-    b = dict(zip(sl, np.r_[0.0, beta[len(tl):len(tl) + len(sl) - 1]]))
-    idx = pd.MultiIndex.from_frame(d[["target", "source"]])
-    return {"target": rt, "source": rts - rt, "pair": 1 - rts,
-            "resid": pd.Series(e, index=idx), "a": pd.Series(a), "b": pd.Series(b)}
 
 
 def pair_means(g: pd.DataFrame, groups: list[str], reps: list[int], K: str) -> pd.DataFrame:

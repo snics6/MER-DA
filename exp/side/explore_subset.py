@@ -5,7 +5,7 @@ E6 で，音声の「組に固有の部分」の 60% が RAVDESS を含む 12 �
 （IEMOCAP-impro，IEMOCAP-script，MOSEI，MELD，AFEW，CREMA-D）だけで計算し直して確かめる。
 方法は E3（`explore_select.py`），E4（`explore_metrics.py`），E5（`explore_strategies.py`）と同じ。
 
-    ./.venv/bin/python exp/explore_subset.py
+    ./.venv/bin/python exp/side/explore_subset.py
 
 出力：`results/explore_relation/e7_e34_single.csv`・`e7_e34_nested.csv`・`e7_e5_summary.csv`
 """
@@ -18,13 +18,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
 import explore_strategies as ES  # noqa: E402
 from explore_metrics import K_ORDER, loto, score, table  # noqa: E402
 from explore_select import fit_predict  # noqa: E402
+from pair_table import OUT  # noqa: E402
 
-OUT = ROOT / "results" / "explore_relation"
 SIX = ["IEMOCAP-impro", "IEMOCAP-script", "MOSEI", "MELD", "AFEW", "CREMA-D"]
 KIND = "audio_wavlm"
 
