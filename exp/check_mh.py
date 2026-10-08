@@ -227,6 +227,7 @@ def run(kinds: tuple[str, ...]) -> tuple[pd.DataFrame, list[dict]]:
 def check_e11(prim: pd.DataFrame) -> float:
     """WavLM の主判定の値が，保存済みの E11（30 回）と一致するか。差の最大を返す。"""
     ref = pd.read_csv(E11)
+    ref["test"] = ref.test.str.replace(r"^MH", "H", regex=True)   # 2026-10-06 の付け替えの後に作った E11 も読めるように
     worst = 0.0
     for setting in ("audio_wavlm", "audio_wavlm 6 groups"):
         r = ref[ref.setting == setting].set_index("test")
