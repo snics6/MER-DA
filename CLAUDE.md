@@ -5,6 +5,7 @@
 ドメイン適応（DA）理論の各項と対応づけて**測る**研究である．
 DA とメタ学習はどちらも解法候補であり，どちらを採るかはデータで決める．
 **2026-09-30 からは，地図と，測ったずれと得の関係の実証分析（`docs/exploratory-analyses.md` の E シリーズ）を主軸にする**（`researchvision.md` 0.1）．
+**2026-10-08 からは，その中の得の仕組みの仮説 MH1〜MH5（MH6 を除く）を分析の軸にする**（`docs/experiment-policy.md` 1 節）．各主張の最新の状態は `docs/findings.md`．
 
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
 （コード・環境・文書・設定値のどれも）．要るものはここに置く．
@@ -24,6 +25,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | 先行研究の要点 | `docs/related-work.md` |
 | 結果の場所・作り方・使ってよい状態（執筆・発表の入口） | `docs/results-index.md`（進み具合は `results/status.md`） |
 | 探索的な解析の方法・数値・限界（事前登録の判定とは別） | `docs/exploratory-analyses.md` |
+| 各主張の最新の状態（設定ごとの値・出典・記録の食い違い） | `docs/findings.md`（現状表．新しい結果が出たら探索の記録と一緒に直す） |
 | 論文の位置づけ（先行研究との関係・価値・投稿先・査読で想定される指摘） | `docs/paper-positioning.md`（**論文と発表資料の新しさ・関連研究・限界の書き方はここに合わせる**） |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `researchvision.md` が勝つ．**
@@ -64,7 +66,7 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
 | `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |
-| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），検算（`test_map.py`・`test_summarize.py`）．結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
+| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），ずれの指標を全組で測る（`shift_map.py`），ずれを消す・足す操作（`ops.py`），仕組みの仮説の学び直し（`mech.py`），探索的な解析 E1〜E14（`explore_*.py`．対応は `docs/results-index.md` 3.6），登録した判定（`check_h7.py`・`check_mh.py`），検算（`test_map.py`・`test_summarize.py`）．地図の結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
 | `run/build_data.sh` | データの作り直し台本 | ○ |
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |

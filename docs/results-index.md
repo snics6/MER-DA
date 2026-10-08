@@ -15,14 +15,15 @@
 | # | ファイル | 何が分かるか |
 |---|---|---|
 | 1 | `CLAUDE.md` | データの取り決め（話者分割，ラベル 4 つ，主指標 UAR），正本の優先順位 |
-| 2 | `researchvision.md` | 研究の目的・理論（Ben-David 2010 Theorem 3 ほか）・仮説．**2026-09-30 の方針転換は 0.1 節**（主軸は地図と E シリーズ）．事前登録は 6.5 節（H1〜H6），6.5.1 節（予言 P1〜P4），6.5.2 節（H7） |
-| 3 | `docs/experiment-policy.md` | 実験の決定事項と未決事項（日付と根拠つき．更新記録あり） |
-| 4 | `docs/experiment-protocol.md` | 手順（条件・分割・ずれを消す操作）と，理論からの予言の導出（7 節） |
-| 5 | `docs/shift-metrics.md` | ずれの指標の定義と注意 |
-| 6 | `docs/related-work.md`，`docs/related-work-notes.md` | 先行研究の要点と，論文ごとの詳しいメモ |
-| 7 | `data/README.md` | データの中身と作り方 |
-| 8 | `docs/exploratory-analyses.md` | **研究の主軸の分析（E1〜）**：方法，主な数値，発表用のわかりやすい説明，限界 |
-| 9 | `docs/paper-positioning.md` | **論文の位置づけ**：先行研究との関係（書き方を直す点，足す文献），研究の価値，IEEE Access で想定される指摘．**本文の新しさ・関連研究・限界はこれに合わせて書く** |
+| 2 | `docs/findings.md` | **各主張の最新の状態（現状表）**：MH シリーズの検定の値を設定ごとに並べたもの，学び直しの結果，研究計画 0.1 節の 3 段の主張の現状，事前登録の判定，記録の食い違いの一覧．数値は保存した CSV から取り，出典つき |
+| 3 | `researchvision.md` | 研究の目的・理論（Ben-David 2010 Theorem 3 ほか）・仮説．**2026-09-30 の方針転換は 0.1 節**（主軸は地図と E シリーズ．2026-10-08 の追記に，30 回での現状と，MH1〜MH5 を分析の軸にする判断）．事前登録は 6.5 節（H1〜H6），6.5.1 節（予言 P1〜P4），6.5.2 節（H7），6.5.3 節（HuBERT での MH1〜MH5） |
+| 4 | `docs/experiment-policy.md` | 実験の決定事項と未決事項（日付と根拠つき．更新記録あり） |
+| 5 | `docs/experiment-protocol.md` | 手順（条件・分割・ずれを消す操作）と，理論からの予言の導出（7 節） |
+| 6 | `docs/shift-metrics.md` | ずれの指標の定義と注意 |
+| 7 | `docs/related-work.md`，`docs/related-work-notes.md` | 先行研究の要点と，論文ごとの詳しいメモ |
+| 8 | `data/README.md` | データの中身と作り方 |
+| 9 | `docs/exploratory-analyses.md` | **研究の主軸の分析（E1〜E14，H7・MH の HuBERT での判定）**：方法，主な数値，発表用のわかりやすい説明，限界．追記式の記録なので，古い回数の値と後からの訂正を含む．最新の値は 2 番の現状表で確かめる |
+| 10 | `docs/paper-positioning.md` | **論文の位置づけ**：先行研究との関係（書き方を直す点，足す文献），研究の価値，IEEE Access で想定される指摘．**本文の新しさ・関連研究・限界はこれに合わせて書く**．ただし論文の中心の主張は E2〜E4 の 3 段（10〜11 回の値）のままで，MH を軸にする判断（2026-10-08）にまだ合わせていない（`docs/findings.md` 5 節の 4） |
 
 ## 2. 結果を使うときの決まり
 
@@ -117,17 +118,19 @@
 |---|---|
 | 説明と主な数値 | **`docs/exploratory-analyses.md`**（E1：組をそのまま並べた順位相関，E2：ターゲットとソースの効果を分けた解析，E3：新しいターゲットに対するソースの順位の予想，E4：どの指標が予想に役立つか，E5：ソースの選び方の比較，E6：音声と映像の違いの切り分け，E7：RAVDESS を除いた音声でのソースの選び方，E8：足し算の分け方の妥当性，E9：特徴空間の形（感情の向きのそろい方）による説明，E10：ソースの境目の向きがターゲットの感情を分けるか，E11：得の仕組みの仮説 MH1〜MH5 の予言，E12：MH3・MH4 の学び直し，E13：ソースのみの分類器の d と o を感情の対ごとに測る，E14：話者ごとの位置のずれ（MH6）） |
 | 保存した結果 | `results/explore_relation/snapshots/<日時>/`（その時点の地図の回数とコミット番号は `state.json`）．`results/explore_relation/` の直下は，台本を流すたびに上書きされる |
-| 作り方 | `./.venv/bin/python exp/explore_relation.py` → `exp/explore_decomp.py` → `exp/explore_select.py` → `exp/explore_metrics.py` → `exp/explore_strategies.py` |
-| 注意 | **確かめた結果として扱わない．**E2 は HuBERT で確かめる仮説 H7 として `researchvision.md` 6.5.2 に事前登録した |
+| 作り方 | 計算し直すとき（E1〜E5，E11）：`./.venv/bin/python exp/explore_relation.py` → `exp/explore_decomp.py` → `exp/explore_select.py` → `exp/explore_metrics.py` → `exp/explore_strategies.py` → `exp/explore_mechanism.py`（4 回目は 2026-10-08）．ほかの解析の台本：E6 `explore_modality.py`，E7 `explore_subset.py`，E8 `explore_factor.py`，E9 `explore_geometry.py`，E10 `explore_shape.py`，E12 `explore_relearn.py`，E13 `explore_pairs.py`，E14 `explore_speakers.py`（いずれも `exp/`） |
+| 本筋と端 | 2026-10-08 に仕分けた（`docs/findings.md` 3 節）．論文の本筋は E2 のばらつきの内訳，E8（付録），E9・E10 の量の定義，E11，E12，E13，HuBERT での MH の確認．それ以外は端（消さずに残す） |
+| 注意 | **確かめた結果として扱わない．**E2 は HuBERT で確かめる仮説 H7 として `researchvision.md` 6.5.2 に，E11 の主な検定は 6.5.3 に事前登録した．各主張の最新の状態は `docs/findings.md` |
 
-### 3.6.1 仕組みの仮説の学び直し（E12．実行中）
+### 3.6.1 仕組みの仮説の学び直し（E12）
 
 | 項目 | 内容 |
 |---|---|
-| 場所 | `results/mech_<kind>/<ターゲット>.csv`（地図と同じ列に `op`，`alpha` と α・C ごとの交差検証とテストの UAR を足したもの） |
-| 作り方 | `./.venv/bin/python exp/mech.py --kind <kind> --reps 0 1 2`（操作の一覧は `exp/mech.py` の先頭） |
+| 場所 | `results/mech_<kind>/<ターゲット>.csv`（地図と同じ列に `op`，`alpha` と α・C ごとの交差検証とテストの UAR を足したもの）．MH3 と MH4 を同時に取り除いた続き（`--mode cwt`）は `results/mech2_audio_wavlm/` |
+| 作り方 | `./.venv/bin/python exp/mech.py --kind <kind> --reps 0 1 2`，続きは `./.venv/bin/python exp/mech.py --mode cwt --kind audio_wavlm --reps 0`（操作の一覧は `exp/mech.py` の先頭）．解析は `./.venv/bin/python exp/explore_relearn.py` |
 | 比べる相手 | 地図（3.1）の同じ `(target, source, K, rep)` の行．テストと K 本の抜き方は地図と同じ．`wt` の α=nat の列は地図の合併と一致する（確認済み） |
-| 注意 | 反復 0〜2 だけ．音声と映像 |
+| 状態 | 音声（WavLM）と映像の反復 0〜2 は 2026-10-02 に完了．続き（cwt）は WavLM の反復 0 だけで完了．HuBERT（`results/mech_audio_hubert/`）の反復 0〜2 は 2026-10-08 13:08 から実行中 |
+| 注意 | `exp/explore_relearn.py` は WavLM と映像だけを解析する（`KINDS`）．HuBERT の結果を解析するには台本を直す必要がある |
 
 ### 3.6.2 仮説 H7 の判定（HuBERT）
 
