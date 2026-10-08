@@ -19,6 +19,7 @@ d の変化の分け方（ターゲット全発話で評価．30 通りのでた
     N：抜き方の揺れが散らばりに足す分（抜き方の雑音）
 
     ./.venv/bin/python exp/explore_direction.py [--kinds audio_wavlm ...]
+    ./.venv/bin/python exp/explore_direction.py --stage diag    # 実測の d の変化を情報と雑音に分ける（E16 の 6 節）
 
 入力：地図の C，特徴，ソースのみの分類器の点数（`results/shift_<kind>/logits/`），E15 の段階 B の点数
 （`results/merged_scores_<kind>/`）。出力：`results/explore_relation/e16_*.csv`・`fig_e16.png`
@@ -192,6 +193,85 @@ def run_kind(kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return pd.DataFrame(rows), pd.DataFrame(dec)
 
 
+CW = (0.05, 0.01)
+
+
+def split_obs(Ls: np.ndarray, Lm: np.ndarray, y: np.ndarray) -> list[dict]:
+    """z_m = a·z_s + e と回帰し，d_m/d_s = (1 + I_obs)/√(1 + N_obs) の I_obs・N_obs を感情の対ごとに返す。"""
+    out = []
+    for k, j in PAIRS:
+        m = (y == k) | (y == j)
+        zs, zm, yy = Ls[m, k] - Ls[m, j], Lm[m, k] - Lm[m, j], y[m]
+        cs = zs.copy(); cm = zm.copy()                         # 感情の中で平均を引く
+        for c in (k, j):
+            cs[yy == c] -= zs[yy == c].mean(); cm[yy == c] -= zm[yy == c].mean()
+        a = float((cs * cm).sum() / (cs * cs).sum())
+        e = zm - a * zs
+        sep_s = zs[yy == k].mean() - zs[yy == j].mean()
+        sep_e = e[yy == k].mean() - e[yy == j].mean()
+        var_s = (zs[yy == k].var(ddof=1) + zs[yy == j].var(ddof=1)) / 2
+        var_e = (e[yy == k].var(ddof=1) + e[yy == j].var(ddof=1)) / 2
+        out.append({"pair": f"{k}-{j}", "a": a, "I_obs": sep_e / (a * sep_s), "N_obs": var_e / (a * a * var_s),
+                    "d_s": sep_s / np.sqrt(var_s),
+                    "d_m": (zm[yy == k].mean() - zm[yy == j].mean())
+                           / np.sqrt((zm[yy == k].var(ddof=1) + zm[yy == j].var(ddof=1)) / 2)})
+    return out
+
+
+def run_diag(kind: str) -> pd.DataFrame:
+    groups = groups_for(kind)
+    data = {g: load_any(g, kind) for g in groups}
+    rows = []
+    for s in groups:
+        z = np.load(ROOT / "results" / f"shift_{kind}" / "logits" / f"{s}.npz")
+        for t in groups:
+            if t == s:
+                continue
+            dft = data[t][0]
+            yt = dft.label_4.to_numpy()
+            Pt = softmax(z[f"t_{t}"], axis=1)
+            p_true = Pt[np.arange(len(yt)), yt]
+            B = np.load(ROOT / "results" / f"merged_scores_{kind}" / f"{t}.npz")
+            for K in KS:
+                for r in REPS:
+                    te, idx = map_draw(dft, t, r, int(K))
+                    if not np.array_equal(np.flatnonzero(te), B[f"test_idx_r{r}"]):
+                        raise SystemExit(f"{kind} {t} 反復 {r}：テストの袋が段階 B と合わない")
+                    Ls, Lm = B[f"s_{s}_r{r}"].astype(np.float64), B[f"m_{s}_K{K}_r{r}"].astype(np.float64)
+                    base = {"kind": kind, "target": t, "source": s, "K": K, "rep": r,
+                            **{f"n_cw{c:g}": int((p_true[idx] < c).sum()) for c in CW},
+                            "p_true_min": float(p_true[idx].min())}
+                    for o in split_obs(Ls, Lm, yt[te]):
+                        rows.append({**base, **o})
+        print(f"  {kind} ソース {s} 済み", flush=True)
+    return pd.DataFrame(rows)
+
+
+def summarize_diag(X: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    X = X.assign(log_dr=np.log(X.d_m / X.d_s))
+    med = (X.groupby(["kind", "K"]).agg(I_obs=("I_obs", "median"), N_obs=("N_obs", "median"),
+                                        log_dr=("log_dr", "median"), a=("a", "median"))
+           .reset_index())
+    keys = ["kind", "target", "source", "K", "rep"]
+    R = X.groupby(keys).agg(log_dr=("log_dr", "mean"), **{f"n_cw{c:g}": (f"n_cw{c:g}", "first") for c in CW}).reset_index()
+    tests = []
+    for (kind, K), g in R.groupby(["kind", "K"], sort=False):
+        row = {"setting": KINDS[kind], "K": K, "n_draws": len(g)}
+        for c in CW:
+            col = f"n_cw{c:g}"
+            row[f"share_draws_cw{c:g}"] = float((g[col] >= 1).mean())
+            dm = g.groupby(["target", "source"])
+            u = g.log_dr - dm.log_dr.transform("mean")
+            v = g[col] - dm[col].transform("mean")
+            ok = v.abs() > 0
+            if ok.sum() >= 10:
+                r, p = stats.spearmanr(v, u, alternative="less")
+                row[f"spearman_cw{c:g}"], row[f"p_cw{c:g}"] = r, p
+            row[f"n_varying_cw{c:g}"] = int(ok.sum())
+        tests.append(row)
+    return med, pd.DataFrame(tests)
+
+
 def summarize(R: pd.DataFrame, D: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     R = R.assign(dc_obs=R.d_m - R.d_s, dc_pred=R.d_pred - R.d_s)
     P = R.groupby(["kind", "target", "source", "K"]).agg(
@@ -237,7 +317,19 @@ def fig(P: pd.DataFrame, path: Path) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
+    ap.add_argument("--stage", choices=["predict", "diag"], default="predict",
+                    help="diag：段階 B の実測の d の変化を，新しく加わった部分の情報と雑音に分ける（6 節）")
     args = ap.parse_args()
+    if args.stage == "diag":
+        X = pd.concat([run_diag(k) for k in args.kinds])
+        X.to_csv(OUT / "e16_diag_rows.csv", index=False)
+        med, T = summarize_diag(X)
+        med.to_csv(OUT / "e16_diag_median.csv", index=False)
+        T.to_csv(OUT / "e16_diag_tests.csv", index=False)
+        pd.set_option("display.width", 250)
+        print(med.round(3).to_string(index=False))
+        print(T.round(3).to_string(index=False))
+        return 0
     Rs, Ds = [], []
     for kind in args.kinds:
         t0 = time.time()
