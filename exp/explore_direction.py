@@ -332,22 +332,22 @@ def run_drivers(kinds: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
          .merge(lam, on=["kind", "target", "source", "K"]).merge(o_s, on=["kind", "target", "source", "K", "pair"])
          .merge(Q, on=["kind", "target", "source", "K"]).merge(curves, on=["kind", "target"])
          .merge(own, on=["kind", "target", "source", "pair"]))
-    P["switch"] = P.lam_obs ** 2 * P.o_s ** 2 * P.Q
-    P["info"] = (P.own_d / P.d_s - 1) * P.K.astype(int) / (P.K.astype(int) + P.q)
+    P["switch_pred"] = P.lam_obs ** 2 * P.o_s ** 2 * P.Q
+    P["info_pred"] = (P.own_d / P.d_s - 1) * P.K.astype(int) / (P.K.astype(int) + P.q)
     T = []
     for kind, g in P.groupby("kind", sort=False):
         for K, h in g.groupby("K"):
             h2 = X[(X.kind == kind) & (X.K == K)]
             diff, same = h2[h2.C_m != h2.C_s].N_obs, h2[h2.C_m == h2.C_s].N_obs
             u = stats.mannwhitneyu(diff, same, alternative="greater") if len(diff) and len(same) else None
-            r1, p1 = stats.spearmanr(h.switch, h.N_obs, alternative="greater")
+            r1, p1 = stats.spearmanr(h.switch_pred, h.N_obs, alternative="greater")
             T.append({"setting": KINDS[kind], "K": K, "n": len(h),
                       "N1_spearman": r1, "N1_p": p1,
                       "N2_share_C_differs": float((h2.C_m != h2.C_s).mean()),
                       "N2_median_N_differs": diff.median(), "N2_median_N_same": same.median(),
                       "N2_auc": u.statistic / (len(diff) * len(same)) if u else np.nan,
                       "N2_p": u.pvalue if u else np.nan})
-        r, p = stats.spearmanr(g.info, g.I_obs, alternative="greater")
+        r, p = stats.spearmanr(g.info_pred, g.I_obs, alternative="greater")
         T.append({"setting": KINDS[kind], "K": "all", "n": len(g), "I1_spearman": r, "I1_p": p})
     return P, pd.DataFrame(T)
 
