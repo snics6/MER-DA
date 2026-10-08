@@ -19,7 +19,7 @@
 | 3 | `label_4` が 0〜3 で，名前と一致するか | 致命的 |
 | 4 | 媒体（映像・音声）のファイルが実在するか | 抽出が失敗する |
 | 5 | 媒体のパスが重複していないか | **別の発話が同じ動画を指している** |
-| 6 | 話者が空でないか・構造はどうか | data/README.md 注意点 4 に関わる |
+| 6 | 話者が空でないか・構造はどうか | data/README.md 取り決め 5 に関わる |
 | 7 | 書き起こしに文字化けが無いか | 言葉の特徴が壊れる |
 | 8 | 生データの件数と一致するか | 取りこぼし |
 
@@ -80,7 +80,7 @@ def raw_count(corpus: str) -> int | None:
         print(f"  ({corpus} の生データを数えられない: {e})")
     return None
 
-# Windows-1252 が壊れて混入した文字（docs/feature-spec.md）
+# Windows-1252 が壊れて混入した文字（data/README.md 4 節「文字化けの修復（L1）」）
 MOJIBAKE = tuple(chr(c) for c in range(0x80, 0xA0))
 
 

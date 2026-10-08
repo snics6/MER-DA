@@ -1,8 +1,8 @@
 """ずれを 1 種類ずつ消す操作と，その対照の正本。**操作はすべてここを通す。**
 
-根拠と規則は `docs/experiment-protocol.md` 4 節（操作の名前 P1・I1・D3 などを各関数に書く）。
+根拠と規則は `docs/methods.md` 5 節（操作の名前 P1・I1・D3 などを各関数に書く）。
 
-## 規則（protocol 4 節）
+## 規則（`docs/methods.md` 5.2）
 
 - R1：**抜き出す操作には，同じ本数をランダムに抜いた対照を必ず付ける**
   （`random_subset_like`）。
@@ -74,7 +74,7 @@ def standardize_by_speaker(X: np.ndarray, speakers: np.ndarray,
     """I2：話者ごとに標準化する（Schuller 2010）。
 
     発話が min_count 本未満の話者は平均だけ引く（標準偏差を推定できない）。
-    戻り値の 2 つ目は各行の話者の発話数（不安定さの記録用。protocol 4.2 の注意）。
+    戻り値の 2 つ目は各行の話者の発話数（不安定さの記録用。`docs/methods.md` 5.3.2 の注意）。
     """
     X = X.astype(float).copy()
     speakers = np.asarray(speakers)
@@ -126,7 +126,7 @@ def flip_labels(y: np.ndarray, rho: float, rng: np.random.Generator,
     """D3s：ラベルの割合 rho を，**ほかの感情へ一様に**付け替える（Wang 2019 の εy に相当）。
 
     各発話で最も確率の高い感情は変わらない（rho < 3/4 のとき）ので，**付け方のずれは生じず，
-    信号が弱まるだけ**（protocol 7.4 節）。付け方のずれを足すのは `flip_labels_pair`（D3a）。
+    信号が弱まるだけ**（`docs/methods.md` 7.4）。付け方のずれを足すのは `flip_labels_pair`（D3a）。
     """
     y = np.asarray(y).copy()
     n_flip = int(round(rho * len(y)))
@@ -140,7 +140,7 @@ def flip_labels_pair(y: np.ndarray, src: int, dst: int, rho: float,
                      rng: np.random.Generator) -> np.ndarray:
     """D3a：感情 src の発話のうち割合 rho を，感情 dst へ付け替える（付け方のずれを足す）。
 
-    src と dst の境界の対数オッズが log(1/(1−2ρ)) だけ動く（protocol 7.4 節）。
+    src と dst の境界の対数オッズが log(1/(1−2ρ)) だけ動く（`docs/methods.md` 7.4）。
     一様な付け替え（`flip_labels`，D3s）と違い，理想的な分類器が変わる。
     """
     y = np.asarray(y).copy()

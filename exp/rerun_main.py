@@ -1,6 +1,6 @@
 """本筋の解析をまとめて流し，その回に作ったファイルだけをスナップショットに写す（2026-10-08 から）。
 
-本筋と端の仕分けは `docs/findings.md` 3 節。端の解析（`exp/side/`）はここでは流さない。
+本筋と端の仕分けは `docs/results.md` 3.4 節。端の解析（`exp/side/`）はここでは流さない。
 
     ./.venv/bin/python exp/rerun_main.py                    # 地図のまとめから全部流し，スナップショットを作る
     ./.venv/bin/python exp/rerun_main.py --no-summarize     # 地図のまとめ（summarize_map.py）を流さない

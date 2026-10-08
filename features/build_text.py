@@ -15,7 +15,7 @@ MOSEI が CMU 配布の `label.csv` の `text` 列である。
 
 **RAVDESS と CREMA-D は，この抽出の対象にしない。**俳優が同じ文を感情だけ変えて
 読むコーパスで，読む文は 2 種類・12 種類しかない。文字起こしからは感情の手がかりが
-得られないため，測る意味がない（`docs/feature-spec.md`）。
+得られないため，測る意味がない（`data/README.md` 4 節「言葉の正規化の段階」）。
 
 **前身から変えた点**。
 
@@ -75,7 +75,7 @@ def process_chunk(df: pd.DataFrame, model, tok, args) -> dict:
 
     raw = df["transcript"].fillna("").astype(str)
     n_fixed = int(raw.map(lambda s: s != common.fix_mojibake(s)).sum())
-    # **正規化の段階**（docs/feature-spec.md）。既定は L1（文字化けの修復のみ）
+    # **正規化の段階**（data/README.md 4 節）。既定は L1（文字化けの修復のみ）
     texts = raw.map(lambda s: common.normalize_text(s, args.level)).tolist()
     keep = [i for i, t in enumerate(texts) if len(t) > 0]
     for i, t in enumerate(texts):
@@ -130,7 +130,7 @@ def main() -> None:
     ap.add_argument("--corpus", default="all", help="IEMOCAP / MOSEI / MELD / AFEW / all")
     ap.add_argument("--model", default="roberta-base", choices=list(common.TEXT_MODELS))
     ap.add_argument("--level", type=int, default=1, choices=(0, 1, 2, 3, 4),
-                    help="正規化の段階 L0〜L4（docs/feature-spec.md）．既定は L1")
+                    help="正規化の段階 L0〜L4（data/README.md 4 節）．既定は L1")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--chunk", type=int, default=2000)
     ap.add_argument("--batch", type=int, default=64)

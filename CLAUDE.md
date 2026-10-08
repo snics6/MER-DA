@@ -1,11 +1,10 @@
 # MER-DA — 少数ターゲットラベル下のマルチモーダル感情認識（MER）転移
 
 新しいコーパス（ターゲット）にラベルが**クラスあたり K 件**しかないとき，
-ほかのコーパス（ソース）のラベル付きデータがどれだけ役立つかを，
-ドメイン適応（DA）理論の各項と対応づけて**測る**研究である．
-DA とメタ学習はどちらも解法候補であり，どちらを採るかはデータで決める．
-**2026-09-30 からは，地図と，測ったずれと得の関係の実証分析（`docs/exploratory-analyses.md` の E シリーズ）を主軸にする**（`researchvision.md` 0.1）．
-**2026-10-08 からは，その中の得の仕組みの仮説 MH1〜MH5（MH6 を除く）を分析の軸にする**（`docs/experiment-policy.md` 1 節）．各主張の最新の状態は `docs/findings.md`．
+ほかのコーパス（ソース）のラベル付きデータを混ぜると成績がどう変わるかを測り，
+得と損が生じる仕組みを，ドメイン適応（DA）理論と対応づけた数式モデルで説明する研究である．
+**分析の軸は得の仕組みの仮説 MH1〜MH5**（`researchvision.md` 3 節）．論文 1 は IEEE Access の分析論文（2026-10 末），論文 2 は新しい手法（2026-11）．
+各主張の最新の状態は `docs/results.md`．
 
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
 （コード・環境・文書・設定値のどれも）．要るものはここに置く．
@@ -14,23 +13,20 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 
 ## 正本と優先順位
 
+文書は役割ごとに 7 本ある（2026-10-08 に統合）．
+
 | 対象 | 正本 |
 |---|---|
-| 研究の目的・理論・実験計画・仮説・未決事項 | **`researchvision.md`**（ここを磨いていく） |
-| データの中身・扱い方・作り直し方 | **`data/README.md`**（発話一覧の詳細は `data/metadata/README.md`） |
-| 特徴の作り方 | `docs/feature-spec.md` |
-| 実験の方針・決定事項・未決事項（常に更新．更新記録つき） | **`docs/experiment-policy.md`** |
-| 実験の手順（条件・分割・ずれを消す操作） | `docs/experiment-protocol.md` |
-| ずれの指標の定義と注意 | `docs/shift-metrics.md` |
-| 先行研究の要点 | `docs/related-work.md` |
-| 結果の場所・作り方・使ってよい状態（執筆・発表の入口） | `docs/results-index.md`（進み具合は `results/status.md`） |
-| 探索的な解析の方法・数値・限界（事前登録の判定とは別） | `docs/exploratory-analyses.md` |
-| 各主張の最新の状態（設定ごとの値・出典・記録の食い違い） | `docs/findings.md`（現状表．新しい結果が出たら探索の記録と一緒に直す） |
-| 論文の位置づけ（先行研究との関係・価値・投稿先・査読で想定される指摘） | `docs/paper-positioning.md`（**論文と発表資料の新しさ・関連研究・限界の書き方はここに合わせる**） |
+| 研究の目的・分析の軸・論文の計画・決定事項・未決事項・更新記録・事前登録した仮説 | **`researchvision.md`** |
+| 実験の手順（地図，学び直し，ずれの指標，操作，統計，理論からの予言の導出） | **`docs/methods.md`** |
+| データの扱い・発話一覧・特徴の作り方・重み・作り直し方 | **`data/README.md`** |
+| 各主張の最新の状態，解析の本筋と端，結果の場所と作り方（執筆・発表の入口） | **`docs/results.md`**（進み具合は `results/status.md`） |
+| 探索的な解析の方法・数値・経緯（日付順の記録） | `docs/exploratory-analyses.md` |
+| 先行研究と論文の位置づけ（**論文と発表資料の新しさ・関連研究・限界の書き方はここに合わせる**） | `docs/related-work.md` |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `researchvision.md` が勝つ．**
-食い違いを見つけたら，勝った側に合わせて負けた側を直す（放置しない）．
-本ファイルは要点と取り決めだけを持つ．**未決事項は期限つきで，研究全体のものは `researchvision.md`，実験のものは `docs/experiment-policy.md` に書き，ここには置かない．**方針を変えたら `docs/experiment-policy.md` の更新記録に 1 行足す．
+食い違いを見つけたら，勝った側に合わせて負けた側を直す（放置しない）．古い文は残さずその場で書き直す（前の版は git にある）．
+本ファイルは要点と取り決めだけを持つ．**未決事項は期限つきで `researchvision.md` 7 節に書き，ここには置かない．**方針を変えたら `researchvision.md` の決定事項を直し，更新記録に 1 行足す．
 
 中核の理論：`A theory of learning from different domains.pdf`（Ben-David et al., 2010．Theorem 3）
 
@@ -61,14 +57,17 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 | 場所 | 中身 | git |
 |---|---|---|
 | `researchvision.md` | 研究計画（正本） | ○ |
-| `data/metadata/` | 発話一覧 7 本（ラベルと話者の正本） | ○ |
+| `docs/` | 方法・結果・探索の記録・先行研究の文書 | ○ |
+| `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本） | ○ |
 | `data/cache/*.npz` | 特徴 28 本（1.1 GB）．消えたら `run/build_data.sh` で作り直す | × |
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
 | `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |
-| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），ずれの指標を全組で測る（`shift_map.py`），ずれを消す・足す操作（`ops.py`），仕組みの仮説の学び直し（`mech.py`），本筋の探索的な解析（`explore_*.py`．共通の道具は `pair_table.py`，まとめて流すのは `rerun_main.py`．対応は `docs/results-index.md` 3.6），HuBERT での MH の判定（`check_mh.py`），端の解析（`side/`．E1・E3〜E7・E14・H7），検算（`test_map.py`・`test_summarize.py`）．地図の結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
+| `exp/` | 実験の台本．地図の実験（`map.py`），GPU で解くロジスティック回帰（`logreg.py`），途中結果のまとめ（`summarize_map.py`），進み具合（`results_status.py`），ずれの指標を全組で測る（`shift_map.py`），ずれを消す・足す操作（`ops.py`），仕組みの仮説の学び直し（`mech.py`），本筋の探索的な解析（`explore_*.py`．共通の道具は `pair_table.py`，まとめて流すのは `rerun_main.py`．対応は `docs/results.md` 4.5），HuBERT での MH の判定（`check_mh.py`），端の解析（`side/`．E1・E3〜E7・E14・H7），検算（`test_map.py`・`test_summarize.py`）．地図の結果は `results/map_<エンコーダ>/<ターゲット>.csv` に反復ごとに追記 | ○ |
 | `run/build_data.sh` | データの作り直し台本 | ○ |
 | `weights/` | 顔検出と表情モデルの重み | × |
+| `results/` | 結果（再計算できる前提．各ファイルに設定とコミット番号を書く） | × |
+| `logs/` | 長時間処理のログ | × |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |
 
 **Python 環境は `.venv/` の 1 つだけ．**版は `requirements.txt` で固定する（scikit-learn の版違いで結果がずれうる）．
@@ -77,12 +76,12 @@ DA とメタ学習はどちらも解法候補であり，どちらを採るか�
 
 ## 進め方
 
-- **実験コードを書く前に `docs/experiment-protocol.md` を読む**
-- **ずれの指標は `measure/shift.py`，ずれを消す操作は `measure/ablate.py` を必ず通す．**実験コードで書き直さない．変えたら `measure/test_shift.py` を流し，根拠の md（`docs/shift-metrics.md`・`docs/experiment-protocol.md`）も直す
+- **実験コードを書く前に `docs/methods.md` を読む**
+- **ずれの指標は `measure/shift.py`，ずれを消す操作は `measure/ablate.py` を必ず通す．**実験コードで書き直さない．例外は学び直し（E12）の `exp/mech.py`（`docs/methods.md` 3.4）．変えたら `measure/test_shift.py` を流し，`docs/methods.md` も直す
 - **長時間の処理（特徴抽出・学習・評価）は勝手に起動しない．**
   まずコマンド・所要見込み・上書きするファイルを示して確認を取る
 - 長時間処理は **tmux セッション `mer-da`** の中で回す
 - **数値の主張は，ログか出力ファイルを示してから述べる**
-- **仮説（`researchvision.md` の事前登録）は結果を見てから書き換えない**
+- **事前登録した仮説（`researchvision.md` 8 節）は結果を見てから書き換えない**
 - ハイパーパラメータはテストラベルで選ばない．実用値とオラクル値を分けて報告する
 - このファイルは短く保つ（150 行以内）．増えたら `docs/` に分ける

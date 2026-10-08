@@ -1,4 +1,4 @@
-"""ずれの指標を全組で測る（`researchvision.md` 6.4・6.5.1，`docs/shift-metrics.md`）。3 段に分ける。
+"""ずれの指標を全組で測る（`docs/methods.md` 4 節，`researchvision.md` 8.2）。3 段に分ける。
 
     ./.venv/bin/python exp/shift_map.py gpu   --kind audio_wavlm            # 軸 3・4 と対数オッズ（GPU）
     ./.venv/bin/python exp/shift_map.py input --kind audio_wavlm --workers 14  # 軸 1・2（CPU）
@@ -13,7 +13,7 @@
 | `logits/<ソース>.npz` | 空間 (b) の点数：ソースは交差検証の保留側の予測，ターゲットは学習済みの分類器の出力．軸 1・2 を測るときは和 0 の 3 次元の座標に直す（`sum_zero_coords`） |
 | `input.csv` | 軸 1・2：空間 raw（参考）・pca64（候補 a）・logit（候補 b），割合をそろえた版（C9，logit と pca64） |
 | `zero.csv` | 同じ群を話者で 2 つに割ったゼロ点（raw・pca64 は群ごと，logit は組ごと） |
-| `space_choice.json` | 登録した規則（6.5.1 共通の決まり 6）の当てはめ |
+| `space_choice.json` | 登録した規則（`researchvision.md` 8.2 共通の決まり 6）の当てはめ |
 
 **同じ人物が両側にいる組**（IEMOCAP-impro と -script）では，ターゲットの採点に，その話者を除いた
 ソースで学び直した分類器を使う（話者 5 分割の交差当てはめ．`cross_fit` 列が真）。
@@ -249,7 +249,7 @@ def stage_space(kind: str) -> None:
     out = out_dir(kind)
     inp = pd.read_csv(out / "input.csv", comment="#")
     zero = pd.read_csv(out / "zero.csv", comment="#", keep_default_na=False)
-    res = {"kind": kind, "rule": "researchvision.md 6.5.1 共通の決まり 6", "pad_saturated": PAD_SATURATED}
+    res = {"kind": kind, "rule": "researchvision.md 8.2 共通の決まり 6", "pad_saturated": PAD_SATURATED}
     for space in ("raw", "pca64", "logit"):
         d = inp[(inp.space == space) & (~inp.balanced)]
         if space == "logit":

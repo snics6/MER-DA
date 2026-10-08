@@ -78,7 +78,7 @@ def main() -> int:
     z = shift.zero_point(X, spk(900, 30, "p"), n=N, reps=2)
     ok &= check("ゼロ点", z["pad"] < 0.4, f"PAD {z['pad']:.3f}，coverage {z['coverage_t_by_s']:.3f}")
 
-    # ---- 測る空間（md 0.1）：PCA 64 次元でも同一分布は小さく，ずれは大きい
+    # ---- 測る空間（`docs/methods.md` 4.2）：PCA 64 次元でも同一分布は小さく，ずれは大きい
     a128, b128 = gauss(rng, N, d=128), gauss(rng, N, d=128)
     c128 = gauss(rng, N, mean=0.3, d=128)
     g_a, g_b = spk(N, 20, "a"), spk(N, 20, "b")
@@ -101,7 +101,7 @@ def main() -> int:
     cd4 = shift.cov_dominance(L4s, L4)
     ok &= check("広がり 0 の方向を除く", np.isfinite(cd4) and cd4 > 1.0,
                 f"広いソースの c {cd4:.2f}（1 より大きいのが正しい）")
-    # 割合をそろえた抜き出し（md C9）
+    # 割合をそろえた抜き出し（`docs/methods.md` S9）
     yb = np.repeat([0, 1, 2, 3], [400, 100, 60, 40])
     ib = shift.subsample_balanced(yb, 160, rng)
     ok &= check("感情ごとに同数を抜く", np.all(np.bincount(yb[ib], minlength=4) == 40),
@@ -173,7 +173,7 @@ def main() -> int:
     Xz, n_per = ablate.standardize_by_speaker(gauss(rng, 100, mean=3.0, d=4), spk(100, 5, "q"))
     ok &= check("I2 話者標準化", np.abs(Xz.mean(0)).max() < 1e-9, f"平均の最大 {np.abs(Xz.mean(0)).max():.1e}")
 
-    # ---- 理論の検算（protocol 7.3・7.4 の導出）
+    # ---- 理論の検算（`docs/methods.md` 7.3・7.4 の導出）
     eta = rng.dirichlet(np.ones(4), size=20000)
     for rho in (0.1, 0.2, 0.4):
         k = 4

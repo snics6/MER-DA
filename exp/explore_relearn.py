@@ -55,11 +55,11 @@ C_GRID = ("0.01", "0.1", "1", "10")
 
 
 def read(dirname: str) -> pd.DataFrame:
-    fs = sorted((ROOT / "results" / dirname).glob("*.csv"))
-    if not fs:
-        return pd.DataFrame()
-    return pd.concat([pd.read_csv(f, comment="#", dtype={"K": str, "source": str, "alpha": str})
-                      for f in fs], ignore_index=True)
+    """ターゲットごとの CSV をつなぐ。まだ行の無い CSV（実行中の学び直し）は飛ばす（つなぐと列が数値でなくなる）。"""
+    ds = [pd.read_csv(f, comment="#", dtype={"K": str, "source": str, "alpha": str})
+          for f in sorted((ROOT / "results" / dirname).glob("*.csv"))]
+    ds = [d for d in ds if len(d)]
+    return pd.concat(ds, ignore_index=True) if ds else pd.DataFrame()
 
 
 def done_reps(mech: pd.DataFrame) -> pd.DataFrame:

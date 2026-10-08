@@ -1,4 +1,4 @@
-"""結果の進み具合を集めて `results/status.json` と `results/status.md` に書く（`docs/results-index.md` の動的な部分）。
+"""結果の進み具合を集めて `results/status.json` と `results/status.md` に書く（`docs/results.md` 4 節の動的な部分）。
 
     ./.venv/bin/python exp/results_status.py
 
@@ -99,7 +99,7 @@ def main() -> int:
     (RESULTS / "status.json").write_text(json.dumps(status, ensure_ascii=False, indent=1))
 
     lines = [f"# 結果の進み具合（{status['generated']} に自動生成．`exp/results_status.py`）", "",
-             "意味と使い方は `docs/results-index.md`．この表は値（UAR など）を含まない．", "",
+             "意味と使い方は `docs/results.md` 4 節．この表は値（UAR など）を含まない．", "",
              "| 実験 | 状態 | 実行中 | 終わった反復（最小〜最大／30） | ターゲットごと | コミット |",
              "|---|---|---|---|---|---|"]
     for name, e in status["experiments"].items():

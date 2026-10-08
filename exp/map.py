@@ -1,4 +1,4 @@
-"""地図の実験（`docs/experiment-protocol.md` 2 節「最初の一歩」）。
+"""地図の実験（`docs/methods.md` 2 節）。
 
 1 条件＝（ターゲット，ソース，K，反復 r）。作り方 3 つで学習し，ターゲットのテストで UAR を測る。
 
@@ -6,7 +6,7 @@
     src_only  ② ソースだけ（K に依らないので K の列は空）
     merged    ③ ソース全件＋ターゲットの K 本
 
-手順の決定は `docs/experiment-policy.md` 2 節。要点：
+手順の決定は `researchvision.md` 6.2。要点：
 
 - **テスト**：ターゲットの話者を 5 袋に分け（`speaker_folds`，種 r），r mod 5 番の袋を使う
 - **K 本**：残りから感情ごとに K 本。**K をまたいで入れ子**にする（K=5 の 20 本は
@@ -18,7 +18,7 @@
   発話だけ**で測り（② はソースの発話），3 回ぶんの予測をまとめて UAR を 1 回計算する。
   学習側に欠ける感情が出る袋があれば C=1.0 に固定（`fixed`）。同点なら 1.0 に近い方，
   なお同点なら小さい方（`tie`）
-- **オラクル**：候補の C すべてでテストの UAR も測って残す（protocol 1 節。分析専用）
+- **オラクル**：候補の C すべてでテストの UAR も測って残す（`docs/methods.md` 1.2。分析専用）
 - ② は K にも r にも依らないので，交差検証の種を固定してソースごとに 1 回だけ学習する
   （IEMOCAP 同士の組は，テストの人物を外すので r ごとに学習し直す）
 
@@ -70,7 +70,7 @@ import shift  # noqa: E402
 from data import GROUP_SPEC, MODALITIES, groups_for, load_any  # noqa: E402
 from split import check_disjoint, speaker_folds  # noqa: E402
 
-C_GRID = (0.01, 0.1, 1.0, 10.0)      # protocol 1 節
+C_GRID = (0.01, 0.1, 1.0, 10.0)      # `docs/methods.md` 2.3
 C_DEFAULT = 1.0                      # 交差検証ができないとき・同点のときに寄せる値
 N_TEST_FOLDS = 5
 N_CV_FOLDS = 3
@@ -119,7 +119,7 @@ def labels(y: np.ndarray) -> torch.Tensor:
 # ---------------------------------------------------------------- 分割と K 本
 
 def test_mask(g: Group, r: int) -> np.ndarray:
-    """反復 r のテスト：話者 5 袋のうち r mod 5 番の袋（policy 2 節）。"""
+    """反復 r のテスト：話者 5 袋のうち r mod 5 番の袋（`researchvision.md` 6.2）。"""
     f = speaker_folds(g.speaker, k=N_TEST_FOLDS, seed=r)
     check_disjoint(g.speaker, f)
     return (f == r % N_TEST_FOLDS).to_numpy()
@@ -300,7 +300,7 @@ def run_rep(tgt: Group, sources: list[Group], r: int, Ks: list[str], kind: str,
 # ---------------------------------------------------------------- 記録
 
 def provenance(args: argparse.Namespace) -> dict:
-    """結果ファイルの 1 行目に書く設定（git で追えない分の追跡。protocol 5 節）。"""
+    """結果ファイルの 1 行目に書く設定（git で追えない分の追跡。`docs/methods.md` 6.3）。"""
     def git(*a: str) -> str:
         return subprocess.run(["git", *a], cwd=ROOT, capture_output=True,
                               text=True).stdout.strip()
@@ -320,7 +320,7 @@ def provenance(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="地図の実験（protocol 2 節）")
+    ap = argparse.ArgumentParser(description="地図の実験（docs/methods.md 2 節）")
     ap.add_argument("--kind", default=MODALITIES["audio"][0])
     ap.add_argument("--target", nargs="+", help="既定：その kind で使える全群")
     ap.add_argument("--source", nargs="+", help="既定：その kind で使える全群（ターゲット自身を除く）")

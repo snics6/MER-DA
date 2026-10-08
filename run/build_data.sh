@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # data/ を生データ /mnt/d/Databases/（読むだけ）から作り直す台本．
-# 作り方の正本は docs/feature-spec.md，出来上がりの説明は data/README.md．
+# 作り方と出来上がりの説明は data/README.md（4 節が特徴の作り方）．
 #
 #   ./run/build_data.sh manifest        発話一覧だけ
 #   ./run/build_data.sh feat1 feat2     特徴だけ
@@ -8,7 +8,7 @@
 #
 # | 名前 | 中身 | 見込み |
 # |---|---|---|
-# | `manifest` | 発話一覧 7 本を作り直して監査する | 分 |
+# | `manifest` | 発話一覧 6 本を作り直して監査する | 分 |
 # | `check`    | 話者の診断と話者分割の検査 | 分 |
 # | `feat1`    | 第 1 エンコーダ（ResNet-50・WavLM・RoBERTa） | 半日．GPU |
 # | `feat2`    | 第 2 エンコーダ（CLIP・HuBERT・DeBERTa） | 半日．GPU |

@@ -1,6 +1,6 @@
 """【探索的・途中の見立て】②のずれの指標と，①の地図の結果の関係を，組をまたぐ順位相関で見る。
 
-**事前登録（`researchvision.md` 6.5.1）の判定ではない。**登録した判定は，30 回そろった結果で，
+**事前登録（`researchvision.md` 8 節）の判定ではない。**登録した判定は，30 回そろった結果で，
 登録した手順（主判定・Holm）で行う。ここでは，いまある回数の結果で傾向を見るだけにする。
 
     ./.venv/bin/python exp/side/explore_relation.py
@@ -17,7 +17,7 @@
 
 結果の量（組ごと）：`gain_K1`・`gain_K5`＝合併 − ターゲットのみ の UAR の差の平均（K=1・5），
 `worst`＝K をまたいだ差の平均の最小値（予言 P2-1 の m），`kstar`＝暫定の K*（順位：none < 1 < 5 < … < all．
-反復 2 回以上の種類だけ．IEMOCAP がターゲットの組は除く．policy 3 節）。
+反復 2 回以上の種類だけ．IEMOCAP がターゲットの組は除く．`researchvision.md` 7 節）。
 """
 
 from __future__ import annotations

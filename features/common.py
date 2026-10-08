@@ -23,7 +23,7 @@ WEIGHTS_DIR = ROOT / "weights"
 CORPORA = ("IEMOCAP", "MOSEI", "MELD", "AFEW")
 
 # 検出力のために足した 2 つ。俳優が同じ文を感情だけ変えて読むコーパス。
-# コーパス対が 6 → 20 に増える（5 つから順序つきで 2 つ選ぶ）。
+# 足した時点では順序つきの対が 6 → 20 に増えた（今は IEMOCAP を 2 群に分けて 7 群・42 組）。
 CORPORA_EXTRA = ("RAVDESS", "CREMA-D")
 
 CORPORA_ALL = CORPORA + CORPORA_EXTRA
@@ -35,7 +35,7 @@ CORPORA_TEXT = ("IEMOCAP", "MOSEI", "MELD")
 # label_4 の整数値と名前の対応。0=Neutral, 1=Happy, 2=Sad, 3=Angry。
 LABELS = ("Neutral", "Happy", "Sad", "Angry")
 
-# 群は 5 つ。IEMOCAP は即興と台本を分ける（data/README.md 注意点 5）。
+# 元の 4 コーパスの群は 5 つ（CORPORA_EXTRA を足すと 7 群）。IEMOCAP は即興と台本を分ける（data/README.md 取り決め 6）。
 # 台本側のラベルは注釈ではなく芝居の番号で決まっているので，即興と混ぜられない。
 GROUPS = ("IEMOCAP-impro", "IEMOCAP-script", "MOSEI", "MELD", "AFEW")
 
@@ -103,7 +103,7 @@ def load_manifest(corpus: str) -> pd.DataFrame:
 def media_paths(df: pd.DataFrame, prefer_audio: bool) -> list[str]:
     """発話ごとに，読むべきメディアファイルの場所を返す。
 
-    音声を取るときは `path_audio`（RAVDESS・CREMA-D の wav）を優先し，
+    音声を取るときは `path_audio`（IEMOCAP・RAVDESS・CREMA-D の wav）を優先し，
     無ければ `path_video` から ffmpeg で取り出す。映像を取るときは
     `path_video` だけを見る（音声しか無い発話は空文字になる）。
     """
@@ -230,11 +230,9 @@ _PUNCT = {"‘": "'", "’": "'", "“": '"', "”": '"',
 def normalize_punct(s: str) -> str:
     """引用符・ダッシュ・三点リーダを ASCII に揃える。
 
-    3 コーパスで表記の規則が違う（実測・文字の延べ数）：
-
-      IEMOCAP  ASCII の ' が 7,404。装飾記号は 1 件も無い
-      MOSEI    ASCII ' 10,150 と Unicode ’ 1,179 が混在。“ ” 260・— – 153
-      MELD     壊れた \\x92 が 4,192（修復後は ’）。ASCII ' は 2,397
+    3 コーパスで表記の規則が違う。IEMOCAP は ASCII の ' だけで装飾記号が無く，MOSEI は ASCII と
+    Unicode の記号が混在し，MELD は壊れた \\x92（修復後は ’）を含む（件数は data/README.md 4 節
+    「記号の表記の違い」）
 
     **表記の違いが「コーパスの違い」として検出されるのを防ぐために使う。**
     ただし元のテキストを変える操作なので，**既定では使わない。**
@@ -252,7 +250,7 @@ _END = ".!?…。！？"
 
 
 def normalize_text(s: str, level: int) -> str:
-    """表記を段階的に揃える（`docs/feature-spec.md`「言葉の正規化の段階」）。
+    """表記を段階的に揃える（`data/README.md` 4 節「言葉の正規化の段階」）。
 
     **表記の流儀だけでコーパスを判別できてしまう**（意味を使わない 16 次元で
     均衡精度 0.7047・でたらめ 0.333）。どこまで揃えるべきかを測るための段階である。

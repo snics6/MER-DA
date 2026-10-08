@@ -27,7 +27,7 @@ train・dev・test のそれぞれに存在するのに，`sample_id` に分割�
 
 ## 書き起こしの文字化け
 
-`Utterance` 列の 28.1% に Windows-1252 由来の文字化けがある（`docs/feature-spec.md`）。
+`Utterance` 列の 28.1% に Windows-1252 由来の文字化けがある（`data/README.md` 4 節「文字化けの修復（L1）」）。
 **ここでは直さず，生のまま保存する。**修復は `features/build_text.py` が行う。
 マニフェストは生データの写しであるべきで，加工はそのつど記録できる場所でやる。
 

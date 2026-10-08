@@ -1,4 +1,4 @@
-"""研究計画 6.5.2 に登録した仮説 H7（組に固有のずれ）を，第 2 エンコーダ（HuBERT）の地図で判定する。
+"""研究計画（`researchvision.md` 8.3）に登録した仮説 H7（組に固有のずれ）を，第 2 エンコーダ（HuBERT）の地図で判定する。
 
 手順は登録した文のとおりにする。
 
@@ -144,7 +144,7 @@ def fig(d: pd.DataFrame, h: pd.DataFrame, path: Path) -> None:
                      fontsize=8.5, color=INK, loc="left")
         ax.set_xlabel(f"rank of {labels[met]} (residual)", fontsize=8, color=INK2)
         ax.set_ylabel(f"rank of {labels[resp]} (residual)", fontsize=8, color=INK2)
-    fig.suptitle("Pre-registered H7 (researchvision.md 6.5.2), audio_hubert, 30 reps: "
+    fig.suptitle("Pre-registered H7 (researchvision.md 8.3), audio_hubert, 30 reps: "
                  "after removing target and source effects", x=0.01, ha="left", fontsize=9, color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(path, dpi=130, facecolor=SURFACE)

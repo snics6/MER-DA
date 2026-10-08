@@ -2,7 +2,7 @@
 
 **前身の CSV は参照しない。**`/mnt/d/Databases/IEMOCAP_full_release/` の
 注釈ファイルだけを読む。前身のマニフェストには 2 つの誤りがあった
-（`data/metadata/README.md`「前身のマニフェストにあった誤り」）。
+（`data/README.md` 3 節「前身のマニフェストにあった誤り」）。
 
 1. **台本セッションのラベルが芝居の番号で付けられていた。**script01 の発話は
    中身に関係なく全部 ang，script02 は全部 exc，script03 は全部 hap になっていた。

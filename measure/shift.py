@@ -1,6 +1,6 @@
 """ずれの指標の正本。**指標はすべてここを通す。実験コードで書き直さない。**
 
-根拠と注意点は `docs/shift-metrics.md`（節番号を各関数に書く）。実装を変えたら md も直す。
+根拠と注意点は `docs/methods.md` 4 節（節番号を各関数に書く．共通の決まりは S1〜S10）。実装を変えたら md も直す。
 
 ## 共通の決まり（md の 0 節）
 
@@ -33,14 +33,14 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 
 N_CLASSES = 4
-N_DEFAULT = 300          # 抜き出す本数（片側）。md C2
-R_DEFAULT = 20           # 抜き出しの繰り返し回数。md C2
-PCA_DIM = 64             # 共分散を使う指標の次元。md C6（r ≪ n）
-K_NN = 5                 # coverage の近傍数。md 2.1（Naeem 2020）
+N_DEFAULT = 300          # 抜き出す本数（片側）。md S2
+R_DEFAULT = 20           # 抜き出しの繰り返し回数。md S2
+PCA_DIM = 64             # 共分散を使う指標の次元。md S6（r ≪ n）
+K_NN = 5                 # coverage の近傍数。md 4.4.1（Naeem 2020）
 PAD_C_GRID = (0.01, 0.1, 1.0)
-PAD_TOL = 1e-8           # 判別器の止める基準。sklearn の既定 1e-4 では判定が 1〜2 本ずれた。md 1.1
-SPACES = ("raw", "pca64")   # 入力の指標を測る空間。対数オッズの空間は特徴として渡す。md 0.1
-EIG_FLOOR = 1e-10        # 共分散の支配で除く方向：最大の固有値に対するこの比より小さい方向。md 2.2
+PAD_TOL = 1e-8           # 判別器の止める基準。sklearn の既定 1e-4 では判定が 1〜2 本ずれた。md 4.3.1
+SPACES = ("raw", "pca64")   # 入力の指標を測る空間。対数オッズの空間は特徴として渡す。md 4.2
+EIG_FLOOR = 1e-10        # 共分散の支配で除く方向：最大の固有値に対するこの比より小さい方向。md 4.4.2
 
 
 # ---------------------------------------------------------------- 前処理
@@ -54,7 +54,7 @@ def subsample(n_total: int, n: int, rng: np.random.Generator) -> np.ndarray:
 
 def subsample_balanced(y: np.ndarray, n: int, rng: np.random.Generator,
                        k: int = N_CLASSES) -> np.ndarray:
-    """感情ごとに n/k 本ずつ抜く（md C9：割合をそろえた版）。足りなければ例外。"""
+    """感情ごとに n/k 本ずつ抜く（md S9：割合をそろえた版）。足りなければ例外。"""
     if n % k:
         raise ValueError(f"n={n} が感情の数 {k} で割り切れない")
     y = np.asarray(y)
@@ -69,7 +69,7 @@ def subsample_balanced(y: np.ndarray, n: int, rng: np.random.Generator,
 
 def pooled_standardize(Xs: np.ndarray, Xt: np.ndarray
                        ) -> tuple[np.ndarray, np.ndarray]:
-    """2 標本を合わせた平均・標準偏差で各次元を標準化する（md C4）。"""
+    """2 標本を合わせた平均・標準偏差で各次元を標準化する（md S4）。"""
     sc = StandardScaler().fit(np.vstack([Xs, Xt]))
     return sc.transform(Xs), sc.transform(Xt)
 
@@ -81,7 +81,7 @@ def _rank(r: int, d: int, n: int) -> int:
 
 def pooled_pca(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM
                ) -> tuple[np.ndarray, np.ndarray]:
-    """合わせて標準化し，合わせた PCA で r 次元に落とす（md C6）。次元は `_rank` で切る。"""
+    """合わせて標準化し，合わせた PCA で r 次元に落とす（md S6）。次元は `_rank` で切る。"""
     Xs, Xt = pooled_standardize(Xs, Xt)
     r = _rank(r, Xs.shape[1], len(Xs) + len(Xt))
     p = PCA(n_components=r, random_state=0).fit(np.vstack([Xs, Xt]))
@@ -92,10 +92,10 @@ def pooled_pca(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM
 
 def pad(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray,
         n_folds: int = 5) -> float:
-    """proxy A-distance = 2(1 − 2ε)（md 1.1。尺度は Ben-David 2010・Ganin 2016）。
+    """proxy A-distance = 2(1 − 2ε)（md 4.3.1。尺度は Ben-David 2010・Ganin 2016）。
 
     ε は「ソースかターゲットか」を当てる線形分類器の，**話者で分けた**交差検証の
-    誤り率（md C3）。C は外側の評価データを見ずに内側の話者分割で選ぶ
+    誤り率（md S3）。C は外側の評価データを見ずに内側の話者分割で選ぶ
     （Ganin 2016 は評価に使う半分で最良の C を選んでいて楽観的）。
     gs と gt は話者 id。両側で名前が衝突しないよう接頭辞を付ける。
     """
@@ -104,7 +104,7 @@ def pad(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray,
     g = np.r_[np.char.add("s:", np.asarray(gs, str)),
               np.char.add("t:", np.asarray(gt, str))]
     wrong = 0
-    # 話者を分けたまま，各袋に両側の話者が入るようにそろえる（md 1.1．GroupKFold では
+    # 話者を分けたまま，各袋に両側の話者が入るようにそろえる（md 4.3.1．GroupKFold では
     # IEMOCAP のゼロ点（片側 5 人）で学習側が片方の群だけになった）
     for tr, te in StratifiedGroupKFold(n_splits=n_folds).split(X, d, g):
         sc = StandardScaler().fit(X[tr])
@@ -127,7 +127,7 @@ def pad(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray,
 def mmd2_unbiased(Xs: np.ndarray, Xt: np.ndarray) -> float:
     """不偏な MMD²（Gretton 2012 式 (3)）。ガウスカーネル，幅は合わせた点の距離の中央値。
 
-    **負になりうる。0 に切らない**（md 1.2）。高次元では平均の差を見ているのに近い。
+    **負になりうる。0 に切らない**（md 4.3.2）。高次元では平均の差を見ているのに近い。
     """
     Xs, Xt = pooled_standardize(Xs, Xt)
     Z = np.vstack([Xs, Xt])
@@ -145,7 +145,7 @@ def mmd2_unbiased(Xs: np.ndarray, Xt: np.ndarray) -> float:
 
 
 def frechet(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM) -> float:
-    """PCA 後のフレシェ距離（md 1.3）。**有限標本の偏りがある**のでゼロ点と並べる。"""
+    """PCA 後のフレシェ距離（md 4.3.3）。**有限標本の偏りがある**のでゼロ点と並べる。"""
     Xs, Xt = pooled_pca(Xs, Xt, r)
     mu = Xs.mean(0) - Xt.mean(0)
     Ss, St = np.cov(Xs, rowvar=False), np.cov(Xt, rowvar=False)
@@ -158,7 +158,7 @@ def frechet(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM) -> float:
 
 def density_coverage(X_ref: np.ndarray, X_other: np.ndarray, k: int = K_NN
                      ) -> tuple[float, float]:
-    """Naeem 2020 の density と coverage（md 2.1）。
+    """Naeem 2020 の density と coverage（md 4.4.1）。
 
     X_ref を「参照」（覆われる側）とし，X_other がどれだけ覆うかを返す。
     **向きがある**：ターゲットの覆われ方は `density_coverage(Xt, Xs)`。
@@ -183,7 +183,7 @@ def expected_coverage(n_ref: int, n_other: int, k: int = K_NN) -> float:
 
 
 def cov_dominance(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM) -> float:
-    """Σ_s ⪰ c Σ_t となる最大の c（md 2.2。Du 2021）。ターゲットの PCA 上位 r 方向で測る。
+    """Σ_s ⪰ c Σ_t となる最大の c（md 4.4.2。Du 2021）。ターゲットの PCA 上位 r 方向で測る。
 
     最小固有値は小さい固有値の誤差に弱い。r を変えて安定するか確かめること。
     """
@@ -193,7 +193,7 @@ def cov_dominance(Xs: np.ndarray, Xt: np.ndarray, r: int = PCA_DIM) -> float:
     Ss, St = np.cov(Ps, rowvar=False), np.cov(Pt, rowvar=False)
     Ss, St = np.atleast_2d(Ss), np.atleast_2d(St)
     w, V = np.linalg.eigh(St)
-    keep = w > EIG_FLOOR * w.max()          # 広がりがほぼ 0 の方向は除く（md 2.2．落ちないように）
+    keep = w > EIG_FLOOR * w.max()          # 広がりがほぼ 0 の方向は除く（md 4.4.2．落ちないように）
     V, w = V[:, keep], w[keep]
     St_ih = V @ np.diag(1.0 / np.sqrt(w)) @ V.T
     M = V.T @ (St_ih @ Ss @ St_ih) @ V       # 残した方向の中だけで比べる
@@ -209,8 +209,8 @@ def input_metrics(Xs: np.ndarray, gs: np.ndarray, Xt: np.ndarray, gt: np.ndarray
     """軸 1・2 の指標を，両側 n 本の抜き出しを reps 回くり返して平均と標準偏差で返す。
 
     space：`raw`＝渡した特徴のまま，`pca64`＝抜き出した 2 標本を合わせて標準化し PCA で
-    `PCA_DIM` 次元に落としてから測る（md 0.1）。対数オッズの空間は，それを特徴として渡す。
-    ys・yt を渡すと感情ごとに同数を抜く（md C9。n は 4 の倍数）。
+    `PCA_DIM` 次元に落としてから測る（md 4.2）。対数オッズの空間は，それを特徴として渡す。
+    ys・yt を渡すと感情ごとに同数を抜く（md S9。n は 4 の倍数）。
     """
     if space not in SPACES:
         raise ValueError(f"space は {SPACES} のどれか: {space}")
@@ -258,7 +258,7 @@ def speaker_halves(g: np.ndarray, seed: int) -> tuple[np.ndarray, np.ndarray]:
 def zero_point(X: np.ndarray, g: np.ndarray, n: int = N_DEFAULT,
                reps: int = R_DEFAULT, seed: int = 0, space: str = "raw",
                y: np.ndarray | None = None) -> dict:
-    """同じ群を話者で 2 つに割り，`input_metrics` と同じ手順で測った値（md C1）。"""
+    """同じ群を話者で 2 つに割り，`input_metrics` と同じ手順で測った値（md S1）。"""
     g = np.asarray(g)
     a, b = speaker_halves(g, seed)
     ya, yb = (None, None) if y is None else (np.asarray(y)[a], np.asarray(y)[b])
@@ -273,14 +273,14 @@ def label_prior(y: np.ndarray, k: int = N_CLASSES) -> np.ndarray:
 
 
 def label_l1(ys: np.ndarray, yt: np.ndarray, k: int = N_CLASSES) -> float:
-    """‖p_s(y) − p_t(y)‖₁（0〜2。md 3.1）。"""
+    """‖p_s(y) − p_t(y)‖₁（0〜2。md 4.5.1）。"""
     return float(np.abs(label_prior(ys, k) - label_prior(yt, k)).sum())
 
 
 def fit_bcts(logits: np.ndarray, y: np.ndarray) -> tuple[float, np.ndarray]:
     """クラスごとのバイアスつき温度較正（BCTS。Alexandari 2020）。(温度, バイアス) を返す。
 
-    ソースの**保留データ**（話者を分けたもの）で当てはめる。md 3.2。
+    ソースの**保留データ**（話者を分けたもの）で当てはめる。md 4.5.2。
     """
     k = logits.shape[1]
 
@@ -298,7 +298,7 @@ def apply_bcts(logits: np.ndarray, temp: float, bias: np.ndarray) -> np.ndarray:
 
 def mlls_prior(probs_t: np.ndarray, prior_s: np.ndarray,
                iters: int = 1000, tol: float = 1e-8) -> np.ndarray:
-    """ラベルなしのターゲットで感情の割合を EM で推定する（Saerens 2002，md 3.2）。
+    """ラベルなしのターゲットで感情の割合を EM で推定する（Saerens 2002，md 4.5.2）。
 
     probs_t は**較正済み**の予測確率。prior_s は「ソース保留データでの較正後の予測の平均」
     にすること（Alexandari 2020 Lemma A：真のソース割合を使うと，ずれが無くてもずれを推定する）。
@@ -316,7 +316,7 @@ def mlls_prior(probs_t: np.ndarray, prior_s: np.ndarray,
 
 
 def kish_neff(w: np.ndarray) -> float:
-    """重み付き学習の実効標本数 (Σw)²/Σw²（Kish）。クラス均等重みの損を見積もる（protocol 7.3）。"""
+    """重み付き学習の実効標本数 (Σw)²/Σw²（Kish）。クラス均等重みの損を見積もる（md 7.3）。"""
     w = np.asarray(w, float)
     return float(w.sum() ** 2 / np.sum(w ** 2))
 
@@ -324,7 +324,7 @@ def kish_neff(w: np.ndarray) -> float:
 # ---------------------------------------------------------------- 軸 4：付け方
 
 def confusion(y_true: np.ndarray, y_pred: np.ndarray, k: int = N_CLASSES) -> np.ndarray:
-    """行＝正解，列＝予測，行ごとの割合にした混同行列（md 4.1）。"""
+    """行＝正解，列＝予測，行ごとの割合にした混同行列（md 4.6.1）。"""
     C = np.zeros((k, k))
     np.add.at(C, (np.asarray(y_true), np.asarray(y_pred)), 1)
     return C / np.maximum(C.sum(1, keepdims=True), 1)
@@ -335,12 +335,12 @@ def uar(y_true: np.ndarray, y_pred: np.ndarray, k: int = N_CLASSES) -> float:
 
 
 def ber(conf: np.ndarray) -> float:
-    """Tachet 2020 の BER：**クラスごとの誤り率の最大値**（平均ではない。md 4.2）。"""
+    """Tachet 2020 の BER：**クラスごとの誤り率の最大値**（平均ではない。md 4.6.2）。"""
     return float((1 - np.diag(conf)).max())
 
 
 def delta_ce(conf_s: np.ndarray, conf_t: np.ndarray) -> tuple[float, np.ndarray]:
-    """Tachet 2020 の Δ_CE と，非対角の差の行列全体（md 4.2）。
+    """Tachet 2020 の Δ_CE と，非対角の差の行列全体（md 4.6.2）。
 
     最大値は推定誤差で上に偏るので，**行列全体も報告する**。
     """

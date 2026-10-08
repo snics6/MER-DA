@@ -10,7 +10,7 @@
 Ryumina のパイプラインが出力する音声 512 次元は**コーパス別に微調整されている**ので
 使わない。素のモデルで取り直すのが本研究の中心的な工夫である。
 
-**前身から変えた点**（`docs/feature-spec.md`）。
+**前身から変えた点**（`data/README.md` 4 節「前身から変えた点」）。
 
 1. **計算を fp32 にした。**前身は fp16 で，実測すると特徴の値が平均 1.9% ずれた
    （値の平均の大きさ 0.0480 に対し平均差 0.00090）。速度の利得は無かった
@@ -43,7 +43,7 @@ import torch
 import common
 
 SR = 16000            # モデルが前提とする標本化周波数
-MAX_SEC = 60.0        # 使う長さの上限（docs/feature-spec.md）
+MAX_SEC = 60.0        # 使う長さの上限（data/README.md 4 節「数値の約束」）
 
 
 def probe_duration(path: str) -> float:
@@ -112,7 +112,7 @@ def process_chunk(df: pd.DataFrame, model, args) -> dict:
     ok = np.zeros(n, dtype=bool)
     reason = np.array([""] * n, dtype=object)
 
-    # RAVDESS・CREMA-D は wav を直接持っている。他は動画から取り出す
+    # IEMOCAP・RAVDESS・CREMA-D は wav を直接持っている。他は動画から取り出す
     paths = common.media_paths(df, prefer_audio=True)
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         decoded = list(pool.map(decode, paths))

@@ -3,7 +3,7 @@
 ## 群（group）という単位
 
 コーパスをそのまま使わず，**群**を単位にする。IEMOCAP は即興と台本を分ける
-（`data/README.md` 注意点 5：台本では 10 人全員が同じ台詞を読むので，言葉の分類器が
+（`data/README.md` 取り決め 6：台本では 10 人全員が同じ台詞を読むので，言葉の分類器が
 台詞を覚えてしまう）。
 
     IEMOCAP-impro / IEMOCAP-script / MOSEI / MELD / AFEW / RAVDESS / CREMA-D
@@ -12,7 +12,7 @@
 
 特徴の npz には**抽出した時点のラベルが焼き付いている。**マニフェストを直しても
 古いままなので，必ず貼り直す。前身のマニフェストは IEMOCAP の 57% に誤ったラベルを
-付けていた（`data/metadata/README.md`）。**ラベルの正本はマニフェスト 1 つに限る。**
+付けていた（`data/README.md` 3 節「前身のマニフェストにあった誤り」）。**ラベルの正本はマニフェスト 1 つに限る。**
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def has_modality(group: str, modality: str) -> bool:
     if modality == "text":
         return group in GROUPS_WITH_TEXT
     if modality == "video" and group == "RAVDESS":
-        return False        # Zenodo が 403 で映像を取得できていない
+        return False        # 発話一覧に映像の場所（path_video）を入れていない．生データは取得済みで，入れるかは researchvision.md 7 節
     return True
 
 
@@ -73,7 +73,7 @@ def load_group(group: str, kind: str, with_std: bool = False
 
     表には `sample_id`・`speaker_id`・`speaker_group`・`label_4` が入る。
     `speaker_group` は `measure/split.py` の補正を通したもので，
-    **評価はこの列で分ける**（data/README.md 注意点 4）。
+    **評価はこの列で分ける**（data/README.md 取り決め 5）。
 
     **`with_std=True` は使わないこと**（既定が False なのはそのため）。
     映像の 2 つ目の 512 次元は**セグメント間の標準偏差**であり，セグメントが
@@ -81,8 +81,8 @@ def load_group(group: str, kind: str, with_std: bool = False
 
         AFEW 89.8%  CREMA-D 91.3%  MELD 64.4%  IEMOCAP 43.6%  MOSEI 17.9%
 
-    つまりこの 512 次元は**発話の長さの代理変数**になっている（`feature-spec.md`
-    の 3 に前身での同じ観察がある）。実測では**セグメント数という整数 1 つだけで
+    つまりこの 512 次元は**発話の長さの代理変数**になっている（`data/README.md` 4 節
+    「前身から変えた点」に前身での同じ観察がある）。実測では**セグメント数という整数 1 つだけで
     6 群を UAR 0.2822 で当てられる**（でたらめは 0.1667）。連結すれば，コーパス間
     の距離の一部が「動画の長さの違い」で説明されてしまう。
     """
