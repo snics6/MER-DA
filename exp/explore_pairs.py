@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for, load_any  # noqa: E402
 from explore_geometry import standardize  # noqa: E402
 from explore_mechanism import partial_rank  # noqa: E402
-from pair_table import OUT, SIX, fit  # noqa: E402
+from pair_table import OUT, SIX, fit, map_dir  # noqa: E402
 from split import speaker_folds  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
@@ -112,7 +112,7 @@ def measure(kind: str) -> pd.DataFrame:
 
 def mech_gain(kind: str) -> pd.DataFrame | None:
     fs = sorted((ROOT / "results" / f"mech_{kind}").glob("*.csv"))
-    mp = sorted((ROOT / "results" / f"map_{kind}").glob("*.csv"))
+    mp = sorted(map_dir(kind).glob("*.csv"))
     if not fs:
         return None
     m = pd.concat([pd.read_csv(f, comment="#", dtype={"K": str, "source": str}) for f in fs])

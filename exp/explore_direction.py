@@ -49,7 +49,7 @@ sys.path.insert(0, str(ROOT / "features"))
 import common  # noqa: E402
 from data import groups_for, load_any  # noqa: E402
 from explore_synergy import KINDS, KS, N_CLASSES, kappa, load_map, src_parts  # noqa: E402
-from pair_table import OUT  # noqa: E402
+from pair_table import OUT, OUT_ROOT, map_dir  # noqa: E402
 from split import speaker_folds  # noqa: E402
 
 PAIRS = [(k, j) for k in range(N_CLASSES) for j in range(k + 1, N_CLASSES)]
@@ -158,7 +158,7 @@ def run_kind(kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
             Zt = ((Xt - mu) / sd).astype(np.float64)
             Lt = z[f"t_{t}"]
             Pt = softmax(Lt, axis=1)
-            B = np.load(ROOT / "results" / f"merged_scores_{kind}" / f"{t}.npz")
+            B = np.load(OUT_ROOT / f"merged_scores_{kind}" / f"{t}.npz")
             g = mp[(mp.target == t) & (mp.source == s)]
             for K in KS:
                 sp = sps[K]
@@ -232,7 +232,7 @@ def run_diag(kind: str) -> pd.DataFrame:
             yt = dft.label_4.to_numpy()
             Pt = softmax(z[f"t_{t}"], axis=1)
             p_true = Pt[np.arange(len(yt)), yt]
-            B = np.load(ROOT / "results" / f"merged_scores_{kind}" / f"{t}.npz")
+            B = np.load(OUT_ROOT / f"merged_scores_{kind}" / f"{t}.npz")
             for K in KS:
                 for r in REPS:
                     te, idx = map_draw(dft, t, r, int(K))
@@ -357,7 +357,7 @@ PAIR_ORDER = ["neutral-happy", "neutral-sad", "neutral-angry", "happy-sad", "hap
 
 def load_map_full(kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """反復ごとの合併の C とソースのみの C，組 × K の C の最頻値（反復 0〜9）。"""
-    fs = sorted((ROOT / "results" / f"map_{kind}").glob("*.csv"))
+    fs = sorted(map_dir(kind).glob("*.csv"))
     d = pd.concat([pd.read_csv(f, comment="#", dtype={"K": str, "source": str},
                                usecols=["target", "source", "method", "K", "rep", "C"]) for f in fs])
     m = d[(d.method == "merged") & d.K.isin(KS) & (d.rep < 10)].rename(columns={"C": "C_m"})

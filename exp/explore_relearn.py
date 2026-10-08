@@ -45,7 +45,7 @@ sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for  # noqa: E402
 from explore_geometry import geometry  # noqa: E402
 from explore_mechanism import bias_table, partial_rank  # noqa: E402
-from pair_table import OUT, SIX  # noqa: E402
+from pair_table import OUT, SIX, map_dir  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
 KINDS = ("audio_wavlm", "video", "audio_hubert")
@@ -54,10 +54,12 @@ ALPHAS = ("nat", "0.25", "0.5", "0.75")
 C_GRID = ("0.01", "0.1", "1", "10")
 
 
-def read(dirname: str) -> pd.DataFrame:
-    """ターゲットごとの CSV をつなぐ。まだ行の無い CSV（実行中の学び直し）は飛ばす（つなぐと列が数値でなくなる）。"""
+def read(dirname: str | Path) -> pd.DataFrame:
+    """ターゲットごとの CSV をつなぐ。まだ行の無い CSV（実行中の学び直し）は飛ばす（つなぐと列が数値でなくなる）。
+    dirname は results/ の下の名前か，フォルダの Path（地図は `pair_table.map_dir`）。"""
+    d = dirname if isinstance(dirname, Path) else ROOT / "results" / dirname
     ds = [pd.read_csv(f, comment="#", dtype={"K": str, "source": str, "alpha": str})
-          for f in sorted((ROOT / "results" / dirname).glob("*.csv"))]
+          for f in sorted(d.glob("*.csv"))]
     ds = [d for d in ds if len(d)]
     return pd.concat(ds, ignore_index=True) if ds else pd.DataFrame()
 
@@ -95,7 +97,7 @@ def analyse(kind: str) -> dict[str, pd.DataFrame] | None:
     mech = read(f"mech_{kind}")
     if mech.empty:
         return None
-    mp = read(f"map_{kind}")
+    mp = read(map_dir(kind))
     tr = done_reps(mech)
     mp = mp.merge(tr)
     t = mp[mp.method == "tgt_only"][["target", "K", "rep", "uar"]].rename(columns={"uar": "t"})
@@ -211,7 +213,7 @@ def analyse_cwt(kind: str) -> dict[str, pd.DataFrame] | None:
     if c2.empty:
         return None
     tr = done_reps(c2)
-    mp = read(f"map_{kind}").merge(tr)
+    mp = read(map_dir(kind)).merge(tr)
     mech = read(f"mech_{kind}").merge(tr)
     t = mp[mp.method == "tgt_only"][["target", "K", "rep", "uar"]].rename(columns={"uar": "t"})
     m = mp[mp.method == "merged"][["target", "source", "K", "rep", "uar"]].rename(columns={"uar": "m"})

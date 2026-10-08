@@ -53,7 +53,7 @@ sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 from data import GROUP_SPEC, groups_for, load_any  # noqa: E402
 from explore_pairs import ba, measure  # noqa: E402
-from pair_table import OUT, SIX, holm, partial_rank  # noqa: E402
+from pair_table import OUT, OUT_ROOT, SIX, holm, map_dir, partial_rank  # noqa: E402
 from split import speaker_folds  # noqa: E402
 
 KINDS = {"audio_wavlm": "W7", "audio_hubert": "Hu7", "video": "V", "fuse-audio-video": "AV"}
@@ -69,7 +69,7 @@ E12_MIN = 0.01
 
 def load_map(kind: str) -> pd.DataFrame:
     """反復ごとの m・t・s と合併の C（K ∈ KS）。"""
-    fs = sorted((ROOT / "results" / f"map_{kind}").glob("*.csv"))
+    fs = sorted(map_dir(kind).glob("*.csv"))
     d = pd.concat([pd.read_csv(f, comment="#", dtype={"K": str, "source": str},
                                usecols=["target", "source", "method", "K", "rep", "uar", "C", "n_src"])
                    for f in fs], ignore_index=True)
@@ -277,7 +277,7 @@ def stage_b(kinds: list[str]) -> int:
     lam = pd.read_csv(OUT / "e15_lambda.csv", dtype={"K": str})
     rows = []
     for kind in kinds:
-        d = ROOT / "results" / f"merged_scores_{kind}"
+        d = OUT_ROOT / f"merged_scores_{kind}"
         for f in sorted(d.glob("*.npz")):
             z, t = np.load(f), f.stem
             reps = sorted(int(k.split("_r")[1]) for k in z.files if k.startswith("test_idx_r"))

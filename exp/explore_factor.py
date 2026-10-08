@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
-from pair_table import OUT, SIX, fit  # noqa: E402
+from pair_table import OUT, SIX, fit, map_dir  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
 K_ORDER = ["1", "5", "10", "25", "50", "all"]
@@ -40,7 +40,7 @@ EPS = 1e-3
 def per_rep(kind: str) -> pd.DataFrame:
     """反復ごとの合併とターゲットのみの UAR。列：target, source, K, rep, m, t。"""
     rows = []
-    for p in sorted((ROOT / "results" / f"map_{kind}").glob("*.csv")):
+    for p in sorted(map_dir(kind).glob("*.csv")):
         d = pd.read_csv(p, comment="#", dtype={"K": str, "source": str},
                         usecols=["target", "source", "method", "K", "rep", "uar"])
         t = d[d.method == "tgt_only"].set_index(["K", "rep"])["uar"]

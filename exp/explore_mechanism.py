@@ -50,7 +50,7 @@ sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for, load_any  # noqa: E402
 from explore_factor import rank1  # noqa: E402
 from explore_geometry import corpus, standardize  # noqa: E402
-from pair_table import OUT, SIX, fit, holm, partial_rank as _partial_rank  # noqa: E402
+from pair_table import OUT, SIX, fit, holm, map_dir, partial_rank as _partial_rank  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
 KINDS = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-audio-text",
@@ -110,7 +110,7 @@ def d_eff(u):
 def load_map(kind: str) -> tuple[pd.DataFrame, list[int]]:
     """組 × K ごとの反復平均（全ターゲットでそろった反復だけ）。"""
     rows = []
-    for p in sorted((ROOT / "results" / f"map_{kind}").glob("*.csv")):
+    for p in sorted(map_dir(kind).glob("*.csv")):
         rows.append(pd.read_csv(p, comment="#", dtype={"K": str, "source": str},
                                 usecols=["target", "source", "method", "K", "rep", "uar",
                                          "n_src", "n_tgt"]))

@@ -42,6 +42,7 @@ import logreg  # noqa: E402
 import map as M  # noqa: E402
 import shift  # noqa: E402
 from data import groups_for  # noqa: E402
+from pair_table import OUT_ROOT, map_dir  # noqa: E402
 
 KS = ("1", "5", "10")
 REPS = tuple(range(10))
@@ -49,7 +50,7 @@ REPS = tuple(range(10))
 
 def map_rows(kind: str, target: str) -> dict:
     """地図の (method, source, K, rep) → (C, uar)。"""
-    d = pd.read_csv(ROOT / "results" / f"map_{kind}" / f"{target}.csv", comment="#",
+    d = pd.read_csv(map_dir(kind) / f"{target}.csv", comment="#",
                     dtype={"K": str, "source": str}, usecols=["method", "source", "K", "rep", "C", "uar"])
     d["K"], d["source"] = d.K.fillna(""), d.source.fillna("")
     return {(r.method, r.source, r.K, int(r.rep)): (float(r.C), float(r.uar)) for r in d.itertuples()}
@@ -124,7 +125,7 @@ def main() -> None:
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--overwrite", action="store_true")
     args = ap.parse_args()
-    out = args.out_dir or ROOT / "results" / f"merged_scores_{args.kind}"
+    out = args.out_dir or OUT_ROOT / f"merged_scores_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
     (out / "provenance.json").write_text(json.dumps({

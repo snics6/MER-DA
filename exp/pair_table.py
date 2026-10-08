@@ -26,6 +26,13 @@ ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"                                   # 入力はここから読む
 OUT_ROOT = Path(os.environ["MERDA_OUT_ROOT"]) if os.environ.get("MERDA_OUT_ROOT") else RESULTS
 OUT = OUT_ROOT / "explore_relation"
+# 地図の場所．既定は results/map_<kind>/．MERDA_MAP_ROOT を指定すると <MERDA_MAP_ROOT>/<kind>/
+# （C を固定した地図 results/fixc_map など．`docs/researchvision.md` 6.2 節，2026-10-09）
+MAP_ROOT = Path(os.environ["MERDA_MAP_ROOT"]) if os.environ.get("MERDA_MAP_ROOT") else None
+
+
+def map_dir(kind: str) -> Path:
+    return MAP_ROOT / kind if MAP_ROOT else RESULTS / f"map_{kind}"
 
 KINDS = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-audio-text",
          "fuse-video-text", "fuse-audio-video-text")
@@ -41,7 +48,7 @@ METRICS = {                               # 列名 → 表示名（軸）
 
 
 def per_pair(kind: str) -> pd.DataFrame | None:
-    m, s = RESULTS / f"map_{kind}" / "summary", RESULTS / f"shift_{kind}"
+    m, s = map_dir(kind) / "summary", RESULTS / f"shift_{kind}"
     if not (m / "pairs.csv").exists() or not (s / "space_choice.json").exists():
         return None
     pairs = pd.read_csv(m / "pairs.csv", dtype={"K": str})
@@ -144,7 +151,7 @@ def fit(d: pd.DataFrame, col: str) -> dict:
 def gains(kind: str) -> pd.DataFrame:
     """反復ごとの得（合併 − ターゲットのみ）。列：target, source, K, rep, gain。"""
     rows = []
-    for p in sorted((RESULTS / f"map_{kind}").glob("*.csv")):
+    for p in sorted(map_dir(kind).glob("*.csv")):
         d = pd.read_csv(p, comment="#", dtype={"K": str, "source": str},
                         usecols=["target", "source", "method", "K", "rep", "uar"])
         t = d[d.method == "tgt_only"].set_index(["K", "rep"])["uar"]
@@ -155,5 +162,5 @@ def gains(kind: str) -> pd.DataFrame:
 
 
 def gains_all_k(kind: str) -> pd.DataFrame:
-    p = pd.read_csv(RESULTS / f"map_{kind}" / "summary" / "pairs.csv", dtype={"K": str})
+    p = pd.read_csv(map_dir(kind) / "summary" / "pairs.csv", dtype={"K": str})
     return p.pivot_table(index=["target", "source"], columns="K", values="diff_mean").reset_index()
