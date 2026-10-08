@@ -333,6 +333,7 @@ E6〜E10 の端の部分は，音声 10〜11 回・映像 5 回の地図のま�
 | E12 | `20261002-1400_e12/`（`e12_src.csv`・`e12_d1.csv`・`e12_center.csv`・`e12_wt.csv`），`20261002-1659_e12cwt/e12_cwt.csv` |
 | E13・E14 | `20261002-1339_e13/e13_summary.csv`，`20261002-1339_e14/e14_summary.csv` |
 | E15（人工データでの検算） | `results/sim_position/summary_fit.csv`・`summary_lambda.csv`・`summary_synergy.csv` |
+| E15（段階 A） | `snapshots/20261008-1917_e15a/`（`e15_tests.csv`・`e15_pairs.csv`・`e15_lambda.csv`・`e15_parts.csv`・`e15_e12_summary.csv`） |
 | E2・E5（30 回） | `20261008-1310_rerun/decomp_share.csv`・`decomp_partial.csv`・`e5_summary.csv` |
 | E7（10〜11 回） | `20261001-0929/e7_*.csv` |
 | 仮説 H7 | `results/check_h7/primary.csv`・`share.csv` |
