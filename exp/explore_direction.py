@@ -20,6 +20,7 @@ d の変化の分け方（ターゲット全発話で評価．30 通りのでた
 
     ./.venv/bin/python exp/explore_direction.py [--kinds audio_wavlm ...]
     ./.venv/bin/python exp/explore_direction.py --stage diag    # 実測の d の変化を情報と雑音に分ける（E16 の 6 節）
+    ./.venv/bin/python exp/explore_direction.py --stage drivers # 雑音と情報の大きさを決めるもの（E16 の 8 節）
 
 入力：地図の C，特徴，ソースのみの分類器の点数（`results/shift_<kind>/logits/`），E15 の段階 B の点数
 （`results/merged_scores_<kind>/`）。出力：`results/explore_relation/e16_*.csv`・`fig_e16.png`
@@ -272,6 +273,101 @@ def summarize_diag(X: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     return med, pd.DataFrame(tests)
 
 
+def switch_q(kind: str, C_mode: pd.DataFrame) -> pd.DataFrame:
+    """Q = uᵀΣ_t u / (u·δ)²，u = (A_s + I/C)⁻¹ δ（組 × K．C は反復 0〜9 で最も多く選ばれた値）。"""
+    groups = groups_for(kind)
+    data = {g: load_any(g, kind) for g in groups}
+    rows = []
+    for s in groups:
+        dfs, Xs = data[s]
+        ys = dfs.label_4.to_numpy()
+        mu, sd = Xs.mean(0), Xs.std(0)
+        sd = np.where(sd > 1e-12, sd, 1.0)
+        Zs = ((Xs - mu) / sd).astype(np.float64)
+        ks_all = kappa(np.load(ROOT / "results" / f"shift_{kind}" / "logits" / f"{s}.npz")["oof"])
+        sps = {K: src_parts(Zs, ys, ks_all, int(K)) for K in KS}
+        for t in groups:
+            if t == s:
+                continue
+            Zt = ((data[t][1] - mu) / sd).astype(np.float64)
+            Zc = Zt - Zt.mean(0)
+            for K in KS:
+                sp = sps[K]
+                C = float(C_mode[(C_mode.target == t) & (C_mode.source == s) & (C_mode.K == K)].C.iloc[0])
+                delta = Zt.mean(0) - sp["zbar"]
+                u = sp["V"] @ ((sp["V"].T @ delta) / (sp["ev"] + 1.0 / C))
+                rows.append({"kind": kind, "target": t, "source": s, "K": K, "C_mode": C,
+                             "Q": float(np.var(Zc @ u) / (u @ delta) ** 2)})
+        print(f"  {kind} ソース {s} 済み", flush=True)
+    return pd.DataFrame(rows)
+
+
+def run_drivers(kinds: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    from explore_pairs import measure
+    X = pd.read_csv(OUT / "e16_diag_rows.csv", dtype={"K": str})
+    X = X[X.kind.isin(kinds) & (X.d_s > 0) & (X.d_m > 0)]
+    lam = pd.read_csv(OUT / "e15b_pairs.csv", dtype={"K": str})[["kind", "target", "source", "K", "lam_obs"]]
+    o_s = pd.read_csv(OUT / "e16_rows.csv", dtype={"K": str}).groupby(
+        ["kind", "target", "source", "K", "pair"]).agg(o_s=("o_s", "mean")).reset_index()
+    curves = pd.concat([
+        pd.read_csv(OUT / "snapshots" / "20261008-1310_e11_v30" / "e11_curves.csv")
+          .rename(columns={"setting": "kind"})[["kind", "target", "q"]],
+        pd.read_csv(ROOT / "results" / "check_mh" / "curves.csv").query("setting == 'audio_hubert'")
+          .assign(kind="audio_hubert")[["kind", "target", "q"]]])
+    names = [f"{a}-{b}" for a, b in PAIRS]
+    own = []
+    e13 = pd.read_csv(OUT / "snapshots" / "20261002-1339_e13" / "e13_pairs.csv")
+    for kind in kinds:
+        e = e13[e13.kind == kind] if kind in set(e13.kind) else measure(kind)
+        name_map = dict(zip(sorted(e.pair.unique(), key=lambda p: PAIR_ORDER.index(p)), names))
+        own.append(e.assign(pair=e.pair.map(name_map))[["kind", "target", "source", "pair", "own_d"]])
+    own = pd.concat(own)
+    mp = {k: load_map_full(k) for k in kinds}
+    Cs = pd.concat([v[0] for v in mp.values()])
+    C_mode = pd.concat([v[1] for v in mp.values()])
+    Q = pd.concat([switch_q(k, C_mode[C_mode.kind == k]) for k in kinds])
+    X = X.merge(Cs, on=["kind", "target", "source", "K", "rep"])
+    P = (X.groupby(["kind", "target", "source", "K", "pair"])
+         .agg(I_obs=("I_obs", "mean"), N_obs=("N_obs", "mean"), d_s=("d_s", "mean")).reset_index()
+         .merge(lam, on=["kind", "target", "source", "K"]).merge(o_s, on=["kind", "target", "source", "K", "pair"])
+         .merge(Q, on=["kind", "target", "source", "K"]).merge(curves, on=["kind", "target"])
+         .merge(own, on=["kind", "target", "source", "pair"]))
+    P["switch"] = P.lam_obs ** 2 * P.o_s ** 2 * P.Q
+    P["info"] = (P.own_d / P.d_s - 1) * P.K.astype(int) / (P.K.astype(int) + P.q)
+    T = []
+    for kind, g in P.groupby("kind", sort=False):
+        for K, h in g.groupby("K"):
+            h2 = X[(X.kind == kind) & (X.K == K)]
+            diff, same = h2[h2.C_m != h2.C_s].N_obs, h2[h2.C_m == h2.C_s].N_obs
+            u = stats.mannwhitneyu(diff, same, alternative="greater") if len(diff) and len(same) else None
+            r1, p1 = stats.spearmanr(h.switch, h.N_obs, alternative="greater")
+            T.append({"setting": KINDS[kind], "K": K, "n": len(h),
+                      "N1_spearman": r1, "N1_p": p1,
+                      "N2_share_C_differs": float((h2.C_m != h2.C_s).mean()),
+                      "N2_median_N_differs": diff.median(), "N2_median_N_same": same.median(),
+                      "N2_auc": u.statistic / (len(diff) * len(same)) if u else np.nan,
+                      "N2_p": u.pvalue if u else np.nan})
+        r, p = stats.spearmanr(g.info, g.I_obs, alternative="greater")
+        T.append({"setting": KINDS[kind], "K": "all", "n": len(g), "I1_spearman": r, "I1_p": p})
+    return P, pd.DataFrame(T)
+
+
+PAIR_ORDER = ["neutral-happy", "neutral-sad", "neutral-angry", "happy-sad", "happy-angry", "sad-angry"]
+
+
+def load_map_full(kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """反復ごとの合併の C とソースのみの C，組 × K の C の最頻値（反復 0〜9）。"""
+    fs = sorted((ROOT / "results" / f"map_{kind}").glob("*.csv"))
+    d = pd.concat([pd.read_csv(f, comment="#", dtype={"K": str, "source": str},
+                               usecols=["target", "source", "method", "K", "rep", "C"]) for f in fs])
+    m = d[(d.method == "merged") & d.K.isin(KS) & (d.rep < 10)].rename(columns={"C": "C_m"})
+    s_ = d[(d.method == "src_only") & (d.rep < 10)][["target", "source", "rep", "C"]].rename(columns={"C": "C_s"})
+    Cs = m.merge(s_, on=["target", "source", "rep"])[["target", "source", "K", "rep", "C_m", "C_s"]].assign(kind=kind)
+    mode = (m.groupby(["target", "source", "K"]).C_m.agg(lambda c: c.mode().iloc[0]).reset_index()
+            .rename(columns={"C_m": "C"}).assign(kind=kind))
+    return Cs, mode
+
+
 def summarize(R: pd.DataFrame, D: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     R = R.assign(dc_obs=R.d_m - R.d_s, dc_pred=R.d_pred - R.d_s)
     P = R.groupby(["kind", "target", "source", "K"]).agg(
@@ -317,9 +413,16 @@ def fig(P: pd.DataFrame, path: Path) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
-    ap.add_argument("--stage", choices=["predict", "diag"], default="predict",
+    ap.add_argument("--stage", choices=["predict", "diag", "drivers"], default="predict",
                     help="diag：段階 B の実測の d の変化を，新しく加わった部分の情報と雑音に分ける（6 節）")
     args = ap.parse_args()
+    if args.stage == "drivers":
+        P, T = run_drivers(args.kinds)
+        P.to_csv(OUT / "e16_drivers_rows.csv", index=False)
+        T.to_csv(OUT / "e16_drivers_tests.csv", index=False)
+        pd.set_option("display.width", 250)
+        print(T.round(3).to_string(index=False))
+        return 0
     if args.stage == "diag":
         X = pd.concat([run_diag(k) for k in args.kinds])
         X.to_csv(OUT / "e16_diag_rows.csv", index=False)
