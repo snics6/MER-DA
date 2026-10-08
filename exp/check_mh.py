@@ -41,12 +41,14 @@ from explore_geometry import geometry  # noqa: E402
 from explore_mechanism import (K_ORDER, MIN_GAP, beta_table, bias_table, crossing, curve, d_eff,  # noqa: E402
                                fit_curves, kstar, kx_pred, load_map, one_sided, partial_rank, sub, uar4)
 from explore_pairs import measure  # noqa: E402
-from pair_table import OUT_ROOT, RESULTS, SIX, fit, holm  # noqa: E402
+from pair_table import MAP_ROOT, OUT_ROOT, RESULTS, SIX, fit, holm  # noqa: E402
 from explore_shape import shape  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
 OUT = OUT_ROOT / "check_mh"
 E11 = RESULTS / "explore_relation" / "snapshots" / "20261002-2100_e11_30rep" / "e11_primary.csv"
+if MAP_ROOT:              # 別の地図（C を固定した地図など）では，同じ回に作った E11 と照合する
+    E11 = OUT_ROOT / "explore_relation" / "e11_primary.csv"
 KINDS = ("audio_hubert", "audio_wavlm")           # 先頭が判定に使う種類
 ALPHA = 0.05
 TESTS = ["MH2", "MH3a", "MH3b", "MH3c", "MH4", "MH5"]
