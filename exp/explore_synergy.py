@@ -21,9 +21,15 @@
 - E12 の比（合併 − ソースのみ）÷（D1 − ソースのみ）と式の λ のスピアマン（P15-1 の粗い版．記述）
 
     ./.venv/bin/python exp/explore_synergy.py [--kinds audio_wavlm video ...]
+    ./.venv/bin/python exp/explore_synergy.py --stage b    # 段階 B（`exp/merged_scores.py` の後）
+
+段階 B（P15-1）：保存した合併とソースのみのテストの点数から感情の対ごとに d・o を測り，
+組 × K の測った λ = 1 − Σ sign(o_s)·o_m / Σ |o_s|（|o_s| ≥ 0.3）を式の λ（反復 0〜9 の C）と比べる。
+近似 (c) の診断 τ（スイッチの向きに沿ったターゲットとソースの散らばりの比）は段階 A で計算する。
 
 出力：`results/explore_relation/e15_lambda.csv`（組 × K），`e15_pairs.csv`（組ごとの予言の量），
-`e15_tests.csv`，`e15_e12.csv`・`e15_e12_summary.csv`，`e15_parts.csv`，`fig_e15.png`
+`e15_tests.csv`，`e15_e12.csv`・`e15_e12_summary.csv`，`e15_parts.csv`，`fig_e15.png`．
+段階 B は `e15b_rows.csv`・`e15b_pairs.csv`・`e15b_tests.csv`・`e15b_decomp.csv`・`fig_e15b.png`
 """
 
 from __future__ import annotations
@@ -157,12 +163,24 @@ def lambda_table(kind: str, mp: pd.DataFrame) -> pd.DataFrame:
                     out = [{**by_c[float(c)], **{q: p[q] for q in ("N_t", "a", "kappa_s", "kappa_t")}}
                            for c in gk.C_m]
                 o = pd.DataFrame(out)
+                tau, c_mode = np.nan, np.nan
+                if K == "5":                            # 近似 (c) の診断（同じコーパスの組もソース全件で近似する）
+                    if K not in cache:
+                        cache[K] = src_parts(Zs, ys, ks_all, int(K))
+                    sp = cache[K]
+                    c_mode = float(gk[gk.rep < 10].C_m.mode().iloc[0])
+                    v = sp["V"] @ ((sp["V"].T @ (zt_mean - sp["zbar"])) / (sp["ev"] + 1.0 / c_mode))
+                    var_t = float(np.var(((Xt - mu) / sd).astype(np.float64) @ v))
+                    var_s = float((sp["ev"] * (sp["V"].T @ v) ** 2).sum() / sp["a"])
+                    tau = var_t / var_s
                 rows.append({"kind": kind, "target": t, "source": s, "K": K, "n_rep": len(o), "cross": cross,
                              "lam_pred": o.lam.mean(), "rho": o.rho.mean(), "route_b": o.route_b.mean(),
                              "route_w": o.route_w.mean(), "G": o.G.mean(), "N_t": o.N_t.mean(),
                              "N_s_kappa_s": o.a.mean(), "kappa_s": o.kappa_s.mean(), "kappa_t": o.kappa_t.mean(),
                              "C_median": float(gk.C_m.median()),
-                             "lam_pred_rep012": o.lam[gk.rep.to_numpy() < 3].mean()})
+                             "lam_pred_rep012": o.lam[gk.rep.to_numpy() < 3].mean(),
+                             "lam_pred_rep09": o.lam[gk.rep.to_numpy() < 10].mean(),
+                             "tau_K5": tau, "C_mode09_K5": c_mode})
         print(f"  {kind} ソース {s} 済み", flush=True)
     return pd.DataFrame(rows)
 
@@ -239,6 +257,86 @@ def e12_ratio(kind: str, mp: pd.DataFrame, lam: pd.DataFrame) -> pd.DataFrame | 
     return g
 
 
+# ---------------------------------------------------------------- 段階 B：保存した点数から測った λ
+
+PAIRS = [(k, j) for k in range(N_CLASSES) for j in range(k + 1, N_CLASSES)]
+O_MIN = 0.3
+
+
+def d_o(L: np.ndarray, y: np.ndarray) -> list[tuple[float, float]]:
+    """E13 と同じ：感情の対 (k, j) ごとに z = 点数_k − 点数_j の 2 つの山の d と o。"""
+    out = []
+    for k, j in PAIRS:
+        zk, zj = L[y == k, k] - L[y == k, j], L[y == j, k] - L[y == j, j]
+        sd = np.sqrt((zk.var(ddof=1) + zj.var(ddof=1)) / 2)
+        out.append(((zk.mean() - zj.mean()) / sd, -(zk.mean() + zj.mean()) / 2 / sd))
+    return out
+
+
+def stage_b(kinds: list[str]) -> int:
+    lam = pd.read_csv(OUT / "e15_lambda.csv", dtype={"K": str})
+    rows = []
+    for kind in kinds:
+        d = ROOT / "results" / f"merged_scores_{kind}"
+        for f in sorted(d.glob("*.npz")):
+            z, t = np.load(f), f.stem
+            reps = sorted(int(k.split("_r")[1]) for k in z.files if k.startswith("test_idx_r"))
+            srcs = sorted({k[2:].rsplit("_r", 1)[0] for k in z.files if k.startswith("s_")})
+            for r in reps:
+                y = z[f"y_test_r{r}"]
+                for s in srcs:
+                    ds = d_o(z[f"s_{s}_r{r}"], y)
+                    for K in KS:
+                        dm = d_o(z[f"m_{s}_K{K}_r{r}"], y)
+                        for (k, j), (d_s, o_s), (d_m, o_m) in zip(PAIRS, ds, dm):
+                            rows.append({"kind": kind, "target": t, "source": s, "K": K, "rep": r,
+                                         "pair": f"{k}-{j}", "d_s": d_s, "o_s": o_s, "d_m": d_m, "o_m": o_m})
+    R = pd.DataFrame(rows)
+    R.to_csv(OUT / "e15b_rows.csv", index=False)
+    # 2 つの山のモデルで，合併 − ソースのみ（2 つの感情の正解率）を位置の分と向きの分に分ける
+    R["pos"] = ba(R.d_s, R.o_m) - ba(R.d_s, R.o_s)
+    R["dir"] = ba(R.d_m, R.o_m) - ba(R.d_s, R.o_m)
+    R["total"] = R.pos + R.dir
+    (R.groupby(["kind", "K"])[["pos", "dir", "total", "d_s", "d_m", "o_s", "o_m"]]
+     .agg(lambda x: x.abs().mean() if x.name in ("o_s", "o_m") else x.mean())
+     .reset_index().to_csv(OUT / "e15b_decomp.csv", index=False))
+    agg = []
+    for (kind, t, s, K), g in R.groupby(["kind", "target", "source", "K"]):
+        v = g[g.o_s.abs() >= O_MIN]
+        lo = 1 - float((np.sign(v.o_s) * v.o_m).sum() / v.o_s.abs().sum()) if len(v) else np.nan
+        agg.append({"kind": kind, "target": t, "source": s, "K": K, "n_valid": len(v), "lam_obs": lo,
+                    "lam_obs_median": float((1 - v.o_m / v.o_s).median()) if len(v) else np.nan,
+                    "abs_o_s": g.o_s.abs().mean(), "abs_o_m": g.o_m.abs().mean(),
+                    "d_s": g.d_s.mean(), "d_m": g.d_m.mean(), "d_change": (g.d_m - g.d_s).mean()})
+    A = pd.DataFrame(agg).merge(lam[["kind", "target", "source", "K", "lam_pred_rep09", "G", "tau_K5"]],
+                                on=["kind", "target", "source", "K"])
+    A.to_csv(OUT / "e15b_pairs.csv", index=False)
+    tests = []
+    for kind, g in A.dropna(subset=["lam_obs"]).groupby("kind", sort=False):
+        r, p = stats.spearmanr(g.lam_pred_rep09, g.lam_obs, alternative="greater")
+        row = {"setting": KINDS[kind], "n": len(g), "spearman": r, "p_one_sided": p,
+               "mean_lam_obs": g.lam_obs.mean(), "mean_lam_pred": g.lam_pred_rep09.mean(),
+               "mae": (g.lam_obs - g.lam_pred_rep09).abs().mean()}
+        for K, h in g.groupby("K"):
+            row[f"spearman_K{K}"] = stats.spearmanr(h.lam_pred_rep09, h.lam_obs)[0]
+            row[f"mean_lam_obs_K{K}"], row[f"mean_lam_pred_K{K}"] = h.lam_obs.mean(), h.lam_pred_rep09.mean()
+            row[f"d_change_K{K}"] = h.d_change.mean()
+        row["tau_K5_median"] = g[g.K == "5"].tau_K5.median()
+        tests.append(row)
+    T = pd.DataFrame(tests)
+    T.to_csv(OUT / "e15b_tests.csv", index=False)
+    pd.set_option("display.width", 250)
+    print(T.round(3).T.to_string())
+    f, axes = plt.subplots(1, len(T), figsize=(4 * len(T), 4), squeeze=False)
+    for ax, (kind, g) in zip(axes[0], A.groupby("kind", sort=False)):
+        for K, h in g.groupby("K"):
+            ax.scatter(h.lam_pred_rep09, h.lam_obs, s=12, label=f"K={K}")
+        ax.plot([0, 1], [0, 1], "k--", lw=1); ax.set_title(KINDS[kind])
+        ax.set_xlabel("predicted lambda"); ax.set_ylabel("observed lambda"); ax.legend(fontsize=7)
+    f.tight_layout(); f.savefig(OUT / "fig_e15b.png", dpi=120); plt.close(f)
+    return 0
+
+
 # ---------------------------------------------------------------- 図
 
 def fig(P: pd.DataFrame, path: Path) -> None:
@@ -263,7 +361,11 @@ def fig(P: pd.DataFrame, path: Path) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
+    ap.add_argument("--stage", choices=["a", "b"], default="a",
+                    help="b：段階 B の点数（`results/merged_scores_<kind>/`）から測った λ を作り，P15-1 を調べる")
     args = ap.parse_args()
+    if args.stage == "b":
+        return stage_b(args.kinds)
     OUT.mkdir(parents=True, exist_ok=True)
     lams, pairs, tst, e12s = [], [], [], []
     for kind in args.kinds:
