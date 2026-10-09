@@ -313,13 +313,13 @@ def run_drivers(kinds: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     o_s = pd.read_csv(OUT / "e16_rows.csv", dtype={"K": str}).groupby(
         ["kind", "target", "source", "K", "pair"]).agg(o_s=("o_s", "mean")).reset_index()
     curves = pd.concat([
-        pd.read_csv(OUT / "snapshots" / "20261008-1310_e11_v30" / "e11_curves.csv")
+        pd.read_csv(ROOT / "results" / "explore_relation" / "snapshots" / "20261008-1310_e11_v30" / "e11_curves.csv")
           .rename(columns={"setting": "kind"})[["kind", "target", "q"]],
         pd.read_csv(ROOT / "results" / "check_mh" / "curves.csv").query("setting == 'audio_hubert'")
           .assign(kind="audio_hubert")[["kind", "target", "q"]]])
     names = [f"{a}-{b}" for a, b in PAIRS]
     own = []
-    e13 = pd.read_csv(OUT / "snapshots" / "20261002-1339_e13" / "e13_pairs.csv")
+    e13 = pd.read_csv(ROOT / "results" / "explore_relation" / "snapshots" / "20261002-1339_e13" / "e13_pairs.csv")  # ターゲットのみ・ソースのみの量なので C の固定によらない
     for kind in kinds:
         e = e13[e13.kind == kind] if kind in set(e13.kind) else measure(kind)
         name_map = dict(zip(sorted(e.pair.unique(), key=lambda p: PAIR_ORDER.index(p)), names))
