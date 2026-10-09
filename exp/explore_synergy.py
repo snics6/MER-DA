@@ -57,6 +57,8 @@ from pair_table import OUT, OUT_ROOT, SIX, holm, map_dir, partial_rank  # noqa: 
 from split import speaker_folds  # noqa: E402
 
 KINDS = {"audio_wavlm": "W7", "audio_hubert": "Hu7", "video": "V", "fuse-audio-video": "AV"}
+TEXT_KINDS = {"text_roberta": "T", "fuse-audio-text": "AT", "fuse-video-text": "VT", "fuse-audio-video-text": "AVT"}
+ALL_KINDS = {**KINDS, **TEXT_KINDS}       # 名前の表．既定で流すのは KINDS だけ（言葉を含む 4 種類は E21 で --kinds を指定）
 SIX_NAME = {"audio_wavlm": "W6", "audio_hubert": "Hu6"}
 KS = ["1", "5", "10"]
 C_GRID = (0.01, 0.1, 1.0, 10.0)
@@ -314,7 +316,7 @@ def stage_b(kinds: list[str]) -> int:
     tests = []
     for kind, g in A.dropna(subset=["lam_obs"]).groupby("kind", sort=False):
         r, p = stats.spearmanr(g.lam_pred_rep09, g.lam_obs, alternative="greater")
-        row = {"setting": KINDS[kind], "n": len(g), "spearman": r, "p_one_sided": p,
+        row = {"setting": ALL_KINDS[kind], "n": len(g), "spearman": r, "p_one_sided": p,
                "mean_lam_obs": g.lam_obs.mean(), "mean_lam_pred": g.lam_pred_rep09.mean(),
                "mae": (g.lam_obs - g.lam_pred_rep09).abs().mean()}
         for K, h in g.groupby("K"):
@@ -331,7 +333,7 @@ def stage_b(kinds: list[str]) -> int:
     for ax, (kind, g) in zip(axes[0], A.groupby("kind", sort=False)):
         for K, h in g.groupby("K"):
             ax.scatter(h.lam_pred_rep09, h.lam_obs, s=12, label=f"K={K}")
-        ax.plot([0, 1], [0, 1], "k--", lw=1); ax.set_title(KINDS[kind])
+        ax.plot([0, 1], [0, 1], "k--", lw=1); ax.set_title(ALL_KINDS[kind])
         ax.set_xlabel("predicted lambda"); ax.set_ylabel("observed lambda"); ax.legend(fontsize=7)
     f.tight_layout(); f.savefig(OUT / "fig_e15b.png", dpi=120); plt.close(f)
     return 0
@@ -348,7 +350,7 @@ def fig(P: pd.DataFrame, path: Path) -> None:
         ax.scatter(d.pos_fix_pred * 100, d.m_minus_s * 100, s=14,
                    c=np.where(d.synergy_flag, "tab:red", "tab:gray"))
         ax.axhline(0, color="k", lw=0.5)
-        ax.set_title(f"{KINDS[k]}  K=5"); ax.set_xlabel("predicted position fix (pt)")
+        ax.set_title(f"{ALL_KINDS[k]}  K=5"); ax.set_xlabel("predicted position fix (pt)")
         ax.set_ylabel("merged - source-only (UAR pt)")
         ax = axes[1, j]
         for K, h in P[P.kind == k].groupby("K"):
@@ -360,7 +362,7 @@ def fig(P: pd.DataFrame, path: Path) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
+    ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(ALL_KINDS))
     ap.add_argument("--stage", choices=["a", "b"], default="a",
                     help="b：段階 B の点数（`results/merged_scores_<kind>/`）から測った λ を作り，P15-1 を調べる")
     args = ap.parse_args()
@@ -375,7 +377,7 @@ def main() -> int:
         e13 = measure(kind)
         P = pair_table(kind, mp, lam, e13)
         groups = groups_for(kind)
-        tst += tests(P, KINDS[kind], groups)
+        tst += tests(P, ALL_KINDS[kind], groups)
         if kind in SIX_NAME:
             tst += tests(P, SIX_NAME[kind], SIX)
         e = e12_ratio(kind, mp, lam)

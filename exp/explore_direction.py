@@ -48,7 +48,7 @@ sys.path.insert(0, str(ROOT / "measure"))
 sys.path.insert(0, str(ROOT / "features"))
 import common  # noqa: E402
 from data import groups_for, load_any  # noqa: E402
-from explore_synergy import KINDS, KS, N_CLASSES, kappa, load_map, src_parts  # noqa: E402
+from explore_synergy import ALL_KINDS, KINDS, KS, N_CLASSES, kappa, load_map, src_parts  # noqa: E402
 from pair_table import OUT, OUT_ROOT, map_dir  # noqa: E402
 from split import speaker_folds  # noqa: E402
 
@@ -163,11 +163,12 @@ def run_kind(kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
             Pt = softmax(Lt, axis=1)
             B = np.load(OUT_ROOT / f"merged_scores_{kind}" / f"{t}.npz")
             g = mp[(mp.target == t) & (mp.source == s)]
+            reps_b = sorted(int(k.split("_r")[1]) for k in B.files if k.startswith("test_idx_r"))
             for K in KS:
                 sp = sps[K]
                 Xa = np.c_[Zt - sp["zbar"], np.ones(len(Zt))]
                 swc = balanced_sw(n_src_c, int(K))
-                for r in REPS:
+                for r in reps_b:
                     te, idx = map_draw(dft, t, r, int(K))
                     if not np.array_equal(np.flatnonzero(te), B[f"test_idx_r{r}"]):
                         raise SystemExit(f"{kind} {t} 反復 {r}：テストの袋が段階 B と合わない")
@@ -236,8 +237,9 @@ def run_diag(kind: str) -> pd.DataFrame:
             Pt = softmax(z[f"t_{t}"], axis=1)
             p_true = Pt[np.arange(len(yt)), yt]
             B = np.load(OUT_ROOT / f"merged_scores_{kind}" / f"{t}.npz")
+            reps_b = sorted(int(k.split("_r")[1]) for k in B.files if k.startswith("test_idx_r"))
             for K in KS:
-                for r in REPS:
+                for r in reps_b:
                     te, idx = map_draw(dft, t, r, int(K))
                     if not np.array_equal(np.flatnonzero(te), B[f"test_idx_r{r}"]):
                         raise SystemExit(f"{kind} {t} 反復 {r}：テストの袋が段階 B と合わない")
@@ -260,7 +262,7 @@ def summarize_diag(X: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     R = X.groupby(keys).agg(log_dr=("log_dr", "mean"), **{f"n_cw{c:g}": (f"n_cw{c:g}", "first") for c in CW}).reset_index()
     tests = []
     for (kind, K), g in R.groupby(["kind", "K"], sort=False):
-        row = {"setting": KINDS[kind], "K": K, "n_draws": len(g)}
+        row = {"setting": ALL_KINDS[kind], "K": K, "n_draws": len(g)}
         for c in CW:
             col = f"n_cw{c:g}"
             row[f"share_draws_cw{c:g}"] = float((g[col] >= 1).mean())
@@ -344,14 +346,14 @@ def run_drivers(kinds: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
             diff, same = h2[h2.C_m != h2.C_s].N_obs, h2[h2.C_m == h2.C_s].N_obs
             u = stats.mannwhitneyu(diff, same, alternative="greater") if len(diff) and len(same) else None
             r1, p1 = stats.spearmanr(h.switch_pred, h.N_obs, alternative="greater")
-            T.append({"setting": KINDS[kind], "K": K, "n": len(h),
+            T.append({"setting": ALL_KINDS[kind], "K": K, "n": len(h),
                       "N1_spearman": r1, "N1_p": p1,
                       "N2_share_C_differs": float((h2.C_m != h2.C_s).mean()),
                       "N2_median_N_differs": diff.median(), "N2_median_N_same": same.median(),
                       "N2_auc": u.statistic / (len(diff) * len(same)) if u else np.nan,
                       "N2_p": u.pvalue if u else np.nan})
         r, p = stats.spearmanr(g.info_pred, g.I_obs, alternative="greater")
-        T.append({"setting": KINDS[kind], "K": "all", "n": len(g), "I1_spearman": r, "I1_p": p})
+        T.append({"setting": ALL_KINDS[kind], "K": "all", "n": len(g), "I1_spearman": r, "I1_p": p})
     return P, pd.DataFrame(T)
 
 
@@ -385,7 +387,7 @@ def summarize(R: pd.DataFrame, D: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
     P = P.merge(Dp, on=["kind", "target", "source", "K"])
     T = []
     for kind, g in P.groupby("kind", sort=False):
-        row = {"setting": KINDS[kind], "n": len(g)}
+        row = {"setting": ALL_KINDS[kind], "n": len(g)}
         row["spearman_dc"], row["p_dc"] = stats.spearmanr(g.dc_pred, g.dc_obs, alternative="greater")
         row["spearman_lam"], row["p_lam"] = stats.spearmanr(g.lam_newton, g.lam_obs, alternative="greater",
                                                             nan_policy="omit")
@@ -408,14 +410,14 @@ def fig(P: pd.DataFrame, path: Path) -> None:
             ax.scatter(h.dc_pred, h.dc_obs, s=12, label=f"K={K}")
         lim = [P.dc_obs.min() - 0.02, P.dc_obs.max() + 0.02]
         ax.plot(lim, lim, "k--", lw=1); ax.axhline(0, color="gray", lw=0.5); ax.axvline(0, color="gray", lw=0.5)
-        ax.set_title(KINDS[k]); ax.set_xlabel("predicted d_m - d_s"); ax.set_ylabel("observed d_m - d_s")
+        ax.set_title(ALL_KINDS[k]); ax.set_xlabel("predicted d_m - d_s"); ax.set_ylabel("observed d_m - d_s")
         ax.legend(fontsize=7)
     f.tight_layout(); f.savefig(path, dpi=120); plt.close(f)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
+    ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(ALL_KINDS))
     ap.add_argument("--kappa-floor", type=float, default=0.0,
                     help="抜いた K 本の曲がりの下限（E20 の R3）．0 より大きいと出力名に _kf<値> を付ける")
     ap.add_argument("--stage", choices=["predict", "diag", "drivers"], default="predict",
