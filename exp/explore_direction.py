@@ -72,12 +72,15 @@ def hs_inv(sp: dict, C: float):
     return f
 
 
+KAPPA_FLOOR = 0.0          # 抜いた K 本の曲がりの下限（E20 の R3．既定は下限なし）
+
+
 def newton_step(Hinv, X: np.ndarray, P: np.ndarray, y: np.ndarray, sw: np.ndarray) -> np.ndarray:
     """抜いた行 X（m, d+1），ソースのみの確率 P（m, k），ラベル y，重み sw から ΔW（k, d+1）を返す。"""
     k = P.shape[1]
     R = np.eye(k)[y] - P
     G = (R * sw[:, None]).T @ X                                   # (k, d+1)
-    D = sw * (1 - (P ** 2).sum(1)) / (k - 1)
+    D = sw * np.maximum((1 - (P ** 2).sum(1)) / (k - 1), KAPPA_FLOOR)
     HiX = Hinv(X.T)                                               # (d+1, m)
     GHi = Hinv(G.T).T                                             # (k, d+1)
     inner = np.diag(1.0 / D) + X @ HiX                            # (m, m)
@@ -413,9 +416,14 @@ def fig(P: pd.DataFrame, path: Path) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kinds", nargs="+", default=list(KINDS), choices=list(KINDS))
+    ap.add_argument("--kappa-floor", type=float, default=0.0,
+                    help="抜いた K 本の曲がりの下限（E20 の R3）．0 より大きいと出力名に _kf<値> を付ける")
     ap.add_argument("--stage", choices=["predict", "diag", "drivers"], default="predict",
                     help="diag：段階 B の実測の d の変化を，新しく加わった部分の情報と雑音に分ける（6 節）")
     args = ap.parse_args()
+    global KAPPA_FLOOR
+    KAPPA_FLOOR = args.kappa_floor
+    sfx = f"_kf{args.kappa_floor:g}" if args.kappa_floor > 0 else ""
     if args.stage == "drivers":
         P, T = run_drivers(args.kinds)
         P.to_csv(OUT / "e16_drivers_rows.csv", index=False)
@@ -440,12 +448,12 @@ def main() -> int:
         Rs.append(R); Ds.append(D)
         print(f"{kind}: {time.time() - t0:.0f} 秒", flush=True)
     R, D = pd.concat(Rs), pd.concat(Ds)
-    R.to_csv(OUT / "e16_rows.csv", index=False)
-    D.to_csv(OUT / "e16_decomp_rows.csv", index=False)
+    R.to_csv(OUT / f"e16_rows{sfx}.csv", index=False)
+    D.to_csv(OUT / f"e16_decomp_rows{sfx}.csv", index=False)
     P, T, _ = summarize(R, D)
-    P.to_csv(OUT / "e16_pairs.csv", index=False)
-    T.to_csv(OUT / "e16_tests.csv", index=False)
-    fig(P, OUT / "fig_e16.png")
+    P.to_csv(OUT / f"e16_pairs{sfx}.csv", index=False)
+    T.to_csv(OUT / f"e16_tests{sfx}.csv", index=False)
+    fig(P, OUT / f"fig_e16{sfx}.png")
     pd.set_option("display.width", 250)
     print(T.round(3).T.to_string())
     return 0
