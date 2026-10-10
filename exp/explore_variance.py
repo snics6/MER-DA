@@ -20,6 +20,7 @@ from scipy import stats
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
+sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for  # noqa: E402
 from explore_synergy import KS, O_MIN, load_map  # noqa: E402
 from pair_table import OUT  # noqa: E402
