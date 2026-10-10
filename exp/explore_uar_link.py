@@ -26,8 +26,23 @@ KINDS = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
 K = "5"
 
 
+_U, _W = np.polynomial.hermite_e.hermegauss(40)       # 共通の雑音 u ~ N(0,1) の積分（ガウス・エルミート）
+_W = _W / _W.sum()
+
+
+def shared(c: np.ndarray) -> float:
+    """共通の雑音の橋：P(正解 | k) = E_u Π_l Φ(√2 c_kl + u)。c_kl は対 (k, l) で感情 k が勝つ割合のプロビット（Φ⁻¹）。
+    各感情の点数が独立で等分散の正規なら，対の差 z_kl と z_km は感情 k の点数を共有して相関 1/2 を持つ。
+    **結果を見た後（独立近似が 8〜10 点低く出た）に足した橋で，予言ではない。**"""
+    acc = []
+    for k in range(4):
+        cs = [c[k, l] for l in range(4) if l != k]
+        acc.append(float(np.sum(_W * np.prod([stats.norm.cdf(np.sqrt(2) * ck + _U) for ck in cs], axis=0))))
+    return float(np.mean(acc))
+
+
 def bridges(L: np.ndarray, y: np.ndarray) -> dict:
-    """実際の UAR と，対ごとの勝ち割合 a_k(l) から作る 3 つの橋。"""
+    """実際の UAR と，対ごとの勝ち割合 a_k(l) から作る橋（独立近似，和の上界，正規版，共通の雑音版）。"""
     pred = L.argmax(1)
     uar = float(np.mean([np.mean(pred[y == k] == k) for k in range(4)]))
     a = np.ones((4, 4))                                   # a[k, l] = 感情 k の発話が対 (k, l) で勝つ割合
@@ -41,7 +56,12 @@ def bridges(L: np.ndarray, y: np.ndarray) -> dict:
     for (k, l), (d, o) in zip(PAIRS, d_o(L, y)):
         g[k, l], g[l, k] = stats.norm.cdf(d / 2 - o), stats.norm.cdf(d / 2 + o)
     gauss = float(np.mean([np.prod([g[k, l] for l in range(4) if l != k]) for k in range(4)]))
-    return {"uar": uar, "indep": indep, "union": union, "gauss": gauss}
+    c_emp = stats.norm.ppf(np.clip(a, 1e-4, 1 - 1e-4))
+    c_gau = np.zeros((4, 4))
+    for (k, l), (d, o) in zip(PAIRS, d_o(L, y)):
+        c_gau[k, l], c_gau[l, k] = d / 2 - o, d / 2 + o
+    return {"uar": uar, "indep": indep, "union": union, "gauss": gauss,
+            "shared": shared(c_emp), "shared_gauss": shared(c_gau)}
 
 
 def rows() -> pd.DataFrame:
@@ -71,19 +91,21 @@ def main() -> int:
         r = R[R.kind == kind]
         for clf in ("src", "merged", "ht"):
             g = r[r.clf == clf]
-            for br, name, thr_r, thr_e in (("indep", "T4-1", 0.9, 0.03), ("gauss", "T4-3", 0.85, 0.04)):
+            for br, name, thr_r, thr_e in (("indep", "T4-1", 0.9, 0.03), ("gauss", "T4-3", 0.85, 0.04),
+                                           ("shared", "追加（共通の雑音）", 0.9, 0.03), ("shared_gauss", "追加（共通の雑音，正規）", 0.85, 0.04)):
                 rho = float(stats.spearmanr(g[br], g.uar)[0])
                 mae = float((g[br] - g.uar).abs().mean())
                 tests.append({"kind": kind, "test": name, "clf": clf, "bridge": br, "spearman": rho, "mae": mae,
                               "bias": float((g[br] - g.uar).mean()), "holds": rho >= thr_r and mae < thr_e, "n": len(g)})
-            summ.append({"kind": kind, "clf": clf, **{c: g[c].mean() for c in ("uar", "indep", "gauss", "union")}})
-        P = r.groupby(["target", "source", "clf"])[["uar", "indep", "gauss"]].mean().unstack("clf")
+            summ.append({"kind": kind, "clf": clf, **{c: g[c].mean() for c in ("uar", "indep", "gauss", "union", "shared", "shared_gauss")}})
+        P = r.groupby(["target", "source", "clf"])[["uar", "indep", "gauss", "shared", "shared_gauss"]].mean().unstack("clf")
         for clf in ("merged", "ht"):
             da = P[("uar", clf)] - P[("uar", "src")]
-            for br in ("indep", "gauss"):
+            for br in ("indep", "gauss", "shared", "shared_gauss"):
                 dp = P[(br, clf)] - P[(br, "src")]
                 rho = float(stats.spearmanr(dp, da)[0])
-                tests.append({"kind": kind, "test": "T4-2" if br == "indep" else "T4-2 参考（正規）", "clf": f"{clf} − src",
+                name = {"indep": "T4-2", "gauss": "T4-2 参考（正規）", "shared": "追加 Δ（共通の雑音）", "shared_gauss": "追加 Δ（共通の雑音，正規）"}[br]
+                tests.append({"kind": kind, "test": name, "clf": f"{clf} − src",
                               "bridge": br, "spearman": rho, "mae": float((dp - da).abs().mean()),
                               "bias": float((dp - da).mean()), "holds": rho >= 0.8 if br == "indep" else np.nan, "n": len(da)})
     T, S = pd.DataFrame(tests), pd.DataFrame(summ)
