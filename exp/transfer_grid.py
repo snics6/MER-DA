@@ -80,17 +80,20 @@ def run_target(kind: str, tgt: M.Group, sources: list[M.Group], reps, out: Path)
                 m = np.zeros(nt, bool)
                 m[split[r][1][K]] = True
                 masks.append(m)
+            # 学習器は X の全行で出力を計算するので，どの問でも使わない行は渡さない（標準化はソースの統計で固定なので結果は同じ）
+            used = np.unique(np.concatenate([np.flatnonzero(m) for m in masks]))
+            Xu, yu, mu_ = M.rows(Xt, used), yt[torch.as_tensor(used, device=yt.device)], [m[used] for m in masks]
             fits: dict[str, dict] = {}                         # 設定名 → {(r, K): (Fitted, C)}
             cs = FREE_CS if C_s in FREE_CS else FREE_CS + (C_s,)
-            fb = logreg.fit_batch(Xt, yt, masks, cs, anchor=src, anchor_c=C_s, stats=stats)
+            fb = logreg.fit_batch(Xu, yu, mu_, cs, anchor=src, anchor_c=C_s, stats=stats)
             for c in FREE_CS:
                 fits[cfg_name("free", c)] = {j: (f, c) for j, f in zip(jobs, fb)}
             fits["free_Csrc"] = {j: (f, C_s) for j, f in zip(jobs, fb)}
-            fx = logreg.fit_batch(Xt, yt, masks, FIXED_CS, anchor=src, anchor_c=C_s, stats=stats, fix_b=True)
+            fx = logreg.fit_batch(Xu, yu, mu_, FIXED_CS, anchor=src, anchor_c=C_s, stats=stats, fix_b=True)
             for c in FIXED_CS:
                 fits[cfg_name("fixed", c)] = {j: (f, c) for j, f in zip(jobs, fx)}
             for cb in CB_LIST:
-                fc = logreg.fit_batch(Xt, yt, masks, (CB_C,), anchor=src, anchor_c=C_s, stats=stats, Cb=cb)
+                fc = logreg.fit_batch(Xu, yu, mu_, (CB_C,), anchor=src, anchor_c=C_s, stats=stats, Cb=cb)
                 fits[cfg_name("cb", CB_C, cb)] = {j: (f, CB_C) for j, f in zip(jobs, fc)}
             Ws, bs = src.W[C_s], src.b[C_s]
             for r in rs:
