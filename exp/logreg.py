@@ -131,8 +131,15 @@ MAX_HALVING = 50         # 歩幅を半分にする回数の上限。超えた�
 def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
               Cs: tuple[float, ...], inits: list[Fitted | None] | None = None,
               anchor: Fitted | None = None, anchor_c: float | None = None,
-              weights: list[torch.Tensor | None] | None = None) -> list[Fitted]:
+              weights: list[torch.Tensor | None] | None = None,
+              stats: tuple[torch.Tensor, torch.Tensor] | None = None,
+              Cb: float | None = None, fix_b: bool = False) -> list[Fitted]:
     """masks[g]（学習に使う行）ごとに，候補の C すべてを束ねて解く。`fit` と同じ問題を解く。
+
+    **stats=(mu, sd) を渡すと，全問をその統計で標準化する**（既定は問ごとに学習に使う行の統計）。
+    仮説転移で K 本の統計を使わず，ソースの統計の座標で解くためのもの（E28 の 1 節）。
+    **Cb を渡すと，切片にも罰則 ‖b − b_anchor‖²/(2 Cb S) をかける**（anchor が無ければ b_anchor = 0）。
+    **fix_b=True なら切片を出発点（anchor の切片）に固定する**。どちらも既定では何もしない。
 
     問 p = g·len(Cs) + i は，行 masks[g] で標準化し，C = Cs[i] で解く。
     計算は生の特徴の上で行う：標準化した特徴 z = (x − μ)/σ に対する (W, b) の出力は
@@ -159,14 +166,18 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     C = torch.tensor([c for _ in range(G) for c in Cs], dtype=DTYPE, device=dev)
     theta = torch.zeros(B, P, dtype=DTYPE, device=dev)
     Wanc = torch.zeros(B, k, d, dtype=DTYPE, device=dev)     # 罰則の中心（既定は 0）
+    banc = torch.zeros(B, k, dtype=DTYPE, device=dev)        # 切片の罰則の中心（Cb を渡したときだけ使う）
     if anchor is not None:
         inits = [anchor] * G
     for g, m in enumerate(masks):
         m = torch.as_tensor(np.array(m), device=dev)
         Xm = X[m]
-        mu_g = Xm.mean(0)
-        sd_g = Xm.std(0, correction=0)
-        sd_g = torch.where(sd_g > 1e-12, sd_g, torch.ones_like(sd_g))
+        if stats is not None:
+            mu_g, sd_g = stats[0].to(dev, DTYPE), stats[1].to(dev, DTYPE)
+        else:
+            mu_g = Xm.mean(0)
+            sd_g = Xm.std(0, correction=0)
+            sd_g = torch.where(sd_g > 1e-12, sd_g, torch.ones_like(sd_g))
         sw = torch.zeros(n, dtype=DTYPE, device=dev)
         if weights is not None and weights[g] is not None:
             sw[m] = weights[g].to(dev, DTYPE)[m]
@@ -179,7 +190,7 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
                 W0, b0 = inits[g].moved_to(mu_g, sd_g, anchor_c if anchor is not None else c)
                 theta[p, :k * d], theta[p, k * d:] = W0.reshape(-1), b0
                 if anchor is not None:
-                    Wanc[p] = W0
+                    Wanc[p], banc[p] = W0, b0
     yy = y.view(n, 1, 1).expand(n, B, 1)
     mu_sd = mu / sd
 
@@ -191,7 +202,11 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         L = (X @ A.T).view(n, B, k) + c0
         nll = -torch.log_softmax(L, 2).gather(2, yy).squeeze(2)          # (n, B)
         f = (Mw * nll).sum(0) / S + ((W - Wanc) ** 2).sum((1, 2)) / (2 * C * S)
+        if Cb is not None:
+            f = f + ((b - banc) ** 2).sum(1) / (2 * Cb * S)
         (grad,) = torch.autograd.grad(f.sum(), th)
+        if fix_b:
+            grad[:, k * d:] = 0.0                                          # 切片を動かさない
         return f.detach(), grad
 
     m_hist = HISTORY
