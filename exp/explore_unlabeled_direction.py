@@ -32,6 +32,7 @@ from split import speaker_folds  # noqa: E402
 
 KINDS = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
 N_ITER, W_FLOOR, N_SEMI, K_SEMI = 20, 0.02, 3, 10   # 計算量のため，登録時の 30 回・5 回から減らした（流す前に決めた）
+N_FIT_MAX = 3000                                     # 向きを決める側の半分は最大 3,000 本をでたらめに選ぶ（計算量のため．測る側は全発話）
 
 
 def m_step(X: np.ndarray, R: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -127,7 +128,10 @@ def run_kind(kind: str) -> pd.DataFrame:
                 A, B = half == a, half == b
                 if min(np.bincount(y[A], minlength=4).min(), np.bincount(y[B], minlength=4).min()) < K_SEMI + 1:
                     continue
-                U = fit_half(X[A], P[A], y[A], rng)
+                ia = np.flatnonzero(A)
+                if len(ia) > N_FIT_MAX:
+                    ia = np.sort(rng.choice(ia, N_FIT_MAX, replace=False))
+                U = fit_half(X[ia], P[ia], y[ia], rng)
                 acc["sup"].append(sep(U["sup"], X[B], y[B]))
                 acc["s"].append(sep_logits(Lt[B], y[B]))
                 for name in ("m1", "plain", "anch"):
