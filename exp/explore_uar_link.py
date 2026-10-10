@@ -83,7 +83,45 @@ def rows() -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def grid_check() -> int:
+    """T4-4：E28 の 1 節の設定（罰則と切片を振った仮説転移）× K の反復ごとの UAR を，共通の雑音の橋（正規版）が当てるか。
+    d・o は `OUT/e28t1_rows.csv`（感情の対ごと），UAR は `results/transfer_grid_<kind>/<ターゲット>.csv`。"""
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT / "exp"))
+    from data import groups_for
+    H = pd.read_csv(OUT / "e28t1_rows.csv", dtype={"K": str})
+    out, tests = [], []
+    for (kind, t, s, K, r, cfg), g in H.groupby(["kind", "target", "source", "K", "rep", "config"]):
+        c = np.zeros((4, 4))
+        for pr, d, o in zip(g.pair, g.d_h, g.o_h):
+            k, l = (int(x) for x in pr.split("-"))
+            c[k, l], c[l, k] = d / 2 - o, d / 2 + o
+        out.append({"kind": kind, "target": t, "source": s, "K": K, "rep": r, "config": cfg, "shared_gauss": shared(c)})
+    P = pd.DataFrame(out)
+    U = pd.concat([pd.read_csv(ROOT / "results" / f"transfer_grid_{k}" / f"{t}.csv", dtype={"K": str}).assign(kind=k)
+                   for k in KINDS for t in groups_for(k) if (ROOT / "results" / f"transfer_grid_{k}" / f"{t}.csv").exists()])
+    U = U[U.K != ""][["kind", "target", "source", "K", "rep", "config", "uar"]]
+    P = P.merge(U, on=["kind", "target", "source", "K", "rep", "config"])
+    P.to_csv(OUT / "e28t4_grid_rows.csv", index=False)
+    for kind in KINDS:
+        g = P[P.kind == kind]
+        rho = float(stats.spearmanr(g.shared_gauss, g.uar)[0])
+        mae = float((g.shared_gauss - g.uar).abs().mean())
+        tests.append({"kind": kind, "test": "T4-4", "config": "all", "spearman": rho, "mae": mae, "bias": float((g.shared_gauss - g.uar).mean()),
+                      "holds": rho >= 0.95 and mae < 0.02, "n": len(g)})
+        for cfg, h in g.groupby("config"):
+            tests.append({"kind": kind, "test": "T4-4 設定ごと", "config": cfg, "spearman": float(stats.spearmanr(h.shared_gauss, h.uar)[0]),
+                          "mae": float((h.shared_gauss - h.uar).abs().mean()), "bias": float((h.shared_gauss - h.uar).mean()), "n": len(h)})
+    T = pd.DataFrame(tests)
+    T.to_csv(OUT / "e28t4_grid_tests.csv", index=False)
+    pd.set_option("display.width", 220)
+    print(T.round(4).to_string(index=False))
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--grid":
+        return grid_check()
     R = rows()
     R.to_csv(OUT / "e28t4_rows.csv", index=False)
     tests, summ = [], []
