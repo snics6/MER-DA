@@ -31,7 +31,7 @@ from pair_table import OUT  # noqa: E402
 from split import speaker_folds  # noqa: E402
 
 KINDS = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
-N_ITER, W_FLOOR, N_SEMI, K_SEMI = 20, 0.02, 3, 10   # 計算量のため，登録時の 30 回・5 回から減らした（流す前に決めた）
+N_ITER, W_FLOOR, N_SEMI, K_SEMI = 20, 0.02, 1, 10   # 計算量のため，登録時の 30 回・5 回から 20 回・1 回に減らした（結果を見る前に決めた）
 N_FIT_MAX = 3000                                     # 向きを決める側の半分は最大 3,000 本をでたらめに選ぶ（計算量のため．測る側は全発話）
 
 
@@ -107,13 +107,19 @@ def run_kind(kind: str) -> pd.DataFrame:
     groups = groups_for(kind)
     data = {g: load_any(g, kind) for g in groups}
     rows = []
+    part = OUT / f"e28t10_pairs_{kind}.csv"
+    done = set()
+    if part.exists():
+        prev = pd.read_csv(part)
+        rows = prev.to_dict("records")
+        done = set(zip(prev.target, prev.source))
     for s in groups:
         dfs, Xs = data[s]
         mu_s, sd_s = Xs.mean(0), Xs.std(0)
         sd_s = np.where(sd_s > 1e-12, sd_s, 1.0)
         z = np.load(ROOT / "results" / f"shift_{kind}" / "logits" / f"{s}.npz")
         for t in groups:
-            if t == s or GROUP_SPEC[t][0] == GROUP_SPEC[s][0]:
+            if t == s or GROUP_SPEC[t][0] == GROUP_SPEC[s][0] or (t, s) in done:
                 continue
             t0 = time.perf_counter()
             dft, Xt = data[t]
@@ -142,6 +148,7 @@ def run_kind(kind: str) -> pd.DataFrame:
             for i, (k, j) in enumerate(PAIRS):
                 rows.append({"kind": kind, "target": t, "source": s, "pair": f"{k}-{j}",
                              **{f"d_{name}": float(np.mean([v[i] for v in vals])) for name, vals in acc.items()}})
+            pd.DataFrame(rows).to_csv(part, index=False)
             print(f"  {kind} {t} ← {s}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     return pd.DataFrame(rows)
 
@@ -149,8 +156,12 @@ def run_kind(kind: str) -> pd.DataFrame:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kinds", nargs="+", default=KINDS)
+    ap.add_argument("--aggregate", action="store_true", help="種類ごとのファイルをまとめて判定だけする")
     args = ap.parse_args()
-    R = pd.concat([run_kind(k) for k in args.kinds], ignore_index=True)
+    if args.aggregate:
+        R = pd.concat([pd.read_csv(OUT / f"e28t10_pairs_{k}.csv") for k in args.kinds], ignore_index=True)
+    else:
+        R = pd.concat([run_kind(k) for k in args.kinds], ignore_index=True)
     R.to_csv(OUT / "e28t10_pairs.csv", index=False)
     q = pd.read_csv(OUT / "e28t9_targets.csv")[["kind", "target", "q_dir"]]
     ref = pd.read_csv(OUT / "e28t9_pairs.csv", dtype={"K": str})
