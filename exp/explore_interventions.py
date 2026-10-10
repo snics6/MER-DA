@@ -5,13 +5,17 @@
 式の λ と位置による損は C を固定した地図の E15 の出力，ターゲットのみ・ソースのみは C を固定した地図。
 
     MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/fixc_analysis ./.venv/bin/python exp/explore_interventions.py
+    MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/fixc_analysis ./.venv/bin/python exp/explore_interventions.py --stage transfer
 
 出力：`OUT/e25_pairs.csv`（組 × K の手ごとの UAR と λ・位置による損），`OUT/e25_tests.csv`，`OUT/e25_summary.csv`，
-`OUT/e26_targets.csv`（ターゲット × K × 混ぜ方），`OUT/e26_tests.csv`，`OUT/e26_summary.csv`
+`OUT/e26_targets.csv`（ターゲット × K × 混ぜ方），`OUT/e26_tests.csv`，`OUT/e26_summary.csv`．
+`--stage transfer`（E25 の 3 節）：`exp/transfer_scores.py` の点数から手 7 の d・o を測り，C を固定した段階 B の
+合併と比べる．出力は `OUT/e25t_rows.csv`・`OUT/e25t_pairs.csv`・`OUT/e25t_summary.csv`・`OUT/e25t_tests.csv`
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -21,7 +25,8 @@ from scipy import stats
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "exp"))
-from explore_synergy import KS, load_map  # noqa: E402
+from explore_pairs import ba  # noqa: E402
+from explore_synergy import KS, O_MIN, PAIRS, d_o, load_map  # noqa: E402
 from pair_table import OUT, holm  # noqa: E402
 
 MAIN = {"audio_wavlm": "W7", "audio_hubert": "Hu7", "video": "V", "fuse-audio-video": "AV"}
@@ -137,8 +142,99 @@ def e26_tests(g: pd.DataFrame, kind: str) -> list[dict]:
     return rows
 
 
+# ---------------------------------------------------------------- E25 の 3 節：仮説転移の d・o
+
+def only(d: pd.DataFrame, kind: str) -> pd.DataFrame:
+    return d[d.kind == kind]
+
+
+def lam_obs(o_s: pd.Series, o_x: pd.Series) -> float:
+    v = o_s.abs() >= O_MIN
+    return 1 - float((np.sign(o_s[v]) * o_x[v]).sum() / o_s[v].abs().sum()) if v.any() else np.nan
+
+
+def transfer(kinds: list[str]) -> int:
+    rows = []
+    for kind in kinds:
+        for f in sorted((ROOT / "results" / f"transfer_scores_{kind}").glob("*.npz")):
+            z, t = np.load(f), f.stem
+            reps = sorted(int(k.split("_r")[1]) for k in z.files if k.startswith("test_idx_r"))
+            srcs = sorted({k[2:].rsplit("_r", 1)[0] for k in z.files if k.startswith("s_")})
+            for r in reps:
+                y = z[f"y_test_r{r}"]
+                for s in srcs:
+                    ds = d_o(z[f"s_{s}_r{r}"], y)
+                    for K in KS:
+                        dh = d_o(z[f"h7_{s}_K{K}_r{r}"], y)
+                        for (k, j), (d_s, o_s), (d_h, o_h) in zip(PAIRS, ds, dh):
+                            rows.append({"kind": kind, "target": t, "source": s, "K": K, "rep": r, "pair": f"{k}-{j}",
+                                         "d_s": d_s, "o_s": o_s, "d_h": d_h, "o_h": o_h})
+    R = pd.DataFrame(rows)
+    key = ["kind", "target", "source", "K", "rep", "pair"]
+    Mg = pd.concat([only(pd.read_csv(E15_DIR[k] / "e15b_rows.csv", dtype={"K": str}), k) for k in kinds])
+    Mg = Mg[Mg.rep.isin(REPS)].rename(columns={"d_s": "d_s_merged_run", "o_s": "o_s_merged_run"})
+    R = R.merge(Mg, on=key, how="left")
+    diff = (R.d_s - R.d_s_merged_run).abs().max()
+    print(f"ソースのみの d の，段階 B との差の最大：{diff:.2e}（行 {len(R)}，合併の行が無いもの {int(R.d_m.isna().sum())}）")
+    for x in ("h", "m"):
+        R[f"pos_{x}"] = (ba(R.d_s, R[f"o_{x}"]) - ba(R.d_s, R.o_s)) * 100
+        R[f"dir_{x}"] = (ba(R[f"d_{x}"], R[f"o_{x}"]) - ba(R.d_s, R[f"o_{x}"])) * 100
+    R.to_csv(OUT / "e25t_rows.csv", index=False)
+    agg = []
+    for (kind, t, s, K), g in R.groupby(["kind", "target", "source", "K"]):
+        agg.append({"kind": kind, "target": t, "source": s, "K": K,
+                    "lam_h": lam_obs(g.o_s, g.o_h), "lam_m": lam_obs(g.o_s, g.o_m),
+                    "abs_o_s": g.o_s.abs().mean(), "abs_o_h": g.o_h.abs().mean(), "abs_o_m": g.o_m.abs().mean(),
+                    "d_s": g.d_s.mean(), "dchg_h": (g.d_h - g.d_s).mean(), "dchg_m": (g.d_m - g.d_s).mean(),
+                    "pos_h": g.pos_h.mean(), "dir_h": g.dir_h.mean(), "pos_m": g.pos_m.mean(), "dir_m": g.dir_m.mean()})
+    A = pd.DataFrame(agg)
+    lam = pd.concat([only(pd.read_csv(E15_DIR[k] / "e15_lambda.csv", comment="#", dtype={"K": str}), k)
+                     for k in kinds])
+    A = A.merge(lam[["kind", "target", "source", "K", "lam_pred_rep09"]], on=["kind", "target", "source", "K"], how="left")
+    A.to_csv(OUT / "e25t_pairs.csv", index=False)
+    S = (A.groupby(["kind", "K"])[["lam_h", "lam_m", "abs_o_s", "abs_o_h", "abs_o_m", "d_s", "dchg_h", "dchg_m",
+                                   "pos_h", "dir_h", "pos_m", "dir_m"]].mean().reset_index())
+    S["n_pairs"] = A.groupby(["kind", "K"]).size().to_numpy()
+    S["frac_lam_h_gt_m"] = A.assign(v=A.lam_h > A.lam_m).groupby(["kind", "K"]).v.mean().to_numpy()
+    S["rho_lam_h_pred"] = [stats.spearmanr(g.lam_h, g.lam_pred_rep09, nan_policy="omit")[0]
+                           for _, g in A.groupby(["kind", "K"])]
+    S["rho_lam_m_pred"] = [stats.spearmanr(g.lam_m, g.lam_pred_rep09, nan_policy="omit")[0]
+                           for _, g in A.groupby(["kind", "K"])]
+    S.to_csv(OUT / "e25t_summary.csv", index=False)
+    tests = []
+    for kind in kinds:
+        a = A[A.kind == kind].set_index("K")
+        m = S[S.kind == kind].set_index("K")
+        w = lambda x, y, alt: float(stats.wilcoxon(x, y, alternative=alt, nan_policy="omit").pvalue)  # noqa: E731
+        tests += [
+            {"kind": kind, "test": "T1", "K": "5", "value_h": m.loc["5", "lam_h"], "value_m": m.loc["5", "lam_m"],
+             "holds": bool(m.loc["5", "lam_h"] >= 0.8 and m.loc["5", "lam_h"] > m.loc["5", "lam_m"]),
+             "p_wilcoxon_ref": w(a.loc["5", "lam_h"], a.loc["5", "lam_m"], "greater")},
+            {"kind": kind, "test": "T2", "K": "1<5<10, 10", "value_h": m.loc["10", "dchg_h"], "value_m": m.loc["10", "dchg_m"],
+             "holds": bool(m.loc["1", "dchg_h"] < m.loc["5", "dchg_h"] < m.loc["10", "dchg_h"]
+                           and m.loc["10", "dchg_h"] > m.loc["10", "dchg_m"]),
+             "p_wilcoxon_ref": w(a.loc["10", "dchg_h"], a.loc["10", "dchg_m"], "greater")},
+            {"kind": kind, "test": "T3", "K": "5（位置），1・10（向き）", "value_h": m.loc["5", "pos_h"], "value_m": m.loc["5", "pos_m"],
+             "holds": bool(m.loc["5", "pos_h"] > m.loc["5", "pos_m"] and m.loc["1", "dir_h"] <= m.loc["1", "dir_m"]
+                           and m.loc["10", "dir_h"] > m.loc["10", "dir_m"]),
+             "p_wilcoxon_ref": w(a.loc["5", "pos_h"], a.loc["5", "pos_m"], "greater")},
+        ]
+    T = pd.DataFrame(tests)
+    T.to_csv(OUT / "e25t_tests.csv", index=False)
+    pd.set_option("display.width", 250)
+    print(T.round(4).to_string(index=False))
+    print(S.round(3).to_string(index=False))
+    return 0
+
+
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--stage", choices=["e25_26", "transfer"], default="e25_26")
+    ap.add_argument("--kinds", nargs="+", default=list({**MAIN, **TEXT}))
+    args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
+    if args.stage == "transfer":
+        return transfer(args.kinds)
     pd.set_option("display.width", 250)
     pairs, t25, s25 = [], [], []
     for kind in {**MAIN, **TEXT}:
