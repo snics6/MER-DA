@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 from data import GROUP_SPEC, groups_for, load_any  # noqa: E402
 from explore_direction import map_draw  # noqa: E402
+from explore_pairs import measure  # noqa: E402
 from explore_synergy import KS, PAIRS  # noqa: E402
 from pair_table import OUT  # noqa: E402
 
@@ -43,7 +44,7 @@ def d_hat(L: np.ndarray, y: np.ndarray) -> float:
 
 def main() -> int:
     e13 = pd.read_csv(OUT / "e13_pairs.csv")
-    e13 = e13[e13.kind.isin(KINDS)]
+    e13 = pd.concat([e13[e13.kind.isin(KINDS)]] + [measure(k).assign(kind=k) for k in KINDS if k not in set(e13.kind)])  # HuBERT は E13 の表に無い
     e13["room"] = e13.own_d / e13.d - 1
     room = e13.groupby(["kind", "target", "source"]).agg(room=("room", "mean"), d_s=("d", "mean"), own_d=("own_d", "mean")).reset_index()
     e27 = pd.read_csv(OUT / "e27_pairs.csv")[["kind", "target", "source", "tv_free"]]
