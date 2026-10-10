@@ -46,7 +46,7 @@ def rows(kind: str) -> pd.DataFrame:
     m["delta12"] = m.best_test - m.second_test
     p = m.best_test.clip(0.05, 0.95)
     m["p_pred"] = stats.norm.cdf(m.delta12 * np.sqrt(m.n_val) / np.sqrt(2 * p * (1 - p)))
-    m.insert(0, "kind", kind)
+    m["kind"] = kind
     return m
 
 
