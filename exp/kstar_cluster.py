@@ -75,7 +75,7 @@ def main() -> int:
     S.to_csv(OUT / "kstar_cluster_summary.csv", index=False)
     pd.set_option("display.width", 220)
     print(S.round(3).to_string(index=False))
-    print(R[R.iemocap & (R.map == "fixc")][["kind", "target", "source", "n_clusters", "K_star_naive", "K_star_cluster"]].to_string(index=False))
+    print(R[R.iemocap & (R["map"] == "fixc")][["kind", "target", "source", "n_clusters", "K_star_naive", "K_star_cluster"]].to_string(index=False))
     return 0
 
 
