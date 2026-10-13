@@ -3,7 +3,7 @@
 手法：P1〜P3（1 ソースの仮説転移．中心合わせ 2 × 罰則 C′ 4 × 切片 3），P4（全ソースの下書きの仮説転移．同じ 24 設定），
 H3（帰納の中心合わせ＋合併），O1（重みつき合併．α 5 通り），O6（最近傍セントロイド．3 通り），O7（メタ初期値）。
 P1〜P4 と O1 では K 本の交差検証の UAR も残す。テストと K 本は地図と同じ。
-段 2（E31「段 2 の実装の細部」）：`--parts o2` は特徴の水増し O2（C 4 通り），`--parts trans` は推移の中心合わせ
+段 2（E31「段 2 の実装の細部」）：`--parts o2` は特徴の水増し O2（C ＝ ソースのみの C．交差検証なし），`--parts trans` は推移の中心合わせ
 （P2・P3 の 12 設定と H3．cen = 2）。段 3：`--parts final` は最終候補の計算だけ（P3・P4 の C′ 4 × C_b {2, 8}，P1 の既定，
 H3，O1．交差検証なし）。`--tag` を渡すと出力の名前に付ける（`<ターゲット>_<tag>.csv`）。
 
@@ -45,7 +45,6 @@ CPS = (0.001, 0.01, 0.1, 1.0)
 CBS = (2.0, 8.0, None)
 ALPHAS = (0.1, 0.25, 0.5, 0.75, 0.9)
 DEF_CP, DEF_CB = 0.01, 8.0
-O2_CS = (0.01, 0.1, 1.0, 10.0)
 FINAL_CBS = (2.0, 8.0)   # 段 3 の P3・P4 の選ぶ範囲
 MAX_ROWS = 6000          # 反復ごとの行の塊を縦に並べるときの上限（超えたら反復を分けて解く．解は変わらない）
 O7_STEPS_IN, O7_LR_IN, O7_ITERS, O7_LR_OUT, O7_BATCH, O7_QUERY = 10, 0.5, 300, 1e-2, 4, 256
@@ -200,7 +199,9 @@ def h3_block(ctx, rs, Xs, ys_np, src_c, C_s, add, cen: int):
 
 def o2_block(ctx, rs, Xs, ys_np, src, C_s, add):
     """特徴の水増し（Daumé 2007）。ソースの統計で標準化した z から，ソースは [z, z, 0]，ターゲットは [z, 0, z]
-    （`logreg.fit_batch` の aug．行列積は d 列で済ませる）。K の組（25 以下，50，全件）ごとに，使うターゲットの行だけを並べて解く。"""
+    （`logreg.fit_batch` の aug．行列積は d 列で済ませる）。C ＝ ソースのみの C に固定し，交差検証はしない
+    （C の候補 4 通りと交差検証は約 40 時間かかるため．2026-10-13 研究者の承認）。
+    K の組（25 以下，50，全件）ごとに，使うターゲットの行だけを並べて解く。"""
     tgt = ctx.tgt
     mu, sd = src.mu, src.sd
     zs = (Xs - mu) / sd
@@ -220,11 +221,10 @@ def o2_block(ctx, rs, Xs, ys_np, src, C_s, add):
         nu = len(used)
         Xa = torch.cat([(M.rows(tgt.X, used) - mu) / sd, zs])
         ya = M.labels(np.r_[tgt.y[used], ys_np])
-        jobs, masks = jobs_for(sub, rs, {int(i): k for k, i in enumerate(used)}, nu)
+        jobs, masks = jobs_for(sub, rs, {int(i): k for k, i in enumerate(used)}, nu, with_cv=False)
         masks = [np.r_[m, np.ones(ns, bool)] for m in masks]
-        fits = logreg.fit_batch(Xa, ya, masks, O2_CS, aug=np.r_[np.zeros(nu, bool), np.ones(ns, bool)])
-        collect(sub, jobs, fits, O2_CS, lambda r, ii: aug_t(M.rows(tgt.X, ii)), None,
-                lambda r, K, c, u, cv, L, **kw: add(r, K, c, u, cv, L, variant="Cs" if np.isclose(c, C_s) else "", **kw), {})
+        fits = logreg.fit_batch(Xa, ya, masks, (C_s,), aug=np.r_[np.zeros(nu, bool), np.ones(ns, bool)])
+        collect(sub, jobs, fits, (C_s,), lambda r, ii: aug_t(M.rows(tgt.X, ii)), None, add, {"variant": "Cs"})
         del Xa, fits
         torch.cuda.empty_cache()
 
@@ -448,7 +448,7 @@ def main() -> None:
         "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "CPS": CPS, "CBS": [cbname(c) for c in CBS],
         "ALPHAS": ALPHAS, "O7": [O7_STEPS_IN, O7_LR_IN, O7_ITERS, O7_LR_OUT, O7_BATCH, O7_QUERY],
-        "parts": args.parts, "tag": args.tag, "O2_CS": O2_CS, "MAX_ROWS": MAX_ROWS}, ensure_ascii=False, indent=1))
+        "parts": args.parts, "tag": args.tag, "O2_C": "src_only", "MAX_ROWS": MAX_ROWS}, ensure_ascii=False, indent=1))
     groups = groups_for(args.kind)
     data = {g: M.load(g, args.kind) for g in groups}
     for t in args.target or groups:
