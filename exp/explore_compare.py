@@ -23,7 +23,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "measure"))
 from data import GROUP_SPEC  # noqa: E402
 
-KINDS = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
+KINDS = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video",
+         "text_roberta", "fuse-audio-text", "fuse-video-text", "fuse-audio-video-text"]
+TEXT = KINDS[4:]
+K_ORDER = ["1", "5", "10", "25", "50", "all"]
 REPS = list(range(10))
 OUT = ROOT / "results" / "explore_relation"
 DEF_CP, DEF_CB, DEF_ALPHA = 0.01, "8", 0.5
@@ -40,21 +43,21 @@ def same(a: str, b: str) -> bool:
 
 # ---------------------------------------------------------------- 読み込み
 
-def load_compare(kind: str) -> pd.DataFrame:
+def load_compare(kind: str, reps=REPS) -> pd.DataFrame:
     fs = sorted((ROOT / "results" / f"compare_{kind}").glob("*.csv"))
     d = pd.concat([pd.read_csv(f, dtype={"K": str, "cb": str, "variant": str}) for f in fs], ignore_index=True)
     d["cb"], d["variant"] = d.cb.fillna(""), d.variant.fillna("")
     d["uar"], d["cv_uar"] = 100 * d.uar, 100 * d.cv_uar
-    return d[d.rep.isin(REPS)]
+    return d[d.rep.isin(reps)]
 
 
-def load_map(kind: str, targets) -> pd.DataFrame:
+def load_map(kind: str, targets, reps=REPS) -> pd.DataFrame:
     out = []
     for t in targets:
         for path, tag in ((ROOT / "results" / f"map_{kind}" / f"{t}.csv", "cv"), (ROOT / "results" / "fixc_map" / kind / f"{t}.csv", "fix")):
             d = pd.read_csv(path, comment="#", dtype={"K": str, "source": str}, usecols=["target", "source", "method", "K", "rep", "uar"])
             d["K"], d["source"], d["src"] = d.K.fillna(""), d.source.fillna(""), tag
-            out.append(d[d.rep.isin(REPS)])
+            out.append(d[d.rep.isin(reps)])
     m = pd.concat(out, ignore_index=True)
     m["uar"] = 100 * m.uar
     return m
@@ -117,7 +120,7 @@ def select_family(x: pd.DataFrame, fam: Family) -> pd.DataFrame:
         tp = [u for u in tp if u != t and not same(u, s) and not same(u, t)]
         if not tp:
             raise ValueError(f"メタ検証に使える T′ が無い: {s} → {t}，K={K}")
-        sc = tab.loc[[(u, s, K) for u in tp]].mean(0)
+        sc = tab.loc[[(u, s, K) for u in tp]].mean(axis=0)
         ch = pick(sc.dropna().to_dict(), fam)
         rec[f"{fam.name}_meta"], rec[f"{fam.name}_meta_set"] = row[ch], str(ch)
         out.append(rec)
@@ -139,7 +142,7 @@ def select_p4(d: pd.DataFrame, ht: pd.DataFrame) -> pd.DataFrame:
     """P4：ターゲット × K ごとに 既定・メタ検証（1 ソースの疑似組で代用）・交差検証・オラクル。"""
     x = P4FAM.rows(d)
     tab = x.groupby(["target", "K", "setting"]).uar.mean().unstack("setting")
-    h = P4FAM.rows(ht)
+    h = next(f for f in FAMILIES if f.name == "P3").rows(ht)      # 1 ソースの P3（同じ 8 設定）
     h = h[~h.apply(lambda r: same(r.source, r.target), axis=1)]
     hp = h.groupby(["target", "source", "K", "setting"]).uar.mean().reset_index()
     out = []
@@ -174,8 +177,13 @@ def pair_table(kind: str) -> pd.DataFrame:
         for cb in ("8", "free"):
             v = ht[(ht.cen == cen) & (ht.cp == DEF_CP) & (ht.cb == cb)].groupby(["target", "source", "K"]).uar.mean()
             T = T.merge(v.rename(f"HT_c{cen}_{cb}").reset_index(), on=["target", "source", "K"], how="left")
-    h3 = d[d.method == "H3"].groupby(["target", "source", "K"]).uar.mean().rename("H3").reset_index()
-    T = T.merge(h3, on=["target", "source", "K"], how="left")
+    for cen, name in ((1, "H3"), (2, "H3t")):
+        h3 = d[(d.method == "H3") & (d.cen == cen)].groupby(["target", "source", "K"]).uar.mean().rename(name).reset_index()
+        T = T.merge(h3, on=["target", "source", "K"], how="left")
+    p3t = ht[(ht.cen == 2) & (ht.cp == DEF_CP) & (ht.cb == DEF_CB)].groupby(["target", "source", "K"]).uar.mean()
+    T = T.merge(p3t.rename("P3t_def").reset_index(), on=["target", "source", "K"], how="left")
+    o2 = d[(d.method == "O2") & (d.variant == "Cs")].groupby(["target", "source", "K"]).uar.mean().rename("O2").reset_index()
+    T = T.merge(o2, on=["target", "source", "K"], how="left")
     for variant in ("none", "src_mean", "tgt_mean"):
         v = d[(d.method == "O6") & (d.variant == variant)].groupby(["target", "K"]).uar.mean().rename(f"O6_{variant}").reset_index()
         T = T.merge(v, on=["target", "K"], how="left")
@@ -189,6 +197,9 @@ def pair_table(kind: str) -> pd.DataFrame:
     b4 = mp[(mp.src == "fix") & (mp.method == "merged")].groupby(["target", "source", "K"]).uar.mean().rename("B4").reset_index()
     T = T.merge(b1, on=["target", "K"], how="left").merge(b2, on=["target", "source"], how="left")
     T = T.merge(b3, on=["target", "source", "K"], how="left").merge(b4, on=["target", "source", "K"], how="left")
+    lam = pd.read_csv(OUT / "e15_lambda.csv", comment="#", dtype={"K": str})
+    lam = lam[(lam.kind == kind) & (lam.K == "5")][["target", "source", "G"]]
+    T = T.merge(lam, on=["target", "source"], how="left")
     T.insert(0, "kind", kind)
     T["same"] = [same(a, b) for a, b in zip(T.target, T.source)]
     return T
@@ -268,7 +279,53 @@ def judge(P: pd.DataFrame):
         u1, u5 = unsafe(k1, "P3_def").mean(), unsafe(k5, "P3_def").mean()
         rows.append({"kind": kind, "R": "R10", "value": f"K1 {u1:.3f}，K5 {u5:.3f}（n={len(k1)}）",
                      "holds": (u1 <= 0.05 and u5 <= 0.075) if aud else (u1 <= 0.2 and u5 <= 0.2)})
+        rows += judge_stage2(kind, A, aud)
+    rows += judge_r9(X)
     return pd.DataFrame(rows)
+
+
+def judge_stage2(kind, A, aud):
+    """段 2 の予言（R4，R5，R6 の後半，R11）。計算が済んでいないものは飛ばす。"""
+    rows = []
+    ka = A[A.K == "all"]
+    if len(ka) and ka.O1_meta.notna().any():
+        gain, bad = (ka.O1_meta - ka.B1).mean(), (ka.O1_meta < ka.B1 - 0.5).mean()
+        med = [A[A.K == K].O1_meta_set.astype(float).median() for K in K_ORDER if (A.K == K).any()]
+        mono = all(b >= a for a, b in zip(med, med[1:])) and len(med) == len(K_ORDER) and med[-1] > med[0]
+        rows.append({"kind": kind, "R": "R4", "value": f"得 {gain:+.2f}，B1 − 0.5 未満 {bad:.2f}，α の中央値 {med}",
+                     "holds": (gain >= 0 and bad <= 0.2 and mono) if aud else np.nan})
+    k5 = A[A.K == "5"]
+    if "G" in k5 and k5.O2.notna().any():
+        r = {c: stats.spearmanr(k5.G, k5[c] - k5.B2, nan_policy="omit").statistic for c in ("B4", "O2", "P1_def", "P3_def", "P2_def")}
+        rows.append({"kind": kind, "R": "R5", "value": "，".join(f"{c} {v:+.2f}" for c, v in r.items()),
+                     "holds": (r["B4"] >= 0.4 and r["O2"] >= 0.4 and r["P1_def"] < 0.2 and r["P3_def"] < 0.2) if aud else np.nan})
+    if len(ka) and ka.P3c_meta.notna().any():
+        f = (ka.P3c_meta < ka.B1 - 1).mean()
+        rows.append({"kind": kind, "R": "R6b", "value": f"全件で P3（メタ）< B1 − 1 の割合 {f:.2f}（n={len(ka)}）",
+                     "holds": (f <= 0.3) if aud else np.nan})
+    L = A[A.K.isin(["1", "5", "10", "25"])]
+    if L.P3t_def.notna().any():
+        dd = (L.P3t_def - L.P3_def).mean()
+        per = "，".join(f"K{K} {(L[L.K == K].P3t_def - L[L.K == K].P3_def).mean():+.2f}" for K in ("1", "5", "10", "25"))
+        rows.append({"kind": kind, "R": "R11", "value": f"推移 − 帰納 {dd:+.2f}（{per}．H3 {(L.H3t - L.H3).mean():+.2f}）",
+                     "holds": (abs(dd) < 0.5) if aud else np.nan})
+    return rows
+
+
+def judge_r9(X):
+    T = X[X.kind.isin(TEXT)]
+    if not len(T):
+        return []
+    per, good = [], 0
+    for kind in TEXT:
+        A = T[T.kind == kind]
+        if not len(A):
+            continue
+        v = [(A[A.K == K].HT_c1_8 - A[A.K == K].HT_c0_8).mean() for K in K_ORDER if (A.K == K).any()]
+        ok = len(v) == len(K_ORDER) and all(x < 0.5 for x in v)
+        good += ok
+        per.append(f"{kind} [{', '.join(f'{x:+.2f}' for x in v)}]")
+    return [{"kind": "text", "R": "R9", "value": "；".join(per), "holds": good >= 3 if len(per) == 4 else np.nan}]
 
 
 MAIN_PAIR = [("P3_def", "B3"), ("P3_def", "B4"), ("P3_def", "H3"), ("P3_def", "P1_def"),
@@ -299,8 +356,50 @@ def main_comparisons(P: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-COLS = ["B1", "B2", "B3", "B4", "H3", "P1_def", "P2_def", "P3_def", "P3_meta", "P3_cv", "P3_orc", "HT24_meta", "HT24_orc",
-        "P4_def", "P4_meta", "P4_cv", "P4_orc", "O1_meta", "O1_cv", "O1_orc", "O6_tgt_mean", "O6_none", "O7"]
+def finals(P: pd.DataFrame, kind: str) -> pd.DataFrame:
+    """段 3：反復 0〜29 の組の平均で最終候補の表を作る。メタ検証の設定は反復 0〜9 で選んだもの（P の *_meta_set）。"""
+    import ast
+    reps = list(range(30))
+    d = load_compare(kind, reps)
+    mp = load_map(kind, sorted(d.target.unique()), reps)
+    Q = P[P.kind == kind].copy()
+    key = ["target", "source", "K"]
+    ht = d[d.method == "HT"]
+
+    def mean_of(x, name, by=key):
+        g = x.groupby(by).agg(**{name: ("uar", "mean"), f"n_{name}": ("rep", "nunique")}).reset_index()
+        return g
+
+    F = Q[key + ["same", "P3_meta_set", "P4_meta_set", "O1_meta_set"]].copy()
+    F = F.merge(mean_of(ht[(ht.cen == 1) & (ht.cp == DEF_CP) & (ht.cb == DEF_CB)], "P3_def"), on=key, how="left")
+    F = F.merge(mean_of(ht[(ht.cen == 0) & (ht.cp == DEF_CP) & (ht.cb == "free")], "P1_def"), on=key, how="left")
+    F = F.merge(mean_of(d[(d.method == "H3") & (d.cen == 1)], "H3"), on=key, how="left")
+    hp = ht[ht.cen == 1].groupby(key + ["cp", "cb"]).agg(u=("uar", "mean"), n=("rep", "nunique"))
+    ha = d[(d.method == "HT_ALL") & (d.cen == 1)].groupby(["target", "K", "cp", "cb"]).agg(u=("uar", "mean"), n=("rep", "nunique"))
+    o1 = d[d.method == "O1"].groupby(key + ["alpha"]).agg(u=("uar", "mean"), n=("rep", "nunique"))
+    p4d = d[(d.method == "HT_ALL") & (d.cen == 1) & (d.cp == DEF_CP) & (d.cb == DEF_CB)]
+    F = F.merge(mean_of(p4d, "P4_def", ["target", "K"]), on=["target", "K"], how="left")
+    pm, p4m, om, n_pm = [], [], [], []
+    for r in F.itertuples():
+        cp, cb = ast.literal_eval(r.P3_meta_set)
+        v = hp.loc[(r.target, r.source, r.K, cp, cb)]
+        pm.append(v.u); n_pm.append(v.n)
+        cp4, cb4 = ast.literal_eval(r.P4_meta_set)
+        p4m.append(ha.loc[(r.target, r.K, cp4, cb4)].u)
+        om.append(o1.loc[(r.target, r.source, r.K, float(r.O1_meta_set))].u)
+    F["P3_meta"], F["n_P3_meta"], F["P4_meta"], F["O1_meta"] = pm, n_pm, p4m, om
+    for name, src, m in (("B1", "cv", "tgt_only"), ("B3", "cv", "merged"), ("B4", "fix", "merged")):
+        x = mp[(mp.src == src) & (mp.method == m)]
+        by = ["target", "K"] if name == "B1" else key
+        F = F.merge(x.groupby(by).uar.mean().rename(name).reset_index(), on=by, how="left")
+    b2 = mp[(mp.src == "cv") & (mp.method == "src_only")].groupby(["target", "source"]).uar.mean().rename("B2").reset_index()
+    F = F.merge(b2, on=["target", "source"], how="left")
+    F.insert(0, "kind", kind)
+    return F
+
+
+COLS = ["B1", "B2", "B3", "B4", "H3", "H3t", "P1_def", "P2_def", "P3_def", "P3t_def", "P3_meta", "P3_cv", "P3_orc", "HT24_meta",
+        "HT24_orc", "P4_def", "P4_meta", "P4_cv", "P4_orc", "O1_meta", "O1_cv", "O1_orc", "O2", "O6_tgt_mean", "O6_none", "O7"]
 
 
 def main() -> int:
@@ -315,6 +414,16 @@ def main() -> int:
     Mn.to_csv(OUT / "e31_main.csv", index=False)
     S = P[~P.same].groupby(["kind", "K"])[[c for c in COLS if c in P]].mean().reset_index()
     S.to_csv(OUT / "e31_summary.csv", index=False)
+    fk = [k for k in kinds if any((ROOT / "results" / f"compare_{k}").glob("*_final*.csv"))]
+    if fk:
+        F = pd.concat([finals(P, k) for k in fk], ignore_index=True)
+        F.to_csv(OUT / "e31_finals30.csv", index=False)
+        M30 = main_comparisons(F)
+        M30.to_csv(OUT / "e31_main30.csv", index=False)
+        cols = ["B1", "B3", "B4", "H3", "P1_def", "P3_def", "P3_meta", "P4_def", "P4_meta", "O1_meta"]
+        print(F[~F.same].groupby(["kind", "K"])[cols].mean().round(2).to_string())
+        print("反復の数（P3_def）：", sorted(F.n_P3_def.dropna().unique()))
+        print(M30.round(3).to_string(index=False))
     pd.set_option("display.width", 250)
     pd.set_option("display.max_colwidth", 120)
     print(T.to_string(index=False))
