@@ -133,12 +133,13 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
               anchor: Fitted | None = None, anchor_c: float | None = None,
               weights: list[torch.Tensor | None] | None = None,
               stats: tuple[torch.Tensor, torch.Tensor] | None = None,
-              Cb: float | None = None, fix_b: bool = False) -> list[Fitted]:
+              Cb: float | None | list = None, fix_b: bool = False) -> list[Fitted]:
     """masks[g]（学習に使う行）ごとに，候補の C すべてを束ねて解く。`fit` と同じ問題を解く。
 
     **stats=(mu, sd) を渡すと，全問をその統計で標準化する**（既定は問ごとに学習に使う行の統計）。
     仮説転移で K 本の統計を使わず，ソースの統計の座標で解くためのもの（E28 の 1 節）。
     **Cb を渡すと，切片にも罰則 ‖b − b_anchor‖²/(2 Cb S) をかける**（anchor が無ければ b_anchor = 0）。
+    Cb は masks と同じ長さの列でもよい（問ごとの値．None はその問で罰則なし）。
     **fix_b=True なら切片を出発点（anchor の切片）に固定する**。どちらも既定では何もしない。
 
     問 p = g·len(Cs) + i は，行 masks[g] で標準化し，C = Cs[i] で解く。
@@ -193,6 +194,9 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
                     Wanc[p], banc[p] = W0, b0
     yy = y.view(n, 1, 1).expand(n, B, 1)
     mu_sd = mu / sd
+    cb_list = list(Cb) if isinstance(Cb, (list, tuple)) else [Cb] * G
+    use_cb = any(c is not None for c in cb_list)
+    Cbv = torch.tensor([float("inf") if c is None else float(c) for c in cb_list for _ in Cs], dtype=DTYPE, device=dev)
 
     def f_and_g(th: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         th = th.detach().requires_grad_(True)
@@ -202,8 +206,8 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         L = (X @ A.T).view(n, B, k) + c0
         nll = -torch.log_softmax(L, 2).gather(2, yy).squeeze(2)          # (n, B)
         f = (Mw * nll).sum(0) / S + ((W - Wanc) ** 2).sum((1, 2)) / (2 * C * S)
-        if Cb is not None:
-            f = f + ((b - banc) ** 2).sum(1) / (2 * Cb * S)
+        if use_cb:
+            f = f + ((b - banc) ** 2).sum(1) / (2 * Cbv * S)
         (grad,) = torch.autograd.grad(f.sum(), th)
         if fix_b:
             grad[:, k * d:] = 0.0                                          # 切片を動かさない

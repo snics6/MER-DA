@@ -136,9 +136,10 @@ def ht_block(ctx, rs, src, C_s, cen: bool, add):
             jobs += jj; masks += mm
     X, yX = torch.cat(blocks), M.labels(np.concatenate(ys))
     X_of = (lambda r, ii: M.rows(tgt.X, ii) - ctx.ct[r]) if cen else (lambda r, ii: M.rows(tgt.X, ii))
-    for cb in CBS:
-        fits = logreg.fit_batch(X, yX, masks, CPS, anchor=src, anchor_c=C_s, stats=(src.mu, src.sd), Cb=cb)
-        collect(ctx, jobs, fits, CPS, X_of, None, add, {"cen": int(cen), "cb": cbname(cb)})
+    fits = logreg.fit_batch(X, yX, masks * len(CBS), CPS, anchor=src, anchor_c=C_s, stats=(src.mu, src.sd),
+                            Cb=[cb for cb in CBS for _ in masks])     # 切片の罰則 3 通りを 1 回の計算に束ねる
+    for k, cb in enumerate(CBS):
+        collect(ctx, jobs, fits[k * len(masks):(k + 1) * len(masks)], CPS, X_of, None, add, {"cen": int(cen), "cb": cbname(cb)})
 
 
 def run_target(kind, tgt, data, ref_all, reps, ks, out):
