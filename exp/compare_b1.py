@@ -169,6 +169,7 @@ def run_target(kind, tgt, data, ref_all, reps, ks, out):
     for sname in srcs:
         s = data[sname]
         t0 = time.perf_counter()
+        tim = defaultdict(float)
         groups = {}
         for r in reps:
             keep = ~np.isin(s.person, ctx.persons[r])
@@ -181,8 +182,10 @@ def run_target(kind, tgt, data, ref_all, reps, ks, out):
             cs = Xs.mean(0)
             src = logreg.fit(Xs, ys, (C_s,))
             src_c = logreg.fit(Xs - cs, ys, (C_s,))
+            tb = time.perf_counter()
             ht_block(ctx, rs, src, C_s, False, adder("HT", sname))
             ht_block(ctx, rs, src_c, C_s, True, adder("HT", sname))
+            tim["HT"] += time.perf_counter() - tb; tb = time.perf_counter()
             # ---- H3（帰納）：反復ごとに中心を引いたターゲットの K 本 ＋ 中心を引いたソース
             blocks, ylist, jobs, masks, off = [], [], [], [], 0
             ns = len(ys_np)
@@ -200,6 +203,7 @@ def run_target(kind, tgt, data, ref_all, reps, ks, out):
                 f = np.zeros(len(yh), bool); f[off:] = True; f[m] = True; full.append(f)
             fits = logreg.fit_batch(Xh, yh, full, (C_s,), inits=[src_c] * len(full))   # 温め直し（解は同じ．速さのため）
             collect(ctx, jobs, fits, (C_s,), lambda r, ii: M.rows(tgt.X, ii) - ctx.ct[r], None, adder("H3", sname), {"cen": 1})
+            tim["H3"] += time.perf_counter() - tb; tb = time.perf_counter()
             # ---- O1：重みつき合併（中心合わせなし）
             used = np.unique(np.concatenate([ctx.idx[(r, K)] for r in rs for K in ctx.ks]))
             pos = {int(i): k for k, i in enumerate(used)}
@@ -228,7 +232,9 @@ def run_target(kind, tgt, data, ref_all, reps, ks, out):
                 sel = [k for k, jb in enumerate(jobs) if jb[3] == alpha]
                 collect(ctx, [jobs[k][:3] for k in sel], [fits[k] for k in sel], (C_s,), lambda r, ii: M.rows(tgt.X, ii), None,
                         adder("O1", sname), {"alpha": alpha})
-        print(f"  {kind} {tgt.name} ← {sname}：{time.perf_counter() - t0:.1f} 秒（束 {len(groups)}）", flush=True)
+            tim["O1"] += time.perf_counter() - tb
+        print(f"  {kind} {tgt.name} ← {sname}：{time.perf_counter() - t0:.1f} 秒（束 {len(groups)}．"
+              f"HT {tim['HT']:.0f}，H3 {tim['H3']:.0f}，O1 {tim['O1']:.0f} 秒）", flush=True)
 
     # ---- P4：全ソースの下書き（同じコーパスの群を除く）
     t0 = time.perf_counter()
