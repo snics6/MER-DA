@@ -198,16 +198,21 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     use_cb = any(c is not None for c in cb_list)
     Cbv = torch.tensor([float("inf") if c is None else float(c) for c in cb_list for _ in Cs], dtype=DTYPE, device=dev)
 
-    def f_and_g(th: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def f_and_g(th: torch.Tensor, ix: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+        """th の問（ix を渡せば問 ix だけ．th はその行だけ）の目的関数と勾配。"""
+        sel = (lambda v: v) if ix is None else (lambda v: v[ix])
+        Bx = th.shape[0]
         th = th.detach().requires_grad_(True)
-        W, b = th[:, :k * d].view(B, k, d), th[:, k * d:]
-        A = (W / sd[:, None, :]).reshape(B * k, d)
-        c0 = b - torch.einsum("bd,bkd->bk", mu_sd, W)
-        L = (X @ A.T).view(n, B, k) + c0
-        nll = -torch.log_softmax(L, 2).gather(2, yy).squeeze(2)          # (n, B)
-        f = (Mw * nll).sum(0) / S + ((W - Wanc) ** 2).sum((1, 2)) / (2 * C * S)
+        W, b = th[:, :k * d].view(Bx, k, d), th[:, k * d:]
+        A = (W / sel(sd)[:, None, :]).reshape(Bx * k, d)
+        c0 = b - torch.einsum("bd,bkd->bk", sel(mu_sd), W)
+        L = (X @ A.T).view(n, Bx, k) + c0
+        nll = -torch.log_softmax(L, 2).gather(2, yy[:, :Bx]).squeeze(2)  # (n, Bx)
+        Mx = Mw if ix is None else Mw[:, ix]
+        Sx, Cx = sel(S), sel(C)
+        f = (Mx * nll).sum(0) / Sx + ((W - sel(Wanc)) ** 2).sum((1, 2)) / (2 * Cx * Sx)
         if use_cb:
-            f = f + ((b - banc) ** 2).sum(1) / (2 * Cbv * S)
+            f = f + ((b - sel(banc)) ** 2).sum(1) / (2 * sel(Cbv) * Sx)
         (grad,) = torch.autograd.grad(f.sum(), th)
         if fix_b:
             grad[:, k * d:] = 0.0                                          # 切片を動かさない
@@ -257,11 +262,13 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         f_new, g_new = f.clone(), grad.clone()
         th_new = theta.clone()
         for _h in range(MAX_HALVING):
-            trial = theta + t[:, None] * dvec
-            f_t, g_t = f_and_g(trial)
-            ok = pending & (f_t <= f + ARMIJO * t * gtd)
-            f_new[ok], g_new[ok], th_new[ok] = f_t[ok], g_t[ok], trial[ok]
-            pending &= ~ok
+            ix = torch.nonzero(pending).squeeze(1)                     # まだ歩幅の決まらない問だけを計算する
+            trial = theta[ix] + t[ix, None] * dvec[ix]
+            f_t, g_t = f_and_g(trial, ix)
+            okx = f_t <= f[ix] + ARMIJO * t[ix] * gtd[ix]
+            io = ix[okx]
+            f_new[io], g_new[io], th_new[io] = f_t[okx], g_t[okx], trial[okx]
+            pending[io] = False
             if not pending.any():
                 break
             t[pending] *= 0.5
