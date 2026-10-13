@@ -133,7 +133,8 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
               anchor: Fitted | None = None, anchor_c: float | None = None,
               weights: list[torch.Tensor | None] | None = None,
               stats: tuple[torch.Tensor, torch.Tensor] | None = None,
-              Cb: float | None | list = None, fix_b: bool = False) -> list[Fitted]:
+              Cb: float | None | list = None, fix_b: bool = False,
+              aug: np.ndarray | None = None) -> list[Fitted]:
     """masks[g]（学習に使う行）ごとに，候補の C すべてを束ねて解く。`fit` と同じ問題を解く。
 
     **stats=(mu, sd) を渡すと，全問をその統計で標準化する**（既定は問ごとに学習に使う行の統計）。
@@ -141,6 +142,12 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     **Cb を渡すと，切片にも罰則 ‖b − b_anchor‖²/(2 Cb S) をかける**（anchor が無ければ b_anchor = 0）。
     Cb は masks と同じ長さの列でもよい（問ごとの値．None はその問で罰則なし）。
     **fix_b=True なら切片を出発点（anchor の切片）に固定する**。どちらも既定では何もしない。
+
+    **aug（長さ n の真偽．真がソースの行）を渡すと，特徴の水増し（Daumé 2007）の問を解く**：係数は
+    [共通, ソース用, ターゲット用] の 3 つ（W は (k, 3d)），ソースの行の出力は x(W_共通 + W_ソース)ᵀ + b，
+    ターゲットの行は x(W_共通 + W_ターゲット)ᵀ + b。これは [x, x, 0]・[x, 0, x] に W を掛けたものと同じで，
+    行列積を d 列で済ませる。X は標準化済みとみなし（stats・anchor・inits は使えない），返す Fitted は
+    水増しした特徴 [x, 0, x] の上の分類器（mu = 0，sd = 1．長さ 3d）。
 
     問 p = g·len(Cs) + i は，行 masks[g] で標準化し，C = Cs[i] で解く。
     計算は生の特徴の上で行う：標準化した特徴 z = (x − μ)/σ に対する (W, b) の出力は
@@ -156,7 +163,12 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     """
     n, d = X.shape
     k, nC, G = N_CLASSES, len(Cs), len(masks)
-    B, P = G * nC, k * d + k
+    if aug is not None:
+        if anchor is not None or stats is not None or any(i is not None for i in (inits or [])):
+            raise ValueError("aug と anchor・stats・inits は一緒に使えない")
+        stats = (torch.zeros(d, dtype=DTYPE, device=X.device), torch.ones(d, dtype=DTYPE, device=X.device))
+    D = 3 * d if aug is not None else d                       # 係数の長さ
+    B, P = G * nC, k * D + k
     dev = X.device
     inits = inits or [None] * G
 
@@ -166,7 +178,7 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     S = torch.empty(B, dtype=DTYPE, device=dev)
     C = torch.tensor([c for _ in range(G) for c in Cs], dtype=DTYPE, device=dev)
     theta = torch.zeros(B, P, dtype=DTYPE, device=dev)
-    Wanc = torch.zeros(B, k, d, dtype=DTYPE, device=dev)     # 罰則の中心（既定は 0）
+    Wanc = torch.zeros(B, k, D, dtype=DTYPE, device=dev)     # 罰則の中心（既定は 0）
     banc = torch.zeros(B, k, dtype=DTYPE, device=dev)        # 切片の罰則の中心（Cb を渡したときだけ使う）
     if anchor is not None:
         inits = [anchor] * G
@@ -194,6 +206,11 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
                     Wanc[p], banc[p] = W0, b0
     yy = y.view(n, 1, 1).expand(n, B, 1)
     mu_sd = mu / sd
+    if aug is not None:
+        aug_t = torch.as_tensor(np.asarray(aug, bool), device=dev)
+        i_s, i_t = torch.nonzero(aug_t).squeeze(1), torch.nonzero(~aug_t).squeeze(1)
+        inv = torch.argsort(torch.cat([i_s, i_t]))                         # 並べ直した出力を元の行の順へ
+        Xs_, Xt_ = X[i_s], X[i_t]
     cb_list = list(Cb) if isinstance(Cb, (list, tuple)) else [Cb] * G
     use_cb = any(c is not None for c in cb_list)
     Cbv = torch.tensor([float("inf") if c is None else float(c) for c in cb_list for _ in Cs], dtype=DTYPE, device=dev)
@@ -203,10 +220,16 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         sel = (lambda v: v) if ix is None else (lambda v: v[ix])
         Bx = th.shape[0]
         th = th.detach().requires_grad_(True)
-        W, b = th[:, :k * d].view(Bx, k, d), th[:, k * d:]
-        A = (W / sel(sd)[:, None, :]).reshape(Bx * k, d)
-        c0 = b - torch.einsum("bd,bkd->bk", sel(mu_sd), W)
-        L = (X @ A.T).view(n, Bx, k) + c0
+        W, b = th[:, :k * D].view(Bx, k, D), th[:, k * D:]
+        if aug is not None:                                                # X は標準化済み（mu = 0，sd = 1）
+            W3 = W.view(Bx, k, 3, d)
+            As = (W3[:, :, 0] + W3[:, :, 1]).reshape(Bx * k, d)
+            At = (W3[:, :, 0] + W3[:, :, 2]).reshape(Bx * k, d)
+            L = torch.cat([Xs_ @ As.T, Xt_ @ At.T])[inv].view(n, Bx, k) + b
+        else:
+            A = (W / sel(sd)[:, None, :]).reshape(Bx * k, d)
+            c0 = b - torch.einsum("bd,bkd->bk", sel(mu_sd), W)
+            L = (X @ A.T).view(n, Bx, k) + c0
         nll = -torch.log_softmax(L, 2).gather(2, yy[:, :Bx]).squeeze(2)  # (n, Bx)
         Mx = Mw if ix is None else Mw[:, ix]
         Sx, Cx = sel(S), sel(C)
@@ -215,7 +238,7 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
             f = f + ((b - sel(banc)) ** 2).sum(1) / (2 * sel(Cbv) * Sx)
         (grad,) = torch.autograd.grad(f.sum(), th)
         if fix_b:
-            grad[:, k * d:] = 0.0                                          # 切片を動かさない
+            grad[:, k * D:] = 0.0                                          # 切片を動かさない
         return f.detach(), grad
 
     m_hist = HISTORY
@@ -296,9 +319,12 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         W, b, it, gr = {}, {}, {}, {}
         for i, c in enumerate(Cs):
             p = g * nC + i
-            W[c], b[c] = theta[p, :k * d].view(k, d).clone(), theta[p, k * d:].clone()
+            W[c], b[c] = theta[p, :k * D].view(k, D).clone(), theta[p, k * D:].clone()
             it[c], gr[c] = int(its[p]), float(gmax[p])
-        out.append(Fitted(mu[g * nC], sd[g * nC], W, b, it, gr))
+        if aug is not None:
+            out.append(Fitted(torch.zeros(D, dtype=DTYPE, device=dev), torch.ones(D, dtype=DTYPE, device=dev), W, b, it, gr))
+        else:
+            out.append(Fitted(mu[g * nC], sd[g * nC], W, b, it, gr))
     if stalled.any():
         print(f"注意: 直線探索が行き詰まった問 {int(stalled.sum())} 個"
               f"（勾配 {gmax[stalled.cpu().numpy()]}）", flush=True)

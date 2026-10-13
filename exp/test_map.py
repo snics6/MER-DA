@@ -180,6 +180,30 @@ def main() -> int:
                 f"予測の一致率 {[round(x, 4) for x in agree]}，W の差の最大 {[f'{x:.1e}' for x in dW]}，"
                 f"反復 冷 {sum(f_b.n_iter.values())}／温 {sum(f_w.n_iter.values())}")
 
+    # ---- 特徴の水増し（aug）：特徴を実際に 3 倍にして解いたものと同じ答え（E31 の O2）
+    mu0, sd0 = Xtr.mean(0), Xtr.std(0, correction=0).clamp_min(1e-12)
+    Z0, Zte = (Xtr - mu0) / sd0, (Xte - mu0) / sd0
+    is_src = np.arange(len(ytr)) % 3 != 0
+    st = torch.as_tensor(is_src, device=Z0.device)[:, None]
+    zero = torch.zeros_like(Z0)
+    X3 = torch.cat([Z0, torch.where(st, Z0, zero), torch.where(st, zero, Z0)], 1)
+    ones3 = (torch.zeros(X3.shape[1], dtype=X3.dtype, device=X3.device), torch.ones(X3.shape[1], dtype=X3.dtype, device=X3.device))
+    m2 = [np.ones(len(ytr), bool), folds != 0]
+    f3 = logreg.fit_batch(X3, yt, m2, M.C_GRID, stats=ones3)
+    fa = logreg.fit_batch(Z0, yt, m2, M.C_GRID, aug=is_src)
+    Xte3 = torch.cat([Zte, torch.zeros_like(Zte), Zte], 1)
+    agree, gap = [], []
+    for m, a3, aa in zip(m2, f3, fa):
+        X3m, ym = M.rows(X3, m), M.rows(yt, m)
+        sw = logreg.balanced_weights(ym)
+        for c in M.C_GRID:
+            agree.append(float(np.mean(a3.predict(Xte3, c) == aa.predict(Xte3, c))))
+            gap.append(float(logreg.objective(X3m, ym, sw, c, aa.W[c], aa.b[c]))
+                       - float(logreg.objective(X3m, ym, sw, c, a3.W[c], a3.b[c])))
+    ok &= check("特徴の水増し：3 倍の特徴で解いたものと予測が一致し，目的関数の差が 1e-6 以下",
+                min(agree) >= 0.99 and max(abs(x) for x in gap) <= 1e-6,
+                f"一致率の最小 {min(agree):.4f}，目的関数の差の最大 {max(abs(x) for x in gap):.1e}")
+
     # ---- 人工データで学習の通し：よく分かれた 4 群なら UAR は 1 に近い
     rng = np.random.default_rng(0)
     means = rng.normal(0, 3, size=(M.N_CLASSES, 8))
