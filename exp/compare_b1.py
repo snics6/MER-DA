@@ -198,7 +198,7 @@ def run_target(kind, tgt, data, ref_all, reps, ks, out):
             full = []
             for m in masks:
                 f = np.zeros(len(yh), bool); f[off:] = True; f[m] = True; full.append(f)
-            fits = logreg.fit_batch(Xh, yh, full, (C_s,))
+            fits = logreg.fit_batch(Xh, yh, full, (C_s,), inits=[src_c] * len(full))   # 温め直し（解は同じ．速さのため）
             collect(ctx, jobs, fits, (C_s,), lambda r, ii: M.rows(tgt.X, ii) - ctx.ct[r], None, adder("H3", sname), {"cen": 1})
             # ---- O1：重みつき合併（中心合わせなし）
             used = np.unique(np.concatenate([ctx.idx[(r, K)] for r in rs for K in ctx.ks]))
@@ -223,7 +223,7 @@ def run_target(kind, tgt, data, ref_all, reps, ks, out):
                     w = (alpha * wt / wt.sum() + (1 - alpha) * ws_src) * S
                     fm = np.r_[m, np.ones(ns, bool)]
                     jobs.append(job + (alpha,)); masks.append(fm); weights.append(w)
-            fits = logreg.fit_batch(Xo, yo, masks, (C_s,), weights=weights)
+            fits = logreg.fit_batch(Xo, yo, masks, (C_s,), weights=weights, inits=[src] * len(masks))   # 温め直し
             for alpha in ALPHAS:
                 sel = [k for k, jb in enumerate(jobs) if jb[3] == alpha]
                 collect(ctx, [jobs[k][:3] for k in sel], [fits[k] for k in sel], (C_s,), lambda r, ii: M.rows(tgt.X, ii), None,
