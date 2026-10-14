@@ -11,7 +11,8 @@ H3，O1．交差検証なし）。`--tag` を渡すと出力の名前に付け�
         [--parts all|o2|trans] [--tag …]
 
 出力：`results/compare_<kind>/<ターゲット>[_<tag>].csv`（method, source, cen, cp, cb, alpha, variant, rep, K, uar, cv_uar），
-`.npz`（主な設定のテストの点数），`provenance[_<tag>].json`。終わったターゲットは飛ばす。
+`.npz`（主な設定のテストの点数），`provenance[_<tag>].json`（最後の起動），`provenance_log.jsonl`（起動ごと）。
+終わったターゲットは飛ばす（全部済みなら記録も書かない）。
 """
 
 from __future__ import annotations
@@ -442,14 +443,21 @@ def main() -> None:
     args = ap.parse_args()
     out = args.out_dir or ROOT / "results" / f"compare_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
+    groups = groups_for(args.kind)
+    todo = [t for t in args.target or groups if not (out / f"{stem(t, args.tag)}.npz").exists()]
+    if not todo:
+        print(f"{args.kind}：全ターゲット済み（{stem('', args.tag) or '段 1'}）", flush=True)
+        return
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
-    (out / f"{stem('provenance', args.tag)}.json").write_text(json.dumps({
+    prov = {
         "script": "exp/compare_b1.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
-        "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
         "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "CPS": CPS, "CBS": [cbname(c) for c in CBS],
         "ALPHAS": ALPHAS, "O7": [O7_STEPS_IN, O7_LR_IN, O7_ITERS, O7_LR_OUT, O7_BATCH, O7_QUERY],
-        "parts": args.parts, "tag": args.tag, "O2_C": "src_only", "MAX_ROWS": MAX_ROWS}, ensure_ascii=False, indent=1))
-    groups = groups_for(args.kind)
+        "parts": args.parts, "tag": args.tag, "O2_C": "src_only", "MAX_ROWS": MAX_ROWS}
+    (out / f"{stem('provenance', args.tag)}.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
+    with open(out / "provenance_log.jsonl", "a") as fh:                  # 起動ごとの記録（途中から続けたときも残す）
+        fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     data = {g: M.load(g, args.kind) for g in groups}
     for t in args.target or groups:
         if (out / f"{stem(t, args.tag)}.npz").exists():
