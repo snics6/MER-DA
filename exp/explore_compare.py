@@ -43,12 +43,16 @@ def same(a: str, b: str) -> bool:
 
 # ---------------------------------------------------------------- 読み込み
 
+KS_USE: list[str] | None = None          # --ks で絞る（途中の確認用）
+
+
 def load_compare(kind: str, reps=REPS) -> pd.DataFrame:
     fs = sorted((ROOT / "results" / f"compare_{kind}").glob("*.csv"))
     d = pd.concat([pd.read_csv(f, dtype={"K": str, "cb": str, "variant": str}) for f in fs], ignore_index=True)
     d["cb"], d["variant"] = d.cb.fillna(""), d.variant.fillna("")
     d["uar"], d["cv_uar"] = 100 * d.uar, 100 * d.cv_uar
-    return d[d.rep.isin(reps)]
+    d = d[d.rep.isin(reps)]
+    return d if KS_USE is None else d[d.K.isin(KS_USE)]
 
 
 def load_map(kind: str, targets, reps=REPS) -> pd.DataFrame:
@@ -197,7 +201,7 @@ def pair_table(kind: str) -> pd.DataFrame:
     b4 = mp[(mp.src == "fix") & (mp.method == "merged")].groupby(["target", "source", "K"]).uar.mean().rename("B4").reset_index()
     T = T.merge(b1, on=["target", "K"], how="left").merge(b2, on=["target", "source"], how="left")
     T = T.merge(b3, on=["target", "source", "K"], how="left").merge(b4, on=["target", "source", "K"], how="left")
-    lam = pd.read_csv(OUT / "e15_lambda.csv", comment="#", dtype={"K": str})
+    lam = pd.read_csv(ROOT / "results" / "explore_relation" / "e15_lambda.csv", comment="#", dtype={"K": str})
     lam = lam[(lam.kind == kind) & (lam.K == "5")][["target", "source", "G"]]
     T = T.merge(lam, on=["target", "source"], how="left")
     T.insert(0, "kind", kind)
@@ -405,7 +409,13 @@ COLS = ["B1", "B2", "B3", "B4", "H3", "H3t", "P1_def", "P2_def", "P3_def", "P3t_
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kinds", nargs="+", default=KINDS)
+    ap.add_argument("--ks", nargs="+", help="K を絞る（途中の確認用．出力は results/explore_relation/partial/）")
     args = ap.parse_args()
+    global KS_USE, OUT
+    if args.ks:
+        KS_USE = args.ks
+        OUT = OUT / "partial"
+        OUT.mkdir(exist_ok=True)
     kinds = [k for k in args.kinds if (ROOT / "results" / f"compare_{k}").exists() and any((ROOT / "results" / f"compare_{k}").glob("*.csv"))]
     P = pd.concat([pair_table(k) for k in kinds], ignore_index=True)
     P.to_csv(OUT / "e31_pairs.csv", index=False)
