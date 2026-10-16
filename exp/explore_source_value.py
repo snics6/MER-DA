@@ -10,7 +10,8 @@
 入力：`results/map_<kind>/`，`results/compare_<kind>/*.csv`（`explore_compare.pair_table`，K ≤ 25），
 `results/fixc_analysis/explore_relation/`（e13_pairs.csv，e28t9_targets.csv，e28t7_targets.csv．HuBERT の E13 は
 E28-9 と同じく `explore_pairs.measure` で測る）。
-出力：`results/explore_relation/e32_pairs.csv`（組 × K），`e32_tests.csv`，`e32_kinds.csv`（種類 × K × 手法），`e32_allsrc.csv`
+出力：`results/explore_relation/e32_pairs.csv`（組 × K），`e32_tests.csv`，`e32_kinds.csv`（種類 × K × 手法），
+`e32_constancy.csv`，`e32_allsrc.csv`・`e32_allsrc_tests.csv`（全ソース．予言 V3）
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 import explore_compare as EC  # noqa: E402
 from explore_pairs import measure  # noqa: E402
-from explore_synergy import PAIRS  # noqa: E402
+from explore_synergy import PAIRS, d_o  # noqa: E402
 from explore_uar_link import shared  # noqa: E402
 
 MAIN = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
@@ -109,8 +110,7 @@ def load_e13(kind: str) -> pd.DataFrame:
     return e13 if len(e13) else measure(kind)
 
 
-def pair_rows(kind: str, P: pd.DataFrame, cur: dict) -> list[dict]:
-    e13 = load_e13(kind)
+def pair_rows(kind: str, P: pd.DataFrame, cur: dict, e13: pd.DataFrame) -> list[dict]:
     qd = pd.read_csv(FIX / "e28t9_targets.csv").query("kind == @kind").set_index("target").q_dir
     rows = []
     for (t, s), g in P[~P.same].groupby(["target", "source"]):
@@ -195,22 +195,58 @@ def kind_rows(kind: str, P: pd.DataFrame, cur: dict) -> list[dict]:
     return rows
 
 
-def allsrc_rows(kind: str, P: pd.DataFrame, cur: dict) -> list[dict]:
+def allsrc_rows(kind: str, P: pd.DataFrame, cur: dict, e13: pd.DataFrame) -> list[dict]:
+    """全ソース（P4）：簡単な式（E28-7 の平均の d_s）と，1 ソースと同じ模型（感情の対ごとの e，基準の揺れ）。"""
     t7 = pd.read_csv(FIX / "e28t7_targets.csv").query("kind == @kind")
     t9 = pd.read_csv(FIX / "e28t9_targets.csv").query("kind == @kind").set_index("target")
     rows = []
-    for (t, K), g in P.groupby(["target", "K"]):
-        if t not in t9.index or K not in ("1", "5", "10"):
+    for t, g in P.groupby("target"):
+        if t not in t9.index:
             continue
-        x = t7[(t7.target == t) & (t7.K.astype(str) == K)]
-        if x.empty:
-            continue
-        e = min(float(x.d_s_all.iloc[0]) / float(t9.own_d[t]), 0.999)
+        own = e13[e13.target == t].groupby("pair").own_d.mean().reindex(PAIR_NAMES).to_numpy()
+        zm = np.load(ROOT / "results" / f"multisource_scores_{kind}" / f"{t}.npz")
+        zc = np.load(ROOT / "results" / f"compare_{kind}" / f"{t}.npz")
+        dj = []
+        for r in EC.REPS:
+            if not np.array_equal(zm[f"test_idx_r{r}"], zc[f"test_idx_r{r}"]):
+                raise ValueError(f"テストの行が合わない: {kind} {t} r{r}")
+            dj.append([d for d, _ in d_o(zm[f"s_all_r{r}"].astype(np.float64), zc[f"y_test_r{r}"])])
+        d_all = np.mean(dj, axis=0)
+        e = np.clip(d_all / own, 0.0, 0.999)
         q = float(t9.q_dir[t])
-        n, fl = n_of(cur[t], float(g.P4_def.iloc[0]), int(K))
-        rows.append({"kind": kind, "target": t, "K": K, "P4": float(g.P4_def.iloc[0]), "n_meas": n, "flag": fl,
-                     "e_all": e, "q_dir": q, "n_simple_all": q * e ** 2 / (1 - e ** 2)})
+        x = t7[t7.target == t]
+        e_simple = min(float(x.d_s_all.iloc[0]) / float(t9.own_d[t]), 0.999) if len(x) else np.nan
+        for K in KS:
+            u = float(g[g.K == K].P4_def.iloc[0])
+            n, fl = n_of(cur[t], u, int(K))
+            npd, fp = n_model(own, e, q, int(K), pos=True)
+            nn, fn = n_model(own, e, q, int(K), pos=False)
+            rows.append({"kind": kind, "target": t, "K": K, "P4": u, "n_meas": n, "flag": fl,
+                         "n_pred": npd, "flag_pred": fp, "n_pred_nopos": nn, "flag_pred_nopos": fn,
+                         "e_all_mean": float(e.mean()), "d_all": float(d_all.mean()), "D": float(own.mean()), "q_dir": q,
+                         "e_simple": e_simple, "n_simple_all": q * e_simple ** 2 / (1 - e_simple ** 2)})
     return rows
+
+
+def allsrc_tests(A: pd.DataFrame) -> pd.DataFrame:
+    out = []
+    for kind, g in A.groupby("kind"):
+        for ks in (["5", "10"], ["1"], ["25"], ["1", "5", "10", "25"]):
+            h = g[g.K.isin(ks)]
+            meas = rankable(h.n_meas.to_numpy(), h.flag.to_numpy())
+            row = {"kind": kind, "K": "+".join(ks), "rows": len(h), "censored_high": int((h.flag == 1).sum()),
+                   "censored_low": int((h.flag == -1).sum())}
+            for col, fcol in (("n_pred", "flag_pred"), ("n_pred_nopos", "flag_pred_nopos"), ("n_simple_all", None)):
+                pred = rankable(h[col].to_numpy(), h[fcol].to_numpy() if fcol else np.zeros(len(h)))
+                row[f"rho_{col}"] = stats.spearmanr(pred, meas).statistic if len(h) > 2 else np.nan
+                ok = (h.flag == 0) & np.isfinite(h[col])
+                row[f"ratio_{col}"] = float(np.median(h.n_meas[ok] / h[col][ok])) if ok.any() else np.nan
+                row[f"share_meas_ge_{col}"] = float(((h.flag == 1) | (h.n_meas >= h[col])).mean())
+            out.append(row)
+    T = pd.DataFrame(out)
+    m = T.K == "5+10"
+    T.loc[m, "V3_kind"] = (T[m].ratio_n_pred.between(0.5, 2) & (T[m].rho_n_pred >= 0.5)).values
+    return T
 
 
 def main() -> int:
@@ -221,8 +257,9 @@ def main() -> int:
         cur = curves(kind, sorted(P.target.unique()))
         krs += kind_rows(kind, P, cur)
         if kind in MAIN:
-            prs += pair_rows(kind, P, cur)
-            ars += allsrc_rows(kind, P, cur)
+            e13 = load_e13(kind)
+            prs += pair_rows(kind, P, cur, e13)
+            ars += allsrc_rows(kind, P, cur, e13)
         print(f"  {kind} 済み", flush=True)
     Q, Kt, A = pd.DataFrame(prs), pd.DataFrame(krs), pd.DataFrame(ars)
     T = tests(Q)
@@ -231,15 +268,14 @@ def main() -> int:
     T.to_csv(OUT / "e32_tests.csv", index=False)
     Kt.to_csv(OUT / "e32_kinds.csv", index=False)
     A.to_csv(OUT / "e32_allsrc.csv", index=False)
+    TA = allsrc_tests(A)
+    TA.to_csv(OUT / "e32_allsrc_tests.csv", index=False)
     C.to_csv(OUT / "e32_constancy.csv", index=False)
     pd.set_option("display.width", 250)
     print(T.round(2).to_string(index=False))
     print(C.round(2).to_string(index=False))
     print(Kt.pivot_table(index=["kind", "method"], columns="K", values="n").reindex(columns=KS).round(1).to_string())
-    ok = A[A.flag == 0]
-    for kind, g in ok.groupby("kind"):
-        print(kind, "全ソース：順位相関 %.2f，測った n ÷ n_simple の中央値 %.2f（%d 行）" % (
-            stats.spearmanr(g.n_simple_all, g.n_meas).statistic, np.median(g.n_meas / g.n_simple_all), len(g)))
+    print(TA.round(2).to_string(index=False))
     return 0
 
 
