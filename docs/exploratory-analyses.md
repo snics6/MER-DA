@@ -4407,3 +4407,5 @@ teach − herding（上回ったターゲットの数）：W7 +1.68（6／7）�
 **記述**：d_first − glister（目的の違いの効き目），K=1・25，V・AV，オラクルの歩幅，herding・random との差．
 
 **計算の前に見ていたもの**：E37 の結果．d_first と glister の値は計算していない．
+
+**GLISTER との比較の試走**（2026-10-17．WavLM の AFEW，反復 0・1．H100）：teach（4 つの歩幅）・random・herding の値は E37 と 8 行ずつ一致した（差 0.0）．所要 205 秒．この 1 ターゲット × 2 反復の UAR を見た（glister と d_first は K ≥ 5 で teach より低い）．設計と予言は変えずに全ターゲットを流す（4 種類を同じ GPU で同時に流す．コミット `e9c512c`）．
