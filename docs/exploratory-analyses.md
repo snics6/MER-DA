@@ -3959,3 +3959,13 @@ herding_feat は random を，W7・Hu7 の 7 ターゲット中 5〜7，AV・V �
 | Q2 | **支持されない** | herding_pred との差は K=5 で +0.1，K=10 で +1.7，K=25 で −1.5 |
 
 **記述**：本数をそろえるだけ（seq_random）では herding_pred を上回らず，seq_herding との差は 1.2〜5.7 点だった．seq_herding は K=1 で herding_pred を 2.8 点上回り（欠けた感情 1.0 → 0.8），K=5・10 ではラベルを知っている random_true を上回った（+4.3，+1.1）．ラベルありの herding_feat との差は K=1・10・25 で 2.2〜2.8 点残る．1 ターゲットだけの結果である．
+
+**26 ターゲットへの拡大（予言は計算の前に書いた．2026-10-16）**：同じ手順を主な 4 種類の全ターゲットで流す（`run/seq_after.sh`．E34 の `logs/labelfree.done` を待つ）．判定は W7 と Hu7 の両方で，ターゲットの平均で行う．
+
+| 番号 | 予言 |
+|---|---|
+| Q1 | seq_herding の本数の偏り（最多 − 最少）は herding_pred より小さい（K=10，25） |
+| Q2 | seq_herding の UAR は herding_pred を上回る（K=5，10，25） |
+| Q3 | seq_herding の UAR は，ラベルを知っている random_true（E31 の P4）を上回る（K=5，10） |
+
+計算の前に見ていたもの：上の 1 ターゲットの結果と，E34 の途中結果（WavLM 7 ターゲット）．
