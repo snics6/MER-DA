@@ -35,6 +35,7 @@ import logreg  # noqa: E402
 import map as M  # noqa: E402
 from data import GROUP_SPEC, groups_for  # noqa: E402
 from pair_table import map_dir  # noqa: E402
+from select_herding import herd  # noqa: E402
 from select_labelfree import ht_block_present  # noqa: E402
 
 CS = (0.0003, 0.001, 0.003, 0.01)
@@ -112,6 +113,32 @@ def evaluate(role, meta_for, ev, src, C, reps, ks, rows, mrows):
                 idx[pname(c)][(r, K)] = pool[pp]
                 mrows.append({"role": role, "meta_for": meta_for, "eval": ev.name, "policy": pname(c), "rep": r, "K": K,
                               "model_d": trace[4 * int(K) - 1]})
+    if role == "target":                                    # 比べる相手を同じ GPU で計算し直す（E36 の GPU によるずれの対策）
+        for pn in ("herding", "herding_feat", "random"):
+            idx[pn] = {}
+        for r in reps:
+            pool = np.flatnonzero(~ctx.te[r])
+            yq = ev.y[pool]
+            Xc = M.rows(ev.X, pool) - ctx.ct[r]
+            Ld = src.logits(Xc, C)
+            Xt = (Xc - src.mu) / src.sd
+            Rt = torch.nn.functional.one_hot(torch.as_tensor(np.array(yq), device=CB.DEV), 4).to(Xt.dtype) - torch.softmax(Ld, 1)
+            ordh, ordf = {}, {}
+            for k in range(4):                              # E33 の追加と同じ φ = (a r, r ⊗ x̃)，E33 の追加 2 と同じ x̃
+                cand = np.flatnonzero(yq == k)
+                ci = torch.as_tensor(cand, device=CB.DEV)
+                R, X = Rt[ci], Xt[ci]
+                RX = (R[:, :, None] * X[:, None, :]).reshape(len(cand), -1)
+                vr, vx = float(R.var(0, unbiased=False).sum()), float(RX.var(0, unbiased=False).sum())
+                a = np.sqrt(vx / vr) if vr > 0 else 1.0
+                ordh[k] = cand[herd(torch.cat([a * R, RX], 1), kmax)]
+                ordf[k] = cand[herd(X, kmax)]
+            pos_of = {int(i): j for j, i in enumerate(pool)}
+            for K in ks:
+                kk = int(K)
+                idx["herding"][(r, K)] = pool[np.concatenate([ordh[k][:kk] for k in range(4)])]
+                idx["herding_feat"][(r, K)] = pool[np.concatenate([ordf[k][:kk] for k in range(4)])]
+                idx["random"][(r, K)] = pool[[pos_of[int(i)] for i in ctx.idx[(r, K)]]]
     for pn in idx:
         sub = CB.Ctx.__new__(CB.Ctx)
         sub.__dict__.update(ctx.__dict__)
@@ -160,15 +187,16 @@ def analyze() -> int:
         pseudo = a[a.role == "pseudo"].groupby(["meta_for", "policy"]).uar.mean()
         tgt = a[(a.role == "target") & a.rep.isin(EC.REPS)].groupby(["eval", "policy", "K"]).uar.mean() * 100
         for T in sorted(a.meta_for.unique()):
-            star = pseudo.loc[T].idxmax()
+            star = pseudo.loc[T][[pname(c) for c in CS]].idxmax()
             hd = pd.read_csv(ROOT / "results" / f"select_herd_{kind}" / f"{T}.csv", dtype={"K": str})
             hf = pd.read_csv(ROOT / "results" / f"select_herdfeat_{kind}" / f"{T}.csv", dtype={"K": str})
             for K in ("1", "5", "10", "25"):
                 row = {"kind": kind, "target": T, "K": K, "policy_star": star, "meta": float(tgt.loc[(T, star, K)]),
-                       "oracle": float(tgt.loc[T].xs(K, level="K").max()),
-                       "policy_oracle": str(tgt.loc[T].xs(K, level="K").idxmax())}
+                       "oracle": float(tgt.loc[T].xs(K, level="K")[[pname(c) for c in CS]].max()),
+                       "policy_oracle": str(tgt.loc[T].xs(K, level="K")[[pname(c) for c in CS]].idxmax())}
                 for st, f in (("herding", hd), ("random", hd), ("herding_feat", hf)):
-                    row[st] = float(f[(f.source == st) & (f.K == K) & f.rep.isin(EC.REPS)].uar.mean() * 100)
+                    row[f"{st}_e33"] = float(f[(f.source == st) & (f.K == K) & f.rep.isin(EC.REPS)].uar.mean() * 100)
+                    row[st] = float(tgt.loc[(T, st, K)])            # 主：同じ GPU で計算し直した値
                 for c in CS:
                     row[pname(c)] = float(tgt.loc[(T, pname(c), K)])
                 tabs.append(row)
@@ -180,6 +208,8 @@ def analyze() -> int:
             row[f"meta-{b}"] = float(diff.mean())
             row[f"meta>{b}"] = int((diff > 0).sum())
         row["oracle-herding"] = float((g.oracle - g.herding).mean())
+        for st in ("herding", "random", "herding_feat"):
+            row[f"check_{st}_vs_e33"] = float((g[st] - g[f"{st}_e33"]).abs().max())
         tests.append(row)
     R = pd.DataFrame(tests)
     for kind in ("audio_wavlm", "audio_hubert"):
