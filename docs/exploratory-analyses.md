@@ -3769,3 +3769,5 @@ P1 の価値は音声，映像，音声＋映像，言葉でほぼ一定（K=5�
 **記述**：hard と committee（予言を置かない．hard は勾配が大きい一方，感情のラベルが揺れやすい発話を集める恐れがあり，向きが式から決まらない），V・AV，K=1・25，選び方の価値，下書きの当たり，PAD の値．
 
 **作り方**（予定）：`exp/select_kshot.py`（GPU．E32 の段 2 の `combine_drafts.py` と同じ下書きとソースごとの分類器を使い，`compare_b1.Ctx` の K 本を選び方ごとに取り替えて `ht_block` で解く．random は E31 の P4 と一致することを確かめる），解析は `exp/explore_select.py`．出力は `results/select_<kind>/`．既存の結果は上書きしない．
+
+**試走**（2026-10-16．WavLM の AFEW，反復 0・1）：random は E31 の P4 と 8 行すべてで一致した（差 0）．所要は準備 164 秒（合併の下書きとソースごとの分類器 6 本．E31 と GPU を分け合った状態），選ぶ 5.5 秒，仮説転移 19 秒（7 通り × 2 反復）．試走の 1 ターゲット × 2 反復の UAR と記録は見た（予言 S1〜S3 は試走の前に書いた）．本番は `run/select_after.sh`（E32 の段 2 の `logs/combine.done` を待ってから主な 4 種類を流し，`exp/explore_select.py` で解析する）．
