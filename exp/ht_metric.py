@@ -130,7 +130,7 @@ def analyze() -> int:
             P = ps.loc[T].unstack("K")                                            # ρ × K
             best_law = max(itertools.product(RHO_INF, K0S),
                            key=lambda g: np.mean([P.loc[law(g[0], g[1], int(K)), K] for K in ("1", "5", "10", "25")]))
-            rho_const = P[["1", "5", "10", "25"]].mean(1).idxmax()
+            rho_const = P[["1", "5", "10", "25"]].mean(axis=1).idxmax()
             Tt = tg.loc[T].unstack("K")
             for K in ("1", "5", "10", "25"):
                 rl = law(*best_law, int(K))
