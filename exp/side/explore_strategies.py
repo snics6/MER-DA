@@ -47,7 +47,7 @@ import map as M  # noqa: E402
 from data import GROUP_SPEC, load_any  # noqa: E402
 from explore_metrics import loto, table as metric_table  # noqa: E402
 from explore_select import fit_predict, taus  # noqa: E402
-from pair_table import OUT  # noqa: E402
+from pair_table import OUT, map_dir  # noqa: E402
 from shift_map import sum_zero_coords  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 
@@ -126,12 +126,12 @@ def groups_light(kind: str, names: list[str]) -> dict:
 
 def run_kind(kind: str, groups: list[str] | None = None) -> list[dict]:
     """groups を渡すと，その群どうしの組だけで比べる（E7：RAVDESS を除いた音声など）。"""
-    pairs = pd.read_csv(ROOT / "results" / f"map_{kind}" / "summary" / "pairs.csv", dtype={"K": str})
+    pairs = pd.read_csv(map_dir(kind) / "summary" / "pairs.csv", dtype={"K": str})   # MERDA_MAP_ROOT に従う
     if groups is not None:
         pairs = pairs[pairs.target.isin(groups) & pairs.source.isin(groups)]
     gains = pairs.pivot_table(index=["target", "source"], columns="K", values="diff_mean")
     rows_map = pd.concat([pd.read_csv(p, comment="#", dtype={"K": str, "source": str})
-                          for p in sorted((ROOT / "results" / f"map_{kind}").glob("*.csv"))])
+                          for p in sorted(map_dir(kind).glob("*.csv"))])
     merged = rows_map[rows_map.method == "merged"].copy()
     merged["cv_at_C"] = [r[f"cv_uar_C{r['C']:g}"] for _, r in merged.iterrows()]
     cv = merged.set_index(["target", "source", "K", "rep"])["cv_at_C"]
