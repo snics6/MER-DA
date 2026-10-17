@@ -4608,7 +4608,7 @@ UAR（点．ターゲットの平均）
 
 ### E39 の追加（広げた候補）の結果（2026-10-17．26 ターゲット．RunPod の H100 4 台で `meta5.py --grid ext`（コミット `505165d`），研究室PCで `--grid ext --analyze`）
 
-保存先 `results/explore_relation/snapshots/20261017-1530_e39x/`（`e39x_tests.csv`・`e39x_targets.csv`・`e39x_checks.csv`）．E39 と重なる組の値は，WavLM・映像・音声＋映像の全ターゲットで E39 と一致し（差 0.0），HuBERT の 4 ターゲットで最大 0.0053（1 行の UAR）ずれた．別の Pod で，C_b と C′ を束ねる数が変わった（9 通り → 16 通り）ため，一度に解く問題の並びが変わり，丸めの違いが出たと読める．
+保存先 `results/explore_relation/snapshots/20261017-1530_e39x/`（`e39x_tests.csv`・`e39x_targets.csv`・`e39x_checks.csv`）．E39 と重なる組の値は，26 ターゲット中 18 で E39 と一致し（差 0.0），8 ターゲットで小さくずれた（1 行の UAR の差の最大：HuBERT 0.0053，WavLM 0.0012，音声＋映像 0.0002，映像 0.0012）．別の Pod で，C_b と C′ を束ねる数が変わった（9 通り → 16 通り）ため，一度に解く問題の並びが変わり，丸めの違いが出たと読める．
 
 UAR（点．ターゲットの平均．K=5／10）
 
