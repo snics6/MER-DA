@@ -8,7 +8,10 @@ rm -f logs/rerun_side.done
 fail() { echo "FAILED: $*"; echo "exit=1" > logs/rerun_side.done; exit 1; }
 run_all() {   # $1：出力先，$2：ラベル
   echo "== $(date +%F_%T) $2：本筋の段"
-  MERDA_OUT_ROOT=$1 $P exp/rerun_main.py --no-summarize --label $2 || echo "（本筋の段のどこかが失敗．manifest を見る）"
+  if [ -f $1/main.done ]; then echo "（本筋の段は済み：$1/main.done）"; else
+    MERDA_OUT_ROOT=$1 $P exp/rerun_main.py --no-summarize --label $2 || echo "（本筋の段のどこかが失敗．manifest を見る）"
+    date +%F_%T > $1/main.done
+  fi
   for s in explore_relation explore_select explore_metrics explore_strategies explore_modality explore_subset check_h7; do
     echo "== $(date +%F_%T) $2：$s"
     MERDA_OUT_ROOT=$1 $P exp/side/$s.py > $1/log_$s.txt 2>&1 || fail "$2 $s"

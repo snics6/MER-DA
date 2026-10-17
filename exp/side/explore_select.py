@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
+sys.path.insert(0, str(ROOT / "exp" / "side"))   # exp/ の同じ名前の台本（explore_select.py は E33 の解析）より先に読む
 from pair_table import OUT, design, gains_all_k  # noqa: E402
 from summarize_map import C_MERGED, C_SRC, C_TGT, INK, INK2, MUTED, SURFACE, _style  # noqa: E402
 

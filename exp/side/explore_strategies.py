@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]   # exp/side/ から見たリポジトリの根
 sys.path.insert(0, str(ROOT / "exp"))
+sys.path.insert(0, str(ROOT / "exp" / "side"))   # exp/ の同じ名前の台本（explore_select.py は E33 の解析）より先に読む
 import map as M  # noqa: E402
 from data import GROUP_SPEC, load_any  # noqa: E402
 from explore_metrics import loto, table as metric_table  # noqa: E402
