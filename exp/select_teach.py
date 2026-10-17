@@ -149,7 +149,7 @@ def evaluate(role, meta_for, ev, src, C, reps, ks, rows, mrows):
         ht_block_present(sub, reps, src, C, add)
 
 
-def run_target(kind, T, data, reps, ks, out, cache):
+def run_target(kind, T, data, reps, ks, out, cache, pseudo=True):
     t0 = time.perf_counter()
     rows, mrows = [], []
     corp = lambda g: GROUP_SPEC[g][0]  # noqa: E731
@@ -167,7 +167,7 @@ def run_target(kind, T, data, reps, ks, out, cache):
 
     evaluate("target", T, data[T], draft(pool_T, C_T), C_T, reps, ks, rows, mrows)
     t1 = time.perf_counter()
-    for c in pool_T:
+    for c in (pool_T if pseudo else []):                   # --no-pseudo：反復を足すときは仮のターゲット（反復 0〜4．前回と同じ）を解き直さない
         pool_c = [s for s in pool_T if corp(s) != corp(c)]
         evaluate("pseudo", T, data[c], draft(pool_c, C_PSEUDO), C_PSEUDO, PSEUDO_REPS, ks, rows, mrows)
     print(f"  {kind} {T}：ターゲット {t1 - t0:.0f} 秒，仮のターゲット {len(pool_T)} 個 {time.perf_counter() - t1:.0f} 秒", flush=True)
@@ -233,6 +233,7 @@ def main() -> int:
     ap.add_argument("--ks", nargs="+", default=list(CB.KS))
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
+    ap.add_argument("--no-pseudo", action="store_true", help="仮のターゲットを解かない（ターゲットの反復を足すとき）")
     args = ap.parse_args()
     if args.analyze:
         return analyze()
@@ -246,7 +247,7 @@ def main() -> int:
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
     prov = {"script": "exp/select_teach.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
             "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
-            "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": PSEUDO_REPS,
+            "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": [] if args.no_pseudo else PSEUDO_REPS,
             "steps": list(CS), "C_pseudo": C_PSEUDO, "cp": CB.DEF_CP, "cb": CB.DEF_CB,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
@@ -256,7 +257,7 @@ def main() -> int:
     cache: dict = {}
     for t in todo:
         t0 = time.perf_counter()
-        run_target(args.kind, t, data, args.reps, args.ks, out, cache)
+        run_target(args.kind, t, data, args.reps, args.ks, out, cache, pseudo=not args.no_pseudo)
         print(f"{args.kind} {t}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     return 0
 

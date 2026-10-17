@@ -140,7 +140,7 @@ def evaluate(role, meta_for, ev, pool, data, C, reps, ks, rows, cache):
                         CB.collect(ctx, jobs, fits[k * len(masks):(k + 1) * len(masks)], CPS5, X_of, None, emit, {})
 
 
-def run_target(kind, T, data, reps, ks, out, cache):
+def run_target(kind, T, data, reps, ks, out, cache, pseudo=True):
     t0 = time.perf_counter()
     rows = []
     corp = lambda g: GROUP_SPEC[g][0]  # noqa: E731
@@ -148,7 +148,7 @@ def run_target(kind, T, data, reps, ks, out, cache):
     C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
     evaluate("target", T, data[T], pool_T, data, C_T, reps, ks, rows, cache)
     t1 = time.perf_counter()
-    for c in pool_T:
+    for c in (pool_T if pseudo else []):                   # --no-pseudo：反復を足すときは仮のターゲット（反復 0〜4．前回と同じ）を解き直さない
         pool_c = [s for s in pool_T if corp(s) != corp(c)]
         evaluate("pseudo", T, data[c], pool_c, data, C_PSEUDO, PSEUDO_REPS, ks, rows, cache)
     print(f"  {kind} {T}：ターゲット {t1 - t0:.0f} 秒，仮のターゲット {len(pool_T)} 個 {time.perf_counter() - t1:.0f} 秒", flush=True)
@@ -237,6 +237,7 @@ def main() -> int:
     ap.add_argument("--ks", nargs="+", default=list(CB.KS))
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
+    ap.add_argument("--no-pseudo", action="store_true", help="仮のターゲットを解かない（ターゲットの反復を足すとき）")
     ap.add_argument("--grid", choices=list(GRIDS), default="base")
     args = ap.parse_args()
     set_grid(args.grid)
@@ -252,7 +253,7 @@ def main() -> int:
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
     prov = {"script": "exp/meta5.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
             "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
-            "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": PSEUDO_REPS,
+            "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": [] if args.no_pseudo else PSEUDO_REPS,
             "grid_name": args.grid, "grid": {"gamma": GAMMAS, "rho_s": RHOS_S, "cb": [cbname(c) for c in CBS5], "cp": CPS5, "rho_M": RHOS_M},
             "C_pseudo": C_PSEUDO, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
@@ -262,7 +263,7 @@ def main() -> int:
     cache: dict = {}
     for t in todo:
         t0 = time.perf_counter()
-        run_target(args.kind, t, data, args.reps, args.ks, out, cache)
+        run_target(args.kind, t, data, args.reps, args.ks, out, cache, pseudo=not args.no_pseudo)
         print(f"{args.kind} {t}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     return 0
 
