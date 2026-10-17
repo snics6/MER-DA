@@ -255,6 +255,32 @@ def analyze() -> int:
     return 0
 
 
+def posthoc() -> int:
+    """【結果を見た後の確かめ】仮のターゲットの値で，(1) 教師の歩幅 c を固定して teach の (ρ_M, C_b, C′) を選び直したときの C′・C_b，
+    (2) C′ を random で選ばれた値に固定して teach の (c, ρ_M, C_b) を選び直したときの C_b を，random で選ばれた値と比べる。"""
+    D = pd.read_csv(OUT_REL / "e40_targets.csv", dtype={"K": str}).drop_duplicates(["kind", "target"]).set_index(["kind", "target"])
+    rows = []
+    for (kind, T), r in D.iterrows():
+        a = pd.read_csv(ROOT / "results" / f"teach_joint_{kind}" / f"{T}.csv", dtype={"K": str, "cb": str})
+        ps = a[(a.role == "pseudo") & (a.policy == "teach")]
+        row = {"kind": kind, "target": T, "t_c": r.t_c, "t_cp": r.t_cp, "r_cp": r.r_cp, "r_cb": float(r.r_cb)}
+        for c in CS:
+            g = ps[ps.c == c].groupby(["rho_M", "cb", "cp"]).uar.mean().idxmax()
+            row[f"cp_at_c{c:g}"], row[f"cb_at_c{c:g}"] = g[2], float(g[1])
+        h = ps[ps.cp == r.r_cp].groupby(["c", "rho_M", "cb"]).uar.mean().idxmax()
+        row["cb_at_r_cp"] = float(h[2])
+        rows.append(row)
+    X = pd.DataFrame(rows)
+    X.to_csv(OUT_REL / "e40_posthoc.csv", index=False)
+    for kind, g in X.groupby("kind", sort=False):
+        s = {f"c={c:g}": (int((g[f"cp_at_c{c:g}"] > g.r_cp).sum()), int((g[f"cb_at_c{c:g}"] > g.r_cb).sum())) for c in CS}
+        print(kind, len(g), "（C′ が random より大きい数，C_b が random より大きい数）", s,
+              "| C′ を random の値に固定したときの C_b（大きい，小さい，同じ）：",
+              (int((g.cb_at_r_cp > g.r_cb).sum()), int((g.cb_at_r_cp < g.r_cb).sum()), int((g.cb_at_r_cp == g.r_cb).sum())),
+              "| 選ばれた C′／c：", sorted((g.t_cp / g.t_c).round(1).unique().tolist()))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kind")
@@ -265,9 +291,12 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--check", nargs=2, metavar=("KIND", "TARGET"))
     ap.add_argument("--analyze", action="store_true")
+    ap.add_argument("--posthoc", action="store_true", help="結果を見た後の確かめ（--analyze の後に CPU で）")
     args = ap.parse_args()
     if args.analyze:
         return analyze()
+    if args.posthoc:
+        return posthoc()
     if args.check:
         res = check(*args.check, out=args.out_dir)
         print(json.dumps(res, ensure_ascii=False))
