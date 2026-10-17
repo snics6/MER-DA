@@ -37,11 +37,19 @@ import map as M  # noqa: E402
 from data import GROUP_SPEC, groups_for  # noqa: E402
 from pair_table import map_dir  # noqa: E402
 
-GAMMAS = (-0.5, 0.0, 0.5)
-RHOS_S = (0.3, 0.5, 0.7)
-CBS5 = (2.0, 8.0, None)
-CPS5 = (0.01, 0.03, 0.1)
-RHOS_M = (1.0, 0.97, 0.9)
+GRIDS = {                                              # base：E39．ext：E39 の追加（端に張り付いた候補を広げる）
+    "base": {"gamma": (-0.5, 0.0, 0.5), "rho_s": (0.3, 0.5, 0.7), "cb": (2.0, 8.0, None), "cp": (0.01, 0.03, 0.1),
+             "rho_M": (1.0, 0.97, 0.9)},
+    "ext": {"gamma": (-0.5, 0.0, 0.5), "rho_s": (0.1, 0.3, 0.5, 0.7), "cb": (0.5, 2.0, 8.0, None), "cp": (0.003, 0.01, 0.03, 0.1),
+            "rho_M": (1.0, 0.97, 0.9)},
+}
+OUT_NAME = {"base": "meta5", "ext": "meta5x"}
+GAMMAS, RHOS_S, CBS5, CPS5, RHOS_M = (GRIDS["base"][k] for k in ("gamma", "rho_s", "cb", "cp", "rho_M"))
+
+
+def set_grid(name: str) -> None:
+    global GAMMAS, RHOS_S, CBS5, CPS5, RHOS_M
+    GAMMAS, RHOS_S, CBS5, CPS5, RHOS_M = (GRIDS[name][k] for k in ("gamma", "rho_s", "cb", "cp", "rho_M"))
 PSEUDO_REPS = [0, 1, 2, 3, 4]
 C_PSEUDO = 0.01
 MAIN = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
@@ -149,11 +157,12 @@ def run_target(kind, T, data, reps, ks, out, cache):
 
 # ---------------------------------------------------------------- 判定（CPU）
 
-def analyze() -> int:
+def analyze(grid: str = "base") -> int:
     tabs, checks = [], []
+    sfx = "" if grid == "base" else "x"
     rho_tab = pd.read_csv(OUT_REL / "e35s_targets.csv").set_index(["kind", "target"])
     for kind in MAIN:
-        fs = sorted((ROOT / "results" / f"meta5_{kind}").glob("*.csv"))
+        fs = sorted((ROOT / "results" / f"{OUT_NAME[grid]}_{kind}").glob("*.csv"))
         if not fs:
             continue
         for f in fs:
@@ -169,7 +178,12 @@ def analyze() -> int:
             sh = pd.read_csv(ROOT / "results" / f"combine_shrink_{kind}" / f"{T}.csv", dtype={"K": str})
             one = sh[(sh.source == "star") & sh.rep.isin(EC.REPS)]
             rs = float(rho_tab.loc[(kind, T), "rho_star"])
-            if rs in RHOS_S:                                              # (0, ρ*, 8, 0.01, 1) は 1 つの数の版と一致するはず
+            if grid == "ext":                                             # E39 と重なる組は E39 と一致するはず
+                b = pd.read_csv(ROOT / "results" / f"meta5_{kind}" / f"{T}.csv", dtype={"K": str, "cb": str})
+                b = b[b.role == "target"]
+                m = a[a.role == "target"].merge(b, on=["eval"] + KEYS + ["rep", "K"], suffixes=("_x", "_b"))
+                checks.append({"kind": kind, "target": T, "rows": len(m), "max_diff": float((m.uar_x - m.uar_b).abs().max())})
+            elif rs in RHOS_S:                                            # (0, ρ*, 8, 0.01, 1) は 1 つの数の版と一致するはず
                 mine = a[(a.role == "target") & (a.gamma == 0.0) & (a.rho_s == rs) & (a.cb == "8") & (a.cp == 0.01) & (a.rho_M == 1.0)]
                 m = mine.merge(one[["rep", "K", "uar"]], on=["rep", "K"], suffixes=("_m", "_s"))
                 checks.append({"kind": kind, "target": T, "rows": len(m), "max_diff": float((m.uar_m - m.uar_s).abs().max())})
@@ -194,12 +208,22 @@ def analyze() -> int:
         R.loc[R.kind == kind, "F1"] = bool((R[m]["meta-D1"] > 0).all()) if m.sum() == 2 else np.nan
         R.loc[R.kind == kind, "F2"] = bool((R[m]["meta-one"] > 0).all()) if m.sum() == 2 else np.nan
     Cks = pd.DataFrame(checks)
-    D.to_csv(OUT_REL / "e39_targets.csv", index=False)
-    R.to_csv(OUT_REL / "e39_tests.csv", index=False)
-    Cks.to_csv(OUT_REL / "e39_checks.csv", index=False)
+    if grid == "ext":                                                    # X1：広げた候補の版 − E39 の版
+        base = pd.read_csv(OUT_REL / "e39_targets.csv", dtype={"K": str})[["kind", "target", "K", "meta", "oracle"]]
+        J = D.merge(base, on=["kind", "target", "K"], suffixes=("", "_base"))
+        for (kind, K), g in J.groupby(["kind", "K"]):
+            m = (R.kind == kind) & (R.K == K)
+            R.loc[m, "meta-base"] = float((g.meta - g.meta_base).mean())
+            R.loc[m, "oracle-base_oracle"] = float((g.oracle - g.oracle_base).mean())
+        for kind in ("audio_wavlm", "audio_hubert"):
+            m = (R.kind == kind) & R.K.isin(["5", "10"])
+            R.loc[R.kind == kind, "X1"] = bool((R[m]["meta-base"] >= -0.2).all()) if m.sum() == 2 else np.nan
+    D.to_csv(OUT_REL / f"e39{sfx}_targets.csv", index=False)
+    R.to_csv(OUT_REL / f"e39{sfx}_tests.csv", index=False)
+    Cks.to_csv(OUT_REL / f"e39{sfx}_checks.csv", index=False)
     pd.set_option("display.width", 250)
     print(R.round(3).to_string(index=False))
-    print("1 つの数の版との照合：", Cks.max_diff.max() if len(Cks) else "なし", f"（{len(Cks)} ターゲット）")
+    print("照合（base は 1 つの数の版，ext は E39 と重なる組）：", Cks.max_diff.max() if len(Cks) else "なし", f"（{len(Cks)} ターゲット）")
     for k in KEYS:
         print(k, D[D.K == "5"].groupby("kind")[k].value_counts().unstack(fill_value=0).to_dict("index"))
     return 0
@@ -213,10 +237,12 @@ def main() -> int:
     ap.add_argument("--ks", nargs="+", default=list(CB.KS))
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
+    ap.add_argument("--grid", choices=list(GRIDS), default="base")
     args = ap.parse_args()
+    set_grid(args.grid)
     if args.analyze:
-        return analyze()
-    out = args.out_dir or ROOT / "results" / f"meta5_{args.kind}"
+        return analyze(args.grid)
+    out = args.out_dir or ROOT / "results" / f"{OUT_NAME[args.grid]}_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
     groups = groups_for(args.kind)
     todo = [t for t in args.target or groups if not (out / f"{t}.csv").exists()]
@@ -227,7 +253,7 @@ def main() -> int:
     prov = {"script": "exp/meta5.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
             "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
             "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": PSEUDO_REPS,
-            "grid": {"gamma": GAMMAS, "rho_s": RHOS_S, "cb": [cbname(c) for c in CBS5], "cp": CPS5, "rho_M": RHOS_M},
+            "grid_name": args.grid, "grid": {"gamma": GAMMAS, "rho_s": RHOS_S, "cb": [cbname(c) for c in CBS5], "cp": CPS5, "rho_M": RHOS_M},
             "C_pseudo": C_PSEUDO, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:
