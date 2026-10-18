@@ -34,6 +34,13 @@
 3. 音声と映像：同じ 6 群の 15 対で `align` を比べる（`e9_modality.csv`．Wilcoxon の符号順位検定）
 
     ./.venv/bin/python exp/explore_geometry.py
+    ./.venv/bin/python exp/explore_geometry.py --kinds audio_wavlm video fuse-audio-video text_roberta \
+        fuse-audio-text fuse-video-text fuse-audio-video-text      # 言葉系も（2026-10-18）
+
+`--kinds` に既定の 3 種類（`KINDS`）以外を足すと，その種類ごとに全群を 1 つの設定（名前は種類の名前）として
+解析 1・2 に加え，解析 3 の後ろに，選んだ全種類に共通の群（言葉系を含めると IEMOCAP-impro，IEMOCAP-script，
+MOSEI，MELD の 4 群・6 対）で `align` を比べる行（`groups` の列に群の数）を足す。既定の 3 種類の行は
+`--kinds` を付けないときと同じ値になる。`KINDS` は E10（`explore_shape.py`）も読むので変えない。
 
 出力：`results/explore_relation/e9_corpus.csv`・`e9_pair.csv`・`e9_partial.csv`・`e9_effects.csv`・
 `e9_modality.csv`・`fig_e9.png`
@@ -41,6 +48,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -150,11 +158,23 @@ def common_reps(G: pd.DataFrame) -> list[int]:
     return sorted(set.intersection(*[set(G[G.target == t].rep) for t in G.target.unique()]))
 
 
-def analyse(corp: pd.DataFrame, pair: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    G = {k: gains(k) for k in KINDS}
-    seven = sorted(G["audio_wavlm"].target.unique())
-    settings = [("audio 7 groups", "audio_wavlm", seven), ("audio 6 groups", "audio_wavlm", SIX),
-                ("video", "video", SIX), ("audio+video", "fuse-audio-video", SIX)]
+def settings_for(kinds, G: dict) -> list[tuple[str, str, list[str]]]:
+    """既定の 3 種類は 4 つの設定（これまでと同じ）。それ以外の種類は，全群で 1 つの設定（名前は種類の名前）。"""
+    out = []
+    if "audio_wavlm" in kinds:
+        seven = sorted(G["audio_wavlm"].target.unique())
+        out += [("audio 7 groups", "audio_wavlm", seven), ("audio 6 groups", "audio_wavlm", SIX)]
+    if "video" in kinds:
+        out.append(("video", "video", SIX))
+    if "fuse-audio-video" in kinds:
+        out.append(("audio+video", "fuse-audio-video", SIX))
+    out += [(k, k, sorted(G[k].target.unique())) for k in kinds if k not in KINDS]
+    return out
+
+
+def analyse(corp: pd.DataFrame, pair: pd.DataFrame, kinds=KINDS) -> tuple[pd.DataFrame, pd.DataFrame]:
+    G = {k: gains(k) for k in kinds}
+    settings = settings_for(kinds, G)
     partial, effects = [], []
     for name, kind, groups in settings:
         reps = common_reps(G[kind])
@@ -187,30 +207,55 @@ def analyse(corp: pd.DataFrame, pair: pd.DataFrame) -> tuple[pd.DataFrame, pd.Da
     return pd.concat(partial, ignore_index=True), pd.DataFrame(effects)
 
 
-def modality(pair: pd.DataFrame) -> pd.DataFrame:
-    pairs = [(a, b) for i, a in enumerate(SIX) for b in SIX[i + 1:]]
-    A = {k: pair[pair.kind == k].set_index(["target", "source"])["align"] for k in KINDS}
-    v = {k: np.array([A[k][(a, b)] for a, b in pairs]) for k in KINDS}
-    rows = [{"kind": k, "n_pairs": len(pairs), "mean": v[k].mean(), "median": np.median(v[k]),
-             "min": v[k].min(), "max": v[k].max(), "sd": v[k].std(ddof=1)} for k in KINDS]
-    for a, b in (("video", "audio_wavlm"), ("fuse-audio-video", "audio_wavlm"), ("video", "fuse-audio-video")):
-        rows.append({"kind": f"{a} - {b}", "n_pairs": len(pairs), "mean": (v[a] - v[b]).mean(),
-                     "n_greater": int((v[a] > v[b]).sum()), "p_wilcoxon": stats.wilcoxon(v[a], v[b]).pvalue,
-                     "rho_between": stats.spearmanr(v[a], v[b])[0]})
+def modality(pair: pd.DataFrame, kinds=KINDS) -> pd.DataFrame:
+    rows = []
+    if all(k in kinds for k in KINDS):                                    # これまでの比べ（同じ 6 群の 15 対）
+        pairs = [(a, b) for i, a in enumerate(SIX) for b in SIX[i + 1:]]
+        A = {k: pair[pair.kind == k].set_index(["target", "source"])["align"] for k in KINDS}
+        v = {k: np.array([A[k][(a, b)] for a, b in pairs]) for k in KINDS}
+        rows += [{"kind": k, "n_pairs": len(pairs), "mean": v[k].mean(), "median": np.median(v[k]),
+                  "min": v[k].min(), "max": v[k].max(), "sd": v[k].std(ddof=1)} for k in KINDS]
+        for a, b in (("video", "audio_wavlm"), ("fuse-audio-video", "audio_wavlm"), ("video", "fuse-audio-video")):
+            rows.append({"kind": f"{a} - {b}", "n_pairs": len(pairs), "mean": (v[a] - v[b]).mean(),
+                         "n_greater": int((v[a] > v[b]).sum()), "p_wilcoxon": stats.wilcoxon(v[a], v[b]).pvalue,
+                         "rho_between": stats.spearmanr(v[a], v[b])[0]})
+    extra = [k for k in kinds if k not in KINDS]
+    if extra:                                                             # 言葉系など：選んだ全種類に共通の群で比べる
+        common = [g for g in groups_for(extra[0]) if all(g in set(pair[pair.kind == k].target) for k in kinds)]
+        pairs = [(a, b) for i, a in enumerate(common) for b in common[i + 1:]]
+        A = {k: pair[pair.kind == k].set_index(["target", "source"])["align"] for k in kinds}
+        v = {k: np.array([A[k][(a, b)] for a, b in pairs]) for k in kinds}
+        rows += [{"kind": k, "groups": len(common), "n_pairs": len(pairs), "mean": v[k].mean(),
+                  "median": np.median(v[k]), "min": v[k].min(), "max": v[k].max(), "sd": v[k].std(ddof=1)}
+                 for k in kinds]
+        for j, a in enumerate(kinds):                                     # 後ろの種類 − 前の種類（言葉系を含む対だけ）
+            for b in kinds[:j]:
+                if a in KINDS and b in KINDS:
+                    continue
+                rows.append({"kind": f"{a} - {b}", "groups": len(common), "n_pairs": len(pairs),
+                             "mean": (v[a] - v[b]).mean(), "n_greater": int((v[a] > v[b]).sum()),
+                             "p_wilcoxon": stats.wilcoxon(v[a], v[b]).pvalue,
+                             "rho_between": stats.spearmanr(v[a], v[b])[0]})
     return pd.DataFrame(rows)
 
 
 def main() -> int:
-    corps, pairs = zip(*[geometry(k) for k in KINDS])
+    ap = argparse.ArgumentParser(description="E9：特徴空間の形")
+    ap.add_argument("--kinds", nargs="+", default=list(KINDS),
+                    help="種類（既定は音声・映像・音声＋映像．言葉系を足すとその種類の設定と比べを足す）")
+    kinds = list(dict.fromkeys(ap.parse_args().kinds))
+    corps, pairs = zip(*[geometry(k) for k in kinds])
     corp, pair = pd.concat(corps, ignore_index=True), pd.concat(pairs, ignore_index=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     corp.to_csv(OUT / "e9_corpus.csv", index=False)
     pair.to_csv(OUT / "e9_pair.csv", index=False)
-    partial, effects = analyse(corp, pair)
+    partial, effects = analyse(corp, pair, kinds)
     partial.to_csv(OUT / "e9_partial.csv", index=False)
     effects.to_csv(OUT / "e9_effects.csv", index=False)
-    mod = modality(pair)
+    mod = modality(pair, kinds)
     mod.to_csv(OUT / "e9_modality.csv", index=False)
-    fig(pair, partial, effects, corp, OUT / "fig_e9.png")
+    if all(k in kinds for k in KINDS):                                    # 図はこれまでの 3 種類だけを描く
+        fig(pair, partial, effects, corp, OUT / "fig_e9.png")
     print(f"書いた: {OUT}")
     return 0
 

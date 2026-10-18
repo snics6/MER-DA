@@ -4,12 +4,16 @@ B4-1：言葉を含む 4 種類，反復 0〜9 の平均の d̂_10．B4-2：主�
 どちらもターゲットの中の順位相関（種類 × ターゲットの平均を引く）。r は E13（own_d/d_s − 1，6 対の平均）。
 
     MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/fixc_analysis ./.venv/bin/python exp/check_room_estimator.py
+    MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/text30 ./.venv/bin/python exp/check_room_estimator.py \
+        --kinds text_roberta fuse-audio-text fuse-video-text fuse-audio-video-text
+                        # B4-2 を言葉を含む 4 種類で（記述．4 種類をまとめた行 text4 も足す）。B4-1 は既定と同じ
 
 出力：`OUT/e28t6b_pairs.csv`，`OUT/e28t6b_tests.csv`
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -65,10 +69,13 @@ def within(df: pd.DataFrame, x: str, y: str) -> tuple[float, float, int]:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="B4")
+    ap.add_argument("--kinds", nargs="+", choices=MAIN + TEXT, default=MAIN, help="B4-2 の種類（既定は主な 4 種類）")
+    a = ap.parse_args()
     R = rooms()
     A = pd.concat([dhat_rows(k, range(10)) for k in TEXT]).groupby(["kind", "target", "source"]).dhat10.mean().reset_index()
     A = A.merge(R, on=["kind", "target", "source"])
-    B = pd.concat([dhat_rows(k, range(10, 30)) for k in MAIN]).merge(R, on=["kind", "target", "source"])
+    B = pd.concat([dhat_rows(k, range(10, 30)) for k in a.kinds]).merge(R, on=["kind", "target", "source"])
     pd.concat([A.assign(part="B4-1"), B.assign(part="B4-2")]).to_csv(OUT / "e28t6b_pairs.csv", index=False)
     tests = []
     r, p, n = within(A, "dhat10", "room")
@@ -76,8 +83,9 @@ def main() -> int:
     for k in TEXT:
         rk, pk, nk = within(A[A.kind == k], "dhat10", "room")
         tests.append({"test": "B4-1 記述", "group": k, "rho": rk, "p": pk, "n": nk})
-    for k in MAIN:
-        per = [within(B[(B.kind == k) & (B.rep == rr)], "dhat10", "room")[0] for rr in range(10, 30)]
+    groups = [(k, [k]) for k in a.kinds] + ([("text4", TEXT)] if set(a.kinds) == set(TEXT) else [])
+    for k, ks in groups:              # text4：言葉を含む 4 種類をまとめる（B4-1 と同じく種類 × ターゲットの平均を引く）
+        per = [within(B[B.kind.isin(ks) & (B.rep == rr)], "dhat10", "room")[0] for rr in range(10, 30)]
         tests.append({"test": "B4-2" if k in ("audio_wavlm", "audio_hubert") else "B4-2 記述", "group": k,
                       "rho": float(np.mean(per)), "rho_min": float(np.min(per)), "rho_max": float(np.max(per)), "n_reps": len(per),
                       "holds": float(np.mean(per)) <= -0.4 if k in ("audio_wavlm", "audio_hubert") else np.nan})

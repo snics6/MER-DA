@@ -4,12 +4,15 @@
 C を固定した地図（MERDA_MAP_ROOT=results/fixc_map）の反復ごとの UAR を使う。K 本の抜き方は地図と同じ手順で作り直す。
 
     MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/fixc_analysis ./.venv/bin/python exp/explore_draws.py
+    MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/text30 ./.venv/bin/python exp/explore_draws.py \
+        --kinds text_roberta fuse-audio-text fuse-video-text fuse-audio-video-text      # 言葉を含む 4 種類
 
 出力：`OUT/e22_rows.csv`・`OUT/e22_tests.csv`，`OUT/e23_rows.csv`・`OUT/e23_tests.csv`
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -23,7 +26,7 @@ sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
 from data import groups_for, load_any  # noqa: E402
 from explore_direction import map_draw  # noqa: E402
-from explore_synergy import KS, load_map  # noqa: E402
+from explore_synergy import ALL_KINDS, KS, load_map  # noqa: E402
 from pair_table import OUT  # noqa: E402
 
 KINDS = {"audio_wavlm": "W7", "audio_hubert": "Hu7", "video": "V", "fuse-audio-video": "AV"}
@@ -41,8 +44,12 @@ def demeaned_spearman(g: pd.DataFrame, by: list[str], x: str, y: str) -> tuple[f
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="E22・E23")
+    ap.add_argument("--kinds", nargs="+", choices=list(ALL_KINDS), default=list(KINDS),
+                    help="既定は主な 4 種類．言葉を含む 4 種類も指定できる")
+    a = ap.parse_args()
     r22, r23 = [], []
-    for kind in KINDS:
+    for kind in a.kinds:
         mp = load_map(kind)
         groups = groups_for(kind)
         dfs = {g: load_any(g, kind)[0] for g in groups}
@@ -73,13 +80,13 @@ def main() -> int:
         for K, h in g.groupby("K"):
             for name, col in (("S1 ターゲットのみ", "t"), ("S2 合併 − ソースのみ", "m_minus_s")):
                 r, p, n = demeaned_spearman(h, ["target"], "n_speakers", col)
-                T22.append({"setting": KINDS[kind], "K": K, "test": name, "spearman": r, "p_one_sided": p,
+                T22.append({"setting": ALL_KINDS[kind], "K": K, "test": name, "spearman": r, "p_one_sided": p,
                             "n_varying": n, "mean_speakers": h.n_speakers.mean(),
                             "min_speakers": h.n_speakers.min(), "max_speakers": h.n_speakers.max()})
     for kind, g in B.groupby("kind", sort=False):
         for K, h in g.groupby("K"):
             r, p, n = demeaned_spearman(h, ["target", "source"], "n_cw", "m_minus_s")
-            T23.append({"setting": KINDS[kind], "K": K, "test": "W1 合併 − ソースのみ", "spearman": r, "p_one_sided": p,
+            T23.append({"setting": ALL_KINDS[kind], "K": K, "test": "W1 合併 − ソースのみ", "spearman": r, "p_one_sided": p,
                         "n_varying": n, "share_draws_with_cw": float((h.n_cw >= 1).mean()), "mean_n_cw": h.n_cw.mean()})
     T22, T23 = pd.DataFrame(T22), pd.DataFrame(T23)
     T22.to_csv(OUT / "e22_tests.csv", index=False)

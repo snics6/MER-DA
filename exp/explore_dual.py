@@ -14,12 +14,16 @@
 
     ./.venv/bin/python exp/explore_dual.py
     MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/fixc_analysis ./.venv/bin/python exp/explore_dual.py
+    MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/text30 ./.venv/bin/python exp/explore_dual.py \
+        --kinds text_roberta fuse-audio-text fuse-video-text fuse-audio-video-text
+                                   # 言葉を含む 4 種類（4 群・12 組．`e15_pairs.csv` は E21 の results/fixc_text/ から写す）
 
 出力：`OUT/e18_rows.csv`（種類 × 組 × K），`OUT/e18_tests.csv`
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -33,6 +37,8 @@ sys.path.insert(0, str(ROOT / "exp"))
 from pair_table import OUT, SIX, holm, partial_rank  # noqa: E402
 
 KINDS = {"audio_wavlm": "W7", "audio_hubert": "Hu7", "video": "V", "fuse-audio-video": "AV"}
+TEXT_KINDS = {"text_roberta": "T", "fuse-audio-text": "AT", "fuse-video-text": "VT", "fuse-audio-video-text": "AVT"}
+NAMES = {**KINDS, **TEXT_KINDS}      # 既定で流すのは KINDS だけ（言葉を含む 4 種類は --kinds で指定）
 SIX_NAME = {"audio_wavlm": "W6", "audio_hubert": "Hu6"}
 DISTS = ("pad", "mmd2", "frechet")
 
@@ -82,9 +88,12 @@ def tests(d: pd.DataFrame, setting: str, dist: str) -> list[dict]:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="E18")
+    ap.add_argument("--kinds", nargs="+", choices=list(NAMES), default=list(KINDS))
+    a = ap.parse_args()
     P = pd.read_csv(OUT / "e15_pairs.csv", dtype={"K": str})
     rows, T = [], []
-    for kind, name in KINDS.items():
+    for kind, name in ((k, NAMES[k]) for k in a.kinds):
         dist = distances(kind)
         for K in ("1", "5", "10"):
             d = P[(P.kind == kind) & (P.K == K)].merge(dist, on=["target", "source"])

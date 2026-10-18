@@ -22,12 +22,20 @@ LogME は本来，事前学習モデルを選ぶ指標である。ここでは�
 
     ./.venv/bin/python exp/explore_decomp.py      # 先に（per_pair.csv）
     ./.venv/bin/python exp/side/explore_strategies.py
+    ./.venv/bin/python exp/side/explore_strategies.py --kinds text_roberta fuse-audio-text fuse-video-text \
+        fuse-audio-video-text --strategies random leep logme --suffix _text     # 言葉系（2026-10-18）
 
-出力：`results/explore_relation/e5_by_target.csv`・`e5_summary.csv`・`fig_e5.png`
+`--strategies` で方法を絞る。言葉系は群が 4 つなので，ほかのターゲットで回帰する方法（`source_quality`・
+`quality+*`）は意味のある値にならず，`kshot_validation` は交差検証の地図の列を使うので，LEEP・LogME・random だけにする。
+LEEP・LogME は地図の行を使わない（ソースのみの分類器の出力と，地図と同じ乱数で作り直した K 本）。
+地図からは正解（反復平均の得）と，反復ごとにその反復の合併の行があるかだけを読む。
+
+出力：`results/explore_relation/e5_by_target{suffix}.csv`・`e5_summary{suffix}.csv`・`fig_e5{suffix}.png`
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -124,8 +132,9 @@ def groups_light(kind: str, names: list[str]) -> dict:
     return out
 
 
-def run_kind(kind: str, groups: list[str] | None = None) -> list[dict]:
-    """groups を渡すと，その群どうしの組だけで比べる（E7：RAVDESS を除いた音声など）。"""
+def run_kind(kind: str, groups: list[str] | None = None, strategies=STRATEGIES) -> list[dict]:
+    """groups を渡すと，その群どうしの組だけで比べる（E7：RAVDESS を除いた音声など）。
+    strategies で方法を絞る（既定は全部．言葉系は random・leep・logme）。"""
     pairs = pd.read_csv(map_dir(kind) / "summary" / "pairs.csv", dtype={"K": str})   # MERDA_MAP_ROOT に従う
     if groups is not None:
         pairs = pairs[pairs.target.isin(groups) & pairs.source.isin(groups)]
@@ -133,58 +142,73 @@ def run_kind(kind: str, groups: list[str] | None = None) -> list[dict]:
     rows_map = pd.concat([pd.read_csv(p, comment="#", dtype={"K": str, "source": str})
                           for p in sorted(map_dir(kind).glob("*.csv"))])
     merged = rows_map[rows_map.method == "merged"].copy()
-    merged["cv_at_C"] = [r[f"cv_uar_C{r['C']:g}"] for _, r in merged.iterrows()]
-    cv = merged.set_index(["target", "source", "K", "rep"])["cv_at_C"]
+    use_cv = "kshot_validation" in strategies
+    if use_cv:
+        merged["cv_at_C"] = [r[f"cv_uar_C{r['C']:g}"] for _, r in merged.iterrows()]
+        cv = merged.set_index(["target", "source", "K", "rep"])["cv_at_C"]
+    have = set(merged.set_index(["target", "source", "K", "rep"]).index)    # その反復の合併の行がある組
     targets = sorted(pairs.target.unique())
     light = groups_light(kind, targets)
     logits = {s: np.load(ROOT / "results" / f"shift_{kind}" / "logits" / f"{s}.npz") for s in targets}
-    mt, cands = metric_table(kind)
-    if groups is not None:
-        mt = mt[mt.target.isin(groups) & mt.source.isin(groups)]
-    label_free = [c for c in cands if c in LABEL_FREE]
+    regress = [s for s in ("source_quality", "quality+coverage", "quality+distance_nested") if s in strategies]
+    if regress:
+        mt, cands = metric_table(kind)
+        if groups is not None:
+            mt = mt[mt.target.isin(groups) & mt.source.isin(groups)]
+        label_free = [c for c in cands if c in LABEL_FREE]
+    kshot = [s for s in ("kshot_validation", "leep", "logme") if s in strategies]
     reps = sorted(int(r) for r in merged.rep.unique())
 
     out = []
     for K in K_ORDER:
-        dk = mt.rename(columns={K: "gain"}).copy()
+        if regress:
+            dk = mt.rename(columns={K: "gain"}).copy()
         for t in targets:
             srcs = sorted(s for s in targets if s != t)
             g_true = np.array([gains.loc[(t, s), K] for s in srcs])
             base = {"kind": kind, "K": K, "target": t, "n_sources": len(srcs)}
             # でたらめ：期待値
-            out.append({**base, "strategy": "random", "rep": -1, "rho": 0.0, "tau_b": 0.0, "tau_w": 0.0,
-                        "top1": 1 / len(srcs), "regret": float(np.mean(g_true.max() - g_true)) * 100})
+            if "random" in strategies:
+                out.append({**base, "strategy": "random", "rep": -1, "rho": 0.0, "tau_b": 0.0, "tau_w": 0.0,
+                            "top1": 1 / len(srcs), "regret": float(np.mean(g_true.max() - g_true)) * 100})
             # ほかのターゲットから作る方法（反復に依らない）
-            train = dk[(dk.target != t) & (dk.source != t)]
-            test = dk[dk.target == t].set_index("source").loc[srcs].reset_index()
+            if regress:
+                train = dk[(dk.target != t) & (dk.source != t)]
+                test = dk[dk.target == t].set_index("source").loc[srcs].reset_index()
             for name, xs in (("source_quality", []), ("quality+coverage", ["coverage_t_by_s"])):
-                out.append({**base, "strategy": name, "rep": -1,
-                            **evaluate(fit_predict(train, test, "gain", xs), g_true)})
-            inner_targets = [u for u in targets if u != t]
-            best, best_rho = None, -np.inf
-            for m in [None] + label_free:
-                r = np.mean([x[1] for x in loto(train, inner_targets, [] if m is None else [m])])
-                if r > best_rho:
-                    best, best_rho = m, r
-            out.append({**base, "strategy": "quality+distance_nested", "rep": -1, "chosen": best or "none",
-                        **evaluate(fit_predict(train, test, "gain", [] if best is None else [best]), g_true)})
+                if name in strategies:
+                    out.append({**base, "strategy": name, "rep": -1,
+                                **evaluate(fit_predict(train, test, "gain", xs), g_true)})
+            if "quality+distance_nested" in strategies:
+                inner_targets = [u for u in targets if u != t]
+                best, best_rho = None, -np.inf
+                for m in [None] + label_free:
+                    r = np.mean([x[1] for x in loto(train, inner_targets, [] if m is None else [m])])
+                    if r > best_rho:
+                        best, best_rho = m, r
+                out.append({**base, "strategy": "quality+distance_nested", "rep": -1, "chosen": best or "none",
+                            **evaluate(fit_predict(train, test, "gain", [] if best is None else [best]), g_true)})
             # K 本で決まる方法（反復ごと）
+            if not kshot:
+                continue
             g = light[t]
             for r in reps:
-                if not all((t, s, K, r) in cv.index for s in srcs):
+                if not all((t, s, K, r) in have for s in srcs):
                     continue
                 pool = np.flatnonzero(~M.test_mask(g, r))
                 idx = M.take_k(M.kshot_order(g, pool, r), K)
                 yk = g.y[idx]
-                sc_cv = np.array([cv.loc[(t, s, K, r)] for s in srcs], float)
+                sc = {}
+                if use_cv:
+                    sc["kshot_validation"] = np.array([cv.loc[(t, s, K, r)] for s in srcs], float)
                 sc_leep, sc_logme = [], []
                 for s in srcs:
                     L = logits[s][f"t_{t}"][idx]
                     sc_leep.append(leep(softmax(L, axis=1), yk))
                     sc_logme.append(logme(sum_zero_coords(L), yk))
-                for name, sc in (("kshot_validation", sc_cv), ("leep", np.array(sc_leep)),
-                                 ("logme", np.array(sc_logme))):
-                    out.append({**base, "strategy": name, "rep": r, **evaluate(sc, g_true)})
+                sc["leep"], sc["logme"] = np.array(sc_leep), np.array(sc_logme)
+                for name in kshot:
+                    out.append({**base, "strategy": name, "rep": r, **evaluate(sc[name], g_true)})
     return out
 
 
@@ -196,7 +220,7 @@ def fig(sm: pd.DataFrame, path: Path) -> None:
              "logme": ("LogME (K labels)", "#4a3aa7", "-"),
              "quality+coverage": ("quality + coverage", C_MERGED, "--"),
              "quality+distance_nested": ("quality + distance (nested)", C_MERGED, "-")}
-    kinds = [k for k in KINDS if k in set(sm.kind)]
+    kinds = [k for k in KINDS if k in set(sm.kind)] + [k for k in dict.fromkeys(sm.kind) if k not in KINDS]
     fig, axes = plt.subplots(2, len(kinds), figsize=(4.4 * len(kinds), 6.8), facecolor=SURFACE,
                              squeeze=False)
     x = np.arange(len(K_ORDER))
@@ -228,16 +252,22 @@ def fig(sm: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> int:
-    rows = [r for kind in KINDS for r in run_kind(kind)]
+    ap = argparse.ArgumentParser(description="E5：ソースの選び方の比較")
+    ap.add_argument("--kinds", nargs="+", default=list(KINDS))
+    ap.add_argument("--strategies", nargs="+", default=STRATEGIES, choices=STRATEGIES)
+    ap.add_argument("--suffix", default="", help="出力の名前の接尾辞（言葉系は _text）")
+    a = ap.parse_args()
+    OUT.mkdir(parents=True, exist_ok=True)
+    rows = [r for kind in a.kinds for r in run_kind(kind, strategies=a.strategies)]
     by = pd.DataFrame(rows)
-    by.to_csv(OUT / "e5_by_target.csv", index=False)
+    by.to_csv(OUT / f"e5_by_target{a.suffix}.csv", index=False)
     per_t = by.groupby(["kind", "K", "strategy", "target"])[["rho", "tau_b", "tau_w", "top1", "regret"]].mean()
     n_reps = by[by.rep >= 0].groupby(["kind"]).rep.nunique()
     sm = per_t.groupby(["kind", "K", "strategy"]).mean().reset_index()
     sm["n_targets"] = per_t.reset_index().groupby(["kind", "K", "strategy"]).target.nunique().values
     sm["n_reps"] = sm.kind.map(n_reps).fillna(0)
-    sm.to_csv(OUT / "e5_summary.csv", index=False)
-    fig(sm, OUT / "fig_e5.png")
+    sm.to_csv(OUT / f"e5_summary{a.suffix}.csv", index=False)
+    fig(sm, OUT / f"fig_e5{a.suffix}.png")
     print(f"書いた: {OUT}")
     return 0
 

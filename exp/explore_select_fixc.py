@@ -9,12 +9,16 @@
 (e) 式の λ × ラベル無しで見積もった答えの偏り TV_unlab，参考 (f) 式の位置の直り（E15．E13 のラベルを使うので実用ではない）
 
     MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/fixc_analysis ./.venv/bin/python exp/explore_select_fixc.py
+    MERDA_MAP_ROOT=results/fixc_map MERDA_OUT_ROOT=results/text30 ./.venv/bin/python exp/explore_select_fixc.py \
+        --kinds text_roberta fuse-audio-text fuse-video-text fuse-audio-video-text
+                        # 言葉を含む 4 種類（候補のソースは 3 つ．`e15_lambda.csv`・`e15_pairs.csv` は E21 の results/fixc_text/ から写す）
 
 出力：`OUT/e24_regret.csv`（種類 × K × 基準），`OUT/e24_rows.csv`
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -28,7 +32,7 @@ sys.path.insert(0, str(ROOT / "measure"))
 import shift  # noqa: E402
 from data import groups_for, load_any  # noqa: E402
 from explore_direction import map_draw  # noqa: E402
-from explore_synergy import KS, load_map  # noqa: E402
+from explore_synergy import ALL_KINDS, KS, load_map  # noqa: E402
 from pair_table import OUT  # noqa: E402
 
 KINDS = {"audio_wavlm": "W7", "audio_hubert": "Hu7", "video": "V", "fuse-audio-video": "AV"}
@@ -36,10 +40,14 @@ CRITERIA = ["(a) 大きさ", "(b) 平均的な良さ", "(c) K 本で試す", "(d
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="E24")
+    ap.add_argument("--kinds", nargs="+", choices=list(ALL_KINDS), default=list(KINDS),
+                    help="既定は主な 4 種類．言葉を含む 4 種類も指定できる")
+    a = ap.parse_args()
     lam = pd.read_csv(OUT / "e15_lambda.csv", dtype={"K": str})
     pairs = pd.read_csv(OUT / "e15_pairs.csv", dtype={"K": str})
     rows = []
-    for kind in KINDS:
+    for kind in a.kinds:
         mp = load_map(kind)
         groups = groups_for(kind)
         dfs = {g: load_any(g, kind)[0] for g in groups}
@@ -79,7 +87,7 @@ def main() -> int:
                 res[c].append(best - h.loc[h[c].idxmax(), "m"])
             res["でたらめ"].append(best - h.m.mean())
         for c, v in res.items():
-            out.append({"setting": KINDS[kind], "K": K, "criterion": c, "regret_points": 100 * float(np.mean(v)),
+            out.append({"setting": ALL_KINDS[kind], "K": K, "criterion": c, "regret_points": 100 * float(np.mean(v)),
                         "n": len(v)})
     O = pd.DataFrame(out)
     O.to_csv(OUT / "e24_regret.csv", index=False)
