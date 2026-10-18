@@ -177,9 +177,9 @@ def run_target(kind, T, data, reps, ks, out, cache, pseudo=True):
 
 # ---------------------------------------------------------------- 判定（CPU）
 
-def analyze() -> int:
+def analyze(kinds=MAIN, suffix: str = "") -> int:
     tabs, tests = [], []
-    for kind in MAIN:
+    for kind in kinds:
         fs = [f for f in sorted((ROOT / "results" / f"select_teach_{kind}").glob("*.csv")) if not f.stem.endswith("_model")]
         if not fs:
             continue
@@ -188,14 +188,15 @@ def analyze() -> int:
         tgt = a[(a.role == "target") & a.rep.isin(EC.REPS)].groupby(["eval", "policy", "K"]).uar.mean() * 100
         for T in sorted(a.meta_for.unique()):
             star = pseudo.loc[T][[pname(c) for c in CS]].idxmax()
-            hd = pd.read_csv(ROOT / "results" / f"select_herd_{kind}" / f"{T}.csv", dtype={"K": str})
-            hf = pd.read_csv(ROOT / "results" / f"select_herdfeat_{kind}" / f"{T}.csv", dtype={"K": str})
+            fh, ff = (ROOT / "results" / f"select_herd_{kind}" / f"{T}.csv", ROOT / "results" / f"select_herdfeat_{kind}" / f"{T}.csv")
+            hd = pd.read_csv(fh, dtype={"K": str}) if fh.exists() else None    # 言葉系には E33 の元の出力が無い（照合の列は空）
+            hf = pd.read_csv(ff, dtype={"K": str}) if ff.exists() else None
             for K in ("1", "5", "10", "25"):
                 row = {"kind": kind, "target": T, "K": K, "policy_star": star, "meta": float(tgt.loc[(T, star, K)]),
                        "oracle": float(tgt.loc[T].xs(K, level="K")[[pname(c) for c in CS]].max()),
                        "policy_oracle": str(tgt.loc[T].xs(K, level="K")[[pname(c) for c in CS]].idxmax())}
                 for st, f in (("herding", hd), ("random", hd), ("herding_feat", hf)):
-                    row[f"{st}_e33"] = float(f[(f.source == st) & (f.K == K) & f.rep.isin(EC.REPS)].uar.mean() * 100)
+                    row[f"{st}_e33"] = np.nan if f is None else float(f[(f.source == st) & (f.K == K) & f.rep.isin(EC.REPS)].uar.mean() * 100)
                     row[st] = float(tgt.loc[(T, st, K)])            # 主：同じ GPU で計算し直した値
                 for c in CS:
                     row[pname(c)] = float(tgt.loc[(T, pname(c), K)])
@@ -217,8 +218,8 @@ def analyze() -> int:
         m2 = (R.kind == kind) & R.K.isin(["1", "5", "10"])
         R.loc[R.kind == kind, "T1"] = bool((R[m1]["meta-herding"] > 0).all()) if m1.sum() == 2 else np.nan
         R.loc[R.kind == kind, "T2"] = bool((R[m2]["meta-random"] > 0).all()) if m2.sum() == 3 else np.nan
-    D.to_csv(OUT_REL / "e37_targets.csv", index=False)
-    R.to_csv(OUT_REL / "e37_tests.csv", index=False)
+    D.to_csv(OUT_REL / f"e37_targets{suffix}.csv", index=False)
+    R.to_csv(OUT_REL / f"e37_tests{suffix}.csv", index=False)
     pd.set_option("display.width", 250)
     print(R.round(3).to_string(index=False))
     print(D.groupby("kind").policy_star.value_counts().to_string())
@@ -233,10 +234,12 @@ def main() -> int:
     ap.add_argument("--ks", nargs="+", default=list(CB.KS))
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
+    ap.add_argument("--kinds", nargs="+", default=MAIN, help="--analyze の種類（言葉系は --suffix _text で別のファイルに書く）")
+    ap.add_argument("--suffix", default="", help="--analyze の出力名の接尾辞")
     ap.add_argument("--no-pseudo", action="store_true", help="仮のターゲットを解かない（ターゲットの反復を足すとき）")
     args = ap.parse_args()
     if args.analyze:
-        return analyze()
+        return analyze(args.kinds, args.suffix)
     out = args.out_dir or ROOT / "results" / f"select_teach_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
     groups = groups_for(args.kind)

@@ -61,10 +61,18 @@ def per_target(kind: str, T: str, sel39: pd.Series, star37: str) -> pd.DataFrame
 
 
 def main() -> int:
-    e39 = pd.read_csv(REL / "e39_targets.csv", dtype={"K": str, "cb": str})
-    e37 = pd.read_csv(REL / "e37_targets.csv", dtype={"K": str})
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--kinds", nargs="+", default=MAIN)
+    ap.add_argument("--suffix", default="", help="入力の e39・e37 の表と出力の名前の接尾辞（言葉系は _text）")
+    ap.add_argument("--out-suffix", help="出力の名前の接尾辞だけを変える（既定は --suffix と同じ）")
+    args = ap.parse_args()
+    sx = args.suffix
+    ox = sx if args.out_suffix is None else args.out_suffix
+    e39 = pd.read_csv(REL / ("e39_targets.csv" if not sx else f"e39{sx}_targets.csv"), dtype={"K": str, "cb": str})
+    e37 = pd.read_csv(REL / f"e37_targets{sx}.csv", dtype={"K": str})
     rows = []
-    for kind in MAIN:
+    for kind in args.kinds:
         for T in sorted(e39[e39.kind == kind].target.unique()):
             sel39 = e39[(e39.kind == kind) & (e39.target == T)].iloc[0]
             star37 = e37[(e37.kind == kind) & (e37.target == T)].policy_star.iloc[0]
@@ -97,7 +105,7 @@ def main() -> int:
     R = R.sort_values(["span", "kind", "K"]).reset_index(drop=True)
     verdict = []
     for span in SPANS:
-        for kind in ("audio_wavlm", "audio_hubert"):
+        for kind in [k for k in ("audio_wavlm", "audio_hubert") if k in args.kinds]:   # 言葉系は記述だけ（判定しない）
             r = R[(R.span == span) & (R.kind == kind)].set_index("K")
             v = {"span": span, "kind": kind,
                  "D1": bool(all(r.loc[K, "D1-P4"] >= D1_MIN[kind] for K in ("5", "10"))),
@@ -108,9 +116,9 @@ def main() -> int:
                  "F1_E39": bool(all(r.loc[K, "E39-D1"] > 0 for K in ("5", "10")))}
             verdict.append(v)
     V = pd.DataFrame(verdict)
-    W.to_csv(REL / "ext30_targets.csv", index=False)
-    R.to_csv(REL / "ext30_tests.csv", index=False)
-    V.to_csv(REL / "ext30_verdict.csv", index=False)
+    W.to_csv(REL / f"ext30_targets{ox}.csv", index=False)
+    R.to_csv(REL / f"ext30_tests{ox}.csv", index=False)
+    V.to_csv(REL / f"ext30_verdict{ox}.csv", index=False)
     pd.set_option("display.width", 250)
     cols = ["span", "kind", "K", "min_reps", "D1-P4", "herding-random", "herding_feat-random", "herding-herding_feat",
             "teach-herding", "teach-random", "E39-D1", "E39-P4"]

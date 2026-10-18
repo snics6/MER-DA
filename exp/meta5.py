@@ -157,11 +157,22 @@ def run_target(kind, T, data, reps, ks, out, cache, pseudo=True):
 
 # ---------------------------------------------------------------- 判定（CPU）
 
-def analyze(grid: str = "base") -> int:
+def pick(ps: pd.Series) -> tuple:
+    """仮のターゲットの UAR が最大の組。最大と 1e-12 以内で並ぶ組の中では γ = 0（等しい重み）を選ぶ（言葉系の 1 ソースの下書きで γ が同点になるため．
+    並ぶ組が 1 つなら pandas の idxmax と同じ）。"""
+    top = ps[ps >= ps.max() - 1e-12]
+    if len(top) > 1:
+        g0 = [k for k in top.index if k[0] == 0.0]
+        if g0:
+            return g0[0]
+    return top.index[0]
+
+
+def analyze(grid: str = "base", kinds=MAIN, suffix: str = "") -> int:
     tabs, checks = [], []
-    sfx = "" if grid == "base" else "x"
+    sfx = ("" if grid == "base" else "x") + suffix
     rho_tab = pd.read_csv(OUT_REL / "e35s_targets.csv").set_index(["kind", "target"])
-    for kind in MAIN:
+    for kind in kinds:
         fs = sorted((ROOT / "results" / f"{OUT_NAME[grid]}_{kind}").glob("*.csv"))
         if not fs:
             continue
@@ -169,15 +180,16 @@ def analyze(grid: str = "base") -> int:
             T = f.stem
             a = pd.read_csv(f, dtype={"K": str, "cb": str})
             ps = a[a.role == "pseudo"].groupby(KEYS).uar.mean()
-            star = ps.idxmax()
+            star = pick(ps)
             tg = a[(a.role == "target") & a.rep.isin(EC.REPS)].groupby(KEYS + ["K"]).uar.mean() * 100
             c = pd.read_csv(ROOT / "results" / f"compare_{kind}" / f"{T}.csv", dtype={"K": str, "cb": str})
             p4 = c[(c.method == "HT_ALL") & (c.cen == 1) & (c.cp == 0.01) & (c.cb == "8") & c.rep.isin(EC.REPS)].groupby("K").uar.mean() * 100
             e = pd.read_csv(ROOT / "results" / f"combine_{kind}" / f"{T}.csv", dtype={"K": str})
             d1 = e[(e.source == "equal") & e.rep.isin(EC.REPS)].groupby("K").uar.mean() * 100
-            sh = pd.read_csv(ROOT / "results" / f"combine_shrink_{kind}" / f"{T}.csv", dtype={"K": str})
+            fsh = ROOT / "results" / f"combine_shrink_{kind}" / f"{T}.csv"     # 言葉系には 1 つの数の版（E35 の追加）が無い
+            sh = pd.read_csv(fsh, dtype={"K": str}) if fsh.exists() else pd.DataFrame(columns=["source", "rep", "K", "uar"])
             one = sh[(sh.source == "star") & sh.rep.isin(EC.REPS)]
-            rs = float(rho_tab.loc[(kind, T), "rho_star"])
+            rs = float(rho_tab.loc[(kind, T), "rho_star"]) if (kind, T) in rho_tab.index else np.nan
             if grid == "ext":                                             # E39 と重なる組は E39 と一致するはず
                 b = pd.read_csv(ROOT / "results" / f"meta5_{kind}" / f"{T}.csv", dtype={"K": str, "cb": str})
                 b = b[b.role == "target"]
@@ -191,7 +203,7 @@ def analyze(grid: str = "base") -> int:
                 tk = tg.xs(K, level="K")
                 row = {"kind": kind, "target": T, "K": K, **dict(zip(KEYS, star)), "meta": float(tk.loc[star]),
                        "oracle": float(tk.max()), "P4": float(p4[K]), "D1": float(d1[K]),
-                       "one": float(one[one.K == K].uar.mean() * 100)}
+                       "one": float(one[one.K == K].uar.mean() * 100) if len(one) else np.nan}
                 tabs.append(row)
     D = pd.DataFrame(tabs)
     rows = []
@@ -239,10 +251,12 @@ def main() -> int:
     ap.add_argument("--analyze", action="store_true")
     ap.add_argument("--no-pseudo", action="store_true", help="仮のターゲットを解かない（ターゲットの反復を足すとき）")
     ap.add_argument("--grid", choices=list(GRIDS), default="base")
+    ap.add_argument("--kinds", nargs="+", default=MAIN, help="--analyze の種類（言葉系は --suffix _text で別のファイルに書く）")
+    ap.add_argument("--suffix", default="", help="--analyze の出力名の接尾辞")
     args = ap.parse_args()
     set_grid(args.grid)
     if args.analyze:
-        return analyze(args.grid)
+        return analyze(args.grid, args.kinds, args.suffix)
     out = args.out_dir or ROOT / "results" / f"{OUT_NAME[args.grid]}_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
     groups = groups_for(args.kind)
