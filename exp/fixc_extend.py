@@ -123,8 +123,11 @@ def main() -> None:
     for t in groups:
         path = out_map / f"{t}.csv"
         n_src = len(groups) - 1
-        done = set()
+        done, have_src = set(), set()
         if path.exists():
+            allp = pd.read_csv(path, comment="#", dtype={"K": str, "source": str})
+            s_ = allp[allp.method == "src_only"]
+            have_src = set(zip(s_.source, s_.rep.astype(int)))      # 既にあるソースのみの行（別の K で延ばしたとき）は書き直さない
             prev = pd.read_csv(path, comment="#", dtype={"K": str, "source": str})
             prev = prev[prev.K.isin(args.K) | (prev.method == "src_only")]
             cnt = prev.groupby("rep").size()
@@ -143,6 +146,7 @@ def main() -> None:
         for r in reps:
             t0 = time.perf_counter()
             rows, saved = run_rep(data[t], [data[s] for s in groups if s != t], r, args.K, args.kind, src_cache)
+            rows = [x for x in rows if not (x["method"] == "src_only" and (x["source"], int(x["rep"])) in have_src)]
             pd.DataFrame(rows, columns=cols).to_csv(path, mode="a", header=False, index=False)
             saved_all.update(saved)
             np.savez_compressed(npz, **saved_all)
