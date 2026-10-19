@@ -62,7 +62,7 @@ def main() -> int:
     rows, short = [], []
     for kind in [k for k in EC.KINDS if k in set(F.kind)]:
         P = F[F.kind == kind]
-        ncols = [c for c in P.columns if c.startswith("n_")]
+        ncols = [f"n_{m}" for m in SV.METHODS + ["B1"] if f"n_{m}" in P.columns]   # 表に使う手法だけ数える（B3 は交差検証の地図の 5 回で，表に使わない）
         n_m = int(P[~P.same][ncols].min().min())
         cur, n_c = curves30(kind, sorted(P.target.unique()), args.map_root)
         for r in SV.kind_rows(kind, P, cur):
