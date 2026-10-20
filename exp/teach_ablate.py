@@ -48,10 +48,12 @@ MAIN = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
 OUT_REL = ROOT / "results" / "explore_relation"
 
 
-def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_steps: int, lab: str, belief=None):
+def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_steps: int, lab: str, belief=None,
+                 belief_order: bool = False):
     """lab の 3 か所を置き換えた teach の順（候補の中の位置），各段の番の感情，補ったかどうか。LLL は `select_teach.teach_order` と同じ計算。
 
-    belief(L, P) を渡すと，P の 3 か所にその時点の予測の代わりに感情の見込み（(n, 4)）を入れる（E43）。残差は e_y − P のまま。"""
+    belief(L, P) を渡すと，P の 3 か所にその時点の予測の代わりに感情の見込み（(n, 4)）を入れる（E43）。残差は e_y − P のまま。
+    belief_order が真なら belief(L, P, それまでに選んだ順) と呼ぶ（E48．付いたラベルで見込みを直す）。"""
     use_a, use_b, use_c = (ch == "L" for ch in lab)
     K2 = Km * Km
     yt = torch.as_tensor(np.array(y), device=Km.device)
@@ -63,7 +65,7 @@ def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_
     for step in range(n_steps):
         cls = step % 4
         P = torch.softmax(L, 1)
-        B = P if belief is None else belief(L, P)
+        B = P if belief is None else (belief(L, P, order) if belief_order else belief(L, P))
         R = onehot - P
         Z = torch.stack([L[:, k] - L[:, l] for k, l in PAIRS], 1)                    # (n, 6)
         if use_c:
