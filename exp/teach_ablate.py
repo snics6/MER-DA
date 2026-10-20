@@ -48,8 +48,10 @@ MAIN = ["audio_wavlm", "audio_hubert", "video", "fuse-audio-video"]
 OUT_REL = ROOT / "results" / "explore_relation"
 
 
-def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_steps: int, lab: str):
-    """lab の 3 か所を置き換えた teach の順（候補の中の位置），各段の番の感情，補ったかどうか。LLL は `select_teach.teach_order` と同じ計算。"""
+def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_steps: int, lab: str, belief=None):
+    """lab の 3 か所を置き換えた teach の順（候補の中の位置），各段の番の感情，補ったかどうか。LLL は `select_teach.teach_order` と同じ計算。
+
+    belief(L, P) を渡すと，P の 3 か所にその時点の予測の代わりに感情の見込み（(n, 4)）を入れる（E43）。残差は e_y − P のまま。"""
     use_a, use_b, use_c = (ch == "L" for ch in lab)
     K2 = Km * Km
     yt = torch.as_tensor(np.array(y), device=Km.device)
@@ -61,13 +63,14 @@ def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_
     for step in range(n_steps):
         cls = step % 4
         P = torch.softmax(L, 1)
+        B = P if belief is None else belief(L, P)
         R = onehot - P
         Z = torch.stack([L[:, k] - L[:, l] for k, l in PAIRS], 1)                    # (n, 6)
         if use_c:
             Ic = torch.stack([((yt == k) & avail).float() for k in range(4)], 1)
             nc = Ic.sum(0).clamp(min=1.0)
         else:                                                                        # (c)：予測の確率で 4 つの感情に分ける
-            Ic = P * avail[:, None].float()
+            Ic = B * avail[:, None].float()
             nc = Ic.sum(0).clamp(min=1e-12)
         W = Ic / nc
         Bcols = torch.stack([W[:, cc] * Z[:, j] for j, (k, l) in enumerate(PAIRS) for cc in (k, l)], 1)   # (n, 12)
@@ -90,16 +93,16 @@ def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_
         if use_b:
             obj = objective(R)
         else:                                                                        # (b)：4 つの感情の場合を予測の確率で平均
-            obj = sum(P[:, yy] * objective(eye[yy][None, :] - P) for yy in range(4))
+            obj = sum(B[:, yy] * objective(eye[yy][None, :] - P) for yy in range(4))
         if use_a:
             cand = (yt == cls) & avail
             filled = False
         else:                                                                        # (a)：その感情を予測した候補
-            cand = (P.argmax(1) == cls) & avail
+            cand = (B.argmax(1) == cls) & avail
             filled = not bool(cand.any())
             if filled:
                 cand = torch.zeros_like(avail)
-                cand[int(torch.argmax(torch.where(avail, P[:, cls], torch.full_like(P[:, cls], -1.0))))] = True
+                cand[int(torch.argmax(torch.where(avail, B[:, cls], torch.full_like(B[:, cls], -1.0))))] = True
         if not bool(cand.any()):
             raise ValueError(f"感情 {cls} の候補が尽きた（{step} 本目，{lab}）")
         obj[~cand] = -float("inf")
