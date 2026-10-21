@@ -7,7 +7,7 @@ AV・VT・AT・AVT の 4 つの世界で測る（生徒は E39 の学習器）�
          対照 p（出発点自身＝釣り合い直し）．m_eff ∈ {100, 500, 2000}
   E60-2：融合の生徒に，pF で鍛えたモダリティごとの生徒（m_in ∈ {100, 500}．E60-1 の pF の生徒そのもの）の確率の積 ref を蒸留する（m_eff ∈ {100, 500}）．
          鍛えた生徒の積をそのまま使う版 refdirect，元の出発点の積 poe0，対照 p も測る
-  (見込み, m_eff) は K ∈ {0, 1, 5, 10, 25} ごとに，世界のソースを 1 つずつ仮のターゲットにして選ぶ（反復 0〜2．「蒸留しない」も候補）
+  (見込み, m_eff) は K ∈ {0, 1, 5, 10, 25} ごとに，世界のソースを 1 つずつ仮のターゲットにして選ぶ（反復 0〜4．「蒸留しない」も候補）
 
     MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/multimodal_distill.py --world fuse-audio-video [--target …] [--reps …]
     ./.venv/bin/python exp/multimodal_distill.py --analyze
@@ -48,7 +48,7 @@ WORLDS = {"fuse-audio-video": ["audio_wavlm", "video"], "fuse-video-text": ["vid
           "fuse-audio-text": ["audio_wavlm", "text_roberta"], "fuse-audio-video-text": ["audio_wavlm", "video", "text_roberta"]}
 DIMS = {"audio_wavlm": 1024, "video": 512, "text_roberta": 768}
 KS = ("0", "1", "5", "10", "25")
-PSEUDO_REPS = [0, 1, 2]                                           # 仮のターゲットの反復（計算を軽くするため 3 回）
+PSEUDO_REPS = [0, 1, 2, 3, 4]
 C_FIT = 0.01
 BEL1, MEFF1 = ["p", "pF", "poe", "agree"], (100, 500, 2000)
 MIN2 = (100, 500)
