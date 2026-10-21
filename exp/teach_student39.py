@@ -188,6 +188,14 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, ks, out, cache):
                 cnt = np.bincount(yq[pp], minlength=4)
                 srows.append({"target": T, "policy": p, "rep": r, "K": K, "missing": int((cnt == 0).sum()),
                               "min_count": int(cnt.min()), "max_count": int(cnt.max())})
+    solve_students(T, ev, ctx, reps, ks, students, idx, rhos_m, C_T, rows)
+    pd.DataFrame(qrows).to_csv(out / f"{T}_q.csv", index=False)
+    pd.DataFrame(srows).to_csv(out / f"{T}_sel.csv", index=False)
+    pd.DataFrame(rows).to_csv(out / f"{T}.csv", index=False)
+
+
+def solve_students(T, ev, ctx, reps, ks, students, idx, rhos_m, C_T, rows):
+    """選び方ごとの K 本（idx[選び方][(r, K)]）で，各反復の生徒を ρ_M ∈ rhos_m × C′ × C_b の全部で解き，テストの UAR を rows に足す。"""
     for p in idx:
         sub = CB.Ctx.__new__(CB.Ctx)
         sub.__dict__.update(ctx.__dict__)
@@ -213,9 +221,6 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, ks, out, cache):
                     CB.collect(sub, jobs, fits[k * len(masks):(k + 1) * len(masks)], M5_CPS, X_of, None,
                                lambda rr, K, cp, u, cv, L, cb=cb, rho_m=rho_m, p=p: rows.append(
                                    {"target": T, "policy": p, "rho_M": rho_m, "cb": f"{cb:g}", "cp": cp, "rep": rr, "K": K, "uar": u}), {})
-    pd.DataFrame(qrows).to_csv(out / f"{T}_q.csv", index=False)
-    pd.DataFrame(srows).to_csv(out / f"{T}_sel.csv", index=False)
-    pd.DataFrame(rows).to_csv(out / f"{T}.csv", index=False)
 
 
 M5_CPS = (0.003, 0.01, 0.03, 0.1, 0.3)                                         # E40 の C′ と C_b の候補
