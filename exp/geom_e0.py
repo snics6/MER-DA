@@ -59,9 +59,12 @@ SETS = ["random_true", "random_pool", "LLL", "margin", "herding_pred", "coreset_
 OUT_REL = ROOT / "results" / "explore_relation"
 
 
+E40_KINDS = ("audio_wavlm", "audio_hubert", "video", "fuse-audio-video")
+
+
 def settings(kind, T):
-    """(γ, ρ_s, ρ_M, C_b, C′, 歩幅 c)．A・V は E40 の random の組，T は E39 の言葉の値と E37 の言葉の歩幅。"""
-    if kind == "text_roberta":
+    """(γ, ρ_s, ρ_M, C_b, C′, 歩幅 c)．E40 のある種類（A・A(HuBERT)・V・AV）は E40 の random の組，言葉を含む種類は E39 の言葉の値と E37 の言葉の歩幅。"""
+    if kind not in E40_KINDS:
         s = pd.read_csv(OUT_REL / "e39_text_targets.csv", dtype={"K": str}).query("kind == @kind").drop_duplicates("target").set_index("target").loc[T]
         c = pd.read_csv(OUT_REL / "e37_targets_text.csv", dtype={"K": str}).query("kind == @kind").drop_duplicates("target").set_index("target").loc[T, "policy_star"]
         return float(s.gamma), float(s.rho_s), float(s.rho_M), float(s.cb), float(s.cp), float(c.split("_c")[1])

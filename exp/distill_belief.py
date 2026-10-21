@@ -7,6 +7,7 @@
   m_eff ∈ {20, 100, 500}．(B ∈ {q, pq}, m_eff) は，T のソースを 1 つずつ仮のターゲットにして選ぶ（K ∈ {1, 5}，反復 0〜4 の UAR の平均．「蒸留しない」も候補に入れる）
   K ∈ {0, 1, 5, 10, 25}（K=0 はラベル無し）
   --per-k（E59 の追加）：(B, m_eff) を K ごとに仮のターゲット（K ∈ {0, 1, 5, 10, 25}，反復 0〜4）で選ぶ．出力は `distill_beliefk_<kind>/`，判定は `e59k_*.csv`
+  融合の種類（AV・VT・AT．E59 の追加 2）：AV は E40 の random の組，VT・AT は E39 の言葉の値．E44 の無い種類は見込みの λ を仮のターゲットで選ぶ．判定は `--tag _fuse` で `e59k_fuse_*.csv`
 
     MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/distill_belief.py --kind audio_wavlm [--target …] [--reps …] [--per-k]
     ./.venv/bin/python exp/distill_belief.py --analyze [--per-k]
@@ -98,10 +99,11 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, out, cache):
     S = [s for s in data if CM.corp(s) != CM.corp(T)]
     gamma, rho_s, rho_m, cb, cp, _ = settings(kind, T)
     C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
-    if kind == "text_roberta":
+    f44 = ROOT / "results" / f"committee_{kind}" / f"{T}.csv"
+    if f44.exists():
+        lam44 = float(pd.read_csv(f44).query("variant == 'C'").lam.iloc[0])
+    else:                                                                        # E44 を流していない種類（T・VT・AT）は仮のターゲットで選ぶ
         lam44, _ = choose_lam(S, P, Y)
-    else:
-        lam44 = float(pd.read_csv(ROOT / "results" / f"committee_{kind}" / f"{T}.csv").query("variant == 'C'").lam.iloc[0])
     pool_q = CM.Pool(S).fit(*CM.pool_data(P, Y, S, S), lam44)
     mem = {g: {"p": softmax_t(draft_logits(data, S, g, gamma, rho_s, cache)), "q": c_pool_on(g, S, P, Y, lam44)} for g in S}
     pool_pq, lam_pq = fit_stack(T, "pq", S, mem, Y, [])
@@ -185,11 +187,11 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, out, cache):
 
 # ---------------------------------------------------------------- 判定（CPU）
 
-def analyze(kinds=KINDS) -> int:
+def analyze(kinds=KINDS, tag2="") -> int:
     tabs = []
-    tag = "k" if PER_K else ""
+    tag = ("k" if PER_K else "") + tag2
     for kind in kinds:
-        d = ROOT / "results" / f"distill_belief{tag}_{kind}"
+        d = ROOT / "results" / f"distill_belief{'k' if PER_K else ''}_{kind}"
         for x in sorted(f_ for f_ in d.glob("*.csv") if not f_.stem.endswith(("_pseudo", "_meta"))):
             T = x.stem
             a = pd.read_csv(x, dtype={"K": str})
@@ -257,11 +259,12 @@ def main() -> int:
     ap.add_argument("--analyze", action="store_true")
     ap.add_argument("--kinds", nargs="+", default=KINDS)
     ap.add_argument("--per-k", action="store_true")
+    ap.add_argument("--tag", default="", help="判定のファイル名に足す印（例：_fuse）")
     args = ap.parse_args()
     global PER_K
     PER_K = args.per_k
     if args.analyze:
-        return analyze(args.kinds)
+        return analyze(args.kinds, args.tag)
     out = args.out_dir or ROOT / "results" / f"distill_belief{'k' if PER_K else ''}_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
     groups = groups_for(args.kind)

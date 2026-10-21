@@ -134,7 +134,7 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
               weights: list[torch.Tensor | None] | None = None,
               stats: tuple[torch.Tensor, torch.Tensor] | None = None,
               Cb: float | None | list = None, fix_b: bool = False,
-              aug: np.ndarray | None = None) -> list[Fitted]:
+              aug: np.ndarray | None = None, extra: tuple | None = None) -> list[Fitted]:
     """masks[g]（学習に使う行）ごとに，候補の C すべてを束ねて解く。`fit` と同じ問題を解く。
 
     **stats=(mu, sd) を渡すと，全問をその統計で標準化する**（既定は問ごとに学習に使う行の統計）。
@@ -156,13 +156,19 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     **anchor を渡すと，罰則を ‖W − W_anchor‖² / (2CS) にする**（仮説転移 M5．Kuzborskij &
     Orabona 2017）。W_anchor は anchor の C=anchor_c の解を，各問の標準化へ写したもの
     （生の特徴の上で同じ出力．`moved_to`）。C が小さいほど anchor に強く引き寄せる。
-    anchor を渡したときは，出発点も anchor にする（inits は使わない）。
+    anchor を渡したときは，出発点も anchor にする（inits を一緒に渡したときだけ，罰則の中心は anchor，
+    出発点は inits[g] の C=Cs[i] の解にする．E61 のエントロピー最小化が none の解から始めるためのもの）。
 
     weights[g] を渡すと，masks[g] の行の重みを感情の釣り合いの重み（`balanced_weights`）の
     代わりにそれにする（長さ n．使うのは masks[g] の行だけ）。罰則の S は重みの和。
+
+    **extra=(fn, mass) を渡すと，目的関数に fn(L, ix)/S を足す**（E61 のエントロピー最小化．Cs は 1 つの
+    ときだけ）。fn は全問の出力 L（n × 問 × 感情）と問の添字 ix（None なら全問）から問ごとの値（長さ 問）を
+    返す。mass[g] は問 g で S に足す重みの総量（ラベル無しの項の「本数」）。既定（None）では何もしない。
     """
     n, d = X.shape
     k, nC, G = N_CLASSES, len(Cs), len(masks)
+    explicit_inits = inits is not None
     if aug is not None:
         if anchor is not None or stats is not None or any(i is not None for i in (inits or [])):
             raise ValueError("aug と anchor・stats・inits は一緒に使えない")
@@ -180,7 +186,7 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
     theta = torch.zeros(B, P, dtype=DTYPE, device=dev)
     Wanc = torch.zeros(B, k, D, dtype=DTYPE, device=dev)     # 罰則の中心（既定は 0）
     banc = torch.zeros(B, k, dtype=DTYPE, device=dev)        # 切片の罰則の中心（Cb を渡したときだけ使う）
-    if anchor is not None:
+    if anchor is not None and not explicit_inits:
         inits = [anchor] * G
     for g, m in enumerate(masks):
         m = torch.as_tensor(np.array(m), device=dev)
@@ -198,12 +204,12 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
             sw[m] = balanced_weights(y[m])
         for i, c in enumerate(Cs):
             p = g * nC + i
-            mu[p], sd[p], Mw[:, p], S[p] = mu_g, sd_g, sw, sw.sum()
+            mu[p], sd[p], Mw[:, p], S[p] = mu_g, sd_g, sw, sw.sum() + (0.0 if extra is None else float(extra[1][g]))
+            if anchor is not None:
+                Wanc[p], banc[p] = anchor.moved_to(mu_g, sd_g, anchor_c)
             if inits[g] is not None:
-                W0, b0 = inits[g].moved_to(mu_g, sd_g, anchor_c if anchor is not None else c)
+                W0, b0 = inits[g].moved_to(mu_g, sd_g, anchor_c if (anchor is not None and not explicit_inits) else c)
                 theta[p, :k * d], theta[p, k * d:] = W0.reshape(-1), b0
-                if anchor is not None:
-                    Wanc[p], banc[p] = W0, b0
     yy = y.view(n, 1, 1).expand(n, B, 1)
     mu_sd = mu / sd
     if aug is not None:
@@ -236,6 +242,8 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         f = (Mx * nll).sum(0) / Sx + ((W - sel(Wanc)) ** 2).sum((1, 2)) / (2 * Cx * Sx)
         if use_cb:
             f = f + ((b - sel(banc)) ** 2).sum(1) / (2 * sel(Cbv) * Sx)
+        if extra is not None:
+            f = f + extra[0](L, ix) / Sx
         (grad,) = torch.autograd.grad(f.sum(), th)
         if fix_b:
             grad[:, k * D:] = 0.0                                          # 切片を動かさない
