@@ -190,10 +190,10 @@ def fit_batch(X: torch.Tensor, y: torch.Tensor, masks: list[np.ndarray],
         inits = [anchor] * G
     for g, m in enumerate(masks):
         m = torch.as_tensor(np.array(m), device=dev)
-        Xm = X[m]
         if stats is not None:
             mu_g, sd_g = stats[0].to(dev, DTYPE), stats[1].to(dev, DTYPE)
         else:
+            Xm = X[m]                                                          # 統計を取る行だけ（stats を渡したときは複製しない）
             mu_g = Xm.mean(0)
             sd_g = Xm.std(0, correction=0)
             sd_g = torch.where(sd_g > 1e-12, sd_g, torch.ones_like(sd_g))

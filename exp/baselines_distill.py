@@ -139,25 +139,28 @@ def massbal(Pp, Pt, iters=500):
 
 
 class Prob:
-    """1 つの生徒の候補の上の学習問題（E39 の学習器．罰則の中心は出発点）．X = [Z×4; Z]（弱いラベルの 4 行と本当のラベルの行）。"""
+    """1 つの生徒の候補の上の学習問題（E39 の学習器．罰則の中心は出発点）．X = Z×4（行 k·n + i が発話 i の感情 k．弱いラベルの重みはそのまま，
+    本当のラベルの重みは行 y_i·n + i に足す．distill_belief.solve_all の [Z×4; Z] と同じ問を 4n 行で解く）。"""
 
     def __init__(self, s, yq, label_sets):
         self.s = s
         Z = s["Z"]
         self.n, self.d = Z.shape
-        self.X = torch.cat([Z.repeat(4, 1), Z])
+        self.X = Z.repeat(4, 1)
         yt = M.labels(yq)
-        self.y = torch.cat([torch.arange(4, device=DEV).repeat_interleave(self.n), yt])
+        self.y = torch.arange(4, device=DEV).repeat_interleave(self.n)
         self.wt = {}
         for K, idx in label_sets.items():
-            w = torch.zeros(self.n, dtype=DT, device=DEV)
+            w = torch.zeros(4 * self.n, dtype=DT, device=DEV)
             if len(idx):
                 it = torch.as_tensor(np.asarray(idx), device=DEV)
-                w[it] = present_weights(yt[it])
+                w[yt[it] * self.n + it] = present_weights(yt[it])
             self.wt[K] = w
+        self.yt = yt
         self.zero = torch.zeros(self.d, dtype=DT, device=DEV)
         self.one = torch.ones_like(self.zero)
         self.W0, self.b0 = s["st"].W_std @ s["st"].mats[s["rho_m"]][1], s["st"].b_std
+        s["st"].Xstd = None                                                      # 以後は Z だけ使う（GPU メモリを空ける）
 
     def solve(self, items, u=None, inits=None):
         """items = [(key, 弱いラベルの行の重み (4n,) か None, K)] を束ねて解く → {key: (W, b)}．
@@ -165,7 +168,7 @@ class Prob:
         s, cp = self.s, self.s["cp"]
         keys, weights, us, ini, out = [], [], [], [], {}
         for j, (key, w4, K) in enumerate(items):
-            w = torch.cat([w4 if w4 is not None else torch.zeros(4 * self.n, dtype=DT, device=DEV), self.wt[K]])
+            w = self.wt[K] if w4 is None else self.wt[K] + w4
             uj = 0.0 if u is None else float(u[j])
             if float(w.sum()) == 0.0 and uj == 0.0:
                 out[key] = (self.W0, self.b0)
@@ -180,10 +183,10 @@ class Prob:
         extra = None
         if any(us):
             uv = torch.tensor(us, dtype=DT, device=DEV)
-            n4 = 4 * self.n
+            n1 = self.n
 
-            def fn(L, ix):                                                       # 候補の行（最後の n 行）のエントロピーの和 × 重み
-                lp = torch.log_softmax(L[n4:], 2)
+            def fn(L, ix):                                                       # 候補のエントロピーの和 × 重み（出力は感情の行に依らないので最初の n 行）
+                lp = torch.log_softmax(L[:n1], 2)
                 return -(lp.exp() * lp).sum(2).sum(0) * (uv if ix is None else uv[ix])
             extra = (fn, [x * self.n for x in us])
         fits = logreg.fit_batch(self.X, self.y, [np.ones(len(self.y), bool)] * len(keys), (cp,), anchor=s["st"].anchor(s["rho_m"]),
@@ -262,7 +265,7 @@ def cotrain(prs, fused, yte, rows, tag, world):
     n = fused.n
     keys = [(c, K) for c in CO_C for K in KS]
     pl = {key: torch.zeros(4, n, dtype=DT, device=DEV) for key in keys}
-    taken = {key: set(torch.nonzero(prs[views[0]].wt[key[1]]).squeeze(1).tolist()) for key in keys}
+    taken = {key: set((torch.nonzero(prs[views[0]].wt[key[1]]).squeeze(1) % n).tolist()) for key in keys}
 
     def add(student, method, c, K, u):
         rows.append({**tag, "student": student, "method": method, "param": f"c{c}", "meff": "n", "K": K, "uar": float(u)})
@@ -305,12 +308,12 @@ def coreg(prs, yte, meffs, rows, tag, world):
     n = prs[views[0]].n
     B = len(meffs)
     mv = torch.tensor([mass(m, n) for m in meffs], dtype=DT, device=DEV)
-    yt = prs[views[0]].y[4 * n:]
+    yt = prs[views[0]].yt
 
     def add(student, meth, meff, K, u):
         rows.append({**tag, "student": student, "method": meth, "param": "-", "meff": meff, "K": K, "uar": float(u)})
     for K in KS:
-        wt = prs[views[0]].wt[K]
+        wt = prs[views[0]].wt[K].view(4, n).sum(0)                                  # 発話ごとのラベルの重み（行 y_i·n + i にだけ入っている）
         S = wt.sum() + mv
         params = {v: (prs[v].W0.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True),
                       prs[v].b0.unsqueeze(0).repeat(B, 1).clone().requires_grad_(True)) for v in views}
@@ -529,7 +532,9 @@ def analyze(names=None) -> int:
         tests.append(row)
     R = pd.DataFrame(tests)
     r = R.set_index(["setting", "student", "K"])
-    for name in names:                                                            # 予言 B1〜B5（docs/exploratory-analyses.md E61）
+    for c in ("B1", "B2", "B3", "B4", "B5", "B7"):
+        R[c] = pd.Series(np.nan, index=R.index, dtype=object)                    # 真偽と NaN を混ぜるので object にしておく
+    for name in names:                                                            # 予言 B1〜B7（docs/exploratory-analyses.md E61）
         if name in WORLDS:
             for student in WORLDS[name] + [name]:
                 if (name, student, "5") not in r.index:

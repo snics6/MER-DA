@@ -9,23 +9,26 @@ export MERDA_GPU_FRACTION=0.24
 P=./.venv/bin/python
 MAXJ=4
 rm -f logs/e61.done
+NFAIL=0
 fail() { echo "FAILED: $*"; echo "exit=1" > logs/e61.done; exit 1; }
+note() { echo "FAILED（続ける）: $*"; NFAIL=$((NFAIL + 1)); }
 echo "== $(date +%F_%T) E60 の終了を待つ"
 until [ -f logs/e60.done ]; do sleep 120; done
 grep -q "exit=0" logs/e60.done || fail "E60 が失敗していた"
 JOBS=("baselines_distill.py --world fuse-audio-video" "baselines_distill.py --world fuse-audio-video-text" "baselines_distill.py --world fuse-audio-text"
       "baselines_distill.py --world fuse-video-text" "baselines_distill.py --kind audio_wavlm" "baselines_distill.py --kind video"
       "baselines_distill.py --kind text_roberta" "al_cond2_da.py --kind audio_wavlm" "al_cond2_da.py --kind video")
+# 1 本が落ちても他は続け，終わったターゲットは残す（落ちた仕事は台本をもう一度流せば残りから再開する）
 for job in "${JOBS[@]}"; do
-  while [ "$(jobs -rp | wc -l)" -ge "$MAXJ" ]; do wait -n || fail "ジョブ（$(jobs -rp | wc -l) 本が残り）"; done
+  while [ "$(jobs -rp | wc -l)" -ge "$MAXJ" ]; do wait -n || note "ジョブ（$(date +%T)）"; done
   set -- $job
   tag="${1%.py}_${3}"
   echo "== $(date +%F_%T) 開始 $job → logs/e61_${tag}.log"
   $P exp/$job > "logs/e61_${tag}.log" 2>&1 &
 done
-while [ "$(jobs -rp | wc -l)" -gt 0 ]; do wait -n || fail "ジョブ"; done
-echo "== $(date +%F_%T) 解析"
-$P exp/baselines_distill.py --analyze > logs/e61_analysis.log 2>&1 || fail "解析"
-$P exp/al_cond2_da.py --analyze > logs/e61c_analysis.log 2>&1 || fail "解析 C"
-echo "exit=0" > logs/e61.done
+while [ "$(jobs -rp | wc -l)" -gt 0 ]; do wait -n || note "ジョブ（$(date +%T)）"; done
+echo "== $(date +%F_%T) 解析（落ちた仕事 $NFAIL 本）"
+$P exp/baselines_distill.py --analyze > logs/e61_analysis.log 2>&1 || note "解析"
+$P exp/al_cond2_da.py --analyze > logs/e61c_analysis.log 2>&1 || note "解析 C"
+[ "$NFAIL" -eq 0 ] && echo "exit=0" > logs/e61.done || echo "exit=1 fails=$NFAIL" > logs/e61.done
 echo "== $(date +%F_%T) 終わり"

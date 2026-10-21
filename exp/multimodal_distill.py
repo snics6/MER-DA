@@ -218,6 +218,8 @@ def analyze(worlds=tuple(WORLDS)) -> int:
         tests.append(row)
     R = pd.DataFrame(tests)
     r = R.set_index(["world", "student", "K"])
+    for c in ("M1", "M2", "M3"):
+        R[c] = pd.Series(np.nan, index=R.index, dtype=object)                    # 真偽と NaN を混ぜるので object にしておく
     for world in worlds:
         for student in WORLDS[world] + [world]:
             if (world, student, "5") not in r.index:
