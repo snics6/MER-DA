@@ -49,12 +49,13 @@ OUT_REL = ROOT / "results" / "explore_relation"
 
 
 def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_steps: int, lab: str, belief=None,
-                 belief_order: bool = False, turn: str = "cycle"):
+                 belief_order: bool = False, turn: str = "cycle", init=None):
     """lab の 3 か所を置き換えた teach の順（候補の中の位置），各段の番の感情，補ったかどうか。LLL は `select_teach.teach_order` と同じ計算。
 
     belief(L, P) を渡すと，P の 3 か所にその時点の予測の代わりに感情の見込み（(n, 4)）を入れる（E43）。残差は e_y − P のまま。
     belief_order が真なら belief(L, P, それまでに選んだ順) と呼ぶ（E48．付いたラベルで見込みを直す）。
-    turn が "count" なら，番の感情を 0→3 の順ではなく，付いた本当のラベルが最も少ない感情にする（同数なら番の順．E52）。"""
+    turn が "count" なら，番の感情を 0→3 の順ではなく，付いた本当のラベルが最も少ない感情にする（同数なら番の順．E52）。
+    init（候補の中の位置の列）を渡すと，最初にそれらを順に選んだことにして（正解の残差で模型を更新し）から続きを選ぶ（E57．見本から始める）。"""
     use_a, use_b, use_c = (ch == "L" for ch in lab)
     K2 = Km * Km
     yt = torch.as_tensor(np.array(y), device=Km.device)
@@ -64,7 +65,14 @@ def ablate_order(Km: torch.Tensor, y: np.ndarray, L0: torch.Tensor, c: float, n_
     avail = torch.ones(len(y), dtype=torch.bool, device=Km.device)
     order, turns, fills = [], [], []
     y_np = np.asarray(y)
-    for step in range(n_steps):
+    for i in (init or []):
+        R0 = onehot - torch.softmax(L, 1)
+        order.append(int(i))
+        turns.append(int(y_np[i]))
+        fills.append(False)
+        avail[int(i)] = False
+        L = L + c * Km[:, int(i):int(i) + 1] * R0[int(i):int(i) + 1, :]
+    for step in range(len(order), n_steps):
         if turn == "count":
             cnt = np.bincount(y_np[order], minlength=4) if order else np.zeros(4, int)
             cls = int(np.lexsort(((np.arange(4) - step) % 4, cnt))[0])
