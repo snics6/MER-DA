@@ -6439,7 +6439,7 @@ r(S) と既存の K=5 の UAR の得（E49・E50・E53）の順位相関は A �
 
 ### E59 の結果（2026-10-21．研究室の RTX A5000 で `exp/distill_belief.py`（コミット `61b712e`．3 種類を同時に），`--analyze` → `results/explore_relation/e59_targets.csv`・`e59_tests.csv`．控えは `snapshots/20261022-0005_e59/`）
 
-**データの状態**：`run/e59.sh` を 2026-10-21 23:14〜23:58 に流した．3 種類とも `provenance.json` の dirty は偽．蒸留しない版（E39）は全ターゲット・全 K で E49 の random_true（random の組）と一致した（A の K=5 で 56.22）．
+**データの状態**：`run/e59.sh` を 2026-10-21 23:14〜23:39 に流した．3 種類とも `provenance.json` の dirty は偽．蒸留しない版（E39）は全ターゲット・全 K で E49 の random_true（random の組）と一致した（A の K=5 で 56.22）．
 
 **UAR**（E31 の K 本．ターゲットの平均，反復 0〜9．括弧は E39 との差と上回ったターゲットの数）
 
