@@ -1,11 +1,11 @@
 """【探索的・結果を見た後】E49 の確かめ：E44 の見込み q は，E39 の下書きの予測と P4 の出発点の予測にどれだけ近く，どれだけ当たるか。
 
 E49 で，生徒を E39 の学習器に替えると見込みで動かす教える選び方の上乗せが消えたので，q と下書きの予測の食い違いを測る（`docs/exploratory-analyses.md` E49 の結果）。
-A と A(HuBERT) の 14 ターゲット，反復 0〜9，候補（テスト以外）の上の UAR と食い違う割合。
+既定は A と A(HuBERT) の 14 ターゲット．引数で種類を替えられる（V・AV は 2026-10-21 に研究者の質問を受けて追加で測った）．反復 0〜9，候補（テスト以外）の上の UAR と食い違う割合。
 
-    MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/check_e49_agree.py
+    MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/check_e49_agree.py [video fuse-audio-video]
 
-出力：`results/explore_relation/e49_agree.csv`
+出力：`results/explore_relation/e49_agree.csv`（A・A(HuBERT)），`e49_agree_v_av.csv`（V・AV）
 """
 import sys, numpy as np, pandas as pd, torch
 sys.path.insert(0, "exp"); sys.path.insert(0, "measure")
@@ -13,7 +13,8 @@ import map as M, compare_b1 as CB, meta5 as M5, committee as CM
 from data import groups_for
 from teach_student39 import Student
 rows = []
-for kind in ["audio_wavlm", "audio_hubert"]:
+KINDS = sys.argv[1:] or ["audio_wavlm", "audio_hubert"]
+for kind in KINDS:
     data = {g: M.load(g, kind) for g in groups_for(kind)}
     f, Cs, P, Y = CM.prepare(kind, data)
     sel = pd.read_csv("results/explore_relation/e40_targets.csv", dtype={"K": str}).drop_duplicates(["kind","target"]).set_index(["kind","target"])
@@ -37,6 +38,6 @@ for kind in ["audio_wavlm", "audio_hubert"]:
             rows.append({"kind": kind, "target": T, "rep": r, "uar_q": CB.uar(yq, q), "uar_p39": CB.uar(yq, p39), "uar_p4": CB.uar(yq, p4),
                          "dis_q_p39": float((q != p39).mean()), "dis_q_p4": float((q != p4).mean())})
 d = pd.DataFrame(rows)
-d.to_csv("results/explore_relation/e49_agree.csv", index=False)
+d.to_csv("results/explore_relation/" + ("e49_agree.csv" if KINDS == ["audio_wavlm", "audio_hubert"] else "e49_agree_v_av.csv"), index=False)
 g = d.groupby(["kind", "target"]).mean(numeric_only=True).groupby("kind").mean()
 print((g.drop(columns="rep") * 100).round(2).to_string())
