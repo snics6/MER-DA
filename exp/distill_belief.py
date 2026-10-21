@@ -6,11 +6,12 @@
   見込み B：q（E44 の C），pq（{出発点 p, q} の積み上げ．E52），p（出発点の予測そのもの．対照：感情の釣り合いを取り直す効果だけ）
   m_eff ∈ {20, 100, 500}．(B ∈ {q, pq}, m_eff) は，T のソースを 1 つずつ仮のターゲットにして選ぶ（K ∈ {1, 5}，反復 0〜4 の UAR の平均．「蒸留しない」も候補に入れる）
   K ∈ {0, 1, 5, 10, 25}（K=0 はラベル無し）
+  --per-k（E59 の追加）：(B, m_eff) を K ごとに仮のターゲット（K ∈ {0, 1, 5, 10, 25}，反復 0〜4）で選ぶ．出力は `distill_beliefk_<kind>/`，判定は `e59k_*.csv`
 
-    MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/distill_belief.py --kind audio_wavlm [--target …] [--reps …]
-    ./.venv/bin/python exp/distill_belief.py --analyze
+    MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/distill_belief.py --kind audio_wavlm [--target …] [--reps …] [--per-k]
+    ./.venv/bin/python exp/distill_belief.py --analyze [--per-k]
 
-出力：`results/distill_belief_<kind>/<ターゲット>.csv`（belief, meff, rep, K, uar），`<ターゲット>_pseudo.csv`，`<ターゲット>_meta.csv`，`provenance.json`，`provenance_log.jsonl`。
+出力：`results/distill_belief_<kind>/<ターゲット>.csv`（belief, meff, rep, K, uar），`<ターゲット>_pseudo.csv`，`<ターゲット>_meta.csv`（K ごとの候補の値と選んだもの），`provenance.json`，`provenance_log.jsonl`。
 判定は `results/explore_relation/e59_targets.csv`・`e59_tests.csv`
 """
 
@@ -49,6 +50,7 @@ BELIEFS = ["p", "q", "pq"]
 MEFFS = (20, 100, 500)
 KS = ("0", "1", "5", "10", "25")
 META_KS = ("1", "5")
+PER_K = False                                           # --per-k：K ごとに (B, m_eff) を選ぶ（E59 の追加）
 PSEUDO_REPS = [0, 1, 2, 3, 4]
 C_PSEUDO = 0.01
 CANDS = [("none", 0)] + [(b, m) for b in ("q", "pq") for m in MEFFS]
@@ -112,7 +114,8 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, out, cache):
         pool_pq_c, _ = fit_stack(T, "pq", Gc, mem, Y, []) if len(Gc) >= 2 else (None, None)
         src_c, lin_c, n_c = M5.pool_info(data, pool_c, C_PSEUDO, cache)
         evc = data[c]
-        ctxc = CB.Ctx(evc, PSEUDO_REPS, list(META_KS), center="ind")
+        meta_ks = [k for k in KS if k != "0"] if PER_K else list(META_KS)
+        ctxc = CB.Ctx(evc, PSEUDO_REPS, meta_ks, center="ind")
         for r in PSEUDO_REPS:
             pool = np.flatnonzero(~ctxc.te[r])
             yq = evc.y[pool]
@@ -127,19 +130,25 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, out, cache):
                 F = torch.as_tensor(np.stack([logp(bel["p"]), logp(bel["q"])], 1), dtype=logreg.DTYPE, device=logreg.DEVICE)
                 bel["pq"] = pool_pq_c.predict(F, torch.ones(len(pool), 2, dtype=logreg.DTYPE, device=logreg.DEVICE))
             pos_of = {int(i): j for j, i in enumerate(pool)}
-            label_sets = {K: np.array([pos_of[int(i)] for i in ctxc.idx[(r, K)]]) for K in META_KS}
+            label_sets = {K: np.array([pos_of[int(i)] for i in ctxc.idx[(r, K)]]) for K in meta_ks}
+            if PER_K:
+                label_sets["0"] = np.array([], int)
             combos = [cd for cd in CANDS if cd[0] in bel or cd[0] == "none"]
             sol = solve_all(Z, yq, bel, label_sets, [("q" if b == "none" else b, m) for b, m in combos], stc, rho_m, C_PSEUDO, cp, cb)
             for (b, m, K), (W, bb) in sol.items():
                 name = "none" if m == 0 else b
                 prows.append({"target": T, "pseudo": c, "belief": name, "meff": m, "rep": r, "K": K, "uar": uar_of(W, bb, Zte, evc.y[te])})
     pdf = pd.DataFrame(prows)
-    sc = pdf.groupby(["belief", "meff"]).uar.mean()
-    sc = sc[[k for k in sc.index if (k[0] == "none") or (k[0] in ("q", "pq"))]]
-    b_star, m_star = sc.idxmax()
     pdf.to_csv(out / f"{T}_pseudo.csv", index=False)
-    pd.DataFrame([{"target": T, "belief": b, "meff": m, "uar_pseudo": u, "chosen": (b, m) == (b_star, m_star)} for (b, m), u in sc.items()]
-                 ).to_csv(out / f"{T}_meta.csv", index=False)
+    star, mrows = {}, []
+    groups_k = {K: pdf[pdf.K == K] for K in KS} if PER_K else {"all": pdf}
+    for Kname, sub in groups_k.items():
+        sc = sub.groupby(["belief", "meff"]).uar.mean()
+        sc = sc[[k for k in sc.index if (k[0] == "none") or (k[0] in ("q", "pq"))]]
+        star[Kname] = sc.idxmax()
+        mrows += [{"target": T, "K": Kname, "belief": b, "meff": m, "uar_pseudo": u, "chosen": (b, m) == star[Kname]} for (b, m), u in sc.items()]
+    pd.DataFrame(mrows).to_csv(out / f"{T}_meta.csv", index=False)
+    b_star, m_star = star["all"] if not PER_K else star["5"]
     src_pc, lin, n_of = M5.pool_info(data, S, C_T, cache)
     ev = data[T]
     ctx = CB.Ctx(ev, reps, ["1", "5", "10", "25"], center="ind")
@@ -170,7 +179,7 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, out, cache):
         for b, u in (("acc_p", p), ("acc_q", q), ("acc_pq", bel["pq"])):
             rows.append({"target": T, "rep": r, "belief": b, "meff": -1, "K": "-", "uar": CB.uar(yq, u.argmax(1))})
     df = pd.DataFrame(rows)
-    df["b_star"], df["m_star"] = b_star, m_star
+    df["b_star"], df["m_star"] = b_star, m_star                                 # --per-k では K=5 で選んだもの（K ごとの選択は _meta.csv）
     df.to_csv(out / f"{T}.csv", index=False)
 
 
@@ -178,19 +187,22 @@ def run_target(kind, T, data, f, Cs, P, Y, reps, out, cache):
 
 def analyze(kinds=KINDS) -> int:
     tabs = []
+    tag = "k" if PER_K else ""
     for kind in kinds:
-        d = ROOT / "results" / f"distill_belief_{kind}"
+        d = ROOT / "results" / f"distill_belief{tag}_{kind}"
         for x in sorted(f_ for f_ in d.glob("*.csv") if not f_.stem.endswith(("_pseudo", "_meta"))):
             T = x.stem
             a = pd.read_csv(x, dtype={"K": str})
             a = a[a.rep.isin(EC.REPS)]
-            b_star, m_star = a.b_star.iloc[0], int(a.m_star.iloc[0])
+            meta = pd.read_csv(d / f"{T}_meta.csv", dtype={"K": str})
+            chosen = {str(r_.K): (r_.belief, int(r_.meff)) for r_ in meta[meta.chosen].itertuples()}
             u = a[a.meff >= 0].groupby(["belief", "meff", "K"]).uar.mean() * 100
             acc = a[a.meff == -1].groupby("belief").uar.mean() * 100
             for K in KS:
+                b_star, m_star = chosen[K] if PER_K else chosen["all"]
                 row = {"kind": kind, "target": T, "K": K, "b_star": b_star, "m_star": m_star, "e39": float(u.loc[("none", 0, K)]),
                        "meta": float(u.loc[("none", 0, K)] if m_star == 0 else u.loc[(b_star, m_star, K)]),
-                       "p_ctrl": float(u.loc[("p", m_star if m_star > 0 else 100, K)]),
+                       "p_ctrl": float(u.loc[("p", m_star if m_star > 0 else 20, K)]),
                        "belief_uar_p": float(acc["acc_p"]), "belief_uar_q": float(acc["acc_q"]), "belief_uar_pq": float(acc["acc_pq"])}
                 for b in BELIEFS:
                     for m in MEFFS:
@@ -216,16 +228,22 @@ def analyze(kinds=KINDS) -> int:
             R.loc[R.kind == kind, "DS1"] = bool(r.loc[(kind, "1"), "meta-e39"] > 0 and r.loc[(kind, "5"), "meta-e39"] > 0)
             R.loc[R.kind == kind, "DS2"] = bool(r.loc[(kind, "0"), "q100-e39"] >= 0.5)
             R.loc[R.kind == kind, "DS3"] = bool(r.loc[(kind, "5"), "meta-e39"] < 0.5)
-    D.to_csv(OUT_REL / "e59_targets.csv", index=False)
-    R.to_csv(OUT_REL / "e59_tests.csv", index=False)
+    if PER_K:
+        for kind in kinds:
+            if (kind, "5") in r.index:
+                R.loc[R.kind == kind, "DK1"] = bool(all(r.loc[(kind, K), "meta-e39"] >= -0.1 for K in KS))
+                R.loc[R.kind == kind, "DK2"] = bool(all(r.loc[(kind, K), "meta-e39"] >= 0.5 for K in ("0", "1", "5")))
+    D.to_csv(OUT_REL / f"e59{tag}_targets.csv", index=False)
+    R.to_csv(OUT_REL / f"e59{tag}_tests.csv", index=False)
     pd.set_option("display.width", 250)
-    print(R.drop(columns=[c for c in ("DS1", "DS2", "DS3") if c in R]).set_index(["kind", "K"]).round(2).T.to_string())
-    print("\n== 選ばれた (見込み, m_eff)")
-    print(D.drop_duplicates(["kind", "target"]).groupby("kind").apply(lambda g: g.apply(lambda x: f"{x.b_star}{x.m_star}", axis=1).value_counts().to_dict()).to_string())
+    print(R.drop(columns=[c for c in ("DS1", "DS2", "DS3", "DK1", "DK2") if c in R]).set_index(["kind", "K"]).round(2).T.to_string())
+    print("\n== 選ばれた (見込み, m_eff)" + ("（K ごと）" if PER_K else ""))
+    D["pair"] = D.b_star + D.m_star.astype(str)
+    print(D.groupby(["kind", "K"]).pair.value_counts().unstack(fill_value=0).to_string())
     print("\n== K=5 のターゲットごと（meta − e39，p_ctrl − e39）")
     k5 = D[D.K == "5"].set_index(["kind", "target"])
     print(pd.DataFrame({"meta-e39": k5.meta - k5.e39, "p_ctrl-e39": k5.p_ctrl - k5.e39, "q100-e39": k5.q100 - k5.e39}).round(2).to_string())
-    vc = [c for c in ("DS1", "DS2", "DS3") if c in R]
+    vc = [c for c in ("DS1", "DS2", "DS3", "DK1", "DK2") if c in R]
     print(R.drop_duplicates("kind")[["kind"] + vc].to_string(index=False))
     return 0
 
@@ -238,10 +256,13 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
     ap.add_argument("--kinds", nargs="+", default=KINDS)
+    ap.add_argument("--per-k", action="store_true")
     args = ap.parse_args()
+    global PER_K
+    PER_K = args.per_k
     if args.analyze:
         return analyze(args.kinds)
-    out = args.out_dir or ROOT / "results" / f"distill_belief_{args.kind}"
+    out = args.out_dir or ROOT / "results" / f"distill_belief{'k' if PER_K else ''}_{args.kind}"
     out.mkdir(parents=True, exist_ok=True)
     groups = groups_for(args.kind)
     todo = [t for t in args.target or groups if not (out / f"{t}.csv").exists()]
@@ -254,7 +275,7 @@ def main() -> int:
     prov = {"script": "exp/distill_belief.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
             "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
             "map_dir": str(map_dir(args.kind)), "reps": args.reps, "beliefs": BELIEFS, "meffs": MEFFS, "ks": KS, "meta_ks": META_KS,
-            "pseudo_reps": PSEUDO_REPS, "c_pseudo": C_PSEUDO, "src_C": Cs, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
+            "pseudo_reps": PSEUDO_REPS, "c_pseudo": C_PSEUDO, "per_k": PER_K, "src_C": Cs, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
