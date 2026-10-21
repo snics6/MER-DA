@@ -5,7 +5,7 @@
 #     tmux new-window -t mer-da -n e61 'cd /home/snics/MER-DA && ./run/e61.sh 2>&1 | tee -a logs/e61.log'
 cd /home/snics/MER-DA
 export MERDA_MAP_ROOT=results/fixc_map
-export MERDA_GPU_FRACTION=0.24
+export MERDA_GPU_FRACTION=0.22                      # 4 本 × 5.3 GB＋CUDA の文脈で 24 GB に収める（試走の最大は AV の AFEW で 2.4 GB）
 P=./.venv/bin/python
 MAXJ=4
 rm -f logs/e61.done
