@@ -19,10 +19,13 @@
             モダリティごとの生徒の確率の積．2 段目）}，重みの付け方 ∈ {bal（感情の釣り合いを取る），raw（先生の確率そのまま），hardτ（τ 以上の硬いラベル）}，m_eff．
             モダリティの生徒には両方の先生，融合の生徒には ref．K ごとに仮のターゲットで選ぶ（none も候補）
 弱いラベル・罰則の総重み m_eff ∈ {20, 100, 500, n}（--kind），{100, 500, 2000, n}（--world）．n は候補 1 本あたり重み 1（文献どおり）
+--fused-only（--world）：融合の生徒とその相手だけを解く．モダリティの生徒それぞれの相手（gd・hard・kd・self・entmin・oursx）は省き，
+            2 段目の先生 ref を作るための学び直しと，共訓練・共正則化（比べるのは融合の値）は残す．AV・VT・AT に使う（研究者の指示 2026-10-23）
 
     MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/baselines_distill.py --kind audio_wavlm [--target …] [--reps …]
     MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/baselines_distill.py --world fuse-audio-video [--target …] [--reps …]
-    ./.venv/bin/python exp/baselines_distill.py --analyze
+    MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/baselines_distill.py --world fuse-audio-video --fused-only
+    ./.venv/bin/python exp/baselines_distill.py --analyze [--names …] [--results-dir …（試走用．読む場所と判定の書き場所）]
 
 出力：`results/baselines_<kind か world>/<ターゲット>.csv`（student, method, param, meff, rep, K, uar），`<ターゲット>_pseudo.csv`，
 `<ターゲット>_meta.csv`（生徒・方法・K ごとの候補の値と選んだもの），`provenance.json`，`provenance_log.jsonl`．
@@ -348,8 +351,8 @@ def coreg(prs, yte, meffs, rows, tag, world):
                 add(world, "coreg_sum", meff, K, CB.uar(yte, Lsum[:, j].argmax(1).cpu().numpy()))
 
 
-def run_world_unit(world, stu, yq, yte, label_sets, rows, tag):
-    """1 つの反復の候補の上で，世界の全部の生徒の全部の相手を解く。"""
+def run_world_unit(world, stu, yq, yte, label_sets, rows, tag, fused_only=False):
+    """1 つの反復の候補の上で，世界の全部の生徒の全部の相手を解く（fused_only ならモダリティの生徒それぞれの相手は省く）。"""
     mods = WORLDS[world]
     prs = {k: Prob(stu[k], yq, label_sets) for k in mods + [world]}
     b1 = beliefs1(stu, world)
@@ -361,8 +364,9 @@ def run_world_unit(world, stu, yq, yte, label_sets, rows, tag):
         for K in KS:
             lg[K] = lg[K] + prs[m].probs(sol[K], prs[m].s["Z"]).clamp(min=1e-12).log()
     refK = {K: torch.softmax(lg[K], 1) for K in KS}
-    for m in mods:
-        run_student(prs[m], yte, MEFF_B, {"pF": pF}, rows, tag, m, gd=P0_f, hard=pF, oursx={"pFK": P0_f, "ref": refK})
+    if not fused_only:
+        for m in mods:
+            run_student(prs[m], yte, MEFF_B, {"pF": pF}, rows, tag, m, gd=P0_f, hard=pF, oursx={"pFK": P0_f, "ref": refK})
     oursx_rows(prs[world], yte, MEFF_B, {"ref": refK}, rows, tag, world)
     cotrain({m: prs[m] for m in mods}, prs[world], yte, rows, tag, world)
     coreg({m: prs[m] for m in mods}, yte, MEFF_B, rows, tag, world)
@@ -387,7 +391,7 @@ def label_sets_of(ctx, r, pool):
     return {"0": np.array([], int), **{K: np.array([pos_of[int(i)] for i in ctx.idx[(r, K)]]) for K in ("1", "5", "10", "25")}}
 
 
-def run_world(world, T, data_f, data_m, reps, out, cache, pseudo_targets=None):
+def run_world(world, T, data_f, data_m, reps, out, cache, pseudo_targets=None, fused_only=False):
     S = [s for s in data_f if CM.corp(s) != CM.corp(T)]
     sets = {k: settings(k, T) for k in WORLDS[world] + [world]}
     prows = []
@@ -401,12 +405,13 @@ def run_world(world, T, data_f, data_m, reps, out, cache, pseudo_targets=None):
         for r in PSEUDO_REPS:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             stu = make_students(world, c, data_f, data_m, pool_c, pool, te, sets, info_c)
-            run_world_unit(world, stu, evc.y[pool], evc.y[te], label_sets_of(ctxc, r, pool), prows, {"pseudo": c, "rep": r})
+            run_world_unit(world, stu, evc.y[pool], evc.y[te], label_sets_of(ctxc, r, pool), prows, {"pseudo": c, "rep": r}, fused_only)
     pdf = pd.DataFrame(prows)
     pdf.to_csv(out / f"{T}_pseudo.csv", index=False)
     mrows = []
     for student in WORLDS[world] + [world]:
-        mrows += choose(pdf, student)
+        if ((pdf.student == student) & (pdf.method == "none")).any():            # fused_only ではモダリティの生徒に E39 の行が無い
+            mrows += choose(pdf, student)
     pd.DataFrame([{"target": T, **x} for x in mrows]).to_csv(out / f"{T}_meta.csv", index=False)
     info = {k: M5.pool_info(data_m[k] if k != world else data_f, S, C_FIT, cache[k]) for k in sets}
     ev = data_f[T]
@@ -415,7 +420,7 @@ def run_world(world, T, data_f, data_m, reps, out, cache, pseudo_targets=None):
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         stu = make_students(world, T, data_f, data_m, S, pool, te, sets, info)
-        run_world_unit(world, stu, ev.y[pool], ev.y[te], label_sets_of(ctx, r, pool), rows, {"target": T, "rep": r})
+        run_world_unit(world, stu, ev.y[pool], ev.y[te], label_sets_of(ctx, r, pool), rows, {"target": T, "rep": r}, fused_only)
     pd.DataFrame(rows).to_csv(out / f"{T}.csv", index=False)
 
 
@@ -481,15 +486,16 @@ def read(path):
     return pd.read_csv(path, dtype=STR_COLS, keep_default_na=False)
 
 
-def analyze(names=None) -> int:
-    names = names or [d.name[len("baselines_"):] for d in sorted((ROOT / "results").glob("baselines_*")) if d.is_dir()]
+def analyze(names=None, results=None, out_rel=None) -> int:
+    results, out_rel = results or ROOT / "results", out_rel or OUT_REL
+    names = names or [d.name[len("baselines_"):] for d in sorted(results.glob("baselines_*")) if d.is_dir()]
     e59 = OUT_REL / "e59k_targets.csv"
     e60 = OUT_REL / "e60_targets.csv"
     ours_k = pd.read_csv(e59, dtype={"K": str}).set_index(["kind", "target", "K"]) if e59.exists() else None
     ours_w = pd.read_csv(e60, dtype={"K": str}).set_index(["world", "target", "student", "K"]) if e60.exists() else None
     tabs = []
     for name in names:
-        d = ROOT / "results" / f"baselines_{name}"
+        d = results / f"baselines_{name}"
         world = name in WORLDS
         for x in sorted(f_ for f_ in d.glob("*.csv") if not f_.stem.endswith(("_pseudo", "_meta"))):
             T = x.stem
@@ -498,6 +504,8 @@ def analyze(names=None) -> int:
             meta = read(d / f"{T}_meta.csv")
             u = a.groupby(["student", "method", "param", "meff", "K"]).uar.mean() * 100
             for student in sorted(set(a.student)):
+                if (student, "none", "-", "0", "0") not in u.index:                     # --fused-only の世界ではモダリティの生徒に E39 の行が無い
+                    continue
                 fused = world and student == name
                 for K in KS:
                     row = {"setting": name, "target": T, "student": student, "K": K, "e39": float(u.loc[(student, "none", "-", "0", K)])}
@@ -556,8 +564,8 @@ def analyze(names=None) -> int:
             R.loc[m.index, "B1"] = bool(all(r.loc[(name, name, K), cols].max() < 0.3 for K in ("0", "1", "5")))
             R.loc[m.index, "B2"] = bool(abs(r.loc[(name, name, "0"), "massbal:fixed"] - r.loc[(name, name, "0"), "p_ctrl"]) <= 0.5)   # 方法そのもの（none との選択を挟まない）
             R.loc[m.index, "B3"] = bool(r.loc[(name, name, "0"), "saerens:fixed-e39"] < 0)
-    D.to_csv(OUT_REL / "e61_targets.csv", index=False)
-    R.to_csv(OUT_REL / "e61_tests.csv", index=False)
+    D.to_csv(out_rel / "e61_targets.csv", index=False)
+    R.to_csv(out_rel / "e61_tests.csv", index=False)
     pd.set_option("display.width", 250)
     for (name, student), g in R.groupby(["setting", "student"], sort=False):
         print(f"\n== {name} の生徒 {student}（ターゲット {int(g.targets.iloc[0])}．値は E39 との差．ours は E59 の追加／E60 の選んだ形）")
@@ -580,9 +588,11 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
     ap.add_argument("--names", nargs="+", help="判定する種類と世界（既定は results/baselines_* の全部）")
+    ap.add_argument("--fused-only", action="store_true", help="--world で融合の生徒とその相手だけを解く（AV・VT・AT）")
+    ap.add_argument("--results-dir", type=Path, help="試走用．--analyze が baselines_* を読む場所と判定を書く場所")
     args = ap.parse_args()
     if args.analyze:
-        return analyze(args.names)
+        return analyze(args.names, args.results_dir, args.results_dir)
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(float(os.environ.get("MERDA_GPU_FRACTION", "1.0")))
     global PSEUDO_REPS
@@ -601,7 +611,7 @@ def main() -> int:
             "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
             "map_dir": str(map_dir(name)), "reps": args.reps, "ks": KS, "pseudo_reps": PSEUDO_REPS, "pseudo_targets": args.pseudo_targets,
             "c_fit": C_FIT, "taus": TAUS, "temps": TEMPS, "rounds_self": ROUNDS_SELF, "rounds_co": ROUNDS_CO, "co_c": CO_C,
-            "meffs": MEFF_B if args.world else MEFF_A, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
+            "meffs": MEFF_B if args.world else MEFF_A, "fused_only": args.fused_only, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
@@ -616,7 +626,7 @@ def main() -> int:
     for t in todo:
         t0 = time.perf_counter()
         if args.world:
-            run_world(name, t, data_f, data_m, args.reps, out, cache, args.pseudo_targets)
+            run_world(name, t, data_f, data_m, args.reps, out, cache, args.pseudo_targets, args.fused_only)
         else:
             run_kind(name, t, data, f, Cs, P, Y, args.reps, out, cache, args.pseudo_targets)
         mem = f"　GPU 最大 {torch.cuda.max_memory_allocated() / 2 ** 30:.1f} GB" if torch.cuda.is_available() else ""
