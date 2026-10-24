@@ -18,6 +18,8 @@
 torch==2.11.0
 torchvision==0.26.0
 transformers==4.44.0
+peft==0.13.2                 # E63（微調整の確認）の LoRA．2026-10-24 に足した
+accelerate==1.15.0           # peft が要る
 ultralytics==8.3.31          # 顔検出（YOLOv8n-face）
 
 # ---- 数値・表 ----
