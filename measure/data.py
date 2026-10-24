@@ -178,21 +178,32 @@ def load_fused(group: str, kinds: list[str]) -> tuple[pd.DataFrame, np.ndarray]:
     return ref, np.concatenate(mats, axis=1)
 
 
+def fused_parts(kind: str) -> tuple[list[str], list[str]] | None:
+    """融合名を (モダリティの一覧, 種類の一覧) にする。`fuse-audio-video` は第 1 エンコーダ，
+    `fuse2-audio-video-text` は第 2 エンコーダ（HuBERT・CLIP・DeBERTa．2026-10-24，E62）。
+    融合名でなければ None。"""
+    for prefix, i in (("fuse-", 0), ("fuse2-", 1)):
+        if kind.startswith(prefix):
+            mods = kind[len(prefix):].split("-")
+            return mods, [MODALITIES[m][i] for m in mods]
+    return None
+
+
 def load_any(group: str, kind: str) -> tuple[pd.DataFrame, np.ndarray]:
     """`kind` が `fuse-video-audio` のような融合名なら融合空間を，
     そうでなければ単一モダリティを返す。**呼ぶ側が分岐しなくて済むようにする**
     （2026-09-25）。"""
-    if kind.startswith("fuse-"):
-        mods = kind[len("fuse-"):].split("-")
-        return load_fused(group, [MODALITIES[m][0] for m in mods])
+    parts = fused_parts(kind)
+    if parts:
+        return load_fused(group, parts[1])
     return load_group(group, kind)
 
 
 def groups_for(kind: str) -> list[str]:
     """その `kind`（単一でも融合でも）で使える群の一覧。"""
-    if kind.startswith("fuse-"):
-        mods = kind[len("fuse-"):].split("-")
-        kinds = [MODALITIES[m][0] for m in mods]
+    parts = fused_parts(kind)
+    if parts:
+        mods, kinds = parts
         return [g for g in GROUPS_ALL
                 if all(has_modality(g, m) and available(k, g)
                        for m, k in zip(mods, kinds))]

@@ -58,7 +58,7 @@ import meta5 as M5  # noqa: E402
 from data import groups_for  # noqa: E402
 from distill_belief import uar_of, weak_rows  # noqa: E402
 from geom_e0 import settings  # noqa: E402
-from multimodal_distill import DIMS, WORLDS, beliefs1, blocks, make_students, sub_group  # noqa: E402
+from multimodal_distill import DIMS, WORLDS, WORLDS2, beliefs1, blocks, make_students, sub_group  # noqa: E402
 from pair_table import map_dir  # noqa: E402
 from select_labelfree import present_weights  # noqa: E402
 from teach_stack import c_pool_on, draft_logits, fit_stack, logp, softmax_t  # noqa: E402
@@ -486,11 +486,12 @@ def read(path):
     return pd.read_csv(path, dtype=STR_COLS, keep_default_na=False)
 
 
-def analyze(names=None, results=None, out_rel=None) -> int:
+def analyze(names=None, results=None, out_rel=None, suffix="") -> int:
+    """既定は第 1 エンコーダの種類と世界（e61_*.csv）．第 2 エンコーダの世界は --names fuse2-… --suffix _2nd で e61_2nd_*.csv に書く（ours は e60_2nd_targets.csv）。"""
     results, out_rel = results or ROOT / "results", out_rel or OUT_REL
-    names = names or [d.name[len("baselines_"):] for d in sorted(results.glob("baselines_*")) if d.is_dir()]
+    names = names or [d.name[len("baselines_"):] for d in sorted(results.glob("baselines_*")) if d.is_dir() and d.name[len("baselines_"):] not in WORLDS2]
     e59 = OUT_REL / "e59k_targets.csv"
-    e60 = OUT_REL / "e60_targets.csv"
+    e60 = OUT_REL / f"e60{suffix}_targets.csv"
     ours_k = pd.read_csv(e59, dtype={"K": str}).set_index(["kind", "target", "K"]) if e59.exists() else None
     ours_w = pd.read_csv(e60, dtype={"K": str}).set_index(["world", "target", "student", "K"]) if e60.exists() else None
     tabs = []
@@ -564,8 +565,8 @@ def analyze(names=None, results=None, out_rel=None) -> int:
             R.loc[m.index, "B1"] = bool(all(r.loc[(name, name, K), cols].max() < 0.3 for K in ("0", "1", "5")))
             R.loc[m.index, "B2"] = bool(abs(r.loc[(name, name, "0"), "massbal:fixed"] - r.loc[(name, name, "0"), "p_ctrl"]) <= 0.5)   # 方法そのもの（none との選択を挟まない）
             R.loc[m.index, "B3"] = bool(r.loc[(name, name, "0"), "saerens:fixed-e39"] < 0)
-    D.to_csv(out_rel / "e61_targets.csv", index=False)
-    R.to_csv(out_rel / "e61_tests.csv", index=False)
+    D.to_csv(out_rel / f"e61{suffix}_targets.csv", index=False)
+    R.to_csv(out_rel / f"e61{suffix}_tests.csv", index=False)
     pd.set_option("display.width", 250)
     for (name, student), g in R.groupby(["setting", "student"], sort=False):
         print(f"\n== {name} の生徒 {student}（ターゲット {int(g.targets.iloc[0])}．値は E39 との差．ours は E59 の追加／E60 の選んだ形）")
@@ -590,9 +591,10 @@ def main() -> int:
     ap.add_argument("--names", nargs="+", help="判定する種類と世界（既定は results/baselines_* の全部）")
     ap.add_argument("--fused-only", action="store_true", help="--world で融合の生徒とその相手だけを解く（AV・VT・AT）")
     ap.add_argument("--results-dir", type=Path, help="試走用．--analyze が baselines_* を読む場所と判定を書く場所")
+    ap.add_argument("--suffix", default="", help="--analyze の出力名の接尾辞（第 2 エンコーダは _2nd）")
     args = ap.parse_args()
     if args.analyze:
-        return analyze(args.names, args.results_dir, args.results_dir)
+        return analyze(args.names, args.results_dir, args.results_dir, args.suffix)
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(float(os.environ.get("MERDA_GPU_FRACTION", "1.0")))
     global PSEUDO_REPS

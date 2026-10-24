@@ -140,13 +140,16 @@ def evaluate(role, meta_for, ev, pool, data, C, reps, ks, rows, cache):
                         CB.collect(ctx, jobs, fits[k * len(masks):(k + 1) * len(masks)], CPS5, X_of, None, emit, {})
 
 
-def run_target(kind, T, data, reps, ks, out, cache, pseudo=True):
+def run_target(kind, T, data, reps, ks, out, cache, pseudo=True, pseudo_only=False):
+    """pseudo_only（E62．第 2 エンコーダ）：ターゲットの行を解かず，仮のターゲットだけを解く（5 つの値を選ぶのに要るのは仮のターゲットの行だけ．
+    ターゲットの行に要る合併の C（multisource_scores）は第 2 エンコーダには無い）。"""
     t0 = time.perf_counter()
     rows = []
     corp = lambda g: GROUP_SPEC[g][0]  # noqa: E731
     pool_T = [s for s in data if corp(s) != corp(T)]
-    C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
-    evaluate("target", T, data[T], pool_T, data, C_T, reps, ks, rows, cache)
+    if not pseudo_only:
+        C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
+        evaluate("target", T, data[T], pool_T, data, C_T, reps, ks, rows, cache)
     t1 = time.perf_counter()
     for c in (pool_T if pseudo else []):                   # --no-pseudo：反復を足すときは仮のターゲット（反復 0〜4．前回と同じ）を解き直さない
         pool_c = [s for s in pool_T if corp(s) != corp(c)]
@@ -166,6 +169,24 @@ def pick(ps: pd.Series) -> tuple:
         if g0:
             return g0[0]
     return top.index[0]
+
+
+def analyze_pseudo(kinds, suffix: str = "", results=None) -> int:
+    """E62（第 2 エンコーダ）：仮のターゲットの行だけから 5 つの値を選び，`e62{suffix}_targets.csv`（kind, target, γ, ρ_s, C_b, C′, ρ_M, 仮のターゲットの UAR）に書く。
+    `geom_e0.settings` が読む（ターゲットの行は無いので E39 の表の meta・P4 などの列は無い）。"""
+    results = results or ROOT / "results"
+    rows = []
+    for kind in kinds:
+        for f in sorted((results / f"meta5_{kind}").glob("*.csv")):
+            a = pd.read_csv(f, dtype={"K": str, "cb": str})
+            ps = a[a.role == "pseudo"].groupby(KEYS).uar.mean()
+            star = pick(ps)
+            rows.append({"kind": kind, "target": f.stem, **dict(zip(KEYS, star)), "pseudo_uar": float(ps.loc[star]) * 100,
+                         "pseudo_targets": int(a[a.role == "pseudo"]["eval"].nunique()), "pseudo_reps": int(a[a.role == "pseudo"].rep.nunique())})
+    D = pd.DataFrame(rows)
+    D.to_csv(OUT_REL / f"e62{suffix}_targets.csv", index=False)
+    print(D.to_string(index=False))
+    return 0
 
 
 def analyze(grid: str = "base", kinds=MAIN, suffix: str = "") -> int:
@@ -253,8 +274,17 @@ def main() -> int:
     ap.add_argument("--grid", choices=list(GRIDS), default="base")
     ap.add_argument("--kinds", nargs="+", default=MAIN, help="--analyze の種類（言葉系は --suffix _text で別のファイルに書く）")
     ap.add_argument("--suffix", default="", help="--analyze の出力名の接尾辞")
+    ap.add_argument("--pseudo-only", action="store_true", help="E62：仮のターゲットだけを解く（ターゲットの行は解かない）")
+    ap.add_argument("--pseudo-reps", nargs="+", type=int, help="試走用．既定は 0〜4")
+    ap.add_argument("--analyze-pseudo", action="store_true", help="E62：仮のターゲットの行だけから 5 つの値を選び e62_targets.csv に書く（--kinds，--suffix，--results-dir）")
+    ap.add_argument("--results-dir", type=Path, help="試走用．--analyze-pseudo が meta5_* を読む場所")
     args = ap.parse_args()
     set_grid(args.grid)
+    global PSEUDO_REPS
+    if args.pseudo_reps is not None:
+        PSEUDO_REPS = args.pseudo_reps
+    if args.analyze_pseudo:
+        return analyze_pseudo(args.kinds, args.suffix, args.results_dir)
     if args.analyze:
         return analyze(args.grid, args.kinds, args.suffix)
     out = args.out_dir or ROOT / "results" / f"{OUT_NAME[args.grid]}_{args.kind}"
@@ -267,7 +297,7 @@ def main() -> int:
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
     prov = {"script": "exp/meta5.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
             "dirty": bool(git("status", "--porcelain")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo,
-            "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": [] if args.no_pseudo else PSEUDO_REPS,
+            "map_dir": str(map_dir(args.kind)), "K": args.ks, "reps": args.reps, "pseudo_reps": [] if args.no_pseudo else PSEUDO_REPS, "pseudo_only": args.pseudo_only,
             "grid_name": args.grid, "grid": {"gamma": GAMMAS, "rho_s": RHOS_S, "cb": [cbname(c) for c in CBS5], "cp": CPS5, "rho_M": RHOS_M},
             "C_pseudo": C_PSEUDO, "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
@@ -277,7 +307,7 @@ def main() -> int:
     cache: dict = {}
     for t in todo:
         t0 = time.perf_counter()
-        run_target(args.kind, t, data, args.reps, args.ks, out, cache, pseudo=not args.no_pseudo)
+        run_target(args.kind, t, data, args.reps, args.ks, out, cache, pseudo=not args.no_pseudo, pseudo_only=args.pseudo_only)
         print(f"{args.kind} {t}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     return 0
 

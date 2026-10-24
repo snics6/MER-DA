@@ -62,8 +62,16 @@ OUT_REL = ROOT / "results" / "explore_relation"
 E40_KINDS = ("audio_wavlm", "audio_hubert", "video", "fuse-audio-video")
 
 
+KINDS_2ND = ("video_clip", "text_deberta", "fuse2-audio-video-text")   # 第 2 エンコーダ（E62）．audio_hubert は E40 にある
+
+
 def settings(kind, T):
-    """(γ, ρ_s, ρ_M, C_b, C′, 歩幅 c)．E40 のある種類（A・A(HuBERT)・V・AV）は E40 の random の組，言葉を含む種類は E39 の言葉の値と E37 の言葉の歩幅。"""
+    """(γ, ρ_s, ρ_M, C_b, C′, 歩幅 c)．E40 のある種類（A・A(HuBERT)・V・AV）は E40 の random の組，言葉を含む種類は E39 の言葉の値と E37 の言葉の歩幅．
+    第 2 エンコーダの種類（E62）は E39 の格子で仮のターゲットだけから選んだ値（`e62_targets.csv`．歩幅は無いので NaN）。"""
+    if kind in KINDS_2ND:
+        s = pd.read_csv(OUT_REL / "e62_targets.csv", dtype={"K": str, "cb": str}).query("kind == @kind").drop_duplicates("target").set_index("target").loc[T]
+        cb = None if s.cb == "free" else float(s.cb)
+        return float(s.gamma), float(s.rho_s), float(s.rho_M), cb, float(s.cp), float("nan")
     if kind not in E40_KINDS:
         s = pd.read_csv(OUT_REL / "e39_text_targets.csv", dtype={"K": str}).query("kind == @kind").drop_duplicates("target").set_index("target").loc[T]
         c = pd.read_csv(OUT_REL / "e37_targets_text.csv", dtype={"K": str}).query("kind == @kind").drop_duplicates("target").set_index("target").loc[T, "policy_star"]

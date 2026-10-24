@@ -44,9 +44,11 @@ from geom_e0 import settings  # noqa: E402
 from pair_table import map_dir  # noqa: E402
 from teach_student39 import Student  # noqa: E402
 
-WORLDS = {"fuse-audio-video": ["audio_wavlm", "video"], "fuse-video-text": ["video", "text_roberta"],
-          "fuse-audio-text": ["audio_wavlm", "text_roberta"], "fuse-audio-video-text": ["audio_wavlm", "video", "text_roberta"]}
-DIMS = {"audio_wavlm": 1024, "video": 512, "text_roberta": 768}
+WORLDS1 = {"fuse-audio-video": ["audio_wavlm", "video"], "fuse-video-text": ["video", "text_roberta"],
+           "fuse-audio-text": ["audio_wavlm", "text_roberta"], "fuse-audio-video-text": ["audio_wavlm", "video", "text_roberta"]}
+WORLDS2 = {"fuse2-audio-video-text": ["audio_hubert", "video_clip", "text_deberta"]}   # 第 2 エンコーダの AVT（E62．判定は --suffix _2nd で別のファイルに）
+WORLDS = {**WORLDS1, **WORLDS2}
+DIMS = {"audio_wavlm": 1024, "video": 512, "text_roberta": 768, "audio_hubert": 1024, "video_clip": 1024, "text_deberta": 768}
 KS = ("0", "1", "5", "10", "25")
 PSEUDO_REPS = [0, 1, 2, 3, 4]
 C_FIT = 0.01
@@ -182,10 +184,13 @@ def run_target(world, T, data_f, data_m, reps, out, cache):
 
 # ---------------------------------------------------------------- 判定（CPU）
 
-def analyze(worlds=tuple(WORLDS)) -> int:
+def analyze(worlds=None, suffix="", results=None) -> int:
+    """既定は第 1 エンコーダの 4 世界（e60_*.csv）．第 2 エンコーダの世界は --worlds fuse2-… --suffix _2nd で e60_2nd_*.csv に書く。"""
+    worlds = tuple(worlds or WORLDS1)
+    results = results or ROOT / "results"
     tabs = []
     for world in worlds:
-        d = ROOT / "results" / f"multimodal_distill_{world}"
+        d = results / f"multimodal_distill_{world}"
         for x in sorted(f_ for f_ in d.glob("*.csv") if not f_.stem.endswith(("_pseudo", "_meta"))):
             T = x.stem
             a = pd.read_csv(x, dtype={"K": str})
@@ -229,8 +234,8 @@ def analyze(worlds=tuple(WORLDS)) -> int:
             R.loc[m.index, "M1"] = bool(d05["0"] > 0 and d05["5"] > 0) if student in DIMS else np.nan
             R.loc[m.index, "M2"] = bool(d05["0"] >= 0.5 and d05["5"] >= 0.5) if student not in DIMS else np.nan
             R.loc[m.index, "M3"] = bool(all(d05[K] >= -0.1 for K in KS))
-    D.to_csv(OUT_REL / "e60_targets.csv", index=False)
-    R.to_csv(OUT_REL / "e60_tests.csv", index=False)
+    D.to_csv(OUT_REL / f"e60{suffix}_targets.csv", index=False)
+    R.to_csv(OUT_REL / f"e60{suffix}_tests.csv", index=False)
     pd.set_option("display.width", 250)
     print(R[["world", "student", "K", "e39", "meta", "p_ctrl", "oracle", "meta-e39", "meta>e39", "p_ctrl-e39", "meta-p_ctrl"]].round(2).to_string(index=False))
     print("\n== 選ばれた (見込み, m_eff)（世界・生徒・K ごとのターゲットの数）")
@@ -248,10 +253,16 @@ def main() -> int:
     ap.add_argument("--reps", nargs="+", type=int, default=list(range(10)))
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--analyze", action="store_true")
-    ap.add_argument("--worlds", nargs="+", default=list(WORLDS))
+    ap.add_argument("--worlds", nargs="+", default=list(WORLDS1), help="--analyze の世界（既定は第 1 エンコーダの 4 世界）")
+    ap.add_argument("--suffix", default="", help="--analyze の出力名の接尾辞（第 2 エンコーダは _2nd）")
+    ap.add_argument("--results-dir", type=Path, help="試走用．--analyze が multimodal_distill_* を読む場所")
+    ap.add_argument("--pseudo-reps", nargs="+", type=int, help="試走用．既定は 0〜4")
     args = ap.parse_args()
     if args.analyze:
-        return analyze(args.worlds)
+        return analyze(args.worlds, args.suffix, args.results_dir)
+    global PSEUDO_REPS
+    if args.pseudo_reps is not None:
+        PSEUDO_REPS = args.pseudo_reps
     world = args.world
     out = args.out_dir or ROOT / "results" / f"multimodal_distill_{world}"
     out.mkdir(parents=True, exist_ok=True)
