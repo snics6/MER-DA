@@ -326,6 +326,207 @@ E40（`docs/exploratory-analyses.md`）では，teach（E37）と E39 の学習�
 
 **E61（比較実験）で相手にするもの**：自己訓練（硬いラベル＋しきい値），エントロピー最小化，温度付きの蒸留の固定設定版，一般化蒸留の固定設定版，共訓練の原型，共正則化，Saerens の EM，CLUE，TQS 型．ハイパーパラメータはすべて私たちと同じく仮のターゲットで選び，固定値の版とオラクルも併記する．
 
+### 1.12 E60・E61 の部品（別のモダリティの参照からの蒸留，単モダリティの積の参照，釣り合いの弱いラベル，K ごとの選択）の先例（2026-10-24 の文献確認．ウェブ検索の結果で，本文の確認水準は各行の記号のとおり．引用の前に原典で確かめる）
+
+研究者の求め（2026-10-24）で，提案の部品ごとに直接の先例があるかを調べ直した．判定は「部品 1（別モダリティの合併の出発点 → 出発点に錨づけた線形の少数ショットの再学習，釣り合いの弱いラベル）は要素ごとに先例があり組み合わせは見つからず，部品 2（単モダリティの積・二段構えの参照で合併の頭を学ぶ）は『単モダリティの教師が合併を助ける』は確立済みで積を参照に使う点と往復は見つからず，部品 3（K ごとに仮のターゲットで選ぶ）は既存の leave-one-domain-out の適用」である．論文での書き方は末尾の判定の節に従う．
+
+対象は，少数ラベルの新コーパスで使う「参照分類器からの弱ラベル＋出発点への L2 罰則」の部品である．
+調べ方は WebSearch（標準・拡張）と WebFetch（arXiv 抄録・ar5iv 本文・学会ページ）で，英語の問いだけを使った．
+ScienceDirect と IJCAI の PDF は開けなかった（403・バイナリ）．中国語圏の会議論文誌は探していない．
+
+**確かめた範囲の記号**
+
+| 記号 | 意味 |
+|---|---|
+| ◎ | 本文（HTML か全文）を読んで確かめた |
+| ○ | 抄録（arXiv か学会ページ）で確かめた |
+| △ | 検索結果の抜き書きだけで，抄録も本文も開いていない |
+| 背 | この回では確かめていない背景知識．論文に書くなら原典を開くこと |
+
+---
+
+#### Q1. 多モーダル（他モーダル）の教師 → 単モーダルの生徒（感情認識）
+
+| 論文 | 何をするか | 本手法との関係 | 確かめた範囲 |
+|---|---|---|---|
+| Albanie, Nagrani, Vedaldi, Zisserman, "Emotion Recognition in Speech using Cross-Modal Transfer in the Wild," ACM Multimedia 2018, arXiv:1808.05561 | 学習済み顔表情ネットを教師にし，ラベル無しの VoxCeleb 動画で音声 CNN を生徒として学ぶ．教師のソフトマックス（温度 2）とのクロスエントロピー．評価は RML と eNTERFACE で，生徒の出力にアフィン写像＋ソフトマックスを学ばせる（10 分割） | 「別モーダルの教師 → 音声の生徒，音声ラベル無し」の原点．違い：教師は顔単独で合併ではない．出発点（ソース学習済み線形頭）も L2 罰則も無い．教師ラベルが中立に偏ると報告し，均衡サンプリングを試したが「有意な効果なし」と結論．**教師の確率表を列ごとに正規化する操作はしていない**．K 本の少数ラベルの設定も無い | ◎（ar5iv 本文） |
+| Li, Zhao, Jin, "Speech Emotion Recognition via Multi-Level Cross-Modal Distillation," Interspeech 2021 | 学習済みテキスト感情モデルを教師にし，音声ラベル無しで音声感情モデルを学ぶ（応答層と中間層の両方で蒸留）．IEMOCAP・MELD | テキスト → 音声の蒸留．教師は単モーダル．線形頭でも少数ラベルでもない．クラス均衡の記述なし | ○（ISCA 抄録） |
+| Srinivasan, Huang, Kirchhoff, "Representation learning through cross-modal conditional teacher-student training for SER," ICASSP 2022, arXiv:2112.00158 | 音声＋テキストの多モーダル教師から音声のみの生徒（HuBERT 微調整）へ語彙情報を注入．教師の予測の質の推定値で学習を条件づける．MSP-Podcast・IEMOCAP の次元（CCC） | **合併の教師 → 単モーダルの生徒**という点で Case A に最も近い．違い：同一コーパス内，回帰，深層の微調整．教師出力の重みづけは「質の推定」であり，クラス均衡ではない | ○（arXiv 抄録） |
+| Hajavi, Etemad, "Audio Representation Learning by Distilling Video as Privileged Information," arXiv:2302.02845 (2023) | 音声＋映像の教師の埋め込みを，音声のみの生徒に写す（埋め込み蒸留．タスク頭は正解ラベルで学ぶ）．話者認識と SER | 映像を特権情報として使う音声の生徒．ソフトラベルではなく埋め込みの蒸留．ラベル付きで学ぶ | ○（arXiv 抄録．掲載誌は未確認） |
+| Aslam et al., "Privileged Knowledge Distillation for Dimensional Emotion Recognition in the Wild," CVPRW 2023 | 音声映像の教師 → 映像のみの生徒（融合後の埋め込み間の距離）．RECOLA・Aff-Wild2 | 多モーダル → 単モーダルの特権蒸留．向きが逆（映像の生徒）．回帰．同一コーパス内 | ○（CVF 抄録） |
+| Aslam et al., PKDOT, arXiv:2401.15489 (2024)；MT-PKDOT, arXiv:2408.09035 (2024) | 最適輸送で教師表現の構造を生徒に写す（複数教師版もある）．Biovid・Aff-Wild2 | 同上の系列．ソフトラベルではなく構造の蒸留 | ○（arXiv 抄録） |
+| Shome, Etemad, "Speech Emotion Recognition with Distilled Prosodic and Linguistic Affect Representations" (EmoDistill), arXiv:2309.04849，ICASSP 2024（SigPort の記録） | 韻律の教師（eGeMAPS の ResNet）と言語の教師（BERT）から音声の生徒へ，埋め込みと logit の両方で蒸留．推論は音声のみ．IEMOCAP 10 分割 | 複数の単モーダル教師 → 音声の生徒．同一コーパス内でラベル付き．線形頭でも少数ラベルでもない | ○（arXiv 抄録・HTML 要約） |
+| "Bridging Modalities: Knowledge Distillation and Masked Training for Translating Multi-Modal Emotion Recognition to Uni-Modal, Speech-Only Emotion Recognition," arXiv:2401.03000 (2024) | 音声映像の COGMEN を教師，音声のみの COGMEN を生徒にし，埋め込みのトリプレット損失＋正解ラベルの CE で学ぶ．IEMOCAP 4 クラス | 合併 → 音声の蒸留．全ラベル使用．ソフトラベルではない．教師と生徒の性能がほぼ同じ（0.61 対 0.60 F1）と報告 | ◎（arXiv HTML） |
+| Pendyala et al., "Leveraging Unlabeled Audio-Visual Data in SER using Knowledge Distillation" (LiSER), Interspeech 2025, arXiv:2507.00055 | 音声の教師（ラベルで LoRA 微調整した HuBERT）と顔表情の教師（S2D）のソフトマックス出力を，ラベル無しの MSP-Face（46.55 時間）上で軽量な音声のみの生徒に MAE で写す．教師の最大確率で標本ごとに重みづけ（conf-vid-sp-dstl）．生徒はラベル付き音声の CE も使う．RAVDESS・CREMA-D で話者分離 5 分割 | **ラベル無しデータ上の教師ソフトラベルを音声の生徒に使う**点で近い．違い：教師は 2 本の単モーダルで合併ではない．蒸留データはターゲットではなく第三のコーパス．評価はコーパス内．L2 罰則も K 本の設定も無い．**クラス均衡の記述なし**（重みは信頼度のみ） | ◎（arXiv HTML） |
+| Durdun, Constantinescu, Ionescu, "Audio Sentiment Analysis via Distillation and Cross-Modal Integration of Generated Multilingual Transcripts," arXiv:2607.06611 (2026) | ASR 書き起こしと機械翻訳を足した音声＋テキストの教師を，音声のみの生徒へ蒸留．感情極性（正負） | 合併の教師 → 音声の生徒．極性 2 値．データ名は抄録にない（検索の抜き書きでは MSP-Podcast） | ○（arXiv 抄録） |
+| Xue et al., "The Modality Focusing Hypothesis: Towards Understanding Crossmodal Knowledge Distillation," ICLR 2023, arXiv:2206.06487 | 別モーダル蒸留がいつ効くかの仮説と検証．RAVDESS では音声の教師 → 画像の生徒 | 別モーダル蒸留の成否が「モーダル共通の決定的特徴」の割合で決まるという説明．本手法の「どの教師が効くか」の議論に使える | ◎（ar5iv 本文のデータ節） |
+| Wu et al., "A Cross-Modal Densely Guided Knowledge Distillation Based on Modality Rebalancing Strategy for Enhanced Unimodal Emotion Recognition," IJCAI 2025 | 映像＋EEG の教師 → 映像のみの生徒．「プロトタイプに基づく再均衡」は**モーダル間の学習速度の均衡**であり，クラスの均衡ではない．DEAP・MAHNOB-HCI | 多モーダル → 単モーダル．再均衡の対象が違う（クラスではなくモーダル） | ○（IJCAI 抄録ページ） |
+| Parthasarathy, Sundaram, "Training Strategies to Handle Missing Modalities for Audio-Visual Expression Recognition," arXiv:2010.00734 (2020) | 学習中に映像入力をクリップ単位・フレーム単位で無作為に落とし，欠損に強くする．蒸留ではない | 「配備時に一部のモーダルが無い」問題の別解 | ○（arXiv 抄録） |
+| "From natural-language speech to ordered visual-affect features: Privileged multimodal learning with audio-only inference" (R-PAVT), ScienceDirect, 2026 | 顔映像を学習時だけ使い，音声のみで感情と視覚特徴ノードを予測．CREMA-D 約 90%，MELD 約 44% | 顔の特権情報で音声のみ推論．本文を開けず詳細不明 | △（検索の抜き書き．ページは 403） |
+| Lopez-Paz, Bottou, Schölkopf, Vapnik, "Unifying distillation and privileged information," ICLR 2016, arXiv:1511.03643 | 蒸留と特権情報学習（LUPI）を「一般化蒸留」として統一．教師を特権情報で学び，温度つきソフトラベルで生徒を学ぶ | 本手法の Case A をこの枠で位置づけられる（顔・テキストが特権情報） | ○（arXiv 抄録） |
+
+**周辺（感情以外・欠損モーダル）**：EEG＋EOG の教師 → EOG の生徒（Brain Sciences 2025，△），CMU-MOSEI の欠損モーダル蒸留（CorrKD arXiv:2404.16456，CMAD ICCV 2025，△）．
+
+**見つからなかったもの**：ICASSP・Interspeech 2022〜2024 で「音声映像の教師 → 音声のみの生徒」を主題にした SER 論文は，拡張検索でも LiSER（2025）以外は出なかった．「ソースだけで学んだ合併分類器を，ラベル無しの**ターゲットコーパス**に当ててソフトラベルを作る」設定は，上のどれにも無い（LiSER は第三のコーパス，他は同一コーパス内）．
+
+---
+
+#### Q2. 逆向き：単モーダルの教師 → 多モーダルの生徒，および往復
+
+| 論文 | 何をするか | 本手法との関係 | 確かめた範囲 |
+|---|---|---|---|
+| Du et al., "Improving Multi-Modal Learning with Uni-Modal Teachers," arXiv:2106.11059 (2021) | 合同学習で各モーダルの符号化器が弱く学ぶ「Modality Failure」を指摘し，単モーダル蒸留を融合目的に足す（Uni-Modal Teacher）．VGGSound・NYU Depth V2 | **Case B の直接の先行**（単モーダル教師が融合モデルを助ける）．違い：教師は同一データで学んだ深層モデル．積（PoE）ではなく各モーダルへの蒸留．少数ラベル・ドメイン差の設定なし | ○（arXiv 抄録） |
+| Du et al., "On Uni-Modal Feature Learning in Supervised Multi-Modal Learning," ICML 2023, arXiv:2305.01233 | 単モーダル特徴と対特徴に分け，分布に応じて Uni-Modal Ensemble（UME）と UMT を選ぶ．VGG-Sound・Kinetics-400・UCF101・ModelNet40 | 「単モーダルのアンサンブル（UME）と単モーダル教師（UMT）の使い分け」は，本手法の「積の参照」と「合併の生徒」の関係に対応する | ○（arXiv 抄録．ICML 2023 のポスターページあり） |
+| Huang et al., "Modality Competition: What Makes Joint Training of Multi-modal Network Fail in Deep Learning? (Provably)," ICML 2022 | 後期融合の合同学習でモーダルが競合し，一部しか学ばれないことを理論で示す | Case B が効く理由の理論的な裏づけ | ○（ICML ページ抄録） |
+| Peng et al., "Balanced Multimodal Learning via On-the-fly Gradient Modulation" (OGM-GE), CVPR 2022, arXiv:2203.15332 | 各モーダルの寄与を監視し，学びの遅いモーダルに勾配を回す | 均衡化の別手段（勾配操作）．蒸留ではない | ○（ar5iv 導入部） |
+| Wang, Tran, Feiszli, "What Makes Training Multimodal Classification Networks Hard?" (Gradient Blending), CVPR 2020 | 単モーダル損失を混ぜて過学習を抑える | 均衡化の別手段 | 背（今回の検索では原典が出なかった） |
+| Zhang, Yoon, Bansal, Yao, "Multimodal Representation Learning by Alternating Unimodal Adaptation" (MLA), CVPR 2024, arXiv:2311.10707 | 「modality laziness」を指摘し，モーダルを交互に単独で学ぶ．推論は不確かさで融合 | 用語の出典．手法は蒸留ではない | ○（CVF 抄録） |
+| Xue, Ren, Gao, Zhao, "Multimodal Knowledge Expansion" (MKE), ICCV 2021, arXiv:2103.14431 | **単モーダルの教師がラベル無しの多モーダルデータに擬似ラベルを付け，多モーダルの生徒を学ぶ**．生徒は教師の擬似ラベルを「直し」教師を超える．RAVDESS（画像の教師 → 画像＋音声の生徒），NYU Depth V2，AudioSet/VGGSound．擬似ラベルの選別やクラス均衡は無く，一貫性正則化で確証バイアスを抑える | **Case B の最も近い先行**（単モーダル教師の弱ラベルで合併の生徒を学び，生徒が教師を超える）．違い：教師は 1 本（積ではない），同一分布，少数ラベル・出発点への罰則は無い | ◎（ar5iv 本文） |
+| Li, Wang, Cui, "Decoupled Multimodal Distilling for Emotion Recognition" (DMD), CVPR 2023, arXiv:2303.13802 | 各モーダルをモーダル共通・固有に分け，モーダルを頂点とするグラフ上で重みを学んで相互に蒸留．MOSI/MOSEI | **モーダル間の相互蒸留**（往復）の例．同一モデル内の枝同士．少数ラベル・ドメイン差なし | ○（arXiv 抄録） |
+| Li, Yu, Huang, Yan, "Unimodal-driven Distillation in Multimodal Emotion Recognition with Dynamic Fusion" (SUMMER), arXiv:2503.23721 (2025) | 学習済み単モーダル教師が潜在空間と logit 空間で多モーダル融合を導く．IEMOCAP・MELD | 単モーダル教師 → 多モーダル融合，感情認識で | ○（arXiv 抄録） |
+| Yu et al., "To Fuse or to Drop? Dual-Path Learning for Resolving Modality Conflicts in MER" (DCR), arXiv:2605.04877 (2026) | 音声・映像の教師からテキストの生徒への「逆蒸留」と，融合か単独かを選ぶバンディット | 単モーダル教師 → 別モーダルの生徒＋融合の採否 | ○（arXiv 抄録） |
+| Blum, Mitchell, "Combining Labeled and Unlabeled Data with Co-Training," COLT 1998 | 2 つの視点の分類器が互いにラベル無しデータへ擬似ラベルを付ける | 「単モーダル分類器同士が互いの弱ラベルになる」原型 | 背 |
+| Zhang, Han, Deng, Xu, Ringeval, Schuller, "Leveraging Unlabeled Data for Emotion Recognition With Enhanced Collaborative Semi-Supervised Learning," IEEE Access 2018 | 複数モーダル・複数モデルで協調して擬似ラベルを付け，合同エントロピーで標本を選び，前回の擬似ラベルを再評価する．RECOLA | 感情認識での多視点の擬似ラベル付け．連続次元，深層，ドメイン差なし | ○（抄録の抜き書き） |
+| Kittler, Hatef, Duin, Matas, "On Combining Classifiers," TPAMI 1998 | 積の規則・和の規則などの理論 | 「単モーダル確率の積」の古典的根拠 | 背 |
+| PeerJ Computer Science, "Comparing supervised and unsupervised approaches to multimodal emotion recognition" (2016 頃) | 声と顔の最良単モーダル分類器を**積の規則**で後期融合し AUC 0.88 で最良 | 感情認識で積の融合が効いた例 | △ |
+| Wu, Goodman, "Multimodal Generative Models for Scalable Weakly-Supervised Learning" (MVAE), NeurIPS 2018 | 事後分布の積（PoE）で多モーダルを束ねる | 積の参照の一般的な根拠 | 背 |
+
+**見つからなかったもの**：「合併の出発点を K 本で学び直す → 3 本の単モーダル分類器へ蒸留 → その積を合併の生徒の参照にする」という**往復の二段構え**は，上のどれにも無い．「単モーダルの**ソース学習済み**分類器の積を蒸留の参照（最終予測器ではなく）に使う」も見つからなかった．
+
+---
+
+#### Q3. クラス均衡したソフト／擬似ラベル
+
+| 論文 | 何をするか | 本手法との関係 | 確かめた範囲 |
+|---|---|---|---|
+| Zou, Yu, Vijaya Kumar, Wang, "Unsupervised Domain Adaptation for Semantic Segmentation via Class-Balanced Self-Training" (CBST), ECCV 2018 | クラスごとに信頼度の閾値を決め，大きいクラスが擬似ラベルを独占しないようにする | 「クラスごとに別の基準で選ぶ」硬いラベル版．本手法は閾値ではなく**列の総和で割る**ソフト版 | ○（CVF 抄録） |
+| Zou et al., "Confidence Regularized Self-Training" (CRST), ICCV 2019 | 擬似ラベルを連続潜在変数として扱い，過信を抑える | ソフト擬似ラベルの正則化．クラス均衡は CBST の継承 | △ |
+| Berthelot et al., "ReMixMatch: Semi-Supervised Learning with Distribution Alignment and Augmentation Anchoring," ICLR 2020, arXiv:1911.09785 | 分布整合：予測 q を直近 128 バッチの予測の移動平均 p̃(y) で割り，ラベル付きデータの周辺 p(y) を掛けて行を再正規化する．q̃ = Normalize(q · p(y)/p̃(y)) | **式として最も近い**．列平均（∝ 列の総和）で割る点は同じ．違い：(1) 行を再正規化する（本手法はしない），(2) 目標の周辺はラベルから推定（本手法は一様），(3) 自分の予測に対して逐次的に行う（本手法は別モーダルの教師の表に一括で行う），(4) 総重量 m_eff の概念はない | ○（検索要約が本文の式を引用．本文は直接開いていない） |
+| Asano, Rupprecht, Vedaldi, "Self-labelling via simultaneous clustering and representation learning" (SeLa), ICLR 2020, arXiv:1911.05371 | ラベルがデータを**等分割**する制約を置き，Sinkhorn-Knopp で割り当てを解く．等分割は退化解（全部同じクラス）を防ぐために導入 | 「各クラスの総質量を等しくする」目的が同じ．本手法の列正規化は Sinkhorn の**列スケーリング 1 回分**に当たる（行の正規化を省いた形） | ◎（ar5iv 本文） |
+| Caron et al., "Unsupervised Learning of Visual Features by Contrasting Cluster Assignments" (SwAV), NeurIPS 2020 | バッチ内で Sinkhorn-Knopp により等分割の割り当て | 同上 | 背（別論文の引用で確認） |
+| Tai, Bailis, Valiant, "Sinkhorn Label Allocation: Semi-Supervised Classification via Annealed Self-Training," ICML 2021, arXiv:2102.08622 | ラベル割り当てを最適輸送として解き，クラス比率の上限制約と総ラベル質量の制約を置く．Sinkhorn 反復 | 「クラス比率の制約」と「総質量の制約」の両方を持つ．本手法の m_eff（総重量）と列の均衡はこの枠の特殊例として説明できる | ○（抄録） |
+| Rizve et al., "Towards Realistic Semi-Supervised Learning," ECCV 2022 | クラス事前分布を入れた Sinkhorn-Knopp で擬似ラベル生成 | 同上 | △ |
+| Wang, Wu, Lian, Yu, "Debiased Learning from Naturally Imbalanced Pseudo-Labels" (DebiasPL), CVPR 2022, arXiv:2201.01490 | 均衡なデータでも擬似ラベルが偏ることを示し，反事実推論と適応的マージンで補正（キューで擬似ラベル分布を追う） | 「教師の出力は均衡なデータでも偏る」という動機が同じ．補正は logit のマージン調整で，列の正規化ではない | ○（CVF 抄録） |
+| Wei et al., "CReST: A Class-Rebalancing Self-Training Framework for Imbalanced Semi-Supervised Learning," CVPR 2021 | 少数クラスの擬似ラベルを多く採り，CReST+ では段階的な分布整合 | サンプリングによる均衡 | ○（抄録） |
+| Zhang et al., "FlexMatch: Boosting Semi-Supervised Learning with Curriculum Pseudo Labeling," NeurIPS 2021 | クラスごとに閾値を学習状況に応じて変える | クラス別閾値（硬いラベル） | ○（抄録） |
+| Liang, Hu, Feng, "Do We Really Need to Access the Source Data? Source Hypothesis Transfer for UDA" (SHOT), ICML 2020, arXiv:2002.08546 | 情報最大化損失の多様性項 L_div = Σ_k p̂_k log p̂_k（p̂ は平均予測）で**平均予測を一様に寄せる**．擬似ラベルは重心の最近傍 | 「各クラスの総質量を等しくする」目的を**損失**で達成する．本手法は**正規化**で達成する | ◎（ar5iv 本文の式） |
+| Hu et al., IMSAT, ICML 2017；Krause et al., RIM, NeurIPS 2010 | 情報最大化（周辺エントロピー最大化） | 上の多様性項の出典 | ○／背 |
+| Saerens, Latinne, Decaestecker, "Adjusting the Outputs of a Classifier to New a Priori Probabilities: A Simple Procedure," Neural Computation 2002 | 事後確率に（新事前／旧事前）を掛けて再正規化し，新事前を EM で推定 | 本手法の列正規化は，「旧事前＝教師の平均予測，新事前＝一様」とした**EM の 1 ステップ**（行の再正規化抜き）として説明できる．ラベルシフトの古典 | ○（抄録） |
+| Iscen et al., "Class-Balanced Distillation for Long-Tailed Visual Recognition," BMVC 2021 | クラス均衡**サンプリング**で特徴蒸留 | 均衡の対象がラベルではなくサンプリング | ○（抜き書き） |
+| Kim, "Biased Teacher, Balanced Student" (LTKD), arXiv:2506.18496 (2025) | 教師のグループ水準の予測を再均衡して蒸留 | 教師出力の再均衡だが，グループ単位で列正規化ではない | △ |
+
+**「ソフトラベルを列の総和で割る」をそのまま書いた論文は見つからなかった**（探した範囲：半教師あり・ドメイン適応・蒸留・長尾の英語論文．検索語は class-balanced / distribution alignment / equipartition / Sinkhorn / column normalization / label shift）．式として最も近いのは ReMixMatch の分布整合（列平均で割ってから行を再正規化）と Sinkhorn の列スケーリングで，目的として最も近いのは SHOT の多様性項と SeLa の等分割制約である．SER のドメイン適応でクラス均衡した擬似ラベルを扱った論文は，拡張検索で出なかった（Emo-DNA は移動平均の閾値，MI-FUSE は相互情報量の重み．いずれもクラス均衡ではない）．
+
+---
+
+#### Q4. 蒸留・擬似ラベル × 仮説転移（L2-SP 型の出発点への罰則）
+
+| 論文 | 何をするか | 本手法との関係 | 確かめた範囲 |
+|---|---|---|---|
+| Li, Grandvalet, Davoine, "Explicit Inductive Bias for Transfer Learning with Convolutional Networks" (L2-SP), ICML 2018, arXiv:1802.01483 | 学習済み重みを参照点にした L2 罰則．通常の L2 や層の凍結より効く | 本手法の罰則の形そのもの．違い：深層の全重み，ラベル付きのみ，擬似ラベルなし | ○（抄録） |
+| Kuzborskij, Orabona, "Stability and Hypothesis Transfer Learning," ICML 2013 | ソース仮説へ偏らせた正則化つき最小二乗（線形）の安定性解析．ソースとターゲットが近いほど LOO 誤差が速く収束し，小さな訓練集合で転移パラメータを選べる | **線形・少数ラベル・出発点への L2** の理論的な原点．ラベル無しターゲットは使わない | ○（抄録） |
+| Tommasi, Orabona, Caputo, "Safety in Numbers: Learning Categories from Few Examples with Multi Model Knowledge Transfer," CVPR 2010；TPAMI 2014 | 少数例で，複数のソース超平面の重みつき和へ LS-SVM を偏らせる．重みは LOO 誤差を最小化する凸問題で決める | 複数ソースの出発点＋少数ラベル＋線形．**ラベル無しターゲットも別モーダルの教師も無い** | ○（抄録） |
+| Chi et al., "TOHAN: A One-step Approach towards Few-shot Hypothesis Adaptation," NeurIPS 2021, arXiv:2106.06326 | ソース分類器と少数ターゲットラベルだけで，中間ドメインを生成して適応 | 少数仮説適応．生成に頼り，罰則型ではない | ○（抄録） |
+| Liang, Hu, Feng, SHOT, ICML 2020 | ソース分類器を凍結し，情報最大化と重心の擬似ラベルで特徴側を適応 | 「ソース仮説＋ラベル無しターゲットの擬似ラベル」．ターゲットラベルも L2 罰則も無い（凍結が罰則の極限） | ◎ |
+| Ma et al., "Semi-Supervised Hypothesis Transfer for Source-Free Domain Adaptation," arXiv:2107.06735 (2021) | 少数のターゲットラベル＋ソース仮説で，エントロピー最小化とラベル伝播を反復 | 「半教師あり仮説転移」の名を持つ最も近い設定．ソース仮説を凍結か罰則かは抄録に無い | ○（抄録） |
+| Lee et al., "Few-shot Fine-tuning is All You Need for Source-free Domain Adaptation," arXiv:2304.00792 (2023) | 1〜3 本のターゲットラベルでソースモデルを微調整するだけで，ラベルシフト下では SFUDA を上回る | 「少数ラベルの直接利用がラベル無し適応に勝つ」主張．罰則も擬似ラベルも抄録に無い | ○（抄録） |
+| Jin et al., "Parameter Reference Loss for Unsupervised Domain Adaptation," arXiv:1711.07170 (2017) | ターゲット網のパラメータをソース網に結びつける損失 | 出発点への罰則の UDA 版（詳細は抄録に無い） | ○（抄録） |
+| Bruzzone, Marconcini, "Domain Adaptation Problems: A DASVM Classification Technique and a Circular Validation Strategy," TPAMI 2010 | SVM にターゲットの自己ラベル標本を段階的に足し，ソース標本を外す．ラベル無しで検証する循環的な方法 | 線形分類器での「ソース起点＋ターゲット擬似ラベル」の古典 | ○（抄録・抜き書き） |
+| Kumar, Ma, Liang, "Understanding Self-Training for Gradual Domain Adaptation," ICML 2020 | 自己学習の理論．正則化とラベルの鮮鋭化が無限データでも要る | 擬似ラベル学習に正則化が要る根拠 | △ |
+| Li, Hoiem, "Learning without Forgetting," ECCV 2016 / TPAMI 2018 | 旧モデルの出力への蒸留を錨にする | 「出発点からの蒸留＝錨」の原型 | 背 |
+| Wortsman et al., "Robust fine-tuning of zero-shot models" (WiSE-FT), CVPR 2022, arXiv:2109.01903 | ゼロショット重みと微調整重みの線形補間 | 出発点への引き戻しの別形（重み空間） | ○（抄録） |
+| Yao, Zhang, Xu, "Visual-Language Prompt Tuning with Knowledge-guided Context Optimization" (KgCoOp), CVPR 2023；Khattak et al., "Self-regulating Prompts" (PromptSRC), ICCV 2023 | 学習プロンプトの埋め込みを手作りプロンプト（ゼロショット頭）へ L2 で寄せる／凍結 CLIP との相互一致（出発点からの蒸留） | **出発点への L2 と出発点からの蒸留を同時に使う**少数ショットの例．違い：同一分布，別モーダルの教師ではなく自分自身，ラベル無しターゲットなし | ○（抄録） |
+| Yang et al., "Few-Shot Domain Expansion for Face Anti-Spoofing," arXiv:2106.14162 (2021) | 少数ターゲットラベル＋忘却抑制制約 | 少数ショット適応で出発点を守る例 | ○（抄録） |
+| PACE, arXiv:2205.13508 (2022) | 正規化特徴上の線形分類器で，ソース分類器の擬似ラベルの高信頼分を微調整 | **凍結特徴＋線形頭＋ソース分類器の擬似ラベル**．ターゲットラベルも罰則も無い | △ |
+| Ahn, Lee, Shin, "Cross-corpus speech emotion recognition based on few-shot learning and domain adaptation," IEEE SPL 2021 | ターゲットラベル無しで few-shot 学習と UDA を組む．複数コーパスで学ぶ | SER のクロスコーパス少数ショットの先行．ラベル無しで，仮説転移の罰則ではない | ○（抜き書き） |
+
+**見つからなかったもの**：(a) ソース学習済み**線形**頭への L2 罰則，(b) クラスあたり K 本のターゲットラベル，(c) **別モーダル**の教師がラベル無しターゲットに付けたソフト弱ラベル，の三つを同時に持つ論文は無い．部品ごとの先行は，(a)+(b) が Tommasi 2010・Kuzborskij 2013，(a)+(c 相当) が SHOT・DASVM・PACE，(a)+出発点からの蒸留が KgCoOp・PromptSRC である．
+
+---
+
+#### Q5. 擬似ターゲット（leave-one-source-out）で教師・温度・重み・総重量を K ごとに選ぶ
+
+| 論文 | 何をするか | 本手法との関係 | 確かめた範囲 |
+|---|---|---|---|
+| Gulrajani, Lopez-Paz, "In Search of Lost Domain Generalization," ICLR 2021, arXiv:2007.01434 | モデル選択の 3 法を定義．**leave-one-domain-out 交差検証**：訓練ドメインを 1 つずつ外して学び，外したドメインで評価し，平均が最良の設定を選んで全ドメインで学び直す | 擬似ターゲットでの選択の**直接の先行**．違い：ターゲットラベルが 0 本の DG で，選ぶのは手法のハイパーパラメータ．**K ごとに教師・重みづけ・総重量を選ぶ**設定は無い | ◎（ar5iv 本文） |
+| Li, Yang, Song, Hospedales, "Learning to Generalize: Meta-Learning for Domain Generalization" (MLDG), AAAI 2018, arXiv:1710.03463 | 毎反復でソースドメインを meta-train と meta-test に分け，訓練と評価のずれを模倣して学ぶ | 「ソースのずれで本番のずれを模倣する」発想．選択ではなく学習 | ○（抄録） |
+| Balaji, Sankaranarayanan, Chellappa, "MetaReg: Towards Domain Generalization using Meta-Regularization," NeurIPS 2018 | あるドメインで学んだモデルが別ドメインで効くように正則化器を学ぶ | 正則化の強さをソース間のずれから決める点が本手法の m_eff 選択に近い．学習であり選択ではない | ○（抄録） |
+| Zhong, Fan, Yang, Verscheure, Ren, "Cross Validation Framework to Choose Amongst Models and Datasets for Transfer Learning," ECML-PKDD 2010 | 逆検証：ソースで学んだ分類器がターゲットに付けたラベルで逆分類器を学び，ソースで評価する | ターゲットラベル無しの選択の古典 | ○（抄録・抜き書き） |
+| You, Wang, Long, Jordan, "Towards Accurate Model Selection in Deep Unsupervised Domain Adaptation" (DEV), ICML 2019 | 重要度重みでターゲットリスクの不偏推定．制御変量で分散を抑える | 同上（UDA） | ○（抄録） |
+| Sugiyama, Krauledat, Müller, "Covariate Shift Adaptation by Importance Weighted Cross Validation," JMLR 2007 | IWCV | 同上 | 背 |
+| Bruzzone, Marconcini, TPAMI 2010 | 循環的な検証（上記） | 同上 | ○ |
+| Kuzborskij, Orabona 2013；Tommasi et al. 2010 | 少数のターゲットラベルの LOO で転移の重みを選ぶ | **ターゲットラベル**を使う選択（本手法は使わない） | ○ |
+| Teshima et al., "Few-shot Domain Adaptation by Causal Mechanism Transfer," ICML 2020；"Few-shot Adaptation to Distribution Shifts by Mixing Source and Target Embeddings," arXiv:2305.14521 | 少数ターゲットラベルの LOO／k 分割で選ぶ | 同上 | △ |
+| SKADA-Bench, arXiv:2407.11676 (2024) | UDA のラベル無しスコアを比較．ソースだけの検証は最適でない | 「ソース内検証は不十分」という根拠 | △ |
+| Schuller et al., "Cross-Corpus Acoustic Emotion Recognition: Variances and Strategies," IEEE TAC 2010 | 6 コーパスの相互評価（コーパス間評価）．正規化の比較 | SER での leave-one-corpus-out **評価**の古典．選択の手続きは抄録に無い | ○（抄録） |
+| 少数ショット学習の慣行（例：Chen et al., "A Closer Look at Few-shot Classification," ICLR 2019） | ハイパーパラメータを meta-validation のクラス集合で選ぶ | 「本番で使わないクラス／ドメインで選ぶ」慣行 | 背 |
+
+**見つからなかったもの**：ラベル予算 K ごとに，蒸留の教師・重みづけ方式・総重量を，ソースコーパスを擬似ターゲットにして選ぶ論文（探した範囲：DA/DG のモデル選択，少数ショット DA，SER のクロスコーパス）．手続きとしては DomainBed の leave-one-domain-out を「選ぶ対象を教師と重みに，軸を K に」広げたものと位置づけられる．
+
+---
+
+#### Q6. クロスコーパス SER で，学習時だけ使えるモーダル（特権情報）
+
+| 論文 | 何をするか | 本手法との関係 | 確かめた範囲 |
+|---|---|---|---|
+| Albanie et al., ACM MM 2018 | 顔が特権情報．VoxCeleb で学び，RML・eNTERFACE で評価（埋め込みはコーパス間，最終の線形頭はコーパス内 10 分割） | 埋め込みの転移はクロスコーパスだが，分類器はターゲット内で学ぶ．ソース学習済み教師をターゲットに当てる形ではない | ◎ |
+| Li, Zhao, Jin, Interspeech 2021 | テキストが特権情報．IEMOCAP・MELD（コーパス内） | コーパス内 | ○ |
+| Srinivasan et al., ICASSP 2022 | テキスト（合併教師経由）が特権情報．MSP-Podcast・IEMOCAP（コーパス内） | コーパス内．IEMOCAP では条件づけが性能を落とすと報告（検索の抜き書き） | ○／△ |
+| Shome, Etemad, ICASSP 2024 | テキストと韻律が特権情報．IEMOCAP（コーパス内） | コーパス内 | ○ |
+| Hajavi, Etemad, arXiv 2023 | 映像が特権情報 | データ名は抄録に無い | ○ |
+| Pendyala et al., Interspeech 2025 | 顔が特権情報．蒸留は第三コーパス（MSP-Face）で，評価は RAVDESS・CREMA-D のコーパス内 | 「ラベル無しの別コーパスで顔教師のソフトラベルを使う」点がクロスコーパス的．ただし評価はコーパス内で，教師をターゲットに当てて弱ラベルを作る形ではない | ◎ |
+| Shah, Tu, Berisha, Chakrabarti, Spanias, "Articulation constrained learning with application to speech emotion recognition," EURASIP JASM 2019 | 調音データ（EMA・顔の動き）を学習時だけ使う制約つき L1 ロジスティック回帰．USC-EMA・IEMOCAP．**一方のコーパスの調音データで他方の感情分類を制約するクロスコーパス実験**を含む | 特権情報×クロスコーパス×線形分類器という組み合わせの先行．違い：顔・テキストではなく調音，蒸留ではなく再構成制約，少数ラベルの設定なし | ◎（PMC 本文） |
+| Goncalves, Busso, "Improving Speech Emotion Recognition Using Self-Supervised Learning with Domain-Specific Audiovisual Tasks," Interspeech 2022 | 顔のランドマークの動きと AU 由来の擬似感情ラベルを**音声から予測**する事前学習（60.92 時間のラベル無し）．CREMA-D で微調整 | 顔が特権情報の自己教師あり事前学習．評価はコーパス内 | ○（ISCA 抄録） |
+| R-PAVT, ScienceDirect 2026 | 顔が特権情報，音声のみ推論．CREMA-D・MELD | 詳細不明 | △ |
+| Durdun et al., arXiv 2026 | 生成書き起こしが特権情報．感情極性 | 極性 2 値 | ○ |
+| Lopez-Paz et al., ICLR 2016 | 一般化蒸留（LUPI＋蒸留） | 枠組みの出典 | ○ |
+
+**見つからなかったもの**：ソースコーパスだけで学んだ多モーダル分類器を，ラベルがほぼ無い**ターゲットコーパス**に当てて弱ラベルを作り，音声のみ（または合併）の分類器を少数ラベルで学ぶクロスコーパス SER．顔・テキストを特権情報に使う SER は全部コーパス内か第三コーパス経由で，クロスコーパスで特権情報を使ったのは調音データの Shah 2019 だけだった．
+
+---
+
+#### 部品としての新規性の判定
+
+##### 部品 1：別モーダル（合併）の教師 → 出発点に錨づけた線形の少数ショット生徒，クラス均衡した弱ラベル（Case A）
+
+| 要素 | 直接の先行 | 判定 |
+|---|---|---|
+| 別モーダル／合併の教師 → 音声のみの生徒（感情） | Albanie 2018（顔 → 音声，ラベル無し動画），Srinivasan 2022（音声＋テキストの合併教師 → 音声），LiSER 2025（ラベル無し AV データ上の教師ソフトラベル → 音声） | **あり** |
+| 出発点への L2 罰則つきの線形少数ショット学習 | Kuzborskij & Orabona 2013，Tommasi et al. 2010/2014，L2-SP 2018 | **あり** |
+| 教師ソフトラベルの列正規化（各クラスの総質量を等しくする） | ReMixMatch の分布整合（列平均で割って行を再正規化），SeLa/SLA の Sinkhorn 等分割（列スケーリングの反復），SHOT の多様性項（損失で同じ目的），Saerens 2002（事前の補正） | **部分的**．「列の総和で 1 回だけ割り，行は正規化せず，総重量 m_eff で縛る」そのままの形は見つからなかった |
+| 三つの同時使用（ソース学習済み合併教師をターゲットに当てる＋K 本＋L2 錨＋均衡弱ラベル） | 無し | **見つからなかった**（探した範囲：Q1・Q3・Q4・Q6 の検索語） |
+
+残る新しさ：(i) 教師が「ソースだけで学んだ合併の出発点」であり，ターゲットコーパス上で**学び直さずに**当てる点（既存研究はターゲットか第三コーパスで教師を学ぶ），(ii) 均衡弱ラベルを「列正規化＋総重量 m_eff」の 2 つの量で表し，K に応じて m_eff を選ぶ点，(iii) 凍結特徴＋線形頭＋L2 錨という，解析しやすい形で (i)(ii) を組んだ点．論文では Albanie 2018 が教師ラベルの中立偏りを報告しつつ均衡サンプリングで効果を得られなかった事実を引き，列正規化がその問題への別の答えだと書くのが筋が通る．
+
+##### 部品 2：単モーダルの積／二段構えの参照で合併の生徒を学ぶ（Case B）
+
+| 要素 | 直接の先行 | 判定 |
+|---|---|---|
+| 単モーダル教師 → 多モーダル生徒 | Du et al. 2021（UMT），Xue et al. 2021（MKE：単モーダル教師の擬似ラベルで多モーダル生徒が教師を超える．RAVDESS で確認），SUMMER 2025，Huang 2022 の理論 | **あり** |
+| 単モーダル確率の積（PoE）による融合 | Kittler 1998 の積の規則，PeerJ 2016 の感情認識での積融合，MVAE 2018 | **あり**（最終予測器としては古典） |
+| 単モーダル出発点の積を**蒸留の参照**に使う | 無し | **見つからなかった** |
+| 合併の出発点を K 本で学び直す → 単モーダルへ蒸留 → 積 → 合併の生徒の参照，という往復 | DMD 2023（枝同士の相互蒸留）が近いが，同一モデル内で往復の二段構えではない | **見つからなかった** |
+
+残る新しさ：積を「予測器」ではなく「合併頭の弱ラベル源」に使う点と，往復の二段構え．ただし「単モーダル教師が合併を助ける」主張自体は UMT・MKE で確立しているので，論文ではそれらの延長として書く．MKE の「生徒が教師の擬似ラベルを直す」観察は，Case B で生徒が参照を超える結果の説明に使える．
+
+##### 部品 3：K ごとに擬似ターゲットで教師・重みづけ・総重量を選ぶ
+
+| 要素 | 直接の先行 | 判定 |
+|---|---|---|
+| ソースドメインを 1 つ外して評価し，設定を選ぶ | Gulrajani & Lopez-Paz 2021（leave-one-domain-out 交差検証），Zhong 2010・You 2019・Bruzzone 2010（ラベル無し選択），MLDG 2018・MetaReg 2018（ずれの模倣で学ぶ） | **あり** |
+| ラベル予算 K ごとに，教師・重みづけ方式・総重量を選ぶ | 無し | **見つからなかった** |
+
+残る新しさ：手続きは既存の leave-one-domain-out の適用であり，新しい選び方ではない．新しいのは「選ぶ対象（教師・重みづけ・m_eff）」と「K を軸にする」点だけなので，論文では「DomainBed の leave-one-domain-out 選択を，ラベル予算ごとに蒸留の設定へ適用した」と書き，手法の新規性としては主張しない方が安全である．
+
+---
+
+#### 調査の限界
+
+- WebSearch は米国向けの結果で，英語の問いだけを使った．中国語・日本語の論文誌は探していない．
+- ScienceDirect（R-PAVT）と IJCAI の PDF は開けず，前者は検索の抜き書きだけである．
+- ICASSP・Interspeech 2022〜2024 の「音声映像教師 → 音声生徒」は拡張検索で出なかったが，題名に distillation を含まない論文は漏れうる．
+- 「背」と記した古典（Kittler 1998，Blum & Mitchell 1998，LwF，Gradient Blending，SwAV，IWCV，Chen 2019）は今回確かめていない．論文に引く前に原典を開くこと．
+
 ## 2. 先行研究のまとめ
 
 1 本ごとに「何をしたか／分かったこと／本研究との関係」を書く．「本研究との関係」には，論文 1 の仮説（MH1〜MH5）に関わる場合はその仮説を書き，ソースの選び方や距離に関わる場合は「論文 2 の材料」と書く．ずれを測って転移を予測する研究の要点は 3.5 節に置いた．
