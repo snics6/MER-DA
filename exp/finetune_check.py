@@ -477,7 +477,9 @@ def adapt(T, reps, smoke=False, center=False):
                        "gpu_gb": round(torch.cuda.max_memory_allocated() / 2 ** 30, 2) if DEV.type == "cuda" else np.nan, **log}
                 pd.DataFrame([row]).reindex(columns=RUN_COLS).to_csv(f, mode="a", header=not f.exists(), index=False)
                 print(f"  {T} r{r} K{K} {method} λ{lam:g}：UAR {u:.4f}（テスト {len(te)}，評価 {row['eval_sec']} 秒，GPU {row['gpu_gb']} GB）", flush=True)
-                del pm, head, th0
+                del pm, head, th0, items
+                import gc
+                gc.collect()
                 torch.cuda.empty_cache()
 
 
