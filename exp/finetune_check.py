@@ -64,6 +64,9 @@ EPOCHS_SRC, EPOCHS_K, EPOCHS_OURS = 3, 20, 2
 LORA = dict(r=8, lora_alpha=16, lora_dropout=0.0, target_modules=["q_proj", "k_proj", "v_proj", "out_proj"])
 MOSEI_SRC_PER_CLASS, MOSEI_CAND, HOLDOUT = 1500, 4000, 0.1
 EVAL_BUDGET_SEC, EVAL_MAX = 240, 64
+CENTER_MOMENTUM = 0.99                     # 追加の確かめ（中心化）：ソースの学習中の群ごとの平均の移動平均
+CENTER_INIT_MAX = 2000                     # 中心の初期値を測る発話数の上限（群ごと）
+RUN_COLS = ["target", "rep", "K", "method", "lam", "uar", "n_test", "eval_sec", "gpu_gb", "n_train", "steps", "train_sec", "loss_first", "loss_last"]
 OUT = ROOT / "results" / "finetune_check"
 OUT_REL = ROOT / "results" / "explore_relation"
 CACHE = ROOT / "data" / "cache"
@@ -163,19 +166,48 @@ def load_state(pm, head, st):
     head.load_state_dict(st["head"])
 
 
-def forward(pm, head, x, lens):
+def pooled_of(pm, x, lens):
+    """詰め物を除いた平均プーリング（特徴抽出と同じ）→ (B, 1024) float32。"""
     x, lens = x.to(DEV), lens.to(DEV)
     mask = (torch.arange(x.shape[1], device=DEV)[None] < lens[:, None]).long()
     with torch.autocast("cuda", dtype=torch.bfloat16, enabled=DEV.type == "cuda"):
         h = pm(x, attention_mask=mask).last_hidden_state
     flen = pm.get_base_model()._get_feat_extract_output_lengths(lens)
     fmask = (torch.arange(h.shape[1], device=DEV)[None] < flen[:, None]).to(h.dtype)
-    pooled = (h * fmask[..., None]).sum(1) / fmask.sum(1, keepdim=True)
-    return head(pooled.float())
+    return ((h * fmask[..., None]).sum(1) / fmask.sum(1, keepdim=True)).float()
 
 
-def train(pm, head, items, epochs, lam, theta0, seed, tag):
-    """items = [(Waves, 行番号, 重みの列 (4,))]．(1/M) Σ s_ik ℓ_ik ＋ (λ/2)‖θ−θ₀‖² を AdamW で下げる。"""
+def forward(pm, head, x, lens, center=None):
+    """center（(1024,) か None）：中心化の追加の確かめでは，頭に入れる前に平均を引く。"""
+    pooled = pooled_of(pm, x, lens)
+    if center is not None:
+        pooled = pooled - center
+    return head(pooled)
+
+
+@torch.inference_mode()
+def embed_mean(pm, waves, idx, max_len=None):
+    """idx の発話のプーリング後の平均（中心）．max_len を与えれば先頭だけ使う。"""
+    pm.eval()
+    order = sorted(idx, key=lambda i: min(waves.len[i], max_len or 10 ** 12))
+    acc, n = torch.zeros(pm.get_base_model().config.hidden_size, dtype=torch.float64, device=DEV), 0
+    budget, i0 = EVAL_BUDGET_SEC * SR, 0
+    while i0 < len(order):
+        i1 = i0 + 1
+        L = lambda i: min(int(waves.len[i]), max_len or 10 ** 12)  # noqa: E731
+        while i1 < len(order) and i1 - i0 < EVAL_MAX and (i1 + 1 - i0) * L(order[i1]) <= budget:
+            i1 += 1
+        x, lens = collate([waves.get(i, max_len) for i in order[i0:i1]])
+        acc += pooled_of(pm, x, lens).double().sum(0)
+        n += i1 - i0
+        i0 = i1
+    return (acc / n).float()
+
+
+def train(pm, head, items, epochs, lam, theta0, seed, tag, centers=None):
+    """items = [(Waves, 行番号, 重みの列 (4,))]．(1/M) Σ s_ik ℓ_ik ＋ (λ/2)‖θ−θ₀‖² を AdamW で下げる。
+    centers（追加の確かめ）：{"fixed": (1024,)} なら全行からその中心を引く（ターゲット），{群名: (1024,)} なら行の群の中心を引き，
+    群の中心をバッチの平均で移動平均（CENTER_MOMENTUM）する（ソース）。"""
     rng = np.random.default_rng(seed)
     torch.manual_seed(seed)
     W = torch.tensor(np.stack([it[2] for it in items]), dtype=torch.float32, device=DEV)
@@ -197,7 +229,18 @@ def train(pm, head, items, epochs, lam, theta0, seed, tag):
         for b in range(spe):
             ix = perm[b * BATCH:(b + 1) * BATCH]
             x, lens = collate([items[i][0].get(items[i][1], max_len, rng) for i in ix])
-            logits = forward(pm, head, x, lens)
+            pooled = pooled_of(pm, x, lens)
+            if centers is not None:
+                if "fixed" in centers:
+                    pooled = pooled - centers["fixed"]
+                else:
+                    gs = [items[i][0].g for i in ix]
+                    with torch.no_grad():
+                        for g in set(gs):
+                            rows_g = torch.tensor([j for j, g_ in enumerate(gs) if g_ == g], device=DEV)
+                            centers[g] = CENTER_MOMENTUM * centers[g] + (1 - CENTER_MOMENTUM) * pooled[rows_g].mean(0)
+                    pooled = pooled - torch.stack([centers[g] for g in gs])
+            logits = head(pooled)
             lp = torch.log_softmax(logits, 1)
             loss = -scale * (W[ix] * lp).sum() / len(ix)
             if th0 is not None and lam > 0:
@@ -214,7 +257,7 @@ def train(pm, head, items, epochs, lam, theta0, seed, tag):
 
 
 @torch.inference_mode()
-def predict(pm, head, waves, idx):
+def predict(pm, head, waves, idx, center=None):
     pm.eval()
     head.eval()
     order = sorted(idx, key=lambda i: waves.len[i])
@@ -226,7 +269,7 @@ def predict(pm, head, waves, idx):
         while i1 < len(order) and i1 - i0 < EVAL_MAX and (i1 + 1 - i0) * int(waves.len[order[i1]]) <= budget:
             i1 += 1
         x, lens = collate([waves.get(i) for i in order[i0:i1]])
-        pred = forward(pm, head, x, lens).argmax(1).cpu().numpy()
+        pred = forward(pm, head, x, lens, center).argmax(1).cpu().numpy()
         for i, p in zip(order[i0:i1], pred):
             out[pos[int(i)]] = p
         i0 = i1
@@ -235,6 +278,24 @@ def predict(pm, head, waves, idx):
 
 def uar(y, pred):
     return CB.uar(np.asarray(y), np.asarray(pred))
+
+
+def read_runs(path):
+    """adapt の CSV を読む．最初の行（start．学習の列が無い）で見出しが 9 列になった版も読めるように，列は RUN_COLS で合わせる。"""
+    import csv
+    rows = []
+    with open(path) as fh:
+        rd = csv.reader(fh)
+        header = next(rd)
+        for r in rd:
+            if r and r != header and r != RUN_COLS:
+                rows.append(dict(zip(RUN_COLS, r)))
+    df = pd.DataFrame(rows).reindex(columns=RUN_COLS)
+    for c in RUN_COLS:
+        if c not in ("target", "K", "method"):
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    df["K"] = df["K"].astype(str)
+    return df
 
 
 # ---------------------------------------------------------------- 段 teacher（凍結した特徴）
@@ -287,7 +348,8 @@ def build_teacher(T):
 
 
 # ---------------------------------------------------------------- 段 source
-def train_source(set_name, smoke=False):
+def train_source(set_name, smoke=False, center=False):
+    """center（追加の確かめ）：群ごとの中心（θ_init で測った平均 → 学習中は移動平均）を引いて学ぶ．出発点は start_<組>_c.pt に書く。"""
     groups = SETS[set_name]
     waves = {g: Waves(g) for g in groups}
     rng = np.random.default_rng(0)
@@ -316,34 +378,49 @@ def train_source(set_name, smoke=False):
     if smoke:
         items = items[:64]
     pm, head = make_model(seed=0)
-    log = train(pm, head, items, 1 if smoke else EPOCHS_SRC, 0.0, None, seed=0, tag=f"source {set_name}")
+    centers = None
+    if center:
+        centers = {}
+        for g in groups:
+            tr_g = [i_ for w_, i_, _ in items if w_.g == g]
+            sub = np.random.default_rng(1).permutation(tr_g)[:CENTER_INIT_MAX]
+            centers[g] = embed_mean(pm, waves[g], sub, max_len=int(CROP_SEC * SR))
+    sfx = "_c" if center else ""
+    log = train(pm, head, items, 1 if smoke else EPOCHS_SRC, 0.0, None, seed=0, tag=f"source{sfx} {set_name}", centers=centers)
     res = {}
     for g, ho, y in hold:
         ho = ho[:32] if smoke else ho
-        res[g] = uar(y[ho], predict(pm, head, waves[g], ho))
-    print(f"  {set_name}：抜いた話者の UAR {res}", flush=True)
+        res[g] = uar(y[ho], predict(pm, head, waves[g], ho, None if centers is None else centers[g]))
+    print(f"  {set_name}{sfx}：抜いた話者の UAR {res}", flush=True)
     if not smoke:
-        torch.save(state_of(pm, head), OUT / f"start_{set_name}.pt")
-        pd.DataFrame([{"set": set_name, **log, **{f"holdout_{g}": v for g, v in res.items()}}]).to_csv(OUT / f"start_{set_name}.csv", index=False)
+        st = state_of(pm, head)
+        if centers is not None:
+            st["centers"] = {g: c.cpu() for g, c in centers.items()}
+        torch.save(st, OUT / f"start_{set_name}{sfx}.pt")
+        pd.DataFrame([{"set": set_name, **log, **{f"holdout_{g}": v for g, v in res.items()}}]).to_csv(OUT / f"start_{set_name}{sfx}.csv", index=False)
 
 
 # ---------------------------------------------------------------- 段 adapt
-def plan(K):
+def plan(K, center=False):
+    if center:                                                                 # 追加の確かめは λ を固定版だけ
+        return [("start", 0.0), ("ours", LAM_FIXED)] if K == "0" else [("k_only", 0.0), ("anchor", LAM_FIXED), ("ours", LAM_FIXED)]
     if K == "0":
         return [("start", 0.0)] + [("ours", lam) for lam in LAMS]
     return [("k_only", 0.0)] + [("anchor", lam) for lam in LAMS] + [("ours", lam) for lam in LAMS]
 
 
-def adapt(T, reps, smoke=False):
+def adapt(T, reps, smoke=False, center=False):
+    """center（追加の確かめ）：θ₀ で候補の平均を測って中心にし，学習と評価でその中心を引く（反復ごとに 1 回．学習中は固定）．結果は <T>_c.csv。"""
     tz = np.load(OUT / f"teacher_{T}.npz")
     y = tz["y"]
     waves = Waves(T)
-    f = OUT / f"{T}{'_smoke' if smoke else ''}.csv"
+    sfx = ("_c" if center else "") + ("_smoke" if smoke else "")
+    f = OUT / f"{T}{sfx}.csv"
     done = set()
     if f.exists():
-        d = pd.read_csv(f, dtype={"K": str})
+        d = read_runs(f)
         done = {(int(a), str(b), c, float(e)) for a, b, c, e in zip(d.rep, d.K, d.method, d.lam)}
-    sp = OUT / f"start_{SET_OF[T]}.pt"
+    sp = OUT / f"start_{SET_OF[T]}{'_c' if center else ''}.pt"
     st = torch.load(sp, weights_only=True) if sp.exists() else None
     if st is None and not smoke:
         raise FileNotFoundError(sp)
@@ -357,8 +434,18 @@ def adapt(T, reps, smoke=False):
         if smoke:
             cand, te = cand[:48], te[:32]
         kpos = {int(i): j for j, i in enumerate(pool)}
+        ctr = None
+        if center and any((r, K, m_, l_) not in done for K in KS for m_, l_ in plan(K, True)):
+            pm, head = make_model(seed=0)
+            if st is not None:
+                load_state(pm, head, st)
+            t0 = time.perf_counter()
+            ctr = embed_mean(pm, waves, [int(i) for i in cand if waves.ok[i]])
+            print(f"  {T} r{r}：中心を θ₀ で測った（候補 {len(cand)} 本，{time.perf_counter() - t0:.0f} 秒）", flush=True)
+            del pm, head
+            torch.cuda.empty_cache()
         for K in KS:
-            for method, lam in plan(K):
+            for method, lam in plan(K, center):
                 if (r, K, method, lam) in done:
                     continue
                 seed = 1000 * r + 10 * int(K) + {"start": 0, "k_only": 1, "anchor": 2, "ours": 3}[method] + int(round(1000 * lam))
@@ -382,27 +469,30 @@ def adapt(T, reps, smoke=False):
                 log = {}
                 if items:
                     epochs = EPOCHS_OURS if method == "ours" else EPOCHS_K
-                    log = train(pm, head, items, 1 if smoke else epochs, lam if method != "k_only" else 0.0, th0 if method != "k_only" else None, seed, f"{T} r{r} K{K} {method} λ{lam:g}")
+                    log = train(pm, head, items, 1 if smoke else epochs, lam if method != "k_only" else 0.0, th0 if method != "k_only" else None, seed,
+                                f"{T} r{r} K{K} {method} λ{lam:g}", centers=None if ctr is None else {"fixed": ctr})
                 t0 = time.perf_counter()
-                u = uar(y[te], predict(pm, head, waves, te))
+                u = uar(y[te], predict(pm, head, waves, te, ctr))
                 row = {"target": T, "rep": r, "K": K, "method": method, "lam": lam, "uar": u, "n_test": len(te), "eval_sec": round(time.perf_counter() - t0, 1),
                        "gpu_gb": round(torch.cuda.max_memory_allocated() / 2 ** 30, 2) if DEV.type == "cuda" else np.nan, **log}
-                pd.DataFrame([row]).to_csv(f, mode="a", header=not f.exists(), index=False)
+                pd.DataFrame([row]).reindex(columns=RUN_COLS).to_csv(f, mode="a", header=not f.exists(), index=False)
                 print(f"  {T} r{r} K{K} {method} λ{lam:g}：UAR {u:.4f}（テスト {len(te)}，評価 {row['eval_sec']} 秒，GPU {row['gpu_gb']} GB）", flush=True)
                 del pm, head, th0
                 torch.cuda.empty_cache()
 
 
 # ---------------------------------------------------------------- 段 analyze
-def analyze():
-    ft = pd.concat([pd.read_csv(OUT / f"{T}.csv", dtype={"K": str}) for T in TARGETS if (OUT / f"{T}.csv").exists()])
+def analyze(center=False):
+    """center：追加の確かめ（<T>_c.csv）を同じ 4 つの差で表にする（e63c_*.csv．事前登録の予言ではなく記述）。"""
+    sfx = "_c" if center else ""
+    ft = pd.concat([read_runs(OUT / f"{T}{sfx}.csv") for T in TARGETS if (OUT / f"{T}{sfx}.csv").exists()])
     fr = pd.concat([pd.read_csv(OUT / f"teacher_{T}.csv", dtype={"K": str}) for T in TARGETS if (OUT / f"teacher_{T}.csv").exists()])
     fr["lam"] = 0.0
     ft, fr = ft[ft.rep.isin(REPS)], fr[fr.rep.isin(REPS)]
     a = pd.concat([ft[["target", "rep", "K", "method", "lam", "uar"]], fr[["target", "rep", "K", "method", "lam", "uar"]]])
     a["uar"] = a.uar * 100
     D = a.groupby(["target", "K", "method", "lam"]).uar.agg(["mean", "count"]).reset_index().rename(columns={"mean": "uar", "count": "reps"})
-    D.to_csv(OUT_REL / "e63_targets.csv", index=False)
+    D.to_csv(OUT_REL / f"e63{'c' if center else ''}_targets.csv", index=False)
     g = D.groupby(["K", "method", "lam"]).agg(uar=("uar", "mean"), targets=("target", "nunique")).reset_index()
     piv = D.pivot_table(index=["target", "K"], columns=["method", "lam"], values="uar")
 
@@ -421,7 +511,7 @@ def analyze():
     for k, v in tests.items():
         R[k] = bool(v)
     R["F3_d0"], R["F3_d5"], R["F4_d0"], R["F4_d5"] = d3["0"], d3["5"], d4["0"], d4["5"]
-    R.to_csv(OUT_REL / "e63_tests.csv", index=False)
+    R.to_csv(OUT_REL / f"e63{'c' if center else ''}_tests.csv", index=False)
     pd.set_option("display.width", 250)
     print(piv.round(2).to_string())
     print()
@@ -443,15 +533,16 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--limit", type=int, default=0, help="試走用．cache の件数")
     ap.add_argument("--smoke", action="store_true", help="試走用．source・adapt を 64 本・1 エポックで回し，adapt は <T>_smoke.csv に書く")
+    ap.add_argument("--center", action="store_true", help="追加の確かめ：中心化（群ごと・ターゲットの候補の平均を引く）を足した版（source・adapt・analyze）")
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     if args.stage == "analyze":
-        return analyze()
+        return analyze(args.center)
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
     prov = {"script": "exp/finetune_check.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "model": MODEL, "lora": LORA, "batch": BATCH, "lr": [LR_LORA, LR_HEAD], "warmup": WARMUP,
             "epochs": [EPOCHS_SRC, EPOCHS_K, EPOCHS_OURS], "lams": LAMS, "lam_fixed": LAM_FIXED, "crop_sec": CROP_SEC, "max_sec": MAX_SEC,
-            "mosei": [MOSEI_SRC_PER_CLASS, MOSEI_CAND], "holdout": HOLDOUT, "reps": args.reps, "ks": KS,
+            "mosei": [MOSEI_SRC_PER_CLASS, MOSEI_CAND], "holdout": HOLDOUT, "reps": args.reps, "ks": KS, "center": args.center, "center_momentum": CENTER_MOMENTUM,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     with open(OUT / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
@@ -471,16 +562,16 @@ def main() -> int:
             print(f"teacher {T}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     elif args.stage == "source":
         for s in args.set:
-            if (OUT / f"start_{s}.pt").exists() and not args.smoke:
+            if (OUT / f"start_{s}{'_c' if args.center else ''}.pt").exists() and not args.smoke:
                 print(f"source {s}：済み", flush=True)
                 continue
             t0 = time.perf_counter()
-            train_source(s, args.smoke)
+            train_source(s, args.smoke, args.center)
             print(f"source {s}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     elif args.stage == "adapt":
         for T in args.target:
             t0 = time.perf_counter()
-            adapt(T, args.reps, args.smoke)
+            adapt(T, args.reps, args.smoke, args.center)
             print(f"adapt {T}：{time.perf_counter() - t0:.0f} 秒", flush=True)
     return 0
 
