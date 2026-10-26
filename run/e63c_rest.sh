@@ -3,7 +3,6 @@
 #     tmux new-window -t mer-da -n e63c2 'cd /home/snics/MER-DA && ./run/e63c_rest.sh 2>&1 | tee -a logs/e63c_rest.log'
 cd /home/snics/MER-DA
 export MERDA_MAP_ROOT=results/fixc_map
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 P=./.venv/bin/python
 rm -f logs/e63c_rest.done
 NFAIL=0

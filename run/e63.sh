@@ -5,7 +5,6 @@
 #     tmux new-window -t mer-da -n e63 'cd /home/snics/MER-DA && ./run/e63.sh 2>&1 | tee -a logs/e63.log'
 cd /home/snics/MER-DA
 export MERDA_MAP_ROOT=results/fixc_map
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # 長い処理で GPU メモリが細切れになるのを防ぐ（2026-10-26）
 P=./.venv/bin/python
 mkdir -p logs results/finetune_check
 rm -f logs/e63.done
