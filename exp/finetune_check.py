@@ -201,6 +201,7 @@ def embed_mean(pm, waves, idx, max_len=None):
         acc += pooled_of(pm, x, lens).double().sum(0)
         n += i1 - i0
         i0 = i1
+    torch.cuda.empty_cache() if DEV.type == "cuda" else None
     return (acc / n).float()
 
 
@@ -273,6 +274,7 @@ def predict(pm, head, waves, idx, center=None):
         for i, p in zip(order[i0:i1], pred):
             out[pos[int(i)]] = p
         i0 = i1
+    torch.cuda.empty_cache() if DEV.type == "cuda" else None                   # 評価で形の違うバッチが溜めた空きブロックを返す（WSL2 では GPU メモリの上限に触ると極端に遅くなる）
     return np.array([out[pos[int(i)]] for i in idx])
 
 
@@ -540,6 +542,8 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     if args.stage == "analyze":
         return analyze(args.center)
+    if torch.cuda.is_available():                                              # 空きブロックを溜めすぎて GPU の上限（24 GB）に触らないようにする（E63c で評価が 5〜10 倍遅くなった）
+        torch.cuda.set_per_process_memory_fraction(float(os.environ.get("MERDA_GPU_FRACTION", "0.6")))
     git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
     prov = {"script": "exp/finetune_check.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "model": MODEL, "lora": LORA, "batch": BATCH, "lr": [LR_LORA, LR_HEAD], "warmup": WARMUP,
