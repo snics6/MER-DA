@@ -25,6 +25,11 @@
 
 % 段の下端をそろえるために式の前後が引き伸ばされるのを防ぐ．
 \raggedbottom
+% 図表だけの頁では，図表を頁の上から詰めて置く．
+\makeatletter
+\setlength{\@fptop}{0pt}\setlength{\@fpsep}{\floatsep}\setlength{\@fpbot}{0pt plus 1fil}
+\setlength{\@dblfptop}{0pt}\setlength{\@dblfpsep}{\dblfloatsep}\setlength{\@dblfpbot}{0pt plus 1fil}
+\makeatother
 % 図と表の説明文：ラベル（図1，表1）はゴシックの太字，本文は明朝で small．
 \jlreqsetup{caption_font={\small},caption_label_font={\small\sffamily\gtfamily\bfseries}}
 
@@ -35,7 +40,7 @@
 \label{sec:supp-features}
 
 \emph{顔．}
-各動画から$\lfloor 5\,\mathrm{fps}/25 \rfloor$フレームに1枚を取り出し，これは毎秒5から6フレームになる．
+各動画から，フレームレートを毎秒$f$フレームとして$s = \lfloor 5f/25 \rfloor$フレームごとに1枚を取り出し，これは毎秒5から6フレームになる．
 発話あたり最大$400$フレームを等間隔に抜き出す．
 IEMOCAPの動画は2人の話者を左右に並べて映しているので，発話の話者を映す半分を残す．
 YOLOv8n-face\cite{yolov8face}が確信度のしきい値$0.25$で顔を検出し，各フレームの最大の顔を残して$224\times224$画素の大きさにそろえる．
@@ -89,7 +94,8 @@ $K$本のラベルからのターゲットの推定の比は$q/K$であり，効
 損失の曲率をドメインごとの平均$\kappa$で近似すると，このステップはターゲットの平均でのスコアを，ソースのみのずれの$\rho/(1+\rho)$倍だけ変える．
 ここで$\rho$は本文の式で与えられ，項$1/(N_s\kappa_s)$は切片から，項$\boldsymbol{\delta}^\top(A_s + I/C)^{-1}\boldsymbol{\delta}$は重みから生じる．
 この近似は，ターゲットの点の損失をずれについて2次まで残し，向きをソースから取り，ターゲットの点そのものの散らばりを省く．
-$128$次元のガウス分布の特徴によるシミュレーションは，この式を確かめる（図\ref{fig:supp-lambda}に実際のコーパスの対での確認を示す）．
+図\ref{fig:supp-lambda}では，実際のコーパスの対で，この式と測った修正を比べる．
+この式は対の順序をよく再現するが，修正の平均を過大に見積もる．
 
 \section{第I部の追加の結果}
 \label{sec:supp-part1}
@@ -104,9 +110,22 @@ $128$次元のガウス分布の特徴によるシミュレーションは，こ
 \begin{figure}[t]
 \centering
 \FIG{centering}{\columnwidth}
-\caption{中心化の有無によるソースのみの分類器，感情ごとに$K=5$本のラベルで切片だけを当てはめ直したもの，同じラベルによる合併を，WavLMの音声，HuBERTの音声，顔について示す．}
+\caption{中心化の有無によるソースのみの分類器，感情ごとに$K=5$本のラベルで切片だけを当てはめ直したもの，同じラベルによる合併を，WavLMの音声，HuBERTの音声，顔について示す（3回の反復）．中心化しないとき，合併の分類器はソースのみの分類器の$C$を使い，中心化するときは$C$を交差検証で選ぶ．}
 \label{fig:supp-centering}
 \end{figure}
+
+\section{交差検証で罰則を選んだ利得の地図}
+\label{sec:supp-cvmap}
+
+\begin{figure*}[t]
+\centering
+\FIG{cvmap}{\textwidth}
+\caption{合併の分類器の罰則$C$を$K$本のターゲットのラベルで交差検証して選んだとき（実線）と，本文と同じくソースのみの分類器の$C$に固定したとき（点線）の，合併の利得を順序対にわたって平均して示す．(a)~A，A（HuBERT），V，AV．30回の反復．(b)~テキストを含む構成．5回の反復．}
+\label{fig:supp-cvmap}
+\end{figure*}
+
+ターゲットのラベルで$C$を選ぶと，$K$が小さいときの利得が下がる．
+その一因は$K=1$での同点であり，同点のときの規則が弱い罰則の側を選ぶ（本文の3節）．
 
 \section{比較の表の全体}
 \label{sec:supp-tables}

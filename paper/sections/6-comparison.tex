@@ -74,7 +74,7 @@ encoders & T & \NUM{tab-w2-t-k0-e39} & \NUM{tab-w2-t-k5-e39} & RB/GD & \NUM{cmp-
 
 With the hyperparameters of the original papers, several competitors collapse the single-modality students onto one emotion: at $K=0$ in the AVT configuration, entropy minimization, co-regularization, and prior adjustment change the UAR of the start by \NUM{cmp-fixed-collapse-avt-mod-k0-lo} to \NUM{cmp-fixed-collapse-avt-mod-k0-hi} points.
 For the fused students, fixed entropy minimization changes the UAR of the start by \NUM{cmp-entmin-fixed-vs-e39-f-k0-lo} to \NUM{cmp-entmin-fixed-vs-e39-f-k0-hi} points on average across the four configurations, and its effect depends on the target (Fig.~\ref{fig:entmin}).
-On the improvised IEMOCAP sessions it changes the UAR by $+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro} points in AVT but by \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro} in VT and \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro} in AV, and on MELD by \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld} points in AVT.
+On the improvised IEMOCAP sessions it changes the UAR by $+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro} points in AVT and $+$\NUM{cmp-entmin-fixed-vs-e39-at-f-k0-impro} in AT but by \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro} in VT and \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro} in AV, and on MELD by \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld} points in AVT.
 In the AVT configuration, pseudo-target selection detects these failures and switches entropy minimization off for the fused student at every $K$.
 
 \begin{figure}[t]

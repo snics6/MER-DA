@@ -24,7 +24,7 @@
 \label{sec:supp-features}
 
 \emph{Face.}
-From each video we take one frame in $\lfloor 5\,\mathrm{fps}/25 \rfloor$, which gives five to six frames per second, and at most $400$ frames per utterance, sampled evenly.
+From each video we take every $s$-th frame with $s = \lfloor 5f/25 \rfloor$ for a frame rate of $f$ frames per second, which gives five to six frames per second, and at most $400$ frames per utterance, sampled evenly.
 IEMOCAP videos show two speakers side by side; we keep the half that shows the speaker.
 YOLOv8n-face~\cite{yolov8face} detects faces with a confidence threshold of $0.25$, and we keep the largest face of each frame and resize it to $224\times224$ pixels.
 The ResNet-50 of Ryumina et al.~\cite{ryumina2022facial} maps each crop to $512$ dimensions; the second encoder, the image encoder of CLIP ViT-L/14~\cite{radford2021clip}, maps the same crops (stored as boxes) to $1024$ dimensions.

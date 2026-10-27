@@ -36,13 +36,13 @@
 
 % jlreq では，2 段組のときにプリアンブルに書いた abstract が \maketitle で全幅に置かれる．
 \begin{abstract}
-新しいコーパスに移した感情認識器には，感情ごとに少数のラベルしか与えられず，それを他のコーパスのラベル付きデータで補うことが多い．
-本論文は，凍結した（微調整しない）音声・顔・テキストの特徴の上の線形分類器において，これらの少数のラベルが何を直すかを，7つのコーパス群のすべての順序対について分析する．
-感情の対ごとの判定を判断基準（threshold）と向き（direction）で表すと，単一モダリティの音声と顔の特徴で感情ごとのラベルが5本以下のとき，ラベルが合併（pooled）の分類器に加える改善のうち\NUM{p1-e29-critshare-kle5-single-lo}から\NUM{p1-e29-critshare-kle5-single-hi}の割合が判断基準の修正から生じる．
-一方，音声の向きは\NUM{p1-qdir-audio-lo}から\NUM{p1-qdir-audio-hi}の実効次元（effective dimension）で決まる速さでしか改善せず，1つのソースコーパスは向きについて感情ごとに\NUM{p1-e32-n1src-audio-lo}から\NUM{p1-e32-n1src-audio-hi}本のラベルに相当する．
-少数のラベルも，ラベルを使わない発話の選択も，強い出発点（start）の向きを直さない．
-そこで本論文は，ソースコーパスだけで学習し，生徒（student）がもたないモダリティを見る融合の分類器が，ラベルのないターゲットの発話すべてに付ける弱いラベル（weak labels）で，出発点にアンカーした線形の生徒を学習する．
-ターゲットのプールで学び直した先生を加え，ラベルの本数ごとに選ぶように拡張すると，この手法は，感情ごとのラベルが0本と5本のとき，11の生徒すべてについて，同じ手順で調整した9つの比較手法のうち最も強いものをUARで\NUM{cmp-oursx-vs-best-range-lo}から\NUM{cmp-oursx-vs-best-range-hi}ポイント上回り，第2のエンコーダでも上回る．
+新しいコーパスに移した認識器は，感情ごとに少数のラベルと，他のコーパスのラベル付きデータを持つことが多い．
+本論文は，凍結した（微調整しない）音声・顔・テキストの特徴の上の線形分類器において，これらのラベルが何を直すかを，7つのコーパス群のすべての順序対にわたって分析する．
+感情の対ごとの判定を判断基準（threshold）と向き（direction）に分けると，単一モダリティの音声と顔で感情ごとのラベルが5本以下のとき，ラベルが合併（pooled）の分類器に加える改善のうち\NUM{p1-e29-critshare-kle5-single-lo}から\NUM{p1-e29-critshare-kle5-single-hi}の割合が判断基準の修正から生じる．
+一方，音声の向きは\NUM{p1-qdir-audio-lo}から\NUM{p1-qdir-audio-hi}の実効次元（effective dimension）で決まる速さで改善し，1つのソースコーパスは向きについて感情ごとに\NUM{p1-e32-n1src-audio-lo}から\NUM{p1-e32-n1src-audio-hi}本のラベルに相当する．
+少数のラベルも，ラベルを使わない選択も，強い出発点（start）の向きを直さない．
+そこで本論文は，ソースだけで学習し，生徒（student）がもたないモダリティを見る融合の分類器が，ラベルのないターゲットの発話すべてに付ける弱いラベル（weak labels）で，出発点にアンカーした線形の生徒を学習する．
+ターゲットのプールで学び直した先生を加えて拡張すると，この手法は，感情ごとのラベルが0本と5本のとき，第2のエンコーダの生徒を含む11の生徒すべてについて，同じ方法で調整した9つの比較手法のうち最も強いものをUARで\NUM{cmp-oursx-vs-best-range-lo}から\NUM{cmp-oursx-vs-best-range-hi}ポイント上回る．
 
 \medskip
 \noindent{\sffamily\gtfamily\bfseries 索引語}\quad
@@ -51,6 +51,11 @@
 
 % 段の下端をそろえるために式の前後が引き伸ばされるのを防ぐ．
 \raggedbottom
+% 図表だけの頁では，図表を頁の上から詰めて置く．
+\makeatletter
+\setlength{\@fptop}{0pt}\setlength{\@fpsep}{\floatsep}\setlength{\@fpbot}{0pt plus 1fil}
+\setlength{\@dblfptop}{0pt}\setlength{\@dblfpsep}{\dblfloatsep}\setlength{\@dblfpbot}{0pt plus 1fil}
+\makeatother
 % 図と表の説明文：ラベル（図1，表1）はゴシックの太字，本文は明朝で small．
 \jlreqsetup{caption_font={\small},caption_label_font={\small\sffamily\gtfamily\bfseries}}
 
