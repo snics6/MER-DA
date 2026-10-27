@@ -4,7 +4,7 @@
 ほかのコーパス（ソース）のラベル付きデータを混ぜると成績がどう変わるかを測り，
 得と損が生じる仕組みを，ドメイン適応（DA）理論と対応づけた数式モデルで説明する研究である．
 **分析の軸は得の仕組みの仮説 MH1〜MH5**（`docs/researchvision.md` 3 節）．その上に，仕組みの式（E15〜E17）と条件の探索（E18〜）を積んでいる．**解析は，合併の C をソースのみの C に固定した地図（`results/fixc_map/`）を土台にし，論文と発表資料の本文もこの地図だけで書く**（交差検証の地図は付録．同 6.2 節）．
-論文 1 は IEEE Access の分析論文（2026-10 末．中心の主張は解析を続けてから決める），論文 2 は新しい手法（2026-11）．
+論文は分析と手法を 1 本に統合して IEEE TAC に出す（2026-10-22 決定．数理を前面に）．主張契約と章立ての下書きは `docs/paper-claim.md`．
 各主張の最新の状態と実験の一覧は `docs/results.md`（3.6 節），分析の層と次の実験の計画は `docs/researchvision.md` 3.6・3.7 節．
 
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
@@ -57,7 +57,7 @@
 
 | 場所 | 中身 | git |
 |---|---|---|
-| `docs/` | 文書 6 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究）．データの文書は `data/README.md` | ○ |
+| `docs/` | 文書 5 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究）と論文の主張契約の下書き `paper-claim.md`．データの文書は `data/README.md` | ○ |
 | `A theory of learning from different domains.pdf` | 中核の理論の論文（Ben-David 2010） | ○ |
 | `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本） | ○ |
 | `data/cache/*.npz` | 特徴 28 本（1.1 GB）．消えたら `run/build_data.sh` で作り直す | × |
@@ -69,6 +69,7 @@
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `results/` | 結果（再計算できる前提．各ファイルに設定とコミット番号を書く） | × |
 | `logs/` | 長時間処理のログ | × |
+| `research_notes/`，`reports/` | 調べ直しのノートと報告（2026-10-27：「TAC 論文の先行研究と書き方」と「TAC 論文 先行研究の精読と穴」．要点は `docs/related-work.md` 1.6・1.13・1.14 節） | ○ |
 | `.venv/` | Python 環境（`requirements.txt` の冒頭に作り方） | × |
 
 **Python 環境は `.venv/` の 1 つだけ．**版は `requirements.txt` で固定する（scikit-learn の版違いで結果がずれうる）．
