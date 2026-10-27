@@ -9,7 +9,7 @@ Theory of learning from several domains shows that pooling a source helps when t
 Methods for emotion recognition with few target labels adapt speech or speech-and-text models with a few labeled utterances~\cite{feng2023fewshot,he2025m4ser,zaidi2024enhancing}, and semi-supervised learning and distillation use unlabeled data or a stronger teacher~\cite{lee2013pseudolabel,hinton2015distilling,lopezpaz2016unifying}.
 Neither line says which part of a classifier the few target labels repair, how much a source supplies in their place, or what a second modality can add when the deployed model sees only one; cross-corpus methods that use several modalities, including the face, remain few~\cite{ahn2025multitask}.
 
-We answer three questions for a linear head on frozen encoder features, a setting simple enough to analyze and, in a check with low-rank adaptation of the audio encoder on four targets at $K \le 5$, stronger than fine-tuning.
+We answer three questions for a linear head on frozen encoder features, a setting simple enough to analyze and, in a check with low-rank adaptation~\cite{hu2022lora} of the audio encoder on four targets at $K \le 5$, stronger than fine-tuning.
 (Q1)~What do a few target labels fix in the classifier?
 (Q2)~How much does a source supply in their place?
 (Q3)~Does the answer lead to a method that exceeds standard semi-supervised and distillation methods tuned under the same protocol?

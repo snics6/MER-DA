@@ -67,7 +67,7 @@ Pseudo-target selection detects these failures and switches entropy minimization
 
 With the second encoders, the basic method raises every student above the start at $K=0$ and $K=5$ (Table~\ref{tab:compare}), and ours-ext exceeds the strongest tuned competitor by \NUM{cmp-oursx-vs-best-w2-k0k5-lo}--\NUM{cmp-oursx-vs-best-w2-k0k5-hi} points at $K=0$ and $K=5$ and by \NUM{cmp-oursx-vs-best-w2-k25-lo}--\NUM{cmp-oursx-vs-best-w2-k25-hi} points at $K=25$.
 
-To test whether the frozen setting understates what adaptation can do, we fine-tuned WavLM with low-rank adapters on the audio student of four targets over three iterations (Fig.~S9 and Section~S7 of the supplementary material).
+To test whether the frozen setting understates what adaptation can do, we fine-tuned WavLM with low-rank adapters~\cite{hu2022lora} on the audio student of four targets over three iterations (Fig.~S9 and Section~S7 of the supplementary material).
 Fine-tuning on $K=5$ labels per emotion falls \NUM{cmp-ft-konly-below-frozen-e39-k5} points below the frozen five-value start (\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi} across targets).
 The weak labels of ours-ext, fixed to the form it selects for the AVT audio student, still help the fine-tuned model, by \NUM{cmp-ft-weak-vs-start-k0} points at $K=0$ and \NUM{cmp-ft-weak-vs-anchor-k5} at $K=5$, but the fine-tuned version of our method stays \NUM{cmp-ft-ours-below-frozen-ours-k0} and \NUM{cmp-ft-ours-below-frozen-ours-k5} points below the same configuration on frozen features, and centering closes only \NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\% of the gap.
 
