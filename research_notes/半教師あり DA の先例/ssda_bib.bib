@@ -1,0 +1,99 @@
+% 半教師あり DA（SSDA）と教師あり DA の代表論文の BibTeX（2026-10-28 に原典で確かめた）．
+% 規則は ../../paper/references.bib の冒頭に従う．各項目の直前に確かめた水準をコメントで書く：
+%   % 水準: ◎ 本文を読んだ／○ 抄録・目次／△ 書誌のみ．要確認: <確かめていない項目>
+% 本文の記録は同じフォルダの ssda.md にある．
+% IEEE/CVF の会議は，references.bib の既存の項目（gupta2016cross，xie2020selftraining，prabhu2021active）に合わせて
+% IEEE 版（Crossref）の書名・頁・DOI を書き，CVF の公開版の頁が違うときはコメントに書く．
+% AdaMatch は references.bib に berthelot2022adamatch として既にあるので，ここには入れない．
+
+% ---- 半教師あり DA（ソースのラベル＋ターゲットの少数ラベル＋ターゲットのラベル無し） ----
+
+% 水準: ◎ 本文を読んだ（CVF の公開版の PDF の全節と補足資料）．確かめた出所: https://openaccess.thecvf.com/content_ICCV_2019/html/Saito_Semi-Supervised_Domain_Adaptation_via_Minimax_Entropy_ICCV_2019_paper.html（題・著者・CVF の頁 8050--8058）と https://api.crossref.org/works?query.bibliographic=Saito+Kim+Sclaroff+Darrell+Saenko+Semi-Supervised+Domain+Adaptation+via+Minimax+Entropy（DOI 10.1109/ICCV.2019.00814，IEEE 版の頁 8049--8057，開催地と会期 2019-10-27〜11-02）．要確認: なし（頁は IEEE 版．CVF の公開版と CDAC の参考文献は 8050--8058）
+@inproceedings{saito2019mme,
+  author    = {Kuniaki Saito and Donghyun Kim and Stan Sclaroff and Trevor Darrell and Kate Saenko},
+  title     = {Semi-Supervised Domain Adaptation via Minimax Entropy},
+  booktitle = {2019 IEEE/CVF International Conference on Computer Vision (ICCV)},
+  address   = {Seoul, Korea (South)},
+  pages     = {8049--8057},
+  month     = oct,
+  year      = {2019},
+  doi       = {10.1109/ICCV.2019.00814}
+}
+
+% 水準: ◎ 本文を読んだ（ECVA の公開版の PDF の全節と補足資料）．確かめた出所: https://www.ecva.net/papers.php（題・著者・PDF と DOI の対応）と https://api.crossref.org/works/10.1007/978-3-030-58568-6_35（頁 591--607，オンライン公開 2020-11-13）と https://api.crossref.org/works/10.1007/978-3-030-58568-6（Part XIV，会期 2020-08-23〜28，ISBN 9783030585679）と https://ci.nii.ac.jp/ncid/BC05543737（LNCS 12359 = pt. 14，ISBN 9783030585679 が Crossref と一致）．要確認: なし（月は会期の月．references.bib の既存の ECCV の項目 lichtenstein2020tafssl・liu2020prototype は月と巻を書いていない）
+@inproceedings{kim2020ape,
+  author    = {Taekyung Kim and Changick Kim},
+  title     = {Attract, Perturb, and Explore: Learning a Feature Alignment Network for Semi-supervised Domain Adaptation},
+  booktitle = {Computer Vision -- ECCV 2020},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12359},
+  publisher = {Springer},
+  address   = {Cham},
+  pages     = {591--607},
+  month     = aug,
+  year      = {2020},
+  doi       = {10.1007/978-3-030-58568-6_35}
+}
+
+% 水準: ◎ 本文を読んだ（CVF の公開版の PDF の全節と補足資料．arXiv:2104.09415 は CVF の頁のリンクで確認したが開いていない）．確かめた出所: https://openaccess.thecvf.com/content/CVPR2021/html/Li_Cross-Domain_Adaptive_Clustering_for_Semi-Supervised_Domain_Adaptation_CVPR_2021_paper.html（題・著者・頁 2505--2514）と https://api.crossref.org/works?query.bibliographic=Li+Li+Shi+Yu+Cross-Domain+Adaptive+Clustering+for+Semi-Supervised+Domain+Adaptation（DOI 10.1109/CVPR46437.2021.00253，頁 2505--2514，開催地と会期 2021-06-20〜25）．要確認: なし
+@inproceedings{li2021cdac,
+  author    = {Jichang Li and Guanbin Li and Yemin Shi and Yizhou Yu},
+  title     = {Cross-Domain Adaptive Clustering for Semi-Supervised Domain Adaptation},
+  booktitle = {2021 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Nashville, TN, USA},
+  pages     = {2505--2514},
+  month     = jun,
+  year      = {2021},
+  doi       = {10.1109/CVPR46437.2021.00253}
+}
+
+% 水準: ◎ 本文を読んだ（CVF の公開版の PDF の全節と補足資料．arXiv:2007.12684 は CVF の頁のリンクで確認したが開いていない）．確かめた出所: https://openaccess.thecvf.com/content/ICCV2021/html/Yang_Deep_Co-Training_With_Task_Decomposition_for_Semi-Supervised_Domain_Adaptation_ICCV_2021_paper.html（題・著者・CVF の頁 8906--8916）と https://api.crossref.org/works?query.bibliographic=Yang+Wang+Gao+Shrivastava+Weinberger+Chao+Lim+Deep+Co-Training+Task+Decomposition（DOI 10.1109/ICCV48922.2021.00878，IEEE 版の頁 8886--8896，開催地と会期 2021-10-10〜17）．要確認: なし（頁は IEEE 版．CVF の公開版は 8906--8916．題の "Co-Training" は PDF の表記．Crossref は "Co-training"）
+@inproceedings{yang2021decota,
+  author    = {Luyu Yang and Yan Wang and Mingfei Gao and Abhinav Shrivastava and Kilian Q. Weinberger and Wei-Lun Chao and Ser-Nam Lim},
+  title     = {Deep Co-Training with Task Decomposition for Semi-Supervised Domain Adaptation},
+  booktitle = {2021 IEEE/CVF International Conference on Computer Vision (ICCV)},
+  address   = {Montreal, QC, Canada},
+  pages     = {8886--8896},
+  month     = oct,
+  year      = {2021},
+  doi       = {10.1109/ICCV48922.2021.00878}
+}
+
+% 水準: ◎ 本文を読んだ（CVF の公開版の PDF の全節．PDF の 1 頁目に DOI 10.1109/CVPR.2013.92 と頁番号 668〜675）．確かめた出所: https://openaccess.thecvf.com/content_cvpr_2013/html/Donahue_Semi-supervised_Domain_Adaptation_2013_CVPR_paper.html（題・著者・頁 668--675）と https://api.crossref.org/works?query.bibliographic=Donahue+Hoffman+Rodner+Saenko+Darrell+Semi-supervised+Domain+Adaptation+with+Instance+Constraints（DOI 10.1109/CVPR.2013.92，頁 668--675，開催地と会期 2013-06-23〜28）．要確認: なし
+@inproceedings{donahue2013semisupervised,
+  author    = {Jeff Donahue and Judy Hoffman and Erik Rodner and Kate Saenko and Trevor Darrell},
+  title     = {Semi-supervised Domain Adaptation with Instance Constraints},
+  booktitle = {2013 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Portland, OR, USA},
+  pages     = {668--675},
+  month     = jun,
+  year      = {2013},
+  doi       = {10.1109/CVPR.2013.92}
+}
+
+% ---- 教師あり DA（ソースのラベル＋ターゲットの少数ラベル．ターゲットのラベル無しは使わない） ----
+
+% 水準: ◎ 本文を読んだ（NeurIPS の論文集の PDF の全節）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2017/hash/21c5bba1dd6aed9ab48c2b34c1a0adde-Abstract.html（題・著者・巻 30）と https://proceedings.neurips.cc/paper_files/paper/2017/file/21c5bba1dd6aed9ab48c2b34c1a0adde-Metadata.json（page_first 6670，page_last 6680）と https://neurips.cc/Conferences/2017（会期 2017-12-04〜09，Long Beach）．要確認: なし（論文集の BibTeX は pages が空なので頁は Metadata.json に従った．第 3 著者は PDF の表記 Seyed Mehdi Iranmanesh に従った．論文集の頁と BibTeX は Seyed Iranmanesh）
+@inproceedings{motiian2017fada,
+  author    = {Saeid Motiian and Quinn Jones and Seyed Mehdi Iranmanesh and Gianfranco Doretto},
+  title     = {Few-Shot Adversarial Domain Adaptation},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {30},
+  publisher = {Curran Associates, Inc.},
+  pages     = {6670--6680},
+  month     = dec,
+  year      = {2017},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2017/hash/21c5bba1dd6aed9ab48c2b34c1a0adde-Abstract.html}
+}
+
+% 水準: ◎ 本文を読んだ（CVF の公開版の PDF の全節）．確かめた出所: https://openaccess.thecvf.com/content_iccv_2017/html/Motiian_Unified_Deep_Supervised_ICCV_2017_paper.html（題・著者・CVF の頁 5715--5725）と https://api.crossref.org/works?query.bibliographic=Motiian+Piccirilli+Adjeroh+Doretto+Unified+Deep+Supervised+Domain+Adaptation+and+Generalization（DOI 10.1109/ICCV.2017.609，IEEE 版の頁 5716--5726，開催地 Venice と会期 2017-10-22〜29）．要確認: なし（頁は IEEE 版．CVF の公開版は 5715--5725．Crossref の開催地は Venice だけなので，国名 Italy は補った）
+@inproceedings{motiian2017ccsa,
+  author    = {Saeid Motiian and Marco Piccirilli and Donald A. Adjeroh and Gianfranco Doretto},
+  title     = {Unified Deep Supervised Domain Adaptation and Generalization},
+  booktitle = {2017 IEEE International Conference on Computer Vision (ICCV)},
+  address   = {Venice, Italy},
+  pages     = {5716--5726},
+  month     = oct,
+  year      = {2017},
+  doi       = {10.1109/ICCV.2017.609}
+}
