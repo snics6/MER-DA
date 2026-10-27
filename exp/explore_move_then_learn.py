@@ -6,15 +6,17 @@
   先生の価値（ターゲットのラベル何本ぶんか）は K によらず一定になるか．
   - K=0：先生の弱いラベルで出発点を学び直す（E60 の K=0 の生徒と同じ問題．`solve_all` をそのまま使う）
   - K≥1：弱いラベルを損失から外し，K=0 の生徒 (W_Q, b_Q) を罰則の中心にして，K 本だけで学び直す．
-         重みの罰則は C′/h（h ∈ {1, 2, 4}．h=1 は出発点と同じ強さ），切片の罰則は出発点の C_b のまま
-  - 対照：出発点そのもの（中心 W0．h=1 は E60 の none と同じ問題）
+         重みの罰則は C′/h（h ∈ {1, 2, 4}．h=1 は出発点と同じ強さ），切片の罰則は C_b/h_b（h_b ∈ {1, 4, 16}）
+         予言（P1〜P5）は h_b = 1（切片の罰則は出発点のまま）で判定する．h_b = 4, 16 は，試走（AV の AFEW の反復 0）で
+         K=1 の得が今の手法より低かったのを見て足した探索の版（切片を K 本で学び直す損．第 I 部の 1/(2K)）
+  - 対照：出発点そのもの（中心 W0．h = h_b = 1 は E60 の none と同じ問題）
   生徒・先生・分割・仮のターゲットは E60（`exp/multimodal_distill.py`）の仮のターゲットの部分と同じ．
   評価に使うターゲットのテストは使わない．今の手法（弱いラベルとラベルを同時に学ぶ）の値は E60 の `<T>_pseudo.csv` を使う
 
     ./.venv/bin/python exp/explore_move_then_learn.py --background        （計算の前の予言．E60 と E65 の結果だけ．数秒）
     MERDA_MAP_ROOT=results/fixc_map ./.venv/bin/python exp/explore_move_then_learn.py --world fuse-audio-video [--target …] [--pseudo-reps …] [--out-dir …]
     ./.venv/bin/python exp/explore_move_then_learn.py --analyze [--results-dir …]
-出力：`results/move_then_learn_<世界>/<T>.csv`（pseudo, rep, student, center, belief, meff, hold, K, uar．K=0 の行は h ごとに同じ値を書く），
+出力：`results/move_then_learn_<世界>/<T>.csv`（pseudo, rep, student, center, belief, meff, hold, hold_b, K, uar．K=0 の行は (h, h_b) ごとに同じ値を書く），
       `provenance.json`，`provenance_log.jsonl`．予言は `results/explore_relation/e66_background.csv`・`e66_pred.csv`・`e66_pred_rows.csv`，
       判定は `e66_check.csv`・`e66_gain.csv`・`e66_value.csv`・`e66_selection.csv`
 """
@@ -50,6 +52,7 @@ from select_labelfree import present_weights  # noqa: E402
 
 WORLDS = ["fuse-audio-video", "fuse-audio-video-text"]
 BEL, MEFF, HOLDS = ["p", "pF", "poe", "agree"], (100, 500, 2000), (1, 2, 4)
+HOLDS_B = (1, 4, 16)                                                 # 切片の罰則 C_b/h_b（1 だけが予言の版）
 TEACHERS = ["pF", "poe", "agree"]                                    # 選び方の候補（E60 の単独の生徒と同じ．p は対照）
 KS_L = ("1", "5", "10", "25")
 KS = ("0",) + KS_L
@@ -61,23 +64,25 @@ KEY = ["world", "target", "pseudo", "rep", "student"]
 # ---------------------------------------------------------------- 計算（GPU）
 
 def refit_from(anc, Z, yq, label_sets, cp, cb):
-    """中心 anc（Fitted．C_FIT の解）から，弱いラベルなしで K 本だけ学び直す．戻りは {(h, K): (W, b)}（重みの罰則 C′/h）。"""
+    """中心 anc（Fitted．C_FIT の解）から，弱いラベルなしで K 本だけ学び直す．戻りは {(h, h_b, K): (W, b)}（罰則 C′/h，C_b/h_b）。"""
     rows_all = np.unique(np.concatenate([label_sets[K] for K in KS_L]))
     dev = Z.device
     X = Z[torch.as_tensor(rows_all, device=dev)]
     yt = M.labels(yq[rows_all])
     pos = {int(i): j for j, i in enumerate(rows_all)}
-    weights = []
+    weights, keys = [], []
     for K in KS_L:
         it = torch.as_tensor([pos[int(i)] for i in label_sets[K]], device=dev)
         w = torch.zeros(len(rows_all), dtype=logreg.DTYPE, device=dev)
         w[it] = present_weights(yt[it])
-        weights.append(w)
+        for hb in HOLDS_B:
+            weights.append(w)
+            keys.append((hb, K))
     zero = torch.zeros(Z.shape[1], dtype=Z.dtype, device=dev)
     Cs = tuple(cp / h for h in HOLDS)
-    fits = logreg.fit_batch(X, yt, [np.ones(len(rows_all), bool)] * len(KS_L), Cs, anchor=anc, anchor_c=MD.C_FIT,
-                            stats=(zero, torch.ones_like(zero)), Cb=[cb] * len(KS_L), weights=weights)
-    return {(h, K): (f.W[c], f.b[c]) for K, f in zip(KS_L, fits) for h, c in zip(HOLDS, Cs)}
+    fits = logreg.fit_batch(X, yt, [np.ones(len(rows_all), bool)] * len(keys), Cs, anchor=anc, anchor_c=MD.C_FIT,
+                            stats=(zero, torch.ones_like(zero)), Cb=[cb / hb for hb, _ in keys], weights=weights)
+    return {(h, hb, K): (f.W[c], f.b[c]) for (hb, K), f in zip(keys, fits) for h, c in zip(HOLDS, Cs)}
 
 
 def solve_moved(world, stu, yq, yte, label_sets, rows, tag):
@@ -88,18 +93,22 @@ def solve_moved(world, stu, yq, yte, label_sets, rows, tag):
         a0 = st.anchor(rho_m)
         u0 = uar_of(a0.W[MD.C_FIT], a0.b[MD.C_FIT], Zte, yte)
         base = {**tag, "student": m}
-        rows += [{**base, "center": "start", "belief": "none", "meff": 0, "hold": h, "K": "0", "uar": u0} for h in HOLDS]
-        for (h, K), (W, b) in refit_from(a0, Z, yq, label_sets, cp, cb).items():
-            rows.append({**base, "center": "start", "belief": "none", "meff": 0, "hold": h, "K": K, "uar": uar_of(W, b, Zte, yte)})
+        rows += [{**base, "center": "start", "belief": "none", "meff": 0, "hold": h, "hold_b": hb, "K": "0", "uar": u0}
+                 for h in HOLDS for hb in HOLDS_B]
+        for (h, hb, K), (W, b) in refit_from(a0, Z, yq, label_sets, cp, cb).items():
+            rows.append({**base, "center": "start", "belief": "none", "meff": 0, "hold": h, "hold_b": hb, "K": K,
+                         "uar": uar_of(W, b, Zte, yte)})
         bel = {"p": s["P"], **b1}
         sol = solve_all(Z, yq, bel, {"0": label_sets["0"]}, [(b, e) for b in BEL for e in MEFF], st, rho_m, MD.C_FIT, cp, cb)
         zero = torch.zeros(Z.shape[1], dtype=Z.dtype, device=Z.device)
         for (b, e, _), (Wq, bq) in sol.items():
             uq = uar_of(Wq, bq, Zte, yte)
-            rows += [{**base, "center": "moved", "belief": b, "meff": e, "hold": h, "K": "0", "uar": uq} for h in HOLDS]
+            rows += [{**base, "center": "moved", "belief": b, "meff": e, "hold": h, "hold_b": hb, "K": "0", "uar": uq}
+                     for h in HOLDS for hb in HOLDS_B]
             anc = logreg.Fitted(zero, torch.ones_like(zero), {MD.C_FIT: Wq}, {MD.C_FIT: bq}, {MD.C_FIT: 0}, {MD.C_FIT: 0.0})
-            for (h, K), (W, bb) in refit_from(anc, Z, yq, label_sets, cp, cb).items():
-                rows.append({**base, "center": "moved", "belief": b, "meff": e, "hold": h, "K": K, "uar": uar_of(W, bb, Zte, yte)})
+            for (h, hb, K), (W, bb) in refit_from(anc, Z, yq, label_sets, cp, cb).items():
+                rows.append({**base, "center": "moved", "belief": b, "meff": e, "hold": h, "hold_b": hb, "K": K,
+                             "uar": uar_of(W, bb, Zte, yte)})
 
 
 def run_target(world, T, data_f, data_m, out, cache):
@@ -224,10 +233,11 @@ def load(results):
 
 
 def consistency(X, J):
-    """E60 と同じ問題（出発点の h=1，K=0 の動かした出発点）の UAR が一致するか。"""
-    a = X[(X.center == "start") & (X.hold == 1)].set_index(KEY + ["K"]).uar
+    """E60 と同じ問題（出発点の h = h_b = 1，K=0 の動かした出発点）の UAR が一致するか。"""
+    one = (X.hold == 1) & (X.hold_b == 1)
+    a = X[(X.center == "start") & one].set_index(KEY + ["K"]).uar
     b = J[J.belief == "none"].set_index(KEY + ["K"]).uar
-    c = X[(X.center == "moved") & (X.K == "0") & (X.hold == 1)].set_index(KEY + ["belief", "meff"]).uar
+    c = X[(X.center == "moved") & (X.K == "0") & one].set_index(KEY + ["belief", "meff"]).uar
     j0 = J[(J.K == "0") & (J.belief != "none")].set_index(KEY + ["belief", "meff"]).uar
     out = []
     for name, x, y in (("start", a, b), ("moved_K0", c, j0)):
@@ -237,8 +247,12 @@ def consistency(X, J):
     return pd.DataFrame(out)
 
 
+def base_of(X):
+    return X[(X.center == "start") & (X.hold == 1) & (X.hold_b == 1)].set_index(KEY + ["K"]).uar
+
+
 def gains(X, J):
-    base = X[(X.center == "start") & (X.hold == 1)].set_index(KEY + ["K"]).uar
+    base = base_of(X)
     X = X.copy()
     X["gain"] = 100 * (X.uar.values - base.reindex(pd.MultiIndex.from_frame(X[KEY + ["K"]])).values)
     jb = J[J.belief == "none"].set_index(KEY + ["K"]).uar
@@ -250,7 +264,7 @@ def gains(X, J):
 def values(X):
     """E65 と同じ読み方で，動かしてから学んだ生徒の本数 n_mod = K'(u) − K'(u_出発点) を出す。"""
     curves, out = {}, []
-    base = X[(X.center == "start") & (X.hold == 1)].set_index(KEY + ["K"]).uar
+    base = base_of(X)
     for x in X[X.center == "moved"].itertuples():
         ck = (x.student, x.pseudo)
         if ck not in curves:
@@ -259,20 +273,25 @@ def values(X):
         u0 = float(base.loc[(x.world, x.target, x.pseudo, x.rep, x.student, x.K)])
         k0, f0 = E.k_equiv(ks, us, u0)
         k1, f1 = E.k_equiv(ks, us, float(x.uar))
-        out.append(dict(student=x.student, belief=x.belief, meff=x.meff, hold=x.hold, K=x.K,
+        out.append(dict(student=x.student, belief=x.belief, meff=x.meff, hold=x.hold, hold_b=x.hold_b, K=x.K,
                         n_mod=(k1 - k0) if (f0 == 0 and f1 == 0) else np.nan, cens_hi=float(f1 == 1)))
     V = pd.DataFrame(out)
-    return V.groupby(["student", "belief", "meff", "hold", "K"]).agg(n_mod=("n_mod", "median"), cens_hi=("cens_hi", "mean"),
-                                                                    n=("n_mod", "size")).reset_index()
+    return V.groupby(["student", "belief", "meff", "hold", "hold_b", "K"]).agg(
+        n_mod=("n_mod", "median"), cens_hi=("cens_hi", "mean"), n=("n_mod", "size")).reset_index()
 
 
-def selection(X):
+def selection(X, pre=True):
     """仮のターゲットを 1 つ抜いて残りで選び，抜いた仮のターゲットで当たりを比べる（E65 と同じ）．
-    A は (先生, m, h) を K ごとに，B は K によらず 1 つ選ぶ．「使わない」（出発点 h=1）も候補。"""
-    c0 = X[(X.center == "start") & (X.hold == 1)].assign(cand="none")
-    c1 = X[(X.center == "moved") & X.belief.isin(TEACHERS)].copy()
-    c1["cand"] = c1.belief + "|" + c1.meff.astype(str) + "|" + c1.hold.astype(str)
-    H = pd.concat([c0, c1], ignore_index=True)
+    A は候補を K ごとに，B は K によらず 1 つ選ぶ．「使わない」（出発点 h = h_b = 1）も候補．
+    pre=True は予言の版（先生 × m × h，h_b = 1），False は探索の版（h_b も選び，K≥1 で学び直さない版も候補に入れる）。"""
+    c0 = X[(X.center == "start") & (X.hold == 1) & (X.hold_b == 1)].assign(cand="none")
+    c1 = X[(X.center == "moved") & X.belief.isin(TEACHERS) & ((X.hold_b == 1) if pre else True)].copy()
+    c1["cand"] = c1.belief + "|" + c1.meff.astype(str) + "|" + c1.hold.astype(str) + "|" + c1.hold_b.astype(str)
+    parts = [c0, c1]
+    if not pre:
+        z = X[(X.center == "moved") & X.belief.isin(TEACHERS) & (X.K == "0") & (X.hold == 1) & (X.hold_b == 1)]
+        parts += [z.assign(K=K, cand=z.belief + "|" + z.meff.astype(str) + "|norefit") for K in KS]
+    H = pd.concat(parts, ignore_index=True)
     out = []
     for (w, T, s), g in H.groupby(["world", "target", "student"]):
         cs = sorted(g.pseudo.unique())
@@ -288,7 +307,7 @@ def selection(X):
                 out.append(dict(world=w, target=T, student=s, held_out=c, K=K, pick_a=pick_a[K], pick_b=pick_b,
                                 uar_a=te_m.get((K, pick_a[K]), np.nan), uar_b=te_m.get((K, pick_b), np.nan),
                                 uar_none=te_m.get((K, "none"), np.nan)))
-    return pd.DataFrame(out)
+    return pd.DataFrame(out).assign(version="pre" if pre else "explore")
 
 
 def analyze(results=None) -> int:
@@ -299,32 +318,34 @@ def analyze(results=None) -> int:
     meta = _meta()
     chk = consistency(X, J)
     X, J = gains(X, J)
-    G = X.groupby(["student", "center", "belief", "meff", "hold", "K"]).gain.mean().reset_index()
+    G = X.groupby(["student", "center", "belief", "meff", "hold", "hold_b", "K"]).gain.mean().reset_index()
     GJ = J.groupby(["student", "belief", "meff", "K"]).joint.mean().reset_index()
     G = G.merge(GJ, on=["student", "belief", "meff", "K"], how="left")
     V = values(X)
-    L = selection(X)
+    L = pd.concat([selection(X, True), selection(X, False)], ignore_index=True)
     pr = pd.read_csv(OUT_REL / "e66_pred_rows.csv", comment="#", dtype={"K": str})
-    mv = X[(X.center == "moved") & (X.hold == 1)][KEY + ["belief", "meff", "K", "gain"]]
+    mv = X[(X.center == "moved") & (X.hold == 1) & (X.hold_b == 1)][KEY + ["belief", "meff", "K", "gain"]]
     mp = pr.merge(mv, on=KEY + ["belief", "meff", "K"])
     PM = mp.groupby(["student", "belief", "meff", "K"]).agg(pred=("pred", "mean"), moved=("gain", "mean"), joint=("joint", "mean"),
                                                           n=("gain", "size")).reset_index()
     E65 = pd.read_csv(OUT_REL / "e65_selection.csv", comment="#", dtype={"K": str})
     E65 = E65[E65.world.isin(WORLDS) & E65.single]
-    # 判定
+    # 判定（予言の版：h = h_b = 1．P5 は h_b = 1 の候補）
+    G1 = G[(G.hold == 1) & (G.hold_b == 1)]
+    V1 = V[(V.hold == 1) & (V.hold_b == 1)]
     res = []
     for s in sorted(X.student.unique()):
-        g = G[(G.student == s) & (G.center == "moved") & (G.belief == "pF") & (G.meff == 2000) & (G.hold == 1)].set_index("K").gain
+        g = G1[(G1.student == s) & (G1.center == "moved") & (G1.belief == "pF") & (G1.meff == 2000)].set_index("K").gain
         res.append(dict(rule="P1", student=s, detail=" ".join(f"{g[K]:+.2f}" for K in KS_L), ok=bool(all(g[K] > 0 for K in KS_L))))
-        v = V[(V.student == s) & (V.belief == "pF") & (V.meff == 2000) & (V.hold == 1)].set_index("K").n_mod
+        v = V1[(V1.student == s) & (V1.belief == "pF") & (V1.meff == 2000)].set_index("K").n_mod
         res.append(dict(rule="P2", student=s, detail=f"K=0 {v['0']:.1f}，K=25 {v['25']:.1f}，比 {v['25'] / v['0']:.2f}",
                         ok=bool(v["25"] >= 0.5 * v["0"])))
         p = PM[(PM.student == s) & (PM.belief == "pF") & (PM.meff == 2000)].set_index("K")
         res.append(dict(rule="P3", student=s, detail=" ".join(f"{p.moved[K] - p.pred[K]:+.2f}" for K in KS_L),
                         ok=bool(all(abs(p.moved[K] - p.pred[K]) <= 0.5 for K in KS_L))))
-        q = G[(G.student == s) & (G.center == "moved") & (G.belief == "p") & (G.hold == 1) & G.K.isin(KS_L)]
+        q = G1[(G1.student == s) & (G1.center == "moved") & (G1.belief == "p") & G1.K.isin(KS_L)]
         res.append(dict(rule="P4", student=s, detail=f"最小 {q.gain.min():+.2f}", ok=bool(q.gain.min() >= -0.2)))
-    sa = L.groupby("K")[["uar_a", "uar_b", "uar_none"]].mean() * 100
+    sa = L[L.version == "pre"].groupby("K")[["uar_a", "uar_b", "uar_none"]].mean() * 100
     res.append(dict(rule="P5", student="単独の生徒", detail=" ".join(f"{sa.uar_b[K] - sa.uar_a[K]:+.2f}" for K in KS),
                     ok=bool(all(sa.uar_b[K] >= sa.uar_a[K] - 0.1 for K in KS))))
     C = pd.DataFrame(res)
@@ -333,17 +354,22 @@ def analyze(results=None) -> int:
         (OUT_REL / f"{name}.csv").write_text(f"# {meta}\n" + df.to_csv(index=False))
     pd.set_option("display.width", 250)
     print("== E60 と同じ問題の一致\n" + chk.to_string(index=False))
-    print("\n== 出発点との差（ポイント．単独の生徒，仮のターゲットの平均）．moved = 動かしてから学ぶ（h ごと），joint = 今の手法（E60）")
-    t = G[(G.center == "moved") & (G.belief.isin(["p", "pF"]))]
-    print(t.pivot_table(index=["student", "belief", "meff", "hold"], columns="K", values="gain")[list(KS)].round(2).to_string())
-    t = GJ[GJ.belief.isin(["p", "pF"])]
-    print(t.pivot_table(index=["student", "belief", "meff"], columns="K", values="joint")[list(KS)].round(2).to_string())
-    print("\n== 先生の本数（中央値．pF）")
-    t = V[V.belief == "pF"]
-    print(t.pivot_table(index=["student", "meff", "hold"], columns="K", values="n_mod")[list(KS)].round(1).to_string())
-    print("\n== 選び方（抜いた仮のターゲットの UAR − 出発点，ポイント）．E65 は今の手法")
+    print("\n== 出発点との差（ポイント．単独の生徒，仮のターゲットの平均．m=2000）．moved = 動かしてから学ぶ（h, h_b ごと），joint = 今の手法（E60）")
+    t = G[(G.center == "moved") & (G.belief.isin(["p", "pF"])) & (G.meff == 2000)]
+    print(t.pivot_table(index=["student", "belief", "hold", "hold_b"], columns="K", values="gain")[list(KS)].round(2).to_string())
+    t = GJ[GJ.belief.isin(["p", "pF"]) & (GJ.meff == 2000)]
+    print(t.pivot_table(index=["student", "belief"], columns="K", values="joint")[list(KS)].round(2).to_string())
+    print("\n== 予言との比較（pF・m=2000・h = h_b = 1．予言を計算できた行）")
+    t = PM[(PM.belief == "pF") & (PM.meff == 2000)]
+    print(t.pivot_table(index="student", columns="K", values=["pred", "moved", "joint"]).round(2).to_string())
+    print("\n== 先生の本数（中央値．pF・m=2000）")
+    t = V[(V.belief == "pF") & (V.meff == 2000)]
+    print(t.pivot_table(index=["student", "hold", "hold_b"], columns="K", values="n_mod")[list(KS)].round(1).to_string())
+    print("\n== 選び方（抜いた仮のターゲットの UAR − 出発点，ポイント）．pre = 予言の版，explore = h_b と学び直さない版も候補，E65 = 今の手法")
+    se = L[L.version == "explore"].groupby("K")[["uar_a", "uar_b", "uar_none"]].mean() * 100
     e = E65.groupby("K")[["uar_a", "uar_b", "uar_none"]].mean() * 100
-    print(pd.DataFrame({"A（K ごと）": sa.uar_a - sa.uar_none, "B（1 つ）": sa.uar_b - sa.uar_none,
+    print(pd.DataFrame({"pre A": sa.uar_a - sa.uar_none, "pre B": sa.uar_b - sa.uar_none,
+                        "explore A": se.uar_a - se.uar_none, "explore B": se.uar_b - se.uar_none,
                         "E65 A": e.uar_a - e.uar_none, "E65 B": e.uar_b - e.uar_none}).loc[list(KS)].round(2).to_string())
     print("\n== 判定\n" + C.to_string(index=False))
     return 0
@@ -380,7 +406,7 @@ def main() -> int:
     prov = {"script": "exp/explore_move_then_learn.py", "argv": sys.argv[1:], "commit": git("rev-parse", "HEAD"),
             "dirty": bool(git("status", "--porcelain", "--", "exp", "measure")), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "targets": todo, "map_dir": str(map_dir(world)), "world": world, "mods": MD.WORLDS[world], "pseudo_reps": PSEUDO_REPS,
-            "c_fit": MD.C_FIT, "beliefs": BEL, "meff": MEFF, "holds": HOLDS, "agree_low": MD.AGREE_LOW,
+            "c_fit": MD.C_FIT, "beliefs": BEL, "meff": MEFF, "holds": HOLDS, "holds_b": HOLDS_B, "agree_low": MD.AGREE_LOW,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:
