@@ -1,0 +1,11 @@
+% 自動生成．手で編集しない．
+% 生成元: results/numbers.json ／ 生成器: scripts/gen_numbers_tex.py
+% 本文の実験由来の数値は \NUM{key} で書く．未登録の key はビルド時にエラーになる．
+\makeatletter
+\providecommand{\NUM}[1]{%
+  \@ifundefined{NUM@#1}{%
+    \GenericError{}{numbers.tex: key '#1' is not registered in results/numbers.json}{}{}%
+    \textbf{??}%
+  }{\csname NUM@#1\endcsname}%
+}
+\makeatother

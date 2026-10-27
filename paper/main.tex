@@ -1,0 +1,54 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+% IEEE Computer Society の学術誌（TAC）向けの IEEEtran の設定（bare_jrnl_compsoc に相当）．
+% 雛形は最終の体裁を表さない（公式の注意）ので，投稿時の PDF は 12 頁より短く（11.5 頁を目安）に保つ．
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage[nocompress]{cite}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+% 本文の実験由来の数値は \NUM{key} で書く（results/numbers.json → numbers.tex）．
+\input{numbers}
+
+\begin{document}
+
+\title{What Few Target Labels Fix First: Threshold-versus-Direction Analysis and Cross-Modal Weak-Label Transfer for Cross-Corpus Multimodal Emotion Recognition}
+
+\author{Author~Names% TODO
+\IEEEcompsocitemizethanks{\IEEEcompsocthanksitem Affiliations. TODO}}
+
+\markboth{IEEE Transactions on Affective Computing}%
+{Author \MakeLowercase{\textit{et al.}}: What Few Target Labels Fix First}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+TODO. One hundred to two hundred words; no equations, no citations (TAC rule). One sentence with the Part~I finding in numbers, one sentence with the Part~II improvement in UAR.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Multimodal emotion recognition, cross-corpus, few-shot learning, domain adaptation, knowledge distillation, weak labels.
+\end{IEEEkeywords}}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+\input{sections/1-introduction}
+\input{sections/2-related-work}
+\input{sections/3-setting}
+\input{sections/4-part1-what-few-labels-fix}
+\input{sections/5-part2-mechanism-to-method}
+\input{sections/6-comparison}
+\input{sections/7-discussion}
+\input{sections/8-limitations-ethics}
+\input{sections/9-conclusion}
+
+% 引用が入ったら有効にする（references.bib が空だと bibtex が落ちる）．
+% \bibliographystyle{IEEEtran}
+% \bibliography{references}
+
+\end{document}

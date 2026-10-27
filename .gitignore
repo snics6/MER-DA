@@ -18,3 +18,16 @@ __pycache__/
 # ---- 実行ログ・結果（再計算できる．各結果に設定とコミット番号を書く） ----
 logs/
 results/
+
+# ---- paper/（LaTeX の中間生成物と PDF．numbers.tex は生成物だが入れる） ----
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.toc
+paper/main.pdf
+paper/sections/*.aux
