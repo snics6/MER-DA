@@ -1,0 +1,134 @@
+\section{設定と測定の手順}
+\label{sec:setting}
+
+本節では，データ，学習器，分割，および第I部と第II部で測る量を定義する．
+すべての実験は各反復のテスト話者とターゲットのラベルを共有するので，手法間の差は反復の中で対応がある．
+
+\subsection{コーパスとラベル}
+\label{sec:setting-data}
+
+6つのコーパスから7つの群を用いる（表\ref{tab:data}）．
+IEMOCAP\cite{busso2008iemocap}の即興のセッションと台本のセッション，CMU-MOSEI\cite{zadeh2018mosei}，MELD\cite{poria2019meld}，AFEW\cite{dhall2012afew}，RAVDESS\cite{livingstone2018ravdess}，CREMA-D\cite{cao2014cremad}である．
+IEMOCAPの2種類のセッションを別々の群とするのは，台本のセッションでは10人の話者全員が同じ台詞を読み，テキストの分類器が感情の代わりに台本を認識できてしまうからである．
+各発話は，中立（neutral），喜び（happy），悲しみ（sad），怒り（angry）の4つのラベルのいずれかをもつ．
+IEMOCAPのhappyとexcitedを統合し，frustrated（IEMOCAP）とcalm（RAVDESS）を除く．
+CMU-MOSEIの発話には，6つの強度の評定のうちちょうど1つが$0.5$以上のときにその感情を与え，どれも$0.5$以上でないときに中立を与える．
+したがって，CMU-MOSEIの中立のクラスは評定された感情が無いことで定義されるのに対し，IEMOCAPとMELDの中立のクラスは注釈者が割り当てたものである．
+
+音声は7つの群すべてにあり，顔の映像は6つ，書き起こしは4つの群にある．
+AFEWには書き起こしが無く，RAVDESSとCREMA-Dでは話者が決まった文を読み上げ，RAVDESSについては顔の特徴を抽出しなかった．
+A（音声），V（顔），T（テキスト）を単一モダリティの構成（configuration）と呼び，AV，VT，AT，AVTを融合の構成と呼ぶ．
+融合の構成は，そのすべてのモダリティがそろった発話だけを使う．
+すべての分割は話者の同一性にもとづいて定める．
+CMU-MOSEIには話者の注釈が無い．
+チャンネルが分かるのは動画の\NUM{data-mosei-chan-pct}\%であり，それ以外では動画の識別子を話者の代わりに使うので，CMU-MOSEIの話者の分離は不完全である（\ref{sec:limitations-ethics}節）．
+
+\begin{table}[t]
+\caption{群，利用できるモダリティ（A：音声，V：顔，T：テキスト），話者のまとまりの数，および除外の後の感情ごとの発話数（音声の特徴での数）．}
+\label{tab:data}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}llrrrrrr@{}}
+\toprule
+群 & モダリティ & 話者 & 発話 & 中立 & 喜び & 悲しみ & 怒り \\
+\midrule
+IEMOCAP 即興 & AVT & \NUM{data-spk-impro} & \NUM{data-n-impro-wavlm} & \NUM{data-impro-neu} & \NUM{data-impro-hap} & \NUM{data-impro-sad} & \NUM{data-impro-ang} \\
+IEMOCAP 台本 & AVT & \NUM{data-spk-script} & \NUM{data-n-script-wavlm} & \NUM{data-script-neu} & \NUM{data-script-hap} & \NUM{data-script-sad} & \NUM{data-script-ang} \\
+CMU-MOSEI & AVT & \NUM{data-spk-mosei}\textsuperscript{a} & \NUM{data-n-mosei-wavlm} & \NUM{data-mosei-neu} & \NUM{data-mosei-hap} & \NUM{data-mosei-sad} & \NUM{data-mosei-ang} \\
+MELD & AVT & \NUM{data-spk-meld} & \NUM{data-n-meld-wavlm} & \NUM{data-meld-neu} & \NUM{data-meld-hap} & \NUM{data-meld-sad} & \NUM{data-meld-ang} \\
+AFEW & AV & \NUM{data-spk-afew} & \NUM{data-n-afew-wavlm} & \NUM{data-afew-neu} & \NUM{data-afew-hap} & \NUM{data-afew-sad} & \NUM{data-afew-ang} \\
+RAVDESS & A & \NUM{data-spk-ravdess} & \NUM{data-n-ravdess-wavlm} & \NUM{data-ravdess-neu} & \NUM{data-ravdess-hap} & \NUM{data-ravdess-sad} & \NUM{data-ravdess-ang} \\
+CREMA-D & AV & \NUM{data-spk-cremad} & \NUM{data-n-cremad-wavlm} & \NUM{data-cremad-neu} & \NUM{data-cremad-hap} & \NUM{data-cremad-sad} & \NUM{data-cremad-ang} \\
+\midrule
+合計 & & & \NUM{data-n-total-wavlm} & & & & \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+\raggedright\textsuperscript{a}チャンネルが分かる場合はチャンネル，それ以外は動画の識別子．
+\end{table}
+
+\subsection{凍結した特徴と線形分類器}
+\label{sec:setting-features}
+
+どのエンコーダも7つの群で微調整しない．
+各モダリティの第1のエンコーダで分析を行い，第2のエンコーダで結論が保たれるかを確かめる（\ref{sec:comparison}節）．
+音声の特徴はWavLM-Large\cite{chen2022wavlm}（第2：HuBERT-Large\cite{hsu2021hubert}）の最終層を時間で平均し，テキストの特徴はRoBERTa-base\cite{liu2019roberta}（第2：DeBERTa-v3-base\cite{he2023debertav3}）の最終層をトークンで平均する．
+顔の特徴は，抜き出した各フレームでYOLOv8n-face\cite{yolov8face}が検出した最大の顔を，VGGFace2\cite{cao2018vggface2}で学習しAffectNet\cite{mollahosseini2019affectnet}で微調整したRyuminaら\cite{ryumina2022facial}のResNet-50（第2：同じ切り出しに対するCLIP ViT-L/14\cite{radford2021clip}の画像エンコーダ）で埋め込み，その埋め込みを発話にわたって平均する．
+融合の構成では，各次元を標準化した後に単一モダリティの特徴を連結する．
+抽出の詳細は補足資料に示す．
+
+学習器は，訓練データの行で標準化した特徴の上の多項ロジスティック回帰であり，重みに罰則$\|W\|_F^2/(2C)$を課し，切片には罰則を課さない．
+クラスの頻度に反比例するクラスの重みにより，学習器は，本論文の主な指標である重みなし平均再現率（unweighted average recall，UAR）を目標とする．
+UARのでたらめな予測での水準（chance level）は25\%である．
+倍精度のL-BFGS\cite{liu1989lbfgs}で，勾配の絶対値の最大が$10^{-6}$を下回るまで解く．
+凍結したエンコーダと線形ヘッドを用いると，判定の規則を分析できる．
+感情ごとのラベルが少ないと，微調整は事前学習した特徴を歪めることもあり\cite{kumar2022lpft}，\ref{sec:comparison}節では，本論文のデータで微調整した音声エンコーダが凍結した処理の流れ（パイプライン）を下回ることを示す．
+
+\subsection{分割とラベルの本数}
+\label{sec:setting-splits}
+
+各ターゲットの群について，話者を5つの分割（fold）に分け，反復$r$では分割$r \bmod 5$でテストする．
+この分割は平均で発話の\NUM{data-test-pct-mean}\%（範囲は\NUM{data-test-pct-lo}--\NUM{data-test-pct-hi}\%）を含む．
+残りの発話をプール（pool）とする．
+ラベルの本数$K$（label budget）は，プールからランダムに引いたラベル付きのターゲット発話の感情ごとの本数である（$K=25$は$100$本のラベルを意味する）．
+引いたラベルは$K$の間で入れ子になっており，どのソースでも同一である．
+乱数の種がターゲットと反復だけで決まるからである．
+プールの残りはラベルなしで使え，どの手法もテストの発話を学習にも選択にも使わない．
+テスト話者はソースからも除く．
+これが影響するのはIEMOCAPの2つの群の間だけである．
+$K=0$はターゲットのラベルが無いことを表す．
+
+\subsection{3つの学習法と利得の地図}
+\label{sec:setting-map}
+
+ターゲットとソースの群のすべての順序対について，各反復で3つの分類器を学習する．
+$4K$本のターゲットのラベルで学習する\emph{ターゲットのみ}（target-only），ソースのラベル付き発話すべてで学習する\emph{ソースのみ}（source-only），両方で学習する\emph{合併}（pooled）である．
+ソースの\emph{利得}（gain）は，同じ反復における合併のUARからターゲットのみのUARを引いた値であり，テスト話者とラベルを共有する対応のある差である．
+\emph{利得の地図}（gain map）は，$K \in \{1, 5, 10, 25, 50\}$とプール全体について，\NUM{map-reps-a}回の反復にわたるUARを，Aでは\NUM{map-pairs-a}，VとAVでは\NUM{map-pairs-v}，テキストを含む各構成では\NUM{map-pairs-t}の順序対について報告する．
+
+ターゲットのみとソースのみの分類器では，話者で分けた3分割の交差検証で$C \in \{0.01, 0.1, 1, 10\}$を選ぶ（ある分割にどれかの感情が欠けるときは$C=1$とする）．
+合併の分類器は，同じ反復のソースのみの分類器の$C$を使う．
+この$C$の選択にはターゲットのラベルを使わない．
+ターゲットのラベルで$C$を検証する方法は，$K$が小さいと失敗する．
+感情ごとに1本のラベルでは，ほとんどの反復で検証の点数が同点になり，同点のときの規則が罰則を弱めて合併の分類器の向きを変える．
+先行するコーパス横断の研究も，ターゲットに検証に使うラベルが無いときはハイパーパラメータを固定している\cite{gideon2021addog}．
+プール全体を使うとき，この規則は合併の分類器を必要以上に制約し，合併の損失を過大に示す．
+交差検証で選んだ$C$による地図は補足資料に示す．
+
+\subsection{対ごとの判定の判断基準と向き}
+\label{sec:setting-model}
+
+4クラス分類器を，その6つの対ごとの判定を通して分析する．
+感情$k$と$l$について，$z = (\mathbf{w}_k - \mathbf{w}_l)^{\top}\mathbf{x} + (b_k - b_l)$をそれらのスコアの差とし，$k$と$l$のターゲット発話の上で，$\mu_k$，$\mu_l$を$z$のクラスごとの平均，$\sigma$を$z$のクラス内の合併標準偏差とする．
+\emph{識別力}（separation）$d = (\mu_k - \mu_l)/\sigma$は向き$\mathbf{w}_k - \mathbf{w}_l$だけで決まり，\emph{判断基準のずれ}（threshold offset）$o = (\mu_k + \mu_l)/(2\sigma)$は切片だけで0にできる．
+各クラスの中で$z$がガウス分布に従うならば，対の正解率（2つの再現率の平均）は，2つのガウス分布のクラスに対する線形の規則の標準的な式
+\begin{equation}
+\label{eq:twocloud}
+a(d, o) = \tfrac{1}{2}\left[\Phi\!\left(\tfrac{d}{2} + o\right) + \Phi\!\left(\tfrac{d}{2} - o\right)\right]
+\end{equation}
+で与えられる．
+ここで$\Phi$は標準正規分布の分布関数である．
+$\Delta$を，ラベル付きのターゲット発話すべての上の線形判別分析で求めた，ターゲットにとって最良の向きに沿った識別力とする．
+この基準は分析だけに使う．
+この基準に対して，分類器の損失は，判断基準を中点へ動かせば取り戻せる\emph{判断基準による損失}（threshold loss）$a(d, 0) - a(d, o)$と，その後に残る\emph{向きによる損失}（direction loss）$a(\Delta, 0) - a(d, 0)$に分かれる．
+両者を6つの対で平均し，対の正解率のポイントで表す．
+式\eqref{eq:twocloud}が測った正解率をどれだけよく再現するかは，\ref{sec:part1-what-few-labels-fix}節で確かめる．
+
+\subsection{ハイパーパラメータの選択と報告の仕方}
+\label{sec:setting-selection}
+
+第II部の手法とその比較手法（\ref{sec:comparison}節）には，$K$本のターゲットのラベルでは選べないハイパーパラメータがある．
+これらは，1つのドメインを除く選択\cite{gulrajani2021domainbed}と同じく，仮のターゲット（pseudo-target）で選ぶ．
+ターゲット$T$に対して，別のコーパスに属するソースの群$c$を1つずつ，$T$と$c$のコーパスの外の群から作った手法のターゲットとし，$c$から感情ごとに$K$本のラベルを引く．
+選ぶ値は，$c$のテスト話者でのUARを，$c$，最初の5回の反復，各手法が指定するラベルの本数にわたって平均した値を最大にするものである（\ref{sec:part2-mechanism-to-method}節）．
+$T$のラベルは，引いた$K$本のほかは選択に入らず，比較手法も同じ方法で調整する．
+$T$のテスト話者での最良の値である\emph{オラクル}（oracle）は，選択による損失を測るためだけに使う．
+
+UARの差はパーセントポイントで報告する．
+順序対の中（第I部）またはターゲットの中（第II部と\ref{sec:comparison}節）で反復にわたって平均した後，順序対またはターゲットにわたって平均する．
+区間は，反復にわたる対応のある差の95\%の$t$区間である．
+これらの区間はラベルとテスト話者の引き方による変動を表し，話者やコーパスの再標本化による変動は表さない．
+IEMOCAPの10人の話者からは，異なるテストの分割が5つ（即興）または7つ（台本）しかできないので，IEMOCAPのターゲットの反復を独立とみなした区間は狭すぎる．
+ソースがIEMOCAPのターゲットに役立つかを判断する箇所では，先に同じ分割を共有する反復を平均する．

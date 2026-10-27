@@ -105,6 +105,17 @@ def entries() -> dict[str, dict]:
            "第 2 エンコーダの世界の 4 生徒）× K ∈ {{0, 5}} の 22 セル | 最小（{}）と最大（{}）")
     out["cmp-oursx-vs-best-range-lo"] = entry(cells[lo], src.format(lo, hi), "%.1f")
     out["cmp-oursx-vs-best-range-hi"] = entry(cells[hi], src.format(lo, hi), "%.1f")
+    # 基本版 ours − 最も強い相手の調整版：22 セルのうち正のセルの数（2026-10-27．照合の A1）
+    studs = ("avt-a", "avt-v", "avt-t", "avt-f", "av-f", "vt-f", "at-f", "w2-a", "w2-v", "w2-t", "w2-f")
+    oc = {f"{ws}-k{k}": out[f"cmp-ours-vs-best-{ws}-k{k}"]["value"] for ws in studs for k in (0, 5)}
+    s2 = ("paper/scripts/ledger/comparison.py の cmp-ours-vs-best-<世界>-<生徒>-k<K> | 11 の生徒 × K ∈ {0, 5} の 22 セル | ")
+    out["cmp-ours-vs-best-pos-n"] = entry(sum(v > 0 for v in oc.values()), s2 + "基本版 ours が最も強い相手の調整版を上回るセルの数", "%d")
+    out["cmp-ours-vs-best-cells-n"] = entry(len(oc), s2 + "セルの数", "%d")
+    # オラクルとの差が 1 ポイント以上の生徒の数（K=0．反証条件 7 の前半）
+    og = {ws: out[f"cmp-oursx-oracle-vs-tuned-{ws}-k0"]["value"] for ws in studs}
+    s3 = ("paper/scripts/ledger/comparison.py の cmp-oursx-oracle-vs-tuned-<世界>-<生徒>-k0（オラクル．分析専用） | 11 の生徒，K=0 | ")
+    out["cmp-oursx-oracle-gap-ge1-n"] = entry(sum(v >= 1 for v in og.values()), s3 + "テストで最良の候補が選んだ候補を 1 ポイント以上上回る生徒の数", "%d")
+    out["cmp-oursx-oracle-gap-students-n"] = entry(len(og), s3 + "生徒の数", "%d")
     return out
 
 

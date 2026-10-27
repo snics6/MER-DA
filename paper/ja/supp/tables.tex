@@ -1,0 +1,71 @@
+% 英語版 ../../supp/tables.tex（scripts/make_supp_tables.py の生成物）の日本語版．行の \NUM は英語版と同じ．
+% 英語版の表が作り直されたら，説明文と見出しのほかはその行を写し直す．
+\begin{table*}[t]
+\caption{単一モダリティの生徒における，調整版の比較手法と提案法（提案法と提案法の拡張版）のUAR（\%）．ターゲットと10回の反復にわたって平均した．ST：自己訓練，HPL：ハードな擬似ラベル，EM：エントロピー最小化，KD：温度つきの蒸留，GD：一般化蒸留，CoT：共訓練，CoR：共正則化，PA：EMによる事前確率の調整，RB：出力の再均衡化．}
+\label{tab:supp-mod}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrrrrrrrrrrrr@{}}
+\toprule
+構成 & 生徒，$K$ & 出発点 & ST & HPL & EM & KD & GD & CoT & CoR & PA & RB & 提案法 & 提案法の拡張版 \\
+\midrule
+AVT & A，0 & \NUM{tab-avt-a-k0-e39} & \NUM{tab-avt-a-k0-self} & \NUM{tab-avt-a-k0-hard} & \NUM{tab-avt-a-k0-entmin} & \NUM{tab-avt-a-k0-kd} & \NUM{tab-avt-a-k0-gd} & \NUM{tab-avt-a-k0-cotrain} & \NUM{tab-avt-a-k0-coreg} & \NUM{tab-avt-a-k0-saerens} & \NUM{tab-avt-a-k0-massbal} & \NUM{tab-avt-a-k0-ours} & \NUM{tab-avt-a-k0-oursx} \\
+ & A，5 & \NUM{tab-avt-a-k5-e39} & \NUM{tab-avt-a-k5-self} & \NUM{tab-avt-a-k5-hard} & \NUM{tab-avt-a-k5-entmin} & \NUM{tab-avt-a-k5-kd} & \NUM{tab-avt-a-k5-gd} & \NUM{tab-avt-a-k5-cotrain} & \NUM{tab-avt-a-k5-coreg} & \NUM{tab-avt-a-k5-saerens} & \NUM{tab-avt-a-k5-massbal} & \NUM{tab-avt-a-k5-ours} & \NUM{tab-avt-a-k5-oursx} \\
+AVT & V，0 & \NUM{tab-avt-v-k0-e39} & \NUM{tab-avt-v-k0-self} & \NUM{tab-avt-v-k0-hard} & \NUM{tab-avt-v-k0-entmin} & \NUM{tab-avt-v-k0-kd} & \NUM{tab-avt-v-k0-gd} & \NUM{tab-avt-v-k0-cotrain} & \NUM{tab-avt-v-k0-coreg} & \NUM{tab-avt-v-k0-saerens} & \NUM{tab-avt-v-k0-massbal} & \NUM{tab-avt-v-k0-ours} & \NUM{tab-avt-v-k0-oursx} \\
+ & V，5 & \NUM{tab-avt-v-k5-e39} & \NUM{tab-avt-v-k5-self} & \NUM{tab-avt-v-k5-hard} & \NUM{tab-avt-v-k5-entmin} & \NUM{tab-avt-v-k5-kd} & \NUM{tab-avt-v-k5-gd} & \NUM{tab-avt-v-k5-cotrain} & \NUM{tab-avt-v-k5-coreg} & \NUM{tab-avt-v-k5-saerens} & \NUM{tab-avt-v-k5-massbal} & \NUM{tab-avt-v-k5-ours} & \NUM{tab-avt-v-k5-oursx} \\
+AVT & T，0 & \NUM{tab-avt-t-k0-e39} & \NUM{tab-avt-t-k0-self} & \NUM{tab-avt-t-k0-hard} & \NUM{tab-avt-t-k0-entmin} & \NUM{tab-avt-t-k0-kd} & \NUM{tab-avt-t-k0-gd} & \NUM{tab-avt-t-k0-cotrain} & \NUM{tab-avt-t-k0-coreg} & \NUM{tab-avt-t-k0-saerens} & \NUM{tab-avt-t-k0-massbal} & \NUM{tab-avt-t-k0-ours} & \NUM{tab-avt-t-k0-oursx} \\
+ & T，5 & \NUM{tab-avt-t-k5-e39} & \NUM{tab-avt-t-k5-self} & \NUM{tab-avt-t-k5-hard} & \NUM{tab-avt-t-k5-entmin} & \NUM{tab-avt-t-k5-kd} & \NUM{tab-avt-t-k5-gd} & \NUM{tab-avt-t-k5-cotrain} & \NUM{tab-avt-t-k5-coreg} & \NUM{tab-avt-t-k5-saerens} & \NUM{tab-avt-t-k5-massbal} & \NUM{tab-avt-t-k5-ours} & \NUM{tab-avt-t-k5-oursx} \\
+AVT（第2） & A，0 & \NUM{tab-w2-a-k0-e39} & \NUM{tab-w2-a-k0-self} & \NUM{tab-w2-a-k0-hard} & \NUM{tab-w2-a-k0-entmin} & \NUM{tab-w2-a-k0-kd} & \NUM{tab-w2-a-k0-gd} & \NUM{tab-w2-a-k0-cotrain} & \NUM{tab-w2-a-k0-coreg} & \NUM{tab-w2-a-k0-saerens} & \NUM{tab-w2-a-k0-massbal} & \NUM{tab-w2-a-k0-ours} & \NUM{tab-w2-a-k0-oursx} \\
+ & A，5 & \NUM{tab-w2-a-k5-e39} & \NUM{tab-w2-a-k5-self} & \NUM{tab-w2-a-k5-hard} & \NUM{tab-w2-a-k5-entmin} & \NUM{tab-w2-a-k5-kd} & \NUM{tab-w2-a-k5-gd} & \NUM{tab-w2-a-k5-cotrain} & \NUM{tab-w2-a-k5-coreg} & \NUM{tab-w2-a-k5-saerens} & \NUM{tab-w2-a-k5-massbal} & \NUM{tab-w2-a-k5-ours} & \NUM{tab-w2-a-k5-oursx} \\
+AVT（第2） & V，0 & \NUM{tab-w2-v-k0-e39} & \NUM{tab-w2-v-k0-self} & \NUM{tab-w2-v-k0-hard} & \NUM{tab-w2-v-k0-entmin} & \NUM{tab-w2-v-k0-kd} & \NUM{tab-w2-v-k0-gd} & \NUM{tab-w2-v-k0-cotrain} & \NUM{tab-w2-v-k0-coreg} & \NUM{tab-w2-v-k0-saerens} & \NUM{tab-w2-v-k0-massbal} & \NUM{tab-w2-v-k0-ours} & \NUM{tab-w2-v-k0-oursx} \\
+ & V，5 & \NUM{tab-w2-v-k5-e39} & \NUM{tab-w2-v-k5-self} & \NUM{tab-w2-v-k5-hard} & \NUM{tab-w2-v-k5-entmin} & \NUM{tab-w2-v-k5-kd} & \NUM{tab-w2-v-k5-gd} & \NUM{tab-w2-v-k5-cotrain} & \NUM{tab-w2-v-k5-coreg} & \NUM{tab-w2-v-k5-saerens} & \NUM{tab-w2-v-k5-massbal} & \NUM{tab-w2-v-k5-ours} & \NUM{tab-w2-v-k5-oursx} \\
+AVT（第2） & T，0 & \NUM{tab-w2-t-k0-e39} & \NUM{tab-w2-t-k0-self} & \NUM{tab-w2-t-k0-hard} & \NUM{tab-w2-t-k0-entmin} & \NUM{tab-w2-t-k0-kd} & \NUM{tab-w2-t-k0-gd} & \NUM{tab-w2-t-k0-cotrain} & \NUM{tab-w2-t-k0-coreg} & \NUM{tab-w2-t-k0-saerens} & \NUM{tab-w2-t-k0-massbal} & \NUM{tab-w2-t-k0-ours} & \NUM{tab-w2-t-k0-oursx} \\
+ & T，5 & \NUM{tab-w2-t-k5-e39} & \NUM{tab-w2-t-k5-self} & \NUM{tab-w2-t-k5-hard} & \NUM{tab-w2-t-k5-entmin} & \NUM{tab-w2-t-k5-kd} & \NUM{tab-w2-t-k5-gd} & \NUM{tab-w2-t-k5-cotrain} & \NUM{tab-w2-t-k5-coreg} & \NUM{tab-w2-t-k5-saerens} & \NUM{tab-w2-t-k5-massbal} & \NUM{tab-w2-t-k5-ours} & \NUM{tab-w2-t-k5-oursx} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\caption{融合の生徒における，調整版の比較手法と提案法（提案法と提案法の拡張版）のUAR（\%）．CoT-FとCoT-P：融合のビューまたは積のビューによる共訓練．その他の略号は表\ref{tab:supp-mod}と同じ．}
+\label{tab:supp-fused}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrrrrrrrrrrr@{}}
+\toprule
+構成 & $K$ & 出発点 & ST & EM & KD & CoT-F & CoT-P & CoR & PA & RB & 提案法 & 提案法の拡張版 \\
+\midrule
+AVT & 0 & \NUM{tab-avt-f-k0-e39} & \NUM{tab-avt-f-k0-self} & \NUM{tab-avt-f-k0-entmin} & \NUM{tab-avt-f-k0-kd} & \NUM{tab-avt-f-k0-cotrain-fused} & \NUM{tab-avt-f-k0-cotrain-prod} & \NUM{tab-avt-f-k0-coreg-sum} & \NUM{tab-avt-f-k0-saerens} & \NUM{tab-avt-f-k0-massbal} & \NUM{tab-avt-f-k0-ours} & \NUM{tab-avt-f-k0-oursx} \\
+ & 5 & \NUM{tab-avt-f-k5-e39} & \NUM{tab-avt-f-k5-self} & \NUM{tab-avt-f-k5-entmin} & \NUM{tab-avt-f-k5-kd} & \NUM{tab-avt-f-k5-cotrain-fused} & \NUM{tab-avt-f-k5-cotrain-prod} & \NUM{tab-avt-f-k5-coreg-sum} & \NUM{tab-avt-f-k5-saerens} & \NUM{tab-avt-f-k5-massbal} & \NUM{tab-avt-f-k5-ours} & \NUM{tab-avt-f-k5-oursx} \\
+AV & 0 & \NUM{tab-av-f-k0-e39} & \NUM{tab-av-f-k0-self} & \NUM{tab-av-f-k0-entmin} & \NUM{tab-av-f-k0-kd} & \NUM{tab-av-f-k0-cotrain-fused} & \NUM{tab-av-f-k0-cotrain-prod} & \NUM{tab-av-f-k0-coreg-sum} & \NUM{tab-av-f-k0-saerens} & \NUM{tab-av-f-k0-massbal} & \NUM{tab-av-f-k0-ours} & \NUM{tab-av-f-k0-oursx} \\
+ & 5 & \NUM{tab-av-f-k5-e39} & \NUM{tab-av-f-k5-self} & \NUM{tab-av-f-k5-entmin} & \NUM{tab-av-f-k5-kd} & \NUM{tab-av-f-k5-cotrain-fused} & \NUM{tab-av-f-k5-cotrain-prod} & \NUM{tab-av-f-k5-coreg-sum} & \NUM{tab-av-f-k5-saerens} & \NUM{tab-av-f-k5-massbal} & \NUM{tab-av-f-k5-ours} & \NUM{tab-av-f-k5-oursx} \\
+VT & 0 & \NUM{tab-vt-f-k0-e39} & \NUM{tab-vt-f-k0-self} & \NUM{tab-vt-f-k0-entmin} & \NUM{tab-vt-f-k0-kd} & \NUM{tab-vt-f-k0-cotrain-fused} & \NUM{tab-vt-f-k0-cotrain-prod} & \NUM{tab-vt-f-k0-coreg-sum} & \NUM{tab-vt-f-k0-saerens} & \NUM{tab-vt-f-k0-massbal} & \NUM{tab-vt-f-k0-ours} & \NUM{tab-vt-f-k0-oursx} \\
+ & 5 & \NUM{tab-vt-f-k5-e39} & \NUM{tab-vt-f-k5-self} & \NUM{tab-vt-f-k5-entmin} & \NUM{tab-vt-f-k5-kd} & \NUM{tab-vt-f-k5-cotrain-fused} & \NUM{tab-vt-f-k5-cotrain-prod} & \NUM{tab-vt-f-k5-coreg-sum} & \NUM{tab-vt-f-k5-saerens} & \NUM{tab-vt-f-k5-massbal} & \NUM{tab-vt-f-k5-ours} & \NUM{tab-vt-f-k5-oursx} \\
+AT & 0 & \NUM{tab-at-f-k0-e39} & \NUM{tab-at-f-k0-self} & \NUM{tab-at-f-k0-entmin} & \NUM{tab-at-f-k0-kd} & \NUM{tab-at-f-k0-cotrain-fused} & \NUM{tab-at-f-k0-cotrain-prod} & \NUM{tab-at-f-k0-coreg-sum} & \NUM{tab-at-f-k0-saerens} & \NUM{tab-at-f-k0-massbal} & \NUM{tab-at-f-k0-ours} & \NUM{tab-at-f-k0-oursx} \\
+ & 5 & \NUM{tab-at-f-k5-e39} & \NUM{tab-at-f-k5-self} & \NUM{tab-at-f-k5-entmin} & \NUM{tab-at-f-k5-kd} & \NUM{tab-at-f-k5-cotrain-fused} & \NUM{tab-at-f-k5-cotrain-prod} & \NUM{tab-at-f-k5-coreg-sum} & \NUM{tab-at-f-k5-saerens} & \NUM{tab-at-f-k5-massbal} & \NUM{tab-at-f-k5-ours} & \NUM{tab-at-f-k5-oursx} \\
+AVT（第2） & 0 & \NUM{tab-w2-f-k0-e39} & \NUM{tab-w2-f-k0-self} & \NUM{tab-w2-f-k0-entmin} & \NUM{tab-w2-f-k0-kd} & \NUM{tab-w2-f-k0-cotrain-fused} & \NUM{tab-w2-f-k0-cotrain-prod} & \NUM{tab-w2-f-k0-coreg-sum} & \NUM{tab-w2-f-k0-saerens} & \NUM{tab-w2-f-k0-massbal} & \NUM{tab-w2-f-k0-ours} & \NUM{tab-w2-f-k0-oursx} \\
+ & 5 & \NUM{tab-w2-f-k5-e39} & \NUM{tab-w2-f-k5-self} & \NUM{tab-w2-f-k5-entmin} & \NUM{tab-w2-f-k5-kd} & \NUM{tab-w2-f-k5-cotrain-fused} & \NUM{tab-w2-f-k5-cotrain-prod} & \NUM{tab-w2-f-k5-coreg-sum} & \NUM{tab-w2-f-k5-saerens} & \NUM{tab-w2-f-k5-massbal} & \NUM{tab-w2-f-k5-ours} & \NUM{tab-w2-f-k5-oursx} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[t]
+\caption{ターゲットと反復の組にわたる，提案法の拡張版から調整版の最も強い比較手法を引いた差．平均（ポイント），効果量$d_z$，Wilcoxonの符号順位検定のHolmの補正後の$p$，平均が正のターゲットの数（正）．}
+\label{tab:supp-stats}
+\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}llrrrrrrrr@{}}
+\toprule
+ & & \multicolumn{4}{c}{$K=0$} & \multicolumn{4}{c}{$K=5$} \\ \cmidrule(lr){3-6}\cmidrule(l){7-10}
+構成 & 生徒 & 平均 & $d_z$ & $p$ & 正 & 平均 & $d_z$ & $p$ & 正 \\
+\midrule
+AVT & A & \NUM{st-oursx-best-avt-a-k0-mean} & \NUM{st-oursx-best-avt-a-k0-dz} & $<$0.001 & \NUM{st-oursx-best-avt-a-k0-tgtpos} & \NUM{st-oursx-best-avt-a-k5-mean} & \NUM{st-oursx-best-avt-a-k5-dz} & $<$0.001 & \NUM{st-oursx-best-avt-a-k5-tgtpos} \\
+AVT & V & \NUM{st-oursx-best-avt-v-k0-mean} & \NUM{st-oursx-best-avt-v-k0-dz} & \NUM{st-oursx-best-avt-v-k0-pholm} & \NUM{st-oursx-best-avt-v-k0-tgtpos} & \NUM{st-oursx-best-avt-v-k5-mean} & \NUM{st-oursx-best-avt-v-k5-dz} & \NUM{st-oursx-best-avt-v-k5-pholm} & \NUM{st-oursx-best-avt-v-k5-tgtpos} \\
+AVT & T & \NUM{st-oursx-best-avt-t-k0-mean} & \NUM{st-oursx-best-avt-t-k0-dz} & \NUM{st-oursx-best-avt-t-k0-pholm} & \NUM{st-oursx-best-avt-t-k0-tgtpos} & \NUM{st-oursx-best-avt-t-k5-mean} & \NUM{st-oursx-best-avt-t-k5-dz} & \NUM{st-oursx-best-avt-t-k5-pholm} & \NUM{st-oursx-best-avt-t-k5-tgtpos} \\
+AVT & 融合 & \NUM{st-oursx-best-avt-f-k0-mean} & \NUM{st-oursx-best-avt-f-k0-dz} & \NUM{st-oursx-best-avt-f-k0-pholm} & \NUM{st-oursx-best-avt-f-k0-tgtpos} & \NUM{st-oursx-best-avt-f-k5-mean} & \NUM{st-oursx-best-avt-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-avt-f-k5-tgtpos} \\
+AV & 融合 & \NUM{st-oursx-best-av-f-k0-mean} & \NUM{st-oursx-best-av-f-k0-dz} & \NUM{st-oursx-best-av-f-k0-pholm} & \NUM{st-oursx-best-av-f-k0-tgtpos} & \NUM{st-oursx-best-av-f-k5-mean} & \NUM{st-oursx-best-av-f-k5-dz} & \NUM{st-oursx-best-av-f-k5-pholm} & \NUM{st-oursx-best-av-f-k5-tgtpos} \\
+VT & 融合 & \NUM{st-oursx-best-vt-f-k0-mean} & \NUM{st-oursx-best-vt-f-k0-dz} & $<$0.001 & \NUM{st-oursx-best-vt-f-k0-tgtpos} & \NUM{st-oursx-best-vt-f-k5-mean} & \NUM{st-oursx-best-vt-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-vt-f-k5-tgtpos} \\
+AT & 融合 & \NUM{st-oursx-best-at-f-k0-mean} & \NUM{st-oursx-best-at-f-k0-dz} & $<$0.001 & \NUM{st-oursx-best-at-f-k0-tgtpos} & \NUM{st-oursx-best-at-f-k5-mean} & \NUM{st-oursx-best-at-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-at-f-k5-tgtpos} \\
+AVT（第2） & A & \NUM{st-oursx-best-w2-a-k0-mean} & \NUM{st-oursx-best-w2-a-k0-dz} & \NUM{st-oursx-best-w2-a-k0-pholm} & \NUM{st-oursx-best-w2-a-k0-tgtpos} & \NUM{st-oursx-best-w2-a-k5-mean} & \NUM{st-oursx-best-w2-a-k5-dz} & $<$0.001 & \NUM{st-oursx-best-w2-a-k5-tgtpos} \\
+AVT（第2） & V & \NUM{st-oursx-best-w2-v-k0-mean} & \NUM{st-oursx-best-w2-v-k0-dz} & \NUM{st-oursx-best-w2-v-k0-pholm} & \NUM{st-oursx-best-w2-v-k0-tgtpos} & \NUM{st-oursx-best-w2-v-k5-mean} & \NUM{st-oursx-best-w2-v-k5-dz} & \NUM{st-oursx-best-w2-v-k5-pholm} & \NUM{st-oursx-best-w2-v-k5-tgtpos} \\
+AVT（第2） & T & \NUM{st-oursx-best-w2-t-k0-mean} & \NUM{st-oursx-best-w2-t-k0-dz} & \NUM{st-oursx-best-w2-t-k0-pholm} & \NUM{st-oursx-best-w2-t-k0-tgtpos} & \NUM{st-oursx-best-w2-t-k5-mean} & \NUM{st-oursx-best-w2-t-k5-dz} & $<$0.001 & \NUM{st-oursx-best-w2-t-k5-tgtpos} \\
+AVT（第2） & 融合 & \NUM{st-oursx-best-w2-f-k0-mean} & \NUM{st-oursx-best-w2-f-k0-dz} & \NUM{st-oursx-best-w2-f-k0-pholm} & \NUM{st-oursx-best-w2-f-k0-tgtpos} & \NUM{st-oursx-best-w2-f-k5-mean} & \NUM{st-oursx-best-w2-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-w2-f-k5-tgtpos} \\
+\bottomrule
+\end{tabular}
+\end{table}

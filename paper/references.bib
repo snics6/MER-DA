@@ -266,3 +266,1033 @@
   note         = {Software},
   url          = {https://github.com/derronqi/yolov8-face}
 }
+
+% ---- 関連研究（2 節）と本文で引く文献（2026-10-27 に書誌を確かめた） ----
+% 対象は ../reports/TAC 論文 先行研究の精読と穴.md の「関連研究の節」7 段落と「主張ごとの置き場所」の表に挙がる文献，
+% と ../docs/related-work.md 1.11 節の比べる相手．キーの一覧と引く位置は docs/bib-keys.md．
+% 水準の ◎ は ../research_notes/TAC 論文 先行研究の精読と穴/g1〜g6 で本文（多くは arXiv 版）を読んだもの．
+% arXiv だけの文献は misc 型にし，IEEEtran.bst は eprint を出力しないので howpublished にも arXiv 番号を書く（liu2019roberta と同じ形）．
+% DBLP と Springer と IEEE Xplore の頁は bot 確認の画面を返したので使っていない．
+
+% ==== 段落 1：少数のターゲットラベルを使うコーパス間の感情認識 ====
+
+% 水準: ◎ 本文を読んだ（arXiv:2509.18706v1．掲載版は未見）．確かめた出所: https://api.crossref.org/works/10.1109/TASLPRO.2025.3614428 と https://arxiv.org/abs/2509.18706．要確認: 号と月（Crossref の記録に無い）
+@article{he2025m4ser,
+  author  = {Jiajun He and Xiaohan Shi and Cheng-Hung Hu and Jinyi Mi and Xingfeng Li and Tomoki Toda},
+  title   = {{M$^{4}$SER}: Multimodal, Multirepresentation, Multitask, and Multistrategy Learning for Speech Emotion Recognition},
+  journal = {IEEE Transactions on Audio, Speech and Language Processing},
+  volume  = {33},
+  pages   = {4055--4070},
+  year    = {2025},
+  doi     = {10.1109/TASLPRO.2025.3614428}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2306.13804v2．題名は "Cross-Language Speech Emotion Recognition Using Multimodal Dual Attention Transformers" で掲載版と違う．掲載版は未見）．確かめた出所: https://api.crossref.org/works/10.1109/OJCS.2024.3486904 と https://arxiv.org/abs/2306.13804．要確認: 号と月（Crossref の記録に無い）．掲載版で表の値と K の単位が直っているか
+@article{zaidi2024enhancing,
+  author  = {Syed Aun Muhammad Zaidi and Siddique Latif and Junaid Qadir},
+  title   = {Enhancing Cross-Language Multimodal Emotion Recognition With Dual Attention Transformers},
+  journal = {IEEE Open Journal of the Computer Society},
+  volume  = {5},
+  pages   = {684--693},
+  year    = {2024},
+  doi     = {10.1109/OJCS.2024.3486904}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2412.01171v1．掲載版は未見）．確かめた出所: https://api.crossref.org/works/10.1109/TAFFC.2024.3366767 と https://arxiv.org/abs/2412.01171．要確認: 号の月の幅（Crossref の印刷日は 2024-07）
+@article{xu2024crosstask,
+  author  = {Yifan Xu and Xue Jiang and Dongrui Wu},
+  title   = {Cross-Task Inconsistency Based Active Learning ({CTIAL}) for Emotion Recognition},
+  journal = {IEEE Transactions on Affective Computing},
+  volume  = {15},
+  number  = {3},
+  pages   = {1659--1668},
+  month   = jul,
+  year    = {2024},
+  doi     = {10.1109/TAFFC.2024.3366767}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2302.12921v3）．確かめた出所: https://api.crossref.org/works/10.21437/Interspeech.2023-136 と https://arxiv.org/abs/2302.12921（journal_ref も同じ頁）．要確認: 開催地（Crossref の記録に無い）
+@inproceedings{chen2023prefinetuning,
+  author    = {Maximillian Chen and Zhou Yu},
+  title     = {Pre-Finetuning for Few-Shot Emotional Speech Recognition},
+  booktitle = {Proc. Interspeech 2023},
+  publisher = {ISCA},
+  pages     = {3602--3606},
+  month     = aug,
+  year      = {2023},
+  doi       = {10.21437/Interspeech.2023-136}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2104.01978v2）．確かめた出所: https://api.crossref.org/works/10.21437/Interspeech.2021-666 と https://arxiv.org/abs/2104.01978．要確認: 開催地（Crossref の記録に無い）
+@inproceedings{li2021acted,
+  author    = {Haoqi Li and Yelin Kim and Cheng-Hao Kuo and Shrikanth S. Narayanan},
+  title     = {Acted vs. Improvised: Domain Adaptation for Elicitation Approaches in Audio-Visual Emotion Recognition},
+  booktitle = {Proc. Interspeech 2021},
+  publisher = {ISCA},
+  pages     = {3395--3399},
+  month     = aug,
+  year      = {2021},
+  doi       = {10.21437/Interspeech.2021-666}
+}
+
+% 水準: ○ 抄録のみ（TAC 版の本文は IEEE Xplore で取れず．前身の arXiv:2310.04703 は音声だけの別の版）．確かめた出所: https://api.crossref.org/works/10.1109/TAFFC.2025.3526592．要確認: 号の月の幅（Crossref の印刷日は 2025-07）．本文（ターゲットのラベルを使うか）
+@article{ahn2025multitask,
+  author  = {Chung-Soo Ahn and Rajib Rana and Carlos Busso and Jagath C. Rajapakse},
+  title   = {Multitask Transformer for Cross-Corpus Speech Emotion Recognition},
+  journal = {IEEE Transactions on Affective Computing},
+  volume  = {16},
+  number  = {3},
+  pages   = {1581--1591},
+  month   = jul,
+  year    = {2025},
+  doi     = {10.1109/TAFFC.2025.3526592}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2601.16240v1．掲載版は未見）．確かめた出所: https://api.crossref.org/works/10.1109/ICASSP55912.2026.11460722（開催地と会期 2026-05-03〜08 も Crossref）．要確認: なし（掲載版の題名は "Test Time"．arXiv 版は "Test-Time"）
+@inproceedings{dong2026test,
+  author    = {Jiaheng Dong and Hong Jia and Ting Dang},
+  title     = {Test Time Adaptation for Speech Emotion Recognition},
+  booktitle = {2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  address   = {Barcelona, Spain},
+  pages     = {17157--17161},
+  month     = may,
+  year      = {2026},
+  doi       = {10.1109/ICASSP55912.2026.11460722}
+}
+
+% 水準: ◎ 本文の一部を読んだ（arXiv:2603.08936v1 の 4.4 節と表 8）．確かめた出所: https://arxiv.org/abs/2603.08936（arXiv のコメントは "submitted to Interspeech 2026"）．要確認: 掲載先（投稿中）
+@misc{zhang2026voxemo,
+  author        = {Hezhao Zhang and Huang-Cheng Chou and Shrikanth Narayanan and Thomas Hain},
+  title         = {{VoxEmo}: Benchmarking Speech Emotion Recognition with Speech {LLMs}},
+  howpublished  = {arXiv:2603.08936},
+  month         = mar,
+  year          = {2026},
+  eprint        = {2603.08936},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.SD},
+  note          = {arXiv preprint}
+}
+
+% 水準: △ 書誌のみ（TAC の本文は取得できず．../docs/related-work.md 2.3 節は同じ著者らの ACII 2015 拡張要旨で内容を読んだ）．確かめた出所: https://api.crossref.org/works/10.1109/T-AFFC.2010.8．要確認: 著者名の発音記号（Crossref は Bjorn，Wollmer，Andre と ASCII で記録している．IEEE Xplore は未見）．号の月の幅（Crossref の印刷日は 2010-07）
+@article{schuller2010crosscorpus,
+  author  = {Bjorn Schuller and Bogdan Vlasenko and Florian Eyben and Martin Wollmer and Andre Stuhlsatz and Andreas Wendemuth and Gerhard Rigoll},
+  title   = {Cross-Corpus Acoustic Emotion Recognition: Variances and Strategies},
+  journal = {IEEE Transactions on Affective Computing},
+  volume  = {1},
+  number  = {2},
+  pages   = {119--131},
+  month   = jul,
+  year    = {2010},
+  doi     = {10.1109/T-AFFC.2010.8}
+}
+
+% ==== 段落 2：線形の頭の誤差の分解と少数標本の理論 ====
+
+% 水準: △ 書誌のみ（原著は Project Euclid が bot 確認を返して未読．式は shutoh2010asymptotic の再掲で読んだ）．確かめた出所: https://api.crossref.org/works/10.1214/aoms/1177703864．要確認: 本文．頁は Crossref で 1286--1301（Shutoh の参考文献の 1268 は誤植）．訂正 Okamoto 1968（Ann. Math. Statist. 39, 1358--1359．Shutoh の参考文献による）は入れていない
+@article{okamoto1963asymptotic,
+  author  = {Masashi Okamoto},
+  title   = {An Asymptotic Expansion for the Distribution of the Linear Discriminant Function},
+  journal = {The Annals of Mathematical Statistics},
+  volume  = {34},
+  number  = {4},
+  pages   = {1286--1301},
+  month   = dec,
+  year    = {1963},
+  doi     = {10.1214/aoms/1177703864}
+}
+
+% 水準: ◎ 本文の 1〜2 節を読んだ（Okamoto 1963 の式 (3) の再掲）．確かめた出所: https://www.math.sci.hiroshima-u.ac.jp/stat/TR/TR10/TR10-04.pdf（表紙）と https://www.math.sci.hiroshima-u.ac.jp/stat/TR/（技術報告の一覧の 2010 年の 10-04）．要確認: 発行月（PDF の作成日は 2010-03-08）．雑誌に載った版があるか
+@techreport{shutoh2010asymptotic,
+  author      = {Nobumichi Shutoh},
+  title       = {Asymptotic expansions relating to discrimination based on 2-step monotone missing samples},
+  institution = {Hiroshima Statistical Research Group},
+  type        = {Technical Report},
+  number      = {10-04},
+  year        = {2010},
+  url         = {https://www.math.sci.hiroshima-u.ac.jp/stat/TR/TR10/TR10-04.pdf}
+}
+
+% 水準: ○ 書誌と要旨の抜き書き（本文は未読）．確かめた出所: https://api.crossref.org/works/10.1109/34.75512．要確認: 本文（閾値の項の有無）
+@article{raudys1991small,
+  author  = {S. J. Raudys and A. K. Jain},
+  title   = {Small sample size effects in statistical pattern recognition: recommendations for practitioners},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {13},
+  number  = {3},
+  pages   = {252--264},
+  month   = mar,
+  year    = {1991},
+  doi     = {10.1109/34.75512}
+}
+
+% 水準: ◎ 本文を読んだ（全 6 頁）．確かめた出所: https://dml.cz/handle/10338.dmlcz/135232（DML-CZ の書誌．巻 34，号 4，頁 461--466）．要確認: なし（DOI は無い）
+@article{raudys1998intrinsic,
+  author  = {{\v{S}}ar{\=u}nas Raudys},
+  title   = {Intrinsic dimensionality and small sample properties of classifiers},
+  journal = {Kybernetika},
+  volume  = {34},
+  number  = {4},
+  pages   = {461--466},
+  year    = {1998},
+  url     = {https://dml.cz/handle/10338.dmlcz/135232}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1507.03003v2．掲載版は未見）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Dobriban+Wager+High-dimensional+asymptotics+of+prediction（DOI 10.1214/17-AOS1549）と https://arxiv.org/abs/1507.03003．要確認: 掲載版の定理・系の番号（arXiv v2 の系 3.3 を引くなら掲載版で照合する）
+@article{dobriban2018highdimensional,
+  author  = {Edgar Dobriban and Stefan Wager},
+  title   = {High-dimensional asymptotics of prediction: Ridge regression and classification},
+  journal = {The Annals of Statistics},
+  volume  = {46},
+  number  = {1},
+  pages   = {247--279},
+  month   = feb,
+  year    = {2018},
+  doi     = {10.1214/17-AOS1549}
+}
+
+% 水準: ◎ 本文と付録 A.3 を読んだ．確かめた出所: https://proceedings.mlr.press/v202/de-silva23a.html（PMLR の頁と BibTeX）．要確認: なし（PMLR の著者表記は Carey Priebe．本文の表記 Carey E. Priebe に従った）
+@inproceedings{desilva2023value,
+  author    = {Ashwin {De Silva} and Rahul Ramesh and Carey E. Priebe and Pratik Chaudhari and Joshua T. Vogelstein},
+  title     = {The Value of Out-of-Distribution Data},
+  booktitle = {Proceedings of the 40th International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {202},
+  publisher = {PMLR},
+  pages     = {7366--7389},
+  month     = jul,
+  year      = {2023},
+  url       = {https://proceedings.mlr.press/v202/de-silva23a.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2202.06856v2）．確かめた出所: https://arxiv.org/abs/2202.06856．要確認: 掲載先（NeurIPS 2022 Workshop on Distribution Shifts での発表は精読ノートの検索結果による．査読つきの本会議・雑誌の版は見つからず arXiv として書いた）
+@misc{rosenfeld2022domainadjusted,
+  author        = {Elan Rosenfeld and Pradeep Ravikumar and Andrej Risteski},
+  title         = {Domain-Adjusted Regression or: {ERM} May Already Learn Features Sufficient for Out-of-Distribution Generalization},
+  howpublished  = {arXiv:2202.06856v2},
+  month         = oct,
+  year          = {2022},
+  eprint        = {2202.06856},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文と付録を読んだ（arXiv:2103.01550v3）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2021/hash/9dfcf16f0adbc5e2a55ef02db36bac7f-Abstract.html（NeurIPS の論文集の頁と BibTeX）．要確認: なし
+@inproceedings{kini2021labelimbalanced,
+  author    = {Ganesh Ramachandra Kini and Orestis Paraskevas and Samet Oymak and Christos Thrampoulidis},
+  title     = {Label-Imbalanced and Group-Sensitive Classification under Overparameterization},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {34},
+  publisher = {Curran Associates, Inc.},
+  pages     = {18970--18983},
+  month     = dec,
+  year      = {2021},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2021/hash/9dfcf16f0adbc5e2a55ef02db36bac7f-Abstract.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2507.14661v2．付録 B〜J は未読）．確かめた出所: https://arxiv.org/abs/2507.14661．要確認: 掲載先（本文に無い）
+@misc{ha2026labeled,
+  author        = {Wooseok Ha and Yuansi Chen},
+  title         = {When few labeled target data suffice: a theory of semi-supervised domain adaptation via fine-tuning from multiple adaptive starts},
+  howpublished  = {arXiv:2507.14661v2},
+  month         = jun,
+  year          = {2026},
+  eprint        = {2507.14661},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ML},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文の前半を読んだ（arXiv:2607.06936v1）．確かめた出所: https://arxiv.org/abs/2607.06936．要確認: 掲載先（本文に無い）
+@misc{zhang2026transfer,
+  author        = {Yonghan Zhang and Yimeng Fan and Wenya Luo and Jiang Hu},
+  title         = {Transfer Learning for Linear Discriminant Analysis with a Shared Classification Signal},
+  howpublished  = {arXiv:2607.06936},
+  month         = jul,
+  year          = {2026},
+  eprint        = {2607.06936},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ME},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2603.03530v1）．確かめた出所: https://arxiv.org/abs/2603.03530．要確認: 掲載先（本文に無い）
+@misc{luthra2026directional,
+  author        = {Achleshwar Luthra and Yash Salunkhe and Tomer Galanti},
+  title         = {Directional Neural Collapse Explains Few-Shot Transfer in Self-Supervised Learning},
+  howpublished  = {arXiv:2603.03530},
+  month         = mar,
+  year          = {2026},
+  eprint        = {2603.03530},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  note          = {arXiv preprint}
+}
+
+% ==== 段落 3：ソースの価値の換算 ====
+
+% 水準: ◎ 本文を読んだ（arXiv:2102.01293v1）．確かめた出所: https://arxiv.org/abs/2102.01293．要確認: 掲載先（本文に無い）
+@misc{hernandez2021scaling,
+  author        = {Danny Hernandez and Jared Kaplan and Tom Henighan and Sam McCandlish},
+  title         = {Scaling Laws for Transfer},
+  howpublished  = {arXiv:2102.01293},
+  month         = feb,
+  year          = {2021},
+  eprint        = {2102.01293},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文を読んだ．確かめた出所: https://api.crossref.org/works/10.18653/v1/2021.naacl-main.208 と https://aclanthology.org/2021.naacl-main.208．要確認: なし（Crossref の著者表記は Alexander Rush．論文の表記 Alexander M. Rush に従った）
+@inproceedings{lescao2021data,
+  author    = {Teven {Le Scao} and Alexander M. Rush},
+  title     = {How Many Data Points is a Prompt Worth?},
+  booktitle = {Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies},
+  publisher = {Association for Computational Linguistics},
+  address   = {Online},
+  pages     = {2627--2636},
+  month     = jun,
+  year      = {2021},
+  doi       = {10.18653/v1/2021.naacl-main.208}
+}
+
+% 水準: ○ 書誌と要旨（Europe PMC）．本文は未読．確かめた出所: https://api.crossref.org/works/10.1111/biom.13124．要確認: 本文（頑健な混合事前分布での ECSS の式）
+@article{wiesenfarth2020quantification,
+  author  = {Manuel Wiesenfarth and Silvia Calderazzo},
+  title   = {Quantification of prior impact in terms of effective current sample size},
+  journal = {Biometrics},
+  volume  = {76},
+  number  = {1},
+  pages   = {326--336},
+  month   = mar,
+  year    = {2020},
+  doi     = {10.1111/biom.13124}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2002.04747v1．付録 B〜E は未読）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2019/hash/b91f4f4d36fa98a94ac5584af95594a0-Abstract.html（論文集の頁と Metadata.json の頁 9871--9881）．要確認: なし
+@inproceedings{hanneke2019value,
+  author    = {Steve Hanneke and Samory Kpotufe},
+  title     = {On the Value of Target Data in Transfer Learning},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {32},
+  publisher = {Curran Associates, Inc.},
+  pages     = {9871--9881},
+  year      = {2019},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2019/hash/b91f4f4d36fa98a94ac5584af95594a0-Abstract.html}
+}
+
+% ==== 段落 4：合併と複数ソース（bendavid2010theory は 3 節用に既にある） ====
+
+% 水準: ◎ 本文の 4 節を読んだ．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2007/hash/42e77b63637ab381e8be5f8318cc28a2-Abstract.html（論文集の頁と Metadata.json の頁 129--136）．要確認: なし（第 5 著者は論文集の表記 Jennifer Wortman．後の Jennifer Wortman Vaughan）
+@inproceedings{blitzer2007learning,
+  author    = {John Blitzer and Koby Crammer and Alex Kulesza and Fernando Pereira and Jennifer Wortman},
+  title     = {Learning Bounds for Domain Adaptation},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {20},
+  publisher = {Curran Associates, Inc.},
+  pages     = {129--136},
+  year      = {2007},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2007/hash/42e77b63637ab381e8be5f8318cc28a2-Abstract.html}
+}
+
+% 水準: △ 書誌のみ（本文は未読．Koh 2019 の参考文献から引く一段の近似の出典）．確かめた出所: https://api.crossref.org/works/10.1214/aos/1176345513．要確認: 本文（一段の近似の式の形）
+@article{pregibon1981logistic,
+  author  = {Daryl Pregibon},
+  title   = {Logistic Regression Diagnostics},
+  journal = {The Annals of Statistics},
+  volume  = {9},
+  number  = {4},
+  pages   = {705--724},
+  month   = jul,
+  year    = {1981},
+  doi     = {10.1214/aos/1176345513}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1905.13289v2．4 節の命題 4 と付録 E）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2019/hash/a78482ce76496fcf49085f2190e675b4-Abstract.html（論文集の頁と Metadata.json の頁 5254--5264）．要確認: なし（第 3 著者は論文集の表記 Hubert Teo．arXiv は Hubert H. K. Teo）
+@inproceedings{koh2019accuracy,
+  author    = {Pang Wei Koh and Kai-Siang Ang and Hubert Teo and Percy Liang},
+  title     = {On the Accuracy of Influence Functions for Measuring Group Effects},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {32},
+  publisher = {Curran Associates, Inc.},
+  pages     = {5254--5264},
+  year      = {2019},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2019/hash/a78482ce76496fcf49085f2190e675b4-Abstract.html}
+}
+
+% 水準: ○ 会議の頁（ICLR 版の本文は未読．長い版 tiomoko2020large を ◎ で読んだ）．確かめた出所: https://iclr.cc/virtual/2021/poster/2634（題・著者・採否 Poster と OpenReview の id）．要確認: ICLR 版の節と定理の番号（長い版と違う可能性）
+@inproceedings{tiomoko2021deciphering,
+  author    = {Malik Tiomoko and Hafiz {Tiomoko Ali} and Romain Couillet},
+  title     = {Deciphering and Optimizing Multi-Task Learning: a Random Matrix Approach},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2021},
+  url       = {https://openreview.net/forum?id=Cri3xz59ga}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2009.01591v1．tiomoko2021deciphering の長い版で題が違う．定理番号はこの版のもの）．確かめた出所: https://arxiv.org/abs/2009.01591．要確認: なし（arXiv の著者の並びは Tiomoko, Couillet, Tiomoko で，第 3 著者の姓の表記が ICLR 版の Tiomoko Ali と違う）
+@misc{tiomoko2020large,
+  author        = {Malik Tiomoko and Romain Couillet and Hafiz Tiomoko},
+  title         = {Large Dimensional Analysis and Improvement of Multi Task Learning},
+  howpublished  = {arXiv:2009.01591},
+  month         = sep,
+  year          = {2020},
+  eprint        = {2009.01591},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ML},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文の一部を読んだ（JMLR 版の 1・2・4・5.2・6.3〜6.4・7 節）．確かめた出所: https://jmlr.org/papers/v26/24-0454.html と https://jmlr.org/papers/v26/24-0454.bib．要確認: なし（JMLR の表記は Christopher Re）
+@article{yang2025precise,
+  author  = {Fan Yang and Hongyang R. Zhang and Sen Wu and Christopher Re and Weijie J. Su},
+  title   = {Precise High-Dimensional Asymptotics for Quantifying Heterogeneous Transfers},
+  journal = {Journal of Machine Learning Research},
+  volume  = {26},
+  number  = {113},
+  pages   = {1--88},
+  year    = {2025},
+  url     = {https://jmlr.org/papers/v26/24-0454.html}
+}
+
+% 水準: ◎ 本文の一部を読んだ（arXiv:2010.15764v2 の 1〜4.1 節．4.2〜5 節は未読）．確かめた出所: https://jmlr.org/papers/v22/20-1227.html と https://jmlr.org/papers/v22/20-1227.bib．要確認: なし
+@article{chen2021domain,
+  author  = {Yuansi Chen and Peter B{\"u}hlmann},
+  title   = {Domain adaptation under structural causal models},
+  journal = {Journal of Machine Learning Research},
+  volume  = {22},
+  number  = {261},
+  pages   = {1--80},
+  year    = {2021},
+  url     = {https://jmlr.org/papers/v22/20-1227.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2510.04441v2 の 1〜7 節と付録 D．v1 の題は "Domain Generalization: A Tale of Two ERMs"）．確かめた出所: https://arxiv.org/abs/2510.04441．要確認: 掲載先（NeurIPS 2025 のワークショップ "Reliable ML from Unreliable Data" のポスターは精読ノートの頁の要約による．査読つきの版は見つからず arXiv として書いた）
+@misc{zhu2026domain,
+  author        = {Yilun Zhu and Naihao Deng and Naichen Shi and Aditya Gangrade and Clayton Scott},
+  title         = {Domain Generalization Under Posterior Drift},
+  howpublished  = {arXiv:2510.04441v2},
+  month         = feb,
+  year          = {2026},
+  eprint        = {2510.04441},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2007.09762v2．付録 F は未読）．確かめた出所: https://proceedings.mlr.press/v130/mansour21a.html（PMLR の頁と BibTeX．頁 2332--2340）．要確認: なし（第 4 著者の姓は PMLR の BibTeX の区切り Theertha Suresh に従った）
+@inproceedings{mansour2021theory,
+  author    = {Yishay Mansour and Mehryar Mohri and Jae Ro and Ananda {Theertha Suresh} and Ke Wu},
+  title     = {A Theory of Multiple-Source Adaptation with Limited Target Labeled Data},
+  booktitle = {Proceedings of the 24th International Conference on Artificial Intelligence and Statistics},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {130},
+  publisher = {PMLR},
+  pages     = {2332--2340},
+  month     = apr,
+  year      = {2021},
+  url       = {https://proceedings.mlr.press/v130/mansour21a.html}
+}
+
+% 水準: ◎ 本文の一部を読んだ（arXiv:2205.15935v4 の 1〜2 節と 3 節の冒頭．掲載版は未見）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Sarao+Mannelli+Bias-inducing+geometries（DOI 10.1103/nlfl-35t6．巻 112，号 2，論文番号 025304，公開 2025-08-07）．要確認: なし（精読ノートで要確認だった巻号は Crossref で確かめた）
+@article{saraomannelli2025biasinducing,
+  author  = {Stefano {Sarao Mannelli} and Federica Gerace and Negar Rostamzadeh and Luca Saglietti},
+  title   = {Bias-inducing geometries: An exactly solvable data model with fairness implications},
+  journal = {Physical Review E},
+  volume  = {112},
+  number  = {2},
+  pages   = {025304},
+  month   = aug,
+  year    = {2025},
+  doi     = {10.1103/nlfl-35t6}
+}
+
+% ==== 段落 5：特権情報とモダリティ間の蒸留 ====
+
+% 水準: △ 書誌のみ（本文は未読）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Vapnik+Vashist+A+new+learning+paradigm（DOI 10.1016/j.neunet.2009.06.042）．要確認: 本文（精読ノートで要確認だった巻・号は Crossref で 22(5--6) と確かめた）
+@article{vapnik2009new,
+  author  = {Vladimir Vapnik and Akshay Vashist},
+  title   = {A new learning paradigm: Learning using privileged information},
+  journal = {Neural Networks},
+  volume  = {22},
+  number  = {5--6},
+  pages   = {544--557},
+  month   = jul,
+  year    = {2009},
+  doi     = {10.1016/j.neunet.2009.06.042}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1511.03643v3．PDF の頭書きに "Published as a conference paper at ICLR 2016"）．確かめた出所: https://arxiv.org/abs/1511.03643（journal_ref は "Proceedings of the International Conference on Learning Representations (2016)"）．要確認: なし（ICLR 2016 は OpenReview の論文集を持たないので arXiv の頁を url にした）
+@inproceedings{lopezpaz2016unifying,
+  author    = {David Lopez-Paz and L{\'e}on Bottou and Bernhard Sch{\"o}lkopf and Vladimir Vapnik},
+  title     = {Unifying distillation and privileged information},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2016},
+  url       = {https://arxiv.org/abs/1511.03643}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1507.00448v2．掲載版は未見）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Gupta+Hoffman+Malik+Cross+Modal+Distillation（DOI 10.1109/CVPR.2016.309．開催地と会期も Crossref）．要確認: なし
+@inproceedings{gupta2016cross,
+  author    = {Saurabh Gupta and Judy Hoffman and Jitendra Malik},
+  title     = {Cross Modal Distillation for Supervision Transfer},
+  booktitle = {2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Las Vegas, NV, USA},
+  pages     = {2827--2836},
+  month     = jun,
+  year      = {2016},
+  doi       = {10.1109/CVPR.2016.309}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1808.05561v1）．確かめた出所: https://api.crossref.org/works/10.1145/3240508.3240578．要確認: なし
+@inproceedings{albanie2018emotion,
+  author    = {Samuel Albanie and Arsha Nagrani and Andrea Vedaldi and Andrew Zisserman},
+  title     = {Emotion Recognition in Speech using Cross-Modal Transfer in the Wild},
+  booktitle = {Proceedings of the 26th ACM International Conference on Multimedia},
+  publisher = {ACM},
+  address   = {Seoul, Republic of Korea},
+  pages     = {292--301},
+  month     = oct,
+  year      = {2018},
+  doi       = {10.1145/3240508.3240578}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2112.00158v2．掲載版は未見）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Srinivasan+Huang+Kirchhoff+Representation+learning+through+cross-modal（DOI 10.1109/ICASSP43922.2022.9747754．開催地と会期も Crossref）．要確認: なし
+@inproceedings{srinivasan2022representation,
+  author    = {Sundararajan Srinivasan and Zhaocheng Huang and Katrin Kirchhoff},
+  title     = {Representation Learning Through Cross-Modal Conditional Teacher-Student Training For Speech Emotion Recognition},
+  booktitle = {2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  address   = {Singapore},
+  pages     = {6442--6446},
+  month     = may,
+  year      = {2022},
+  doi       = {10.1109/ICASSP43922.2022.9747754}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2302.02845v1．掲載版は未見）．確かめた出所: https://api.crossref.org/works/10.1109/TAI.2023.3243596．要確認: 号の月の幅（Crossref の印刷日は 2024-01）
+@article{hajavi2024audio,
+  author  = {Amirhossein Hajavi and Ali Etemad},
+  title   = {Audio Representation Learning by Distilling Video as Privileged Information},
+  journal = {IEEE Transactions on Artificial Intelligence},
+  volume  = {5},
+  number  = {1},
+  pages   = {446--456},
+  month   = jan,
+  year    = {2024},
+  doi     = {10.1109/TAI.2023.3243596}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2507.00055v1．LiSER）．確かめた出所: https://api.crossref.org/works/10.21437/Interspeech.2025-530 と https://arxiv.org/abs/2507.00055（コメント "Accepted at INTERSPEECH 2025"）．要確認: 開催地（Crossref の記録に無い）
+@inproceedings{pendyala2025leveraging,
+  author    = {Varsha Pendyala and Pedro Morgado and William Sethares},
+  title     = {Leveraging Unlabeled Audio-Visual Data in Speech Emotion Recognition using Knowledge Distillation},
+  booktitle = {Proc. Interspeech 2025},
+  publisher = {ISCA},
+  pages     = {4503--4507},
+  month     = aug,
+  year      = {2025},
+  doi       = {10.21437/Interspeech.2025-530}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2103.14431v3．補足資料は未読）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Xue+Ren+Gao+Zhao+Multimodal+Knowledge+Expansion（DOI 10.1109/ICCV48922.2021.00089．開催地と会期も Crossref）．要確認: 補足資料（硬いラベルと柔らかいラベルの比較）
+@inproceedings{xue2021multimodal,
+  author    = {Zihui Xue and Sucheng Ren and Zhengqi Gao and Hang Zhao},
+  title     = {Multimodal Knowledge Expansion},
+  booktitle = {2021 IEEE/CVF International Conference on Computer Vision (ICCV)},
+  address   = {Montreal, QC, Canada},
+  pages     = {834--843},
+  month     = oct,
+  year      = {2021},
+  doi       = {10.1109/ICCV48922.2021.00089}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2106.11059v1．PDF に "Preprint. Under review."）．確かめた出所: https://arxiv.org/abs/2106.11059．要確認: 掲載先（査読つきの版は見つからず arXiv として書いた．後続の ICML 2023 論文に置き換えるかは未決）
+@misc{du2021improving,
+  author        = {Chenzhuang Du and Tingle Li and Yichen Liu and Zixin Wen and Tianyu Hua and Yue Wang and Hang Zhao},
+  title         = {Improving Multi-Modal Learning with Uni-Modal Teachers},
+  howpublished  = {arXiv:2106.11059},
+  month         = jun,
+  year          = {2021},
+  eprint        = {2106.11059},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文と付録を読んだ（arXiv:2506.21514v3．掲載版は未見）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Rakib+Bagavathi+G2D（DOI 10.1109/ICCV51701.2025.00387．開催地と会期も Crossref）．要確認: なし
+@inproceedings{rakib2025g2d,
+  author    = {Mohammed Rakib and Arunkumar Bagavathi},
+  title     = {{G$^{2}$D}: Boosting Multimodal Learning with Gradient-Guided Distillation},
+  booktitle = {2025 IEEE/CVF International Conference on Computer Vision (ICCV)},
+  address   = {Honolulu, HI, USA},
+  pages     = {4059--4068},
+  month     = oct,
+  year      = {2025},
+  doi       = {10.1109/ICCV51701.2025.00387}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2508.03729v1．PriCon）．確かめた出所: https://api.crossref.org/works/10.1145/3716553.3750766．要確認: なし（Crossref の第 3 著者は Georgios Yannakakis．論文の表記 Georgios N. Yannakakis に従った）
+@inproceedings{pinitas2025privileged,
+  author    = {Kosmas Pinitas and Konstantinos Makantasis and Georgios N. Yannakakis},
+  title     = {Privileged Contrastive Pretraining for Multimodal Affect Modelling},
+  booktitle = {Proceedings of the 27th International Conference on Multimodal Interaction},
+  publisher = {ACM},
+  address   = {Canberra, Australia},
+  pages     = {317--325},
+  month     = oct,
+  year      = {2025},
+  doi       = {10.1145/3716553.3750766}
+}
+
+% 水準: ○ 抄録のみ（MDPI の本文は取得を拒まれた．DAMR）．確かめた出所: https://api.crossref.org/works/10.3390/electronics15204690．要確認: 本文（コーパス間か，エンコーダを凍結するか，指標）
+@article{liu2026dynamic,
+  author  = {Linsong Liu and Yu Gu and He Zhang and Shuang Wang and Chenyu Li and Quan Ande and Haixiang Lin},
+  title   = {Dynamic Mutual Refinement for Multimodal Speech Emotion Recognition: A Bidirectional Distillation and Inverse Curriculum Learning Approach},
+  journal = {Electronics},
+  volume  = {15},
+  number  = {20},
+  pages   = {4690},
+  month   = oct,
+  year    = {2026},
+  doi     = {10.3390/electronics15204690}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2106.04538v2．付録は未読）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2021/hash/5aa3405a3f865c10f420a4a7b55cbff3-Abstract.html（論文集の頁と BibTeX）．要確認: なし
+@inproceedings{huang2021makes,
+  author    = {Yu Huang and Chenzhuang Du and Zihui Xue and Xuanyao Chen and Hang Zhao and Longbo Huang},
+  title     = {What Makes Multi-Modal Learning Better than Single (Provably)},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {34},
+  publisher = {Curran Associates, Inc.},
+  pages     = {10944--10956},
+  month     = dec,
+  year      = {2021},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2021/hash/5aa3405a3f865c10f420a4a7b55cbff3-Abstract.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1911.12676v2．4.4 節の xMUDA Fusion）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Jaritz+xMUDA（DOI 10.1109/CVPR42600.2020.01262．開催地と会期も Crossref）．要確認: なし（著者名の発音記号は arXiv の表記に従った．Crossref は Emilie，Perez）
+@inproceedings{jaritz2020xmuda,
+  author    = {Maximilian Jaritz and Tuan-Hung Vu and Raoul {de Charette} and {\'E}milie Wirbel and Patrick P{\'e}rez},
+  title     = {{xMUDA}: Cross-Modal Unsupervised Domain Adaptation for {3D} Semantic Segmentation},
+  booktitle = {2020 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Seattle, WA, USA},
+  pages     = {12602--12611},
+  month     = jun,
+  year      = {2020},
+  doi       = {10.1109/CVPR42600.2020.01262}
+}
+
+% 水準: △ 書誌のみ（本文は未読．BFtD．内容は FtD++ の記述による）．確かめた出所: https://api.crossref.org/works/10.1145/3581783.3612013．要確認: 本文（融合 → 単モーダルの蒸留の形）．著者は 7 名で，FtD++ の 5 名に Jianping Fan と Zhongchao Shi が加わる
+@inproceedings{wu2023crossmodal,
+  author    = {Yao Wu and Mingwei Xing and Yachao Zhang and Yuan Xie and Jianping Fan and Zhongchao Shi and Yanyun Qu},
+  title     = {Cross-modal Unsupervised Domain Adaptation for {3D} Semantic Segmentation via Bidirectional Fusion-then-Distillation},
+  booktitle = {Proceedings of the 31st ACM International Conference on Multimedia},
+  publisher = {ACM},
+  address   = {Ottawa, ON, Canada},
+  pages     = {490--498},
+  month     = oct,
+  year      = {2023},
+  doi       = {10.1145/3581783.3612013}
+}
+
+% 水準: ○ 要約（arXiv:2410.19446v1 の HTML をウェブ取得の要約で読んだ．直接の精読ではない．FtD++）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Fusion-then-Distillation+Toward+Cross-modal+Positive+Distillation（DOI 10.1109/TCSVT.2025.3545971）．要確認: 本文．号の月の幅（Crossref の印刷日は 2025-09）
+@article{wu2025fusionthendistillation,
+  author  = {Yao Wu and Mingwei Xing and Yachao Zhang and Yuan Xie and Yanyun Qu},
+  title   = {Fusion-Then-Distillation: Toward Cross-Modal Positive Distillation for Domain Adaptive {3D} Semantic Segmentation},
+  journal = {IEEE Transactions on Circuits and Systems for Video Technology},
+  volume  = {35},
+  number  = {9},
+  pages   = {9030--9045},
+  month   = sep,
+  year    = {2025},
+  doi     = {10.1109/TCSVT.2025.3545971}
+}
+
+% ==== 段落 6：学び直さない先生の弱いラベル，クラス均衡，出発点への罰則，設定の選択（gulrajani2021domainbed は既にある） ====
+
+% 水準: ◎ 本文を読んだ（arXiv:2010.07734v2．PDF の各頁に "Published as a conference paper at ICLR 2021"）．確かめた出所: https://iclr.cc/virtual/2021/poster/3168（題・著者・OpenReview の id）．要確認: なし
+@inproceedings{phoo2021selftraining,
+  author    = {Cheng Perng Phoo and Bharath Hariharan},
+  title     = {Self-training For Few-shot Transfer Across Extreme Task Differences},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2021},
+  url       = {https://openreview.net/forum?id=O3Y56aqpChA}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2405.19917v3．TransCLIP の比較の相手 MM-CDFSL）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Hatano+Multimodal+Cross-Domain+Few-Shot+Learning（DOI 10.1007/978-3-031-73414-4_11．オンライン公開 2024-10-25，印刷版 2025）と https://www.ecva.net/papers.php．要確認: LNCS の巻番号（Springer の頁は bot 確認で取れず）
+@inproceedings{hatano2024multimodal,
+  author    = {Masashi Hatano and Ryo Hachiuma and Ryo Fujii and Hideo Saito},
+  title     = {Multimodal Cross-Domain Few-Shot Learning for Egocentric Action Recognition},
+  booktitle = {Computer Vision -- ECCV 2024},
+  series    = {Lecture Notes in Computer Science},
+  publisher = {Springer},
+  address   = {Cham},
+  pages     = {182--199},
+  year      = {2024},
+  doi       = {10.1007/978-3-031-73414-4_11}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2406.01837v1．TransCLIP）．確かめた出所: https://api.crossref.org/works/10.52202/079017-1988（頁 62223--62256．会期 2024-12-10〜15）．要確認: なし（Crossref は第 3 著者の姓を Ayed と区切るが，Ben Ayed を姓にした）
+@inproceedings{zanella2024boosting,
+  author    = {Maxime Zanella and Beno{\^i}t G{\'e}rin and Ismail {Ben Ayed}},
+  title     = {Boosting Vision-Language Models with Transduction},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {37},
+  publisher = {Curran Associates, Inc.},
+  pages     = {62223--62256},
+  month     = dec,
+  year      = {2024},
+  doi       = {10.52202/079017-1988}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2312.12730v2．CLAP）．確かめた出所: https://api.crossref.org/works/10.1109/CVPR52733.2024.02235（開催地と会期も Crossref）．要確認: なし
+@inproceedings{silvarodriguez2024closer,
+  author    = {Julio Silva-Rodr{\'i}guez and Sina Hajimiri and Ismail {Ben Ayed} and Jose Dolz},
+  title     = {A Closer Look at the Few-Shot Adaptation of Large Vision-Language Models},
+  booktitle = {2024 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Seattle, WA, USA},
+  pages     = {23681--23690},
+  month     = jun,
+  year      = {2024},
+  doi       = {10.1109/CVPR52733.2024.02235}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2006.03806v3．PT-MAP）．確かめた出所: https://api.crossref.org/works/10.1007/978-3-030-86340-1_39．要確認: LNCS の巻番号（精読ノートの "ICANN (2) 2021" は DBLP の検索結果で，DBLP と Springer の頁は bot 確認で取れず）
+@inproceedings{hu2021leveraging,
+  author    = {Yuqing Hu and Vincent Gripon and St{\'e}phane Pateux},
+  title     = {Leveraging the Feature Distribution in Transfer-Based Few-Shot Learning},
+  booktitle = {Artificial Neural Networks and Machine Learning -- ICANN 2021},
+  series    = {Lecture Notes in Computer Science},
+  publisher = {Springer},
+  address   = {Cham},
+  pages     = {487--499},
+  year      = {2021},
+  doi       = {10.1007/978-3-030-86340-1_39}
+}
+
+% 水準: △ 書誌のみ（本文は未読．PT-MAP が trans-mean-sub の出所として引く文献 [18]）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Lichtenstein+TAFSSL（DOI 10.1007/978-3-030-58571-6_31）と https://www.ecva.net/papers.php．要確認: 本文．LNCS の巻番号
+@inproceedings{lichtenstein2020tafssl,
+  author    = {Moshe Lichtenstein and Prasanna Sattigeri and Rogerio Feris and Raja Giryes and Leonid Karlinsky},
+  title     = {{TAFSSL}: Task-Adaptive Feature Sub-Space Learning for Few-Shot Classification},
+  booktitle = {Computer Vision -- ECCV 2020},
+  series    = {Lecture Notes in Computer Science},
+  publisher = {Springer},
+  address   = {Cham},
+  pages     = {522--539},
+  year      = {2020},
+  doi       = {10.1007/978-3-030-58571-6_31}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1911.10713v4．BD-CSPN）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Liu+Song+Qin+Prototype+Rectification（DOI 10.1007/978-3-030-58452-8_43）と https://www.ecva.net/papers.php．要確認: LNCS の巻番号
+@inproceedings{liu2020prototype,
+  author    = {Jinlu Liu and Liang Song and Yongqiang Qin},
+  title     = {Prototype Rectification for Few-Shot Learning},
+  booktitle = {Computer Vision -- ECCV 2020},
+  series    = {Lecture Notes in Computer Science},
+  publisher = {Springer},
+  address   = {Cham},
+  pages     = {741--756},
+  year      = {2020},
+  doi       = {10.1007/978-3-030-58452-8_43}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2204.03649v2．UPL）．確かめた出所: https://arxiv.org/abs/2204.03649．要確認: 掲載先（見つからず arXiv として書いた．TransCLIP の参考文献も arXiv で引く）
+@misc{huang2022unsupervised,
+  author        = {Tony Huang and Jack Chu and Fangyun Wei},
+  title         = {Unsupervised Prompt Learning for Vision-Language Models},
+  howpublished  = {arXiv:2204.03649v2},
+  month         = aug,
+  year          = {2022},
+  eprint        = {2204.03649},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CV},
+  note          = {arXiv preprint}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2106.04732v2．PDF の各頁に "Published as a conference paper at ICLR 2022"）．確かめた出所: https://iclr.cc/virtual/2022/poster/6340（題・著者・OpenReview の id）．要確認: なし（第 5 著者は論文と arXiv の表記 Alex Kurakin に従った．ICLR の頁は Alexey Kurakin）
+@inproceedings{berthelot2022adamatch,
+  author    = {David Berthelot and Rebecca Roelofs and Kihyuk Sohn and Nicholas Carlini and Alex Kurakin},
+  title     = {{AdaMatch}: A Unified Approach to Semi-Supervised Learning and Domain Adaptation},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2022},
+  url       = {https://openreview.net/forum?id=Q5uh1Nvv5dm}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2204.11181v1．PDF の 1 頁目に NeurIPS 2021）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2021/hash/4d7a968bb636e25818ff2a3941db08c1-Abstract.html（論文集の頁と BibTeX）．要確認: なし
+@inproceedings{veilleux2021realistic,
+  author    = {Olivier Veilleux and Malik Boudiaf and Pablo Piantanida and Ismail {Ben Ayed}},
+  title     = {Realistic Evaluation of Transductive Few-Shot Learning},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {34},
+  publisher = {Curran Associates, Inc.},
+  pages     = {9290--9302},
+  month     = dec,
+  year      = {2021},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2021/hash/4d7a968bb636e25818ff2a3941db08c1-Abstract.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:1911.04252v4．Noisy Student）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Xie+Luong+Hovy+Le+Self-training+with+Noisy+Student（DOI 10.1109/CVPR42600.2020.01070．開催地と会期も Crossref）．要確認: なし（頁は DOI の IEEE 版の 10684--10695．他論文が引く 10687--10698 は CVF の公開版の頁）
+@inproceedings{xie2020selftraining,
+  author    = {Qizhe Xie and Minh-Thang Luong and Eduard Hovy and Quoc V. Le},
+  title     = {Self-Training With Noisy Student Improves {ImageNet} Classification},
+  booktitle = {2020 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Seattle, WA, USA},
+  pages     = {10684--10695},
+  month     = jun,
+  year      = {2020},
+  doi       = {10.1109/CVPR42600.2020.01070}
+}
+
+% ==== 段落 7：弱いラベルの得の理論と能動学習 ====
+
+% 水準: ◎ 本文を読んだ（arXiv:2405.15116v2．NeurIPS の版）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2024/hash/e4a0d8aef3567f742b0794844d9b5847-Abstract-Conference.html（論文集の頁と BibTeX）．要確認: なし
+@inproceedings{charikar2024quantifying,
+  author    = {Moses Charikar and Chirag Pabbaraju and Kirankumar Shiragur},
+  title     = {Quantifying the Gain in Weak-to-Strong Generalization},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {37},
+  publisher = {Curran Associates, Inc.},
+  pages     = {126474--126499},
+  month     = dec,
+  year      = {2024},
+  doi       = {10.52202/079017-4017}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2502.05075v6．付録 A〜D は未読．掲載版は未見）．確かめた出所: https://proceedings.mlr.press/v267/dong25g.html（PMLR の頁と BibTeX）．要確認: なし
+@inproceedings{dong2025discrepancies,
+  author    = {Yijun Dong and Yicheng Li and Yunai Li and Jason D. Lee and Qi Lei},
+  title     = {Discrepancies are Virtue: Weak-to-Strong Generalization through Lens of Intrinsic Dimension},
+  booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {267},
+  publisher = {PMLR},
+  pages     = {14079--14113},
+  month     = jul,
+  year      = {2025},
+  url       = {https://proceedings.mlr.press/v267/dong25g.html}
+}
+
+% 水準: ◎ 本文を読んだ（PMLR 版の 1〜6 節）．確かめた出所: https://proceedings.mlr.press/v267/xue25d.html（PMLR の頁と BibTeX）．要確認: なし
+@inproceedings{xue2025representations,
+  author    = {Yihao Xue and Jiping Li and Baharan Mirzasoleiman},
+  title     = {Representations Shape Weak-to-Strong Generalization: Theoretical Insights and Empirical Predictions},
+  booktitle = {Proceedings of the 42nd International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {267},
+  publisher = {PMLR},
+  pages     = {70120--70159},
+  month     = jul,
+  year      = {2025},
+  url       = {https://proceedings.mlr.press/v267/xue25d.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2002.11361v1．ICML 版は実験が足されていて未読）．確かめた出所: https://proceedings.mlr.press/v119/kumar20c.html（PMLR の頁と BibTeX）．要確認: なし
+@inproceedings{kumar2020understanding,
+  author    = {Ananya Kumar and Tengyu Ma and Percy Liang},
+  title     = {Understanding Self-Training for Gradual Domain Adaptation},
+  booktitle = {Proceedings of the 37th International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {119},
+  publisher = {PMLR},
+  pages     = {5468--5479},
+  month     = jul,
+  year      = {2020},
+  url       = {https://proceedings.mlr.press/v119/kumar20c.html}
+}
+
+% 水準: ◎ 本文を読んだ（arXiv:2202.02794v4．付録の多くは未読）．確かめた出所: https://proceedings.mlr.press/v162/hacohen22a.html（PMLR の頁と BibTeX）．要確認: なし
+@inproceedings{hacohen2022active,
+  author    = {Guy Hacohen and Avihu Dekel and Daphna Weinshall},
+  title     = {Active Learning on a Budget: Opposite Strategies Suit High and Low Budgets},
+  booktitle = {Proceedings of the 39th International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {162},
+  publisher = {PMLR},
+  pages     = {8175--8195},
+  month     = jul,
+  year      = {2022},
+  url       = {https://proceedings.mlr.press/v162/hacohen22a.html}
+}
+
+% 水準: ◎ 同じ題のミネソタ大学の技術報告 No. 424（1983 年）の要約・1 節・2 節の冒頭を読んだ．雑誌版は書誌のみ．確かめた出所: https://api.crossref.org/works/10.1214/aos/1176346407．要確認: 技術報告と雑誌版の本文が同じか
+@article{chaloner1984optimal,
+  author  = {Kathryn Chaloner},
+  title   = {Optimal {B}ayesian Experimental Design for Linear Models},
+  journal = {The Annals of Statistics},
+  volume  = {12},
+  number  = {1},
+  pages   = {283--300},
+  month   = mar,
+  year    = {1984},
+  doi     = {10.1214/aos/1176346407}
+}
+
+% 水準: ◎ 著者版（アイオワ大学の頁の 69 頁の版）の 1.3〜1.5，2.1〜2.2，2.5，5.5 節を読んだ．雑誌版は書誌のみ．確かめた出所: https://api.crossref.org/works/10.1214/ss/1177009939．要確認: 雑誌版の節の番号（引く節番号は著者版のもの）
+@article{chaloner1995bayesian,
+  author  = {Kathryn Chaloner and Isabella Verdinelli},
+  title   = {{B}ayesian Experimental Design: A Review},
+  journal = {Statistical Science},
+  volume  = {10},
+  number  = {3},
+  pages   = {273--304},
+  month   = aug,
+  year    = {1995},
+  doi     = {10.1214/ss/1177009939}
+}
+
+% 水準: ◎ 本文の一部を読んだ（arXiv:2205.13698v2 の 1〜4 節，6.1 節，8 節）．確かめた出所: https://arxiv.org/abs/2205.13698．要確認: 掲載先（見つからず arXiv として書いた）
+@misc{sloman2022characterizing,
+  author        = {Sabina J. Sloman and Daniel M. Oppenheimer and Stephen B. Broomell and Cosma Rohilla Shalizi},
+  title         = {Characterizing the robustness of {B}ayesian adaptive experimental designs to active learning bias},
+  howpublished  = {arXiv:2205.13698v2},
+  month         = nov,
+  year          = {2022},
+  eprint        = {2205.13698},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ME},
+  note          = {arXiv preprint}
+}
+
+% 水準: ○ 書誌（Wahba の公開文献一覧と Crossref）．本文は未読．確かめた出所: https://api.crossref.org/works?query.bibliographic=Kimeldorf+Wahba+Some+results+on+Tchebycheffian+spline+functions（DOI 10.1016/0022-247X(71)90184-3）．要確認: 本文．表現定理の原典として 1970 年の Ann. Math. Statist. の論文も引くか
+@article{kimeldorf1971results,
+  author  = {George Kimeldorf and Grace Wahba},
+  title   = {Some results on {T}chebycheffian spline functions},
+  journal = {Journal of Mathematical Analysis and Applications},
+  volume  = {33},
+  number  = {1},
+  pages   = {82--95},
+  month   = jan,
+  year    = {1971},
+  doi     = {10.1016/0022-247X(71)90184-3}
+}
+
+% 水準: ○ 書誌（MPI の記録．精読ノートによる）．本文は未読．確かめた出所: https://api.crossref.org/works/10.1007/3-540-44581-1_27 と本の記録 https://api.crossref.org/works/10.1007/3-540-44581-1（題 Computational Learning Theory，編者 D. Helmbold と B. Williamson）．要確認: 本文．LNCS の巻番号（精読ノートは 2111．MPI と Springer の頁が bot 確認を返して確かめ直せず）．会議名 COLT/EuroCOLT 2001（同じく精読ノートの記録）
+@inproceedings{scholkopf2001generalized,
+  author    = {Bernhard Sch{\"o}lkopf and Ralf Herbrich and Alex J. Smola},
+  title     = {A Generalized Representer Theorem},
+  booktitle = {Computational Learning Theory},
+  series    = {Lecture Notes in Computer Science},
+  publisher = {Springer},
+  address   = {Berlin, Heidelberg},
+  pages     = {416--426},
+  year      = {2001},
+  doi       = {10.1007/3-540-44581-1_27}
+}
+
+% ==== 比べる相手（../docs/related-work.md 1.11 節．E61 の標準手法） ====
+
+% 水準: ○ arXiv の抄録とコメント（本文は未読）．確かめた出所: https://arxiv.org/abs/1503.02531（コメント "NIPS 2014 Deep Learning Workshop"）．要確認: なし（ワークショップに予稿集は無いので arXiv として書いた）
+@misc{hinton2015distilling,
+  author        = {Geoffrey Hinton and Oriol Vinyals and Jeff Dean},
+  title         = {Distilling the Knowledge in a Neural Network},
+  howpublished  = {arXiv:1503.02531},
+  month         = mar,
+  year          = {2015},
+  eprint        = {1503.02531},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ML},
+  note          = {arXiv preprint}
+}
+
+% 水準: ○ 会議の頁（抄録．本文は未読）．確かめた出所: https://proceedings.neurips.cc/paper_files/paper/2004/hash/96f2b50b5d3613adf9c27049b2a888c7-Abstract.html（論文集の頁，BibTeX，Metadata.json の頁 529--536）．要確認: なし
+@inproceedings{grandvalet2004semisupervised,
+  author    = {Yves Grandvalet and Yoshua Bengio},
+  title     = {Semi-supervised Learning by Entropy Minimization},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {17},
+  publisher = {MIT Press},
+  pages     = {529--536},
+  year      = {2004},
+  url       = {https://proceedings.neurips.cc/paper_files/paper/2004/hash/96f2b50b5d3613adf9c27049b2a888c7-Abstract.html}
+}
+
+% 水準: ○ 出版社の記録と要旨（../docs/related-work.md 1.11 節．本文は未読）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Saerens+Latinne+Decaestecker+Adjusting+the+outputs（DOI 10.1162/089976602753284446）．要確認: なし
+@article{saerens2002adjusting,
+  author  = {Marco Saerens and Patrice Latinne and Christine Decaestecker},
+  title   = {Adjusting the Outputs of a Classifier to New a Priori Probabilities: A Simple Procedure},
+  journal = {Neural Computation},
+  volume  = {14},
+  number  = {1},
+  pages   = {21--41},
+  month   = jan,
+  year    = {2002},
+  doi     = {10.1162/089976602753284446}
+}
+
+% 水準: △ 書誌のみ（本文は未読）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Blum+Mitchell+Combining+labeled+and+unlabeled+data+with+co-training（DOI 10.1145/279943.279962．開催地も Crossref）．要確認: 本文
+@inproceedings{blum1998combining,
+  author    = {Avrim Blum and Tom Mitchell},
+  title     = {Combining labeled and unlabeled data with co-training},
+  booktitle = {Proceedings of the Eleventh Annual Conference on Computational Learning Theory},
+  publisher = {ACM},
+  address   = {Madison, WI, USA},
+  pages     = {92--100},
+  month     = jul,
+  year      = {1998},
+  doi       = {10.1145/279943.279962}
+}
+
+% 水準: ○ 論文の PDF の 1 頁目（著者・抄録・掲載先の注記 "Appearing in Proceedings of the Workshop on Learning with Multiple Views, 22nd ICML, Bonn, Germany, 2005"）．確かめた出所: https://vikas.sindhwani.org/multiview.pdf と https://vikas.sindhwani.org/publications.html．要確認: 頁（二次資料は 74--79 とするが原典で確かめていない）．著者は原典では Sindhwani，Niyogi，Belkin の 3 名で，../docs/related-work.md 1.11 節の「Belkin は入らない」と食い違う
+@inproceedings{sindhwani2005coregularization,
+  author    = {Vikas Sindhwani and Partha Niyogi and Mikhail Belkin},
+  title     = {A Co-Regularization Approach to Semi-supervised Learning with Multiple Views},
+  booktitle = {Proceedings of the Workshop on Learning with Multiple Views, 22nd International Conference on Machine Learning (ICML)},
+  address   = {Bonn, Germany},
+  year      = {2005},
+  url       = {https://vikas.sindhwani.org/multiview.pdf}
+}
+
+% 水準: △ 書誌のみ（論文の PDF は取得できなかった．ワークショップの主催者の報告 arXiv:1307.0414 の参考文献 [8] で書誌を確かめた）．確かめた出所: https://arxiv.org/abs/1307.0414．要確認: 本文，頁，開催地，題名の大文字小文字（主催者の報告は "Pseudo-label : The simple and efficient ..."）
+@inproceedings{lee2013pseudolabel,
+  author    = {Dong-Hyun Lee},
+  title     = {Pseudo-Label: The Simple and Efficient Semi-Supervised Learning Method for Deep Neural Networks},
+  booktitle = {Workshop on Challenges in Representation Learning, International Conference on Machine Learning (ICML)},
+  year      = {2013}
+}
+
+% 水準: ○ arXiv の抄録とコメント "Published at ICCV 2021"（本文は未読）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Prabhu+Active+Domain+Adaptation+via+Clustering（DOI 10.1109/ICCV48922.2021.00839．開催地と会期も Crossref）と https://arxiv.org/abs/2010.08666．要確認: なし
+@inproceedings{prabhu2021active,
+  author    = {Viraj Prabhu and Arjun Chandrasekaran and Kate Saenko and Judy Hoffman},
+  title     = {Active Domain Adaptation via Clustering Uncertainty-weighted Embeddings},
+  booktitle = {2021 IEEE/CVF International Conference on Computer Vision (ICCV)},
+  address   = {Montreal, QC, Canada},
+  pages     = {8485--8494},
+  month     = oct,
+  year      = {2021},
+  doi       = {10.1109/ICCV48922.2021.00839}
+}
+
+% 水準: ○ 会議の頁で書誌と要旨（../docs/related-work.md 1.11 節．本文は未読）．確かめた出所: https://api.crossref.org/works?query.bibliographic=Fu+Cao+Wang+Long+Transferable+Query+Selection（DOI 10.1109/CVPR46437.2021.00719．開催地と会期も Crossref）．要確認: なし（頁は IEEE 版の 7268--7277．1.11 節の 7272--7281 は CVF の公開版の頁）
+@inproceedings{fu2021transferable,
+  author    = {Bo Fu and Zhangjie Cao and Jianmin Wang and Mingsheng Long},
+  title     = {Transferable Query Selection for Active Domain Adaptation},
+  booktitle = {2021 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Nashville, TN, USA},
+  pages     = {7268--7277},
+  month     = jun,
+  year      = {2021},
+  doi       = {10.1109/CVPR46437.2021.00719}
+}
+
+% 水準: ◎ 本文を読んだ（精読 G3・G4 の範囲で引用）．確かめた出所: https://api.crossref.org/works/10.1007/s10994-016-5594-4．要確認: なし
+@article{kuzborskij2017fast,
+  author  = {Ilja Kuzborskij and Francesco Orabona},
+  title   = {Fast rates by transferring from auxiliary hypotheses},
+  journal = {Machine Learning},
+  volume  = {106},
+  number  = {2},
+  pages   = {171--195},
+  year    = {2017},
+  doi     = {10.1007/s10994-016-5594-4}
+}
+
+% 水準: ○ 会議の頁（PMLR）で確かめた．確かめた出所: https://proceedings.mlr.press/v80/li18a.html．要確認: なし
+@inproceedings{li2018explicit,
+  author    = {Xuhong Li and Yves Grandvalet and Franck Davoine},
+  title     = {Explicit inductive bias for transfer learning with convolutional networks},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {80},
+  pages     = {2825--2834},
+  editor    = {Jennifer Dy and Andreas Krause},
+  year      = {2018}
+}

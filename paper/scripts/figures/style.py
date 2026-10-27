@@ -49,8 +49,8 @@ CONFIG = {
 METHOD = {
     "e39":    dict(label="Start (five-value HT)", color=GRAY),
     "best":   dict(label="Strongest tuned competitor", color=SLOT[1]),
-    "ours":   dict(label="Ours (cross-modal weak labels)", color=SLOT[0]),
-    "oursx":  dict(label="Ours, extended", color=SLOT[6]),
+    "ours":   dict(label="Ours", color=SLOT[0]),
+    "oursx":  dict(label="Ours-ext", color=SLOT[6]),
     "entmin": dict(label="Entropy min. (fixed)", color=SLOT[7]),
 }
 

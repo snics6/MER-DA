@@ -45,7 +45,8 @@ def e13_losses() -> dict[str, tuple[float, float]]:
         if k == "ah":
             out[k] = (hub.mean_loss_offset * 100, hub.mean_loss_direction * 100)
         else:
-            g = p[p.kind == kind]
+            # 同じコーパスの組（IEMOCAP の即興↔台本）を除く（本文 4.3 節・表 2・台帳 p1-e13-loss-*-xsame と同じ組．2026-10-27）
+            g = p[(p.kind == kind) & ~(p.target.str.startswith("IEMOCAP") & p.source.str.startswith("IEMOCAP"))]
             pp = g.groupby(["target", "source"])[["loss_offset", "loss_direction"]].mean() * 100
             out[k] = (pp.loss_offset.mean(), pp.loss_direction.mean())
     return out

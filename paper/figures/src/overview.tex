@@ -47,7 +47,7 @@
 \draw[flow] (0.95,1.62) -- (0.95,1.22);
 
 % ------------------------------------------------------------------ middle: Part I
-\node[title] at (4.93,5.82) {Part I: what $K$ target labels fix};
+\node[title] at (4.93,5.82) {Part I: what $K$ labels fix (A or V, $K\le5$)};
 \node[sub]   at (4.93,5.42) {\textcolor{tgt}{$\bullet$}\,$K$ labeled and \textcolor{ink2}{$\cdot$}\,unlabeled target utterances};
 \begin{scope}[shift={(5.05,0.2)}]
   % two emotion clouds; centres (1.55,2.05) and (4.15,3.05), midpoint (2.85,2.55)
@@ -71,7 +71,7 @@
   \draw[ink, line width=0.7pt, dotted] (2.313,3.95) -- (3.693,0.35);
   % threshold: parallel shift
   \draw[->, tgt, line width=0.8pt] (2.52,0.85) -- (3.10,0.85);
-  \node[anchor=west, text=tgt, align=left] at (3.40,0.80) {threshold $o$: error $1/(2K)$,\\fixed first};
+  \node[anchor=west, text=tgt, align=left] at (3.78,0.85) {threshold $o$:\\error $1/(2K)$,\\fixed first};
   % direction: rotation toward the best
   \draw[->, ink, line width=0.6pt] (2.85,2.55) ++(98:1.32) arc[start angle=98, end angle=114, radius=1.32cm];
   \node[anchor=west, align=left] at (2.95,4.25) {direction $d$: error $q/K$,\\fixed slowly};

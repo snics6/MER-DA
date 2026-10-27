@@ -1,0 +1,123 @@
+\section{標準的な手法との比較}
+\label{sec:comparison}
+
+本節では，別のモダリティからの弱いラベルを，ラベルのないターゲットのデータを使う標準的な方法と，すべての手法に共通の1つの手順の下で比べる．
+
+\subsection{比較手法と手順}
+\label{sec:comparison-protocol}
+
+9つの比較手法（competitor）は，Lee\cite{lee2013pseudolabel}の形の，生徒自身の確信度の高い予測による自己訓練，確信度がしきい値を超える先生のハードな擬似ラベル，エントロピー最小化\cite{grandvalet2004semisupervised}，温度つきの蒸留\cite{hinton2015distilling}，一般化蒸留\cite{lopezpaz2016unifying}，共訓練\cite{blum1998combining}，共正則化\cite{sindhwani2005coregularization}，期待値最大化（EM）によるクラスの事前確率の調整\cite{saerens2002adjusting}，出発点の出力の再均衡化である．
+どの手法も，同じ5つの値を選んだ出発点から，同じ$K$本のラベルと同じラベルのないプールで，同じアンカーつきの線形の生徒（式\eqref{eq:student}）を学習する．
+先生を必要とする手法には，提案法と同じ先生の出力を与える．
+各比較手法の\emph{調整版}（tuned）は，提案法と同じく，そのハイパーパラメータ（しきい値，温度，ラベルのない損失の重み）を同じ仮のターゲットで$K$ごとに選ぶ．
+\emph{既定値版}（fixed）は元の論文で推奨された値を使う．
+提案法（ours）は\ref{sec:part2-crossmodal}節の別のモダリティからの弱いラベルを指し，提案法の拡張版（ours-ext）は拡張した候補群を指す．
+AVTの構成では4つの生徒（音声，顔，テキスト，融合）すべてを\NUM{cmp-targets-avt-n}のターゲットで評価し，AV，VT，ATの構成では融合の生徒をそれぞれ\NUM{cmp-targets-av-n}，\NUM{cmp-targets-vt-n}，\NUM{cmp-targets-at-n}のターゲットで評価する．
+さらに2つめのAVTの構成では，すべてのエンコーダを第2のエンコーダ（HuBERT，CLIP，DeBERTa）に置き換える．
+結果はターゲットごとに\NUM{cmp-reps-n}回の反復の平均であり，仮のターゲットでは\NUM{cmp-pseudo-reps-n}回の反復を用いる．
+
+\subsection{結果}
+\label{sec:comparison-results}
+
+提案法の拡張版は，$K=0$と$K=5$のすべての生徒で，調整版の比較手法のうち最も強いものを上回る（表\ref{tab:compare}と図\ref{fig:compare}）．
+AVTの構成では，$K=0$と$K=5$での差は，音声の生徒で\NUM{cmp-oursx-vs-best-avt-a-k0}と\NUM{cmp-oursx-vs-best-avt-a-k5}ポイント，テキストで\NUM{cmp-oursx-vs-best-avt-t-k0}と\NUM{cmp-oursx-vs-best-avt-t-k5}，顔で\NUM{cmp-oursx-vs-best-avt-v-k0}と\NUM{cmp-oursx-vs-best-avt-v-k5}，融合の生徒で\NUM{cmp-oursx-vs-best-avt-f-k0}と\NUM{cmp-oursx-vs-best-avt-f-k5}ポイントである．
+AV，VT，ATの融合の生徒では，$K=0$での差はそれぞれ\NUM{cmp-oursx-vs-best-av-f-k0}，\NUM{cmp-oursx-vs-best-vt-f-k0}，\NUM{cmp-oursx-vs-best-at-f-k0}ポイントである．
+どこでも最も強い比較手法は1つも無い．
+一般化蒸留，ハードな擬似ラベル，共訓練，温度つきの蒸留，再均衡化はそれぞれ単一モダリティのいくつかのセルで首位になり，融合のセルでは再均衡化，自己訓練，共訓練のいずれかが首位になる（表\ref{tab:compare}）．
+先生を必要とする比較手法は提案法と同じ先生を使うので，この差が測るのは弱いラベルの作り方，重みづけ，選び方であり，どの情報を使えるかではない．
+ラベルの本数にわたって見ると（図\ref{fig:kcurves}），提案法の拡張版は音声の生徒ではすべての$K$で優位を保つ（\NUM{cmp-oursx-vs-best-avt-a-lo}--\NUM{cmp-oursx-vs-best-avt-a-hi}ポイント）．
+一般化蒸留が提案法の拡張版を上回るのは$K \ge 10$のテキストの生徒だけで，その差は\NUM{cmp-gd-vs-oursx-avt-t-kge10-lo}--\NUM{cmp-gd-vs-oursx-avt-t-kge10-hi}ポイントである．
+5つの値を選んだ出発点に対して，提案法の拡張版は，AVTの音声の生徒ではすべてのラベルの本数にわたって\NUM{cmp-oursx-vs-e39-avt-a-lo}--\NUM{cmp-oursx-vs-e39-avt-a-hi}ポイント，テキストでは$K \le 5$で\NUM{cmp-oursx-vs-e39-avt-t-kle5-lo}--\NUM{cmp-oursx-vs-e39-avt-t-kle5-hi}ポイント，融合の生徒では$K \ge 1$で\NUM{cmp-oursx-vs-e39-avt-f-kge1-lo}--\NUM{cmp-oursx-vs-e39-avt-f-kge1-hi}ポイントの利得を得て，基本の手法の$K \ge 10$での損失（\ref{sec:part2-crossmodal}節）は消える．
+各差は，ターゲットと反復の組にわたる両側のWilcoxonの符号順位検定で検定し，すべての生徒とラベルの本数にわたってHolmの方法で多重性を補正する．
+最も強い比較手法に対する差は，$K=0$では\NUM{st-a-k0-cells-n}の生徒のうち\NUM{st-a-k0-pos-n}で，$K=5$では\NUM{st-a-k5-cells-n}のうち\NUM{st-a-k5-pos-n}で正であり，効果量（effect size）$d_z$（差の平均をその標準偏差で割った値）は\NUM{st-a-k0-dz-lo}--\NUM{st-a-k0-dz-hi}と\NUM{st-a-k5-dz-lo}--\NUM{st-a-k5-dz-hi}である．
+補正の後，$5\%$水準で有意なのはそれぞれ\NUM{st-a-k0-sig-n}と\NUM{st-a-k5-sig-n}の生徒である．
+1つのターゲットの反復は，いくつかがテストの分割を共有するので独立ではない．
+分割を共有する反復を平均すると，有意な生徒はそれぞれ\NUM{st-a-k0-sigdedup-n}と\NUM{st-a-k5-sigdedup-n}になる．
+したがって，証拠は$K=5$では確かであり，$K=0$では弱い．
+$K=0$では，顔とテキストの生徒の差は正であるが不確かである．
+
+\begin{table*}[t]
+\caption{1つの手順の下での比較．5つの値を選んだ出発点のUARと，調整版の最も強い比較手法，提案法，提案法の拡張版の出発点からの差（パーセントポイント）を，$K=0$と$K=5$について，ターゲットと10回の反復にわたって平均して示す．「なし」は，調整版の比較手法がすべて，ラベルのないデータを使わない設定を選んだことを表す．比較手法の略号は次のとおりである．GD：一般化蒸留，KD：温度つきの蒸留，HPL：ハードな擬似ラベル，RB：出力の再均衡化，ST：自己訓練，CoT：共訓練，CoR：共正則化．}
+\label{tab:compare}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llrrlrrrrrr@{}}
+\toprule
+ & & \multicolumn{2}{c}{出発点（UAR）} & 最強の比較手法 & \multicolumn{2}{c}{最強 $-$ 出発点} & \multicolumn{2}{c}{提案法 $-$ 出発点} & \multicolumn{2}{c}{提案法の拡張版 $-$ 出発点} \\
+\cmidrule(lr){3-4}\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(l){10-11}
+構成 & 生徒 & $K{=}0$ & $K{=}5$ & （$K{=}0$/$5$） & $K{=}0$ & $K{=}5$ & $K{=}0$ & $K{=}5$ & $K{=}0$ & $K{=}5$ \\
+\midrule
+AVT & A & \NUM{tab-avt-a-k0-e39} & \NUM{tab-avt-a-k5-e39} & GD/GD & \NUM{cmp-best-vs-e39-avt-a-k0} & \NUM{cmp-best-vs-e39-avt-a-k5} & \NUM{cmp-ours-vs-e39-avt-a-k0} & \NUM{cmp-ours-vs-e39-avt-a-k5} & \NUM{cmp-oursx-vs-e39-avt-a-k0} & \NUM{cmp-oursx-vs-e39-avt-a-k5} \\
+ & V & \NUM{tab-avt-v-k0-e39} & \NUM{tab-avt-v-k5-e39} & RB/なし & \NUM{cmp-best-vs-e39-avt-v-k0} & \NUM{cmp-best-vs-e39-avt-v-k5} & \NUM{cmp-ours-vs-e39-avt-v-k0} & \NUM{cmp-ours-vs-e39-avt-v-k5} & \NUM{cmp-oursx-vs-e39-avt-v-k0} & \NUM{cmp-oursx-vs-e39-avt-v-k5} \\
+ & T & \NUM{tab-avt-t-k0-e39} & \NUM{tab-avt-t-k5-e39} & HPL/GD & \NUM{cmp-best-vs-e39-avt-t-k0} & \NUM{cmp-best-vs-e39-avt-t-k5} & \NUM{cmp-ours-vs-e39-avt-t-k0} & \NUM{cmp-ours-vs-e39-avt-t-k5} & \NUM{cmp-oursx-vs-e39-avt-t-k0} & \NUM{cmp-oursx-vs-e39-avt-t-k5} \\
+ & 融合 & \NUM{tab-avt-f-k0-e39} & \NUM{tab-avt-f-k5-e39} & RB/ST & \NUM{cmp-best-vs-e39-avt-f-k0} & \NUM{cmp-best-vs-e39-avt-f-k5} & \NUM{cmp-ours-vs-e39-avt-f-k0} & \NUM{cmp-ours-vs-e39-avt-f-k5} & \NUM{cmp-oursx-vs-e39-avt-f-k0} & \NUM{cmp-oursx-vs-e39-avt-f-k5} \\
+AV & 融合 & \NUM{tab-av-f-k0-e39} & \NUM{tab-av-f-k5-e39} & RB/ST & \NUM{cmp-best-vs-e39-av-f-k0} & \NUM{cmp-best-vs-e39-av-f-k5} & \NUM{cmp-ours-vs-e39-av-f-k0} & \NUM{cmp-ours-vs-e39-av-f-k5} & \NUM{cmp-oursx-vs-e39-av-f-k0} & \NUM{cmp-oursx-vs-e39-av-f-k5} \\
+VT & 融合 & \NUM{tab-vt-f-k0-e39} & \NUM{tab-vt-f-k5-e39} & RB/ST & \NUM{cmp-best-vs-e39-vt-f-k0} & \NUM{cmp-best-vs-e39-vt-f-k5} & \NUM{cmp-ours-vs-e39-vt-f-k0} & \NUM{cmp-ours-vs-e39-vt-f-k5} & \NUM{cmp-oursx-vs-e39-vt-f-k0} & \NUM{cmp-oursx-vs-e39-vt-f-k5} \\
+AT & 融合 & \NUM{tab-at-f-k0-e39} & \NUM{tab-at-f-k5-e39} & RB/CoT & \NUM{cmp-best-vs-e39-at-f-k0} & \NUM{cmp-best-vs-e39-at-f-k5} & \NUM{cmp-ours-vs-e39-at-f-k0} & \NUM{cmp-ours-vs-e39-at-f-k5} & \NUM{cmp-oursx-vs-e39-at-f-k0} & \NUM{cmp-oursx-vs-e39-at-f-k5} \\
+\midrule
+AVT， & A & \NUM{tab-w2-a-k0-e39} & \NUM{tab-w2-a-k5-e39} & CoT/GD & \NUM{cmp-best-vs-e39-w2-a-k0} & \NUM{cmp-best-vs-e39-w2-a-k5} & \NUM{cmp-ours-vs-e39-w2-a-k0} & \NUM{cmp-ours-vs-e39-w2-a-k5} & \NUM{cmp-oursx-vs-e39-w2-a-k0} & \NUM{cmp-oursx-vs-e39-w2-a-k5} \\
+第2の & V & \NUM{tab-w2-v-k0-e39} & \NUM{tab-w2-v-k5-e39} & CoT/KD & \NUM{cmp-best-vs-e39-w2-v-k0} & \NUM{cmp-best-vs-e39-w2-v-k5} & \NUM{cmp-ours-vs-e39-w2-v-k0} & \NUM{cmp-ours-vs-e39-w2-v-k5} & \NUM{cmp-oursx-vs-e39-w2-v-k0} & \NUM{cmp-oursx-vs-e39-w2-v-k5} \\
+エンコーダ & T & \NUM{tab-w2-t-k0-e39} & \NUM{tab-w2-t-k5-e39} & RB/GD & \NUM{cmp-best-vs-e39-w2-t-k0} & \NUM{cmp-best-vs-e39-w2-t-k5} & \NUM{cmp-ours-vs-e39-w2-t-k0} & \NUM{cmp-ours-vs-e39-w2-t-k5} & \NUM{cmp-oursx-vs-e39-w2-t-k0} & \NUM{cmp-oursx-vs-e39-w2-t-k5} \\
+ & 融合 & \NUM{tab-w2-f-k0-e39} & \NUM{tab-w2-f-k5-e39} & RB/CoT & \NUM{cmp-best-vs-e39-w2-f-k0} & \NUM{cmp-best-vs-e39-w2-f-k5} & \NUM{cmp-ours-vs-e39-w2-f-k0} & \NUM{cmp-ours-vs-e39-w2-f-k5} & \NUM{cmp-oursx-vs-e39-w2-f-k0} & \NUM{cmp-oursx-vs-e39-w2-f-k5} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\FIG{compare}{\textwidth}
+\caption{$K=0$と$K=5$における，調整版の最も強い比較手法，提案法，提案法の拡張版の，5つの値を選んだ出発点からの差を，構成と生徒ごとに示す．棒はターゲットと10回の反復にわたる平均，ひげはターゲット間の範囲を示す．棒の下の文字は最も強い比較手法の名前である（略号は表\ref{tab:compare}と同じ）．}
+\label{fig:compare}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\FIG{kcurves}{\columnwidth}
+\caption{AVTの構成の4つの生徒について，提案法，提案法の拡張版，調整版の最も強い比較手法の，5つの値を選んだ出発点からの差を$K$に対して示す．}
+\label{fig:kcurves}
+\end{figure}
+
+\subsection{既定値のハイパーパラメータとエントロピー最小化}
+\label{sec:comparison-fixed}
+
+元の論文のハイパーパラメータを使うと，いくつかの比較手法は単一モダリティの生徒の予測を1つの感情に崩壊させる．
+AVTの構成の$K=0$では，エントロピー最小化，共正則化，事前確率の調整は，出発点のUARを\NUM{cmp-fixed-collapse-avt-mod-k0-lo}から\NUM{cmp-fixed-collapse-avt-mod-k0-hi}ポイント変える．
+融合の生徒では，既定値版のエントロピー最小化は，4つの構成にわたる平均で出発点のUARを\NUM{cmp-entmin-fixed-vs-e39-f-k0-lo}から\NUM{cmp-entmin-fixed-vs-e39-f-k0-hi}ポイント変え，その効果はターゲットによって異なる（図\ref{fig:entmin}）．
+IEMOCAPの即興のセッションでは，既定値版のエントロピー最小化はUARをAVTで$+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro}ポイント変えるが，VTでは\NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro}ポイント，AVでは\NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro}ポイント変え，MELDではAVTで\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld}ポイント変える．
+AVTの構成では，仮のターゲットによる選択がこれらの失敗を検出し，すべての$K$で融合の生徒のエントロピー最小化を止める．
+
+\begin{figure}[t]
+\centering
+\FIG{entmin}{\columnwidth}
+\caption{融合の生徒における，$K=0$での5つの値を選んだ出発点からの差を，ターゲットごとに示す．既定値版のエントロピー最小化と提案法の拡張版．各点は1つの構成の1つのターゲットである．}
+\label{fig:entmin}
+\end{figure}
+
+\subsection{第2のエンコーダと微調整}
+\label{sec:comparison-robust}
+
+第2のエンコーダでは，別のモダリティからの弱いラベルは，$K=0$と$K=5$で出発点を，音声で\NUM{cmp-ours-vs-e39-w2-a-k0}と\NUM{cmp-ours-vs-e39-w2-a-k5}ポイント，顔で\NUM{cmp-ours-vs-e39-w2-v-k0}と\NUM{cmp-ours-vs-e39-w2-v-k5}，テキストで\NUM{cmp-ours-vs-e39-w2-t-k0}と\NUM{cmp-ours-vs-e39-w2-t-k5}，融合の生徒で\NUM{cmp-ours-vs-e39-w2-f-k0}と\NUM{cmp-ours-vs-e39-w2-f-k5}ポイント上げる．
+提案法の拡張版は，調整版の最も強い比較手法を，$K=0$と$K=5$で\NUM{cmp-oursx-vs-best-w2-k0k5-lo}--\NUM{cmp-oursx-vs-best-w2-k0k5-hi}ポイント，$K=25$で\NUM{cmp-oursx-vs-best-w2-k25-lo}--\NUM{cmp-oursx-vs-best-w2-k25-hi}ポイント上回る．
+
+凍結した設定が適応の能力を過小に示していないかを確かめるために，4つのターゲットの音声の生徒について，3回の反復で，WavLMを低ランクのアダプタで微調整した（図\ref{fig:finetune}）．
+感情ごとに$K=5$本のラベルで微調整すると，凍結した5つの値を選んだ出発点を\NUM{cmp-ft-konly-below-frozen-e39-k5}ポイント下回り（ターゲット間で\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi}），適応したヘッドを出発点にアンカーすると\NUM{cmp-ft-anchor-vs-konly-k5}ポイント上がる．
+別のモダリティからの弱いラベルは，微調整したモデルでも$K=0$で\NUM{cmp-ft-weak-vs-start-k0}ポイント，$K=5$で\NUM{cmp-ft-weak-vs-anchor-k5}ポイント役立つ．
+しかし，弱いラベルの設定を1つに固定した提案法の微調整版は，凍結した特徴の上の同じ設定を\NUM{cmp-ft-ours-below-frozen-ours-k0}ポイントと\NUM{cmp-ft-ours-below-frozen-ours-k5}ポイント下回り，各$K$で\NUM{cmp-ft-pairs-n}のターゲットと反復の組のすべてで下回る．
+微調整したモデルに中心化を加えると\NUM{cmp-ftc-lift-lo}--\NUM{cmp-ftc-lift-hi}ポイント上がるが，凍結した処理の流れとの差のうち縮まるのは\NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\%だけである．
+これほどラベルが少ないときは，凍結したエンコーダと線形ヘッドのほうが強い土台であり，別のモダリティからの弱いラベルによる利得は，この土台を使うことに依存しない．
+
+\begin{figure}[t]
+\centering
+\FIG{finetune}{\columnwidth}
+\caption{凍結した音声エンコーダと微調整した音声エンコーダ．凍結した5つの値を選んだ出発点と提案法のUAR，および低ランクの適応を$K$本のラベルだけで学習したもの，アンカーを加えたもの，別のモダリティからの弱いラベルを加えたもののUARを，中心化の有無について，$K=0$と$K=5$で示す（4つのターゲット，3回の反復）．}
+\label{fig:finetune}
+\end{figure}
+
+\subsection{選択による損失}
+\label{sec:comparison-selection}
+
+仮のターゲットによる選択は，提案法の候補群のうち最良の候補を常に見つけるわけではない．
+$K=0$では，テスト話者での最良の候補は選んだ候補を，AVTのテキストの生徒で\NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0}ポイント，第2のエンコーダのテキストの生徒で\NUM{cmp-oursx-oracle-vs-tuned-w2-t-k0}ポイント，その他の生徒で\NUM{cmp-oursx-oracle-vs-tuned-at-f-k0}--\NUM{cmp-oursx-oracle-vs-tuned-w2-v-k0}ポイント上回る．
+これらの差は，よりよい選択の規則が加えうるものの上限を与える．
+比較手法も同じ手順で選ぶので，上の比較はこの影響を受けない．

@@ -229,6 +229,15 @@ def _e13(b: Book) -> None:
         fd = E13_FIT_DOC.get(k)
         b.add(f"p1-e13-fit-r-{k}", rr[k], fsrc + "．ピアソンの相関", "%.3f", doc=(fd[0], f"{EX} E13 の 1") if fd else None, ref=ref_r)
         b.add(f"p1-e13-fit-mae-{k}", mae[k], fsrc + "．差の絶対値の平均（×100，点）", doc=(fd[1], f"{EX} E13 の 1") if fd else None, ref=ref_m)
+    # 同じコーパスの組（IEMOCAP の即興↔台本）を除いた損（E29 の割合と同じ組の集合．2026-10-27 に足した）
+    for k, kind in KIND.items():
+        if k == "ah":
+            continue
+        g = p[(p.kind == kind) & ~(p.target.str.startswith("IEMOCAP") & p.source.str.startswith("IEMOCAP"))]
+        pp = g.groupby(["target", "source"])[["loss_offset", "loss_direction"]].mean() * 100
+        xs = f"{_rel(FIXC_RERUN)}/e13_pairs.csv | kind={kind}，同じコーパスの組を除く {len(pp)} 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）"
+        b.add(f"p1-e13-loss-offset-{k}-xsame", pp.loss_offset.mean(), xs + "．位置による損")
+        b.add(f"p1-e13-loss-dir-{k}-xsame", pp.loss_direction.mean(), xs + "．向きによる損")
     tsrc = f"{_rel(FIXC_RERUN)}/e13_pairs.csv | 言葉を含む 4 種類（各 12 組 × 6 対） | 種類ごとの組の平均（×100）"
     b.rng("p1-e13-loss-offset-text", {k: off[k] for k in TEXT}, tsrc + "．位置による損", "%.1f", doc=((0.6, 1.1), "docs/results.md 3.2.4"))
     b.rng("p1-e13-loss-dir-text", {k: dirl[k] for k in TEXT}, tsrc + "．向きによる損", "%.1f", doc=((7.1, 12.2), "docs/results.md 3.2.4"))
@@ -267,11 +276,13 @@ def _e28t9(b: Book) -> None:
               "%.0f", doc=(bound_doc[k], where + " の U3"), why="丸めの差（0.3645 を文書は 0.37 と書いた）" if k == "av" else None,
               ref=(rt, "e28t9_tests.csv U3"))
         b.add(f"p1-dirloss-remain-bound-k10-{k}", 100 - sh, src + " 100 − 上の割合（基準モデルでも 10 本で直らない向きの損の割合，%）", "%.0f")
-        hv = ((g.d_h_default - g.d_s_obs) / (g.D - g.d_s)).median() * 100
+        # 2026-10-27：分子と分母の d_s を E13 の d にそろえた（基準モデルの割合と同じ定義．audit B8 の決着）
+        hv = ((g.d_h_default - g.d_s) / (g.D - g.d_s)).median() * 100
         ht[k] = hv
-        b.add(f"p1-dirloss-recov-ht-k10-{k}", hv, src + " 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s_obs)/(D − d_s) の組の中央値（%）．"
-              "分子の d_s_obs は段階 B のテストで測ったソースのみの d，分母の d_s は E13 の d（文書の U4 の値はこの組み合わせで再現する）",
-              "%.0f", doc=(ht_doc[k], where + " の U4"))
+        b.add(f"p1-dirloss-recov-ht-k10-{k}", hv, src + " 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s)/(D − d_s) の組の中央値（%）．"
+              "d_s は E13 のソースのみの d で，基準モデルの割合と同じ定義",
+              "%.0f", doc=(ht_doc[k], where + " の U4"),
+              why="文書の U4 の値は分子に段階 B の d_s_obs，分母に E13 の d_s を使った混ぜた定義の値．定義をそろえた（audit B8）")
     asrc = f"{_rel(E28T9)}/e28t9_pairs.csv・e28t9_targets.csv | 音声 2 エンコーダ（a，ah），K=10，{rtxt} | 種類ごとの値"
     b.rng("p1-qdir-audio", {k: q[k] for k in ("a", "ah")}, asrc + "．q_dir の中央値", "%.1f", doc=((16.1, 22.2), where))
     b.rng("p1-dirloss-recov-bound-k10-audio", {k: bound[k] for k in ("a", "ah")}, asrc + "．基準モデルが取り戻せる割合（%）", "%.0f",

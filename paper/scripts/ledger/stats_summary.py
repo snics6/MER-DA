@@ -31,4 +31,19 @@ def entries() -> dict[str, dict]:
                                              base + " | 同じテストの話者の集合を持つ反復を平均した単位での Holm 後の p（p_dedup_holm）が 0.05 未満のセルの数", "%d")
         out[f"st-a-k{K}-dz-lo"] = entry(g.dz.min(), base + " | 効果量 d_z（差の平均 ÷ 差の標準偏差）の最小", "%.2f")
         out[f"st-a-k{K}-dz-hi"] = entry(g.dz.max(), base + " | 効果量 d_z の最大", "%.2f")
+    # ターゲットごとの oursx − E39（比較 (b)）：出発点を下回るターゲットのあるセルの数と，最も大きい損
+    b = t[(t.experiment.isin(["E61", "E62"])) & (t.comparison == "b") & (t.K.isin(["0", "5"]))]
+    if len(b) != 22:
+        raise ValueError(f"stats_summary: 比較 (b) の K=0・5 のセルが {len(b)} 個（22 のはず）")
+    vals = []
+    ncell = 0
+    for s in b.tgt_means:
+        v = [float(x.rsplit(" ", 1)[1]) for x in s.split("；")]
+        vals += v
+        ncell += any(x < 0 for x in v)
+    srcb = f"{SRC} | 比較 (b) oursx − E39，K ∈ {{0, 5}}，11 の生徒 × 2 の 22 セル，列 tgt_means（ターゲットごとに反復を平均した差）"
+    out["st-b-tgtneg-cells-n"] = entry(ncell, srcb + " | 出発点を下回るターゲットが 1 つ以上あるセルの数", "%d")
+    out["st-b-tgtneg-worst"] = entry(min(vals), srcb + " | ターゲットごとの差の最小（ポイント）", "%.1f")
+    out["st-b-tgt-n"] = entry(len(vals), srcb + " | ターゲットとセルの組の数", "%d")
+    out["st-b-tgtneg-n"] = entry(sum(x < 0 for x in vals), srcb + " | 差が負のターゲットとセルの組の数", "%d")
     return out

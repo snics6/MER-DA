@@ -55,7 +55,7 @@ a(d, 0) - a(d, o) \approx \frac{d}{4}\,\phi\!\left(\frac{d}{2}\right) o^2,
 and taking the expectation gives the threshold cost of the main text. The factor $(d/4)\phi(d/2)$ is largest at $d=2$, where it equals $\phi(1)/2$.
 
 \emph{Direction cost.}
-For a linear rule estimated from $K$ labels per emotion, the angle $\theta$ between the estimated and the best direction satisfies $\tan^2\theta \approx q/K$ to first order, where $q$ is an effective dimension; for the sample linear discriminant with $p$ features and squared Mahalanobis distance $\Delta^2$, the first-order term of the expansion of the misclassification rate gives $q = 2(p-1)/\Delta^2$~\cite{CITE:okamoto1963,CITE:raudys1998}.
+For a linear rule estimated from $K$ labels per emotion, the angle $\theta$ between the estimated and the best direction satisfies $\tan^2\theta \approx q/K$ to first order, where $q$ is an effective dimension; for the sample linear discriminant with $p$ features and squared Mahalanobis distance $\Delta^2$, the first-order term of the expansion of the misclassification rate gives $q = 2(p-1)/\Delta^2$~\cite{okamoto1963asymptotic,raudys1998intrinsic}.
 The separation along the estimated direction is $\Delta\cos\theta = \Delta/\sqrt{1 + \tan^2\theta}$, which gives $d(K) = \Delta/\sqrt{1 + q/K}$.
 With an $\ell_2$ penalty the effective dimension is smaller than $p$, and we fit $q$ to target-only learning curves.
 
@@ -68,7 +68,7 @@ Two independent estimates combined with inverse-variance weights have the ratio 
 Write the pooled objective as the source-only objective plus the loss of $N_t$ target points, and take one Newton step from the source-only solution.
 With the curvature of the loss approximated by its mean $\kappa$ per domain, the step changes the score at the target mean by $\rho/(1+\rho)$ times the source-only offset, with $\rho$ given by the expression of the main text; the term $1/(N_s\kappa_s)$ comes from the intercept and the term $\boldsymbol{\delta}^\top(A_s + I/C)^{-1}\boldsymbol{\delta}$ from the weights.
 The approximation keeps the loss of the target points to second order in the offset, takes the direction from the source, and omits the scatter of the target points themselves.
-Simulations with $128$-dimensional Gaussian features confirm the expression (Fig.~\ref{fig:supp-lambda} shows the check on real corpus pairs).
+Fig.~\ref{fig:supp-lambda} compares the expression with the measured correction on real corpus pairs; the expression orders the pairs well but overestimates the average correction.
 
 \section{Additional Results for Part~I}
 \label{sec:supp-part1}
@@ -83,9 +83,21 @@ Simulations with $128$-dimensional Gaussian features confirm the expression (Fig
 \begin{figure}[t]
 \centering
 \FIG{centering}{\columnwidth}
-\caption{Source-only classifiers with and without centering, refitting only the intercepts on $K=5$ labels per emotion, and pooling with the same labels, for WavLM audio, HuBERT audio, and the face.}
+\caption{Source-only classifiers with and without centering, refitting only the intercepts on $K=5$ labels per emotion, and pooling with the same labels, for WavLM audio, HuBERT audio, and the face (three iterations). Without centering the pooled classifier takes the $C$ of the source-only classifier; with centering, $C$ is selected by cross-validation.}
 \label{fig:supp-centering}
 \end{figure}
+
+\section{Gain Map with Cross-Validated Penalty}
+\label{sec:supp-cvmap}
+
+\begin{figure*}[t]
+\centering
+\FIG{cvmap}{\textwidth}
+\caption{Gain of pooling when the penalty $C$ of the pooled classifier is selected by cross-validation on the $K$ target labels (solid) and when it is fixed to the $C$ of the source-only classifier as in the main text (dotted), averaged over ordered pairs. (a)~A, A~(HuBERT), V, and AV with thirty iterations. (b)~Configurations with text with five iterations.}
+\label{fig:supp-cvmap}
+\end{figure*}
+
+Selecting $C$ on the target labels lowers the gain at small $K$, partly through ties at $K=1$ that the tie rule resolves toward a weak penalty (Section~3 of the main text).
 
 \section{Full Comparison Tables}
 \label{sec:supp-tables}

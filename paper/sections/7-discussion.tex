@@ -6,19 +6,18 @@ The results translate into four recommendations for a new corpus with a few labe
 First, center the source and the target features separately; this uses no label and removes most of the threshold loss that a source-only classifier carries (Section~\ref{sec:part1-fix}).
 Second, start from all sources and spend the $K$ labels on the intercepts with a loose anchor while anchoring the weights strongly, since the labels set the intercepts well and the weights badly (Section~\ref{sec:part2-start}).
 Third, do not expect a label-free choice of which utterances to label to repair the direction of a good start (Section~\ref{sec:part2-limits}).
-Fourth, if other modalities are recorded with the target utterances, even only at labeling time, let a teacher trained on the sources in those modalities label the whole pool; the deployed classifier can remain single-modality (Sections~\ref{sec:part2-crossmodal} and~\ref{sec:comparison}).
+Fourth, if other modalities are recorded with the target utterances, even only at labeling time, let a fused teacher trained on the sources with those modalities label the whole pool; the deployed classifier can remain single-modality (Sections~\ref{sec:part2-crossmodal} and~\ref{sec:comparison}).
 
 \emph{Why text behaves differently.}
-Text features lose little through the threshold and much through the direction (Table~\ref{tab:part1}), so the few labels that fix thresholds elsewhere have little threshold to fix in text, and the threshold share of the gain stays at or below half.
+Text features lose little through the threshold and much through the direction (Table~\ref{tab:part1}), so the few labels that fix thresholds elsewhere have little threshold to fix in text, and for text alone the threshold share of the gain is at most \NUM{p1-e29-critshare-k1-t}.
 The same two-cost account covers this case: the share of the gain that comes from the threshold follows the share of the loss that the threshold causes.
 For the method, text students gain from the fused teacher as much as audio students do, because the fused teacher supplies the direction information that text labels lack.
 
 \emph{Entropy minimization and the cluster assumption.}
 Entropy minimization pushes decision boundaries away from dense regions of unlabeled data and helps when the classes form separate clusters.
-In our data it helps on the improvised IEMOCAP sessions in the AVT configuration and fails badly on MELD and CMU-MOSEI and on the same IEMOCAP target in other configurations (Section~\ref{sec:comparison-fixed}).
-The cross-modal weak labels rely on a different property, the complementarity between modalities, which every target in our comparison exhibits, so their gains carry the same sign across targets and configurations.
+In our data it helps on the improvised IEMOCAP sessions in the AVT and AT configurations and fails badly on MELD and CMU-MOSEI and on the same IEMOCAP target in the VT and AV configurations (Section~\ref{sec:comparison-fixed}).
+The cross-modal weak labels rely on a different property, the complementarity between modalities, and their gains vary much less: across the \NUM{st-b-tgt-n} combinations of target and cell at $K=0$ and $K=5$, ours-ext falls below the start in \NUM{st-b-tgtneg-n}, with a worst difference of \NUM{st-b-tgtneg-worst} points.
 
 \emph{What a source is.}
-Part~I gives the value of a source in labels of direction, and Part~II shows that the value of a teacher scales with its UAR advantage over the start.
-Both quantities can be estimated before deployment: $q$ and $e$ from labeled sources and pseudo-targets, and $J$ from pseudo-targets.
-They indicate whether collecting more target labels, adding a source, or adding a modality at labeling time is the better investment.
+Part~I gives the value of a source in labels of direction, and Part~II shows that, in the cases we measured, the gain from a teacher stays below its UAR advantage over the start.
+Here $q$, $e$, and $J$ were measured with target labels; whether pseudo-targets estimate them well enough to choose, before deployment, between more labels, another source, and another modality remains to be tested.

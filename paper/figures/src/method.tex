@@ -54,13 +54,12 @@
 
 % ------------------------------------------------------------------ teacher
 \node[box, draw=tea, text width=3.95cm] (teach) at (6.85,6.3)
-  {\textbf{Teacher}, trained on sources only\\[3pt]
-   \textcolor{tea}{same modality: source committee}\\
-   \textcolor{tea}{other modalities: fused start}\\
-   \textcolor{tea}{or product of unimodal students}\\
-   \textcolor{tea}{trained on the fused start (\emph{ref})}\\[2pt]
-   \textcolor{ink2}{extended: also the fused student}\\
-   \textcolor{ink2}{refit on the $K$ labels}};
+  {\textbf{Teacher}\\[3pt]
+   \textcolor{tea}{basic, sources only: source}\\
+   \textcolor{tea}{committee or fused start}\\[2pt]
+   \textcolor{ink2}{extended, also the target pool:}\\
+   \textcolor{ink2}{fused student refit on $K$ labels;}\\
+   \textcolor{ink2}{unimodal-student product (\emph{ref})}};
 \draw[flow] (start.east |- 0,5.15) -- (teach.west |- 0,5.15);
 
 % ------------------------------------------------------------------ the target pool after centering

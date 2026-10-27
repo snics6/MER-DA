@@ -1,0 +1,204 @@
+\section{第I部：少数のターゲットラベルが最初に直すもの}
+\label{sec:part1-what-few-labels-fix}
+
+第I部では，\ref{sec:setting}節の線形ヘッドについて2つの問いを立てる．
+感情ごとに$K$本のラベルが線形ヘッドの何を変えるか，その変化のうちどれだけをソースコーパスが代わりに補えるかである．
+まず利得の地図を述べ，次に，その下で判断基準と向きの推定のコストが異なる仮定を述べ，最後にそれらのコストから導かれる4つの予言を検証する．
+
+\subsection{利得の地図}
+\label{sec:part1-map}
+
+ソースを加えると，ターゲットのラベルが少ないときは役立ち，多いときは害になる（図\ref{fig:gainmap}）．
+音声では，$K=1$での平均の利得は$\NUM{map-gain-a-k1}$ポイントであり，\NUM{map-pairs-a}の順序対のうち\NUM{map-gain-pos-a-k1}で95\%区間が0より上にある．
+平均の利得は$K=25$までに0を下回り（$\NUM{map-gain-a-k25}$ポイント），プール全体では\NUM{map-gain-neg-a-kall}の順序対で区間が0より下にある．
+8つの構成はすべて同じ推移をたどる．
+$K=1$での平均の利得は$\NUM{map-gain-v-k1}$（V）から$\NUM{map-gain-avt-k1}$ポイント（AVT）の範囲にあり，$K=25$ではどの構成でも負である．
+利得の大きさは，主に2つのコーパスの性質で決まる．
+ターゲットごとに1つ，ソースごとに1つの効果をもつ加法モデルは，A，A（HuBERT），V，AVにわたって，利得の分散と，ソースがまだ役立つ最大のラベルの本数の分散の\NUM{map-share-a-lo}--\NUM{map-share-v-hi}\%を説明する．
+第I部の残りでは，この推移を，ラベルが分類器の何を変えるかによって説明する．
+
+\begin{figure*}[t]
+\centering
+\FIG{gainmap}{\textwidth}
+\caption{利得の地図．(a)~ターゲットのラベルだけによる学習に対する合併の平均の利得（同じ反復での合併のUARからターゲットのみのUARを引いた値）を順序対にわたって平均し，感情ごとのラベルの本数$K$に対して示す．(b)~利得の95\%区間が0より上にある順序対，0を含む順序対，0より下にある順序対の割合．これらの区間は30回の反復を独立とみなしており，そのためIEMOCAPのターゲットでは狭すぎる．IEMOCAPの2つのセッションの対を含むすべての順序対を用いる．合併の分類器はソースのみの分類器の罰則を用いる．}
+\label{fig:gainmap}
+\end{figure*}
+
+\subsection{少数のラベルの2つのコスト}
+\label{sec:part1-costs}
+
+\ref{sec:setting-model}節の対ごとの判定を，3つの仮定の下で分析する．
+\begin{enumerate}
+\item[(A1)\hspace{0.5\zw}]各感情の中で，対のスコア差$z$は，2つの感情で共通の分散をもつガウス分布に従う．したがって式\eqref{eq:twocloud}が対の正解率を与える．
+\item[(A2)\hspace{0.5\zw}]学習器は重みに有限の$\ell_2$罰則を保ち，切片には罰則を課さない．分離可能なデータで罰則を0に近づけると，ロジットへの加法的な補正は効果を失う\cite{kini2021labelimbalanced}．有限の罰則があれば，切片は自由に動ける．
+\item[(A3)\hspace{0.5\zw}]感情ごとの$K$本のラベルは，プールからのランダムな抽出である．
+\end{enumerate}
+
+\emph{判断基準．}
+向きを固定すると，2つの感情を釣り合わせる切片は，判断基準を$z$の2つのクラス平均の中点に置く．
+感情ごとに$K$本のラベルから推定すると，この中点の分散は$\sigma^2/(2K)$なので，残るずれは$\mathbb{E}[o^2] = 1/(2K)$を満たす．
+式\eqref{eq:twocloud}を$o$について2次まで展開すると，残る判断基準による損失の期待値
+\begin{equation}
+\label{eq:thrcost}
+\mathbb{E}\left[a(d, 0) - a(d, o)\right] \approx \frac{d}{4}\,\phi\!\left(\frac{d}{2}\right)\frac{1}{2K} \le \frac{\phi(1)}{4K}
+\end{equation}
+が得られる．
+ここで$\phi$は標準正規分布の密度関数であり，$d$についての最大は$d=2$で達成される．
+したがって少数のラベルは，判断基準のずれがどれほど大きくても，その大部分を取り除く．
+
+\emph{向き．}
+向きを推定するにはベクトルを推定する必要があり，その誤差は実効次元$q$と$K$の比に応じて縮む．
+感情ごとに$K$本のラベルから推定した線形の規則では，識別力は
+\begin{equation}
+\label{eq:dircost}
+d(K) = \frac{\Delta}{\sqrt{1 + q/K}}
+\end{equation}
+のようにふるまう．
+これは，線形判別の誤分類率の漸近展開が向きの項でとる形である\cite{okamoto1963asymptotic,raudys1998intrinsic}．
+$q$は，ターゲットのみの分類器の識別力をラベルの本数に沿って並べたものに式\eqref{eq:dircost}を当てはめて測る．
+当てはめた$q$は，WavLMの音声で$\NUM{p1-qdir-a}$，HuBERTの音声で$\NUM{p1-qdir-ah}$，AVで$\NUM{p1-qdir-av}$，顔で$\NUM{p1-qdir-v}$である．
+したがって，音声でターゲットにとって最良の向きに匹敵する向きを得るには，感情ごとに20本程度のラベルが要る．
+このように，本論文で調べた$K$の範囲では，ラベルは判断基準を少ない費用で直し，音声の向きを遅く直す．
+ここから4つの予言が導かれる．
+最初の2つを検証する構成ごとの測定値を表\ref{tab:part1}にまとめる．
+(P1)~ソースのみの分類器の損失のうち，少数のラベルで取り戻す部分の大半は判断基準による損失である．
+(P2)~利得のうち判断基準から生じる割合は，$K$が増えると下がる．
+(P3)~合併は，ターゲットが受ける重みに比例して判断基準を直す（\ref{sec:part1-pooling}節）．
+(P4)~ソースは，$q$と，ソースの向きがターゲットにどれだけ合うかで決まる本数のターゲットのラベルの代わりになる（\ref{sec:part1-value}節）．
+
+\begin{figure}[t]
+\centering
+\FIG{twocloud}{\columnwidth}
+\caption{対ごとの判定の判断基準と向き．(a)~スコア差$z$に沿った2つのガウス分布のクラス．判断基準のずれ$o$は判定の点を中点から遠ざけ，識別力$d$は向きで決まる．(b)~ターゲットにとって最良の線形の規則に対するソースのみの分類器の損失を，判断基準による損失と向きによる損失に分けて，対の正解率のポイントで示す．6つの感情の対と順序対にわたって平均した．}
+\label{fig:twocloud}
+\end{figure}
+
+\subsection{ラベルが直すもの}
+\label{sec:part1-fix}
+
+2つのガウス分布のモデル（two-cloud model）は，本論文で学習した分類器の対の正解率を再現する．
+すべての感情の対と順序対にわたって，測った$d$と$o$から予言した正解率と測った正解率の相関は\NUM{p1-e13-fit-r-lo}--\NUM{p1-e13-fit-r-hi}であり，平均絶対誤差は\NUM{p1-e13-fit-mae-lo}--\NUM{p1-e13-fit-mae-hi}ポイントである．
+
+\emph{顔を除いて，ソースのみの分類器は主に向きによって損をする．}
+WavLMの音声では，判断基準による損失は\NUM{p1-e13-loss-offset-a}ポイント，向きによる損失は\NUM{p1-e13-loss-dir-a}ポイントである（図\ref{fig:twocloud}b）．
+顔ではそれぞれ\NUM{p1-e13-loss-offset-v}と\NUM{p1-e13-loss-dir-v}ポイント，テキストでは\NUM{p1-e13-loss-offset-t}と\NUM{p1-e13-loss-dir-t}ポイントである．
+判断基準による損失は，構成にわたって全損失の\NUM{p1-e29-lossshare-lo}--\NUM{p1-e29-lossshare-hi}にすぎない．
+
+\emph{判断基準による損失は，大部分がコーパスの平均のずれである．}
+中心化（centering）は各コーパスのラベルのない発話の平均を引く操作であり，ラベルを使わない．
+中心化は，ソースのみのUARを，WavLMの音声で\NUM{p1-center-srconly-a}ポイント，HuBERTの音声で\NUM{p1-center-srconly-ah}ポイント，顔で\NUM{p1-center-srconly-v}ポイント上げ，音声の\NUM{p1-center-srconly-pairs-a-n}の対のうち\NUM{p1-center-srconly-up-a-n}で上げる（3回の反復）．
+重みを固定し，ソースのみの分類器の切片だけを感情ごとに$K=5$本のラベルで当てはめ直すと，WavLMの音声で\NUM{p1-d1-gain-a-k5}ポイントの利得があり，これは同じラベルで合併が得る\NUM{p1-merged-gain-a-k5}ポイントに近い．
+中心化の後では，この2つの利得は\NUM{p1-center-d1-gain-a-k5}と\NUM{p1-center-merged-gain-a-k5}ポイントに縮む（補足資料の図S2）．
+
+\emph{ラベルはまず判断基準に使われる（P1，P2）．}
+ソースのみの分類器に対する合併の分類器の改善を，測った$d$と$o$から式\eqref{eq:twocloud}で計算した判断基準の部分と向きの部分の和として書くと，単一モダリティの音声と顔では$K \le 5$で判断基準の部分が大半を占める．
+その割合は，WavLMの音声，HuBERTの音声，顔の$K=1$と$K=5$にわたって\NUM{p1-e29-critshare-kle5-single-lo}--\NUM{p1-e29-critshare-kle5-single-hi}である（図\ref{fig:thresholdshare}aと表\ref{tab:part1}．この割合はIEMOCAPの2つのセッションの対を除いて求めた）．
+この割合は損失に占める判断基準の割合よりずっと大きいので，ラベルは誤差のうち少ない費用で直せる部分を先に直す．
+予言どおり，この割合は$K$とともに下がり，$K=10$ではHuBERTの音声で\NUM{p1-e29-critshare-k10-ah}である．
+融合の構成とテキストの構成では判断基準による損失が小さく，$K=5$では判断基準の部分は利得のおよそ半分かそれ以下である（\NUM{p1-e29-critshare-k5-fused-text-lo}--\NUM{p1-e29-critshare-k5-fused-text-hi}，AVでは\NUM{p1-e29-critshare-k5-av}）．
+$K=1$では，AV（\NUM{p1-e29-critshare-k1-av}）とVT（\NUM{p1-e29-critshare-k1-vt}）で判断基準の部分がまだ半分を超える．
+同じ特徴の上の2層パーセプトロンでは，$K=5$での判断基準の割合は音声で\NUM{p1-e30-critshare-k5-audio-lo}--\NUM{p1-e30-critshare-k5-audio-hi}，顔で\NUM{p1-e30-critshare-k5-v-wd2}--\NUM{p1-e30-critshare-k5-v-wd4}である．
+したがってこの傾向は線形ヘッドに固有ではない．
+ただし，HuBERTの音声では割合が半分を下回る．
+
+\emph{向きはソースが決めたところにとどまる．}
+式\eqref{eq:dircost}の下では，ソースの向きと感情ごとに10本のラベルを最適に組み合わせても，音声の向きによる損失のうち取り戻せるのは\NUM{p1-dirloss-recov-bound-k10-audio-lo}--\NUM{p1-dirloss-recov-bound-k10-audio-hi}\%である．
+ソースの分類器から出発してラベルで学び直す仮説転移が取り戻すのは\NUM{p1-dirloss-recov-ht-k10-audio-lo}--\NUM{p1-dirloss-recov-ht-k10-audio-hi}\%である．
+
+\begin{figure}[t]
+\centering
+\FIG{thresholdshare}{\columnwidth}
+\caption{ラベルが何に使われるか．(a)~ソースのみの分類器に対する合併の分類器の改善のうち判断基準から生じる割合を，$K$に対して示す（IEMOCAPの2つのセッションの対を除いた順序対の中央値．10回の反復）．実線は単一モダリティの音声と顔，破線は融合の構成とテキストの構成，黒い水平線は2分の1を示す．(b)~感情ごとに$K$本のラベルから推定した後に残る誤差の期待値．判断基準のずれは$1/(2K)$で，向きの誤差は$q/K$で下がる．$q$は構成ごとに当てはめた値である．}
+\label{fig:thresholdshare}
+\end{figure}
+
+\begin{table}[t]
+\caption{構成ごとの第I部の量．ソースのみの分類器の損失は対の正解率のポイントで示す．$q$は式\eqref{eq:dircost}の向きの実効次元である．最後の3列は，合併による改善のうち判断基準から生じる割合である（順序対の中央値）．}
+\label{tab:part1}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+ & \multicolumn{2}{c}{損失（ポイント）} & & \multicolumn{3}{c}{判断基準の割合} \\
+\cmidrule(lr){2-3}\cmidrule(l){5-7}
+構成 & 判断基準 & 向き & $q$ & $K{=}1$ & $K{=}5$ & $K{=}10$ \\
+\midrule
+A & \NUM{p1-e13-loss-offset-a} & \NUM{p1-e13-loss-dir-a} & \NUM{p1-qdir-a} & \NUM{p1-e29-critshare-k1-a} & \NUM{p1-e29-critshare-k5-a} & \NUM{p1-e29-critshare-k10-a} \\
+A（HuBERT） & \NUM{p1-e13-loss-offset-ah} & \NUM{p1-e13-loss-dir-ah} & \NUM{p1-qdir-ah} & \NUM{p1-e29-critshare-k1-ah} & \NUM{p1-e29-critshare-k5-ah} & \NUM{p1-e29-critshare-k10-ah} \\
+V & \NUM{p1-e13-loss-offset-v} & \NUM{p1-e13-loss-dir-v} & \NUM{p1-qdir-v} & \NUM{p1-e29-critshare-k1-v} & \NUM{p1-e29-critshare-k5-v} & \NUM{p1-e29-critshare-k10-v} \\
+AV & \NUM{p1-e13-loss-offset-av} & \NUM{p1-e13-loss-dir-av} & \NUM{p1-qdir-av} & \NUM{p1-e29-critshare-k1-av} & \NUM{p1-e29-critshare-k5-av} & \NUM{p1-e29-critshare-k10-av} \\
+T & \NUM{p1-e13-loss-offset-t} & \NUM{p1-e13-loss-dir-t} & -- & \NUM{p1-e29-critshare-k1-t} & \NUM{p1-e29-critshare-k5-t} & \NUM{p1-e29-critshare-k10-t} \\
+VT & \NUM{p1-e13-loss-offset-vt} & \NUM{p1-e13-loss-dir-vt} & -- & \NUM{p1-e29-critshare-k1-vt} & \NUM{p1-e29-critshare-k5-vt} & \NUM{p1-e29-critshare-k10-vt} \\
+AT & \NUM{p1-e13-loss-offset-at} & \NUM{p1-e13-loss-dir-at} & -- & \NUM{p1-e29-critshare-k1-at} & \NUM{p1-e29-critshare-k5-at} & \NUM{p1-e29-critshare-k10-at} \\
+AVT & \NUM{p1-e13-loss-offset-avt} & \NUM{p1-e13-loss-dir-avt} & -- & \NUM{p1-e29-critshare-k1-avt} & \NUM{p1-e29-critshare-k5-avt} & \NUM{p1-e29-critshare-k10-avt} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{合併が判断基準を直す仕組み}
+\label{sec:part1-pooling}
+
+合併は，ターゲット用の別の切片をもたずに判断基準を直す．
+その仕組みは，ソースのみの解からのニュートン法の1ステップで示せる（P3）．
+$N_s$と$N_t$をソースとターゲットの訓練発話の数，$\kappa_s$と$\kappa_t$をソースのみの解における損失の平均の曲率，$A_s$をソースの特徴の曲率で重みづけした散布行列，$\boldsymbol{\delta}$をターゲットの平均と曲率で重みづけしたソースの平均の差とする．
+1ステップの後には，ソースのみのずれ$o_s$のうち割合$1 - \lambda$が残る．
+ただし
+\begin{equation}
+\label{eq:lambda}
+\lambda = \frac{\rho}{1 + \rho},\quad \rho = N_t\kappa_t\left[\frac{1}{N_s\kappa_s} + \boldsymbol{\delta}^{\top}\left(A_s + \frac{I}{C}\right)^{-1}\boldsymbol{\delta}\right]
+\end{equation}
+である．
+括弧の中の第1項は切片の経路であり，ターゲットはこの経路を通じて，訓練の重みに占める自身の割合に比例して判断基準を直す．
+第2項は重みの経路である．
+ソースがほとんど変動しない向きに沿ってターゲットがソースから線形に分離できるとき，合併の分類器はその向きに重みを置き，その重みはターゲットの発話にだけ加わる切片として働く．
+この形は，点の集合の影響（group influence）\cite{koh2019accuracy,pregibon1981logistic}を加える点について書いたものであり，その切片の経路は，$n$個のターゲットの点と$m$個のソースの点を合併した1次元の判別の判断基準の移動$m/(n+m)$に帰着する\cite{desilva2023value}．
+
+合併の分類器のターゲット上の$d$と$o$から計算した，測った修正$\lambda = 1 - o_m/o_s$は，式\eqref{eq:lambda}が予言する順に並ぶ．
+ただし，この式は修正の平均を過大に見積もる（補足資料の図S1）．
+順序対と$K \in \{1, 5, 10\}$にわたって，予言した$\lambda$と測った$\lambda$の順位相関は，A，A（HuBERT），V，AVにわたって\NUM{p1-e15-lam-rho-lo}--\NUM{p1-e15-lam-rho-hi}である（10回の反復）．
+完全なニュートン法の1ステップは修正を順位相関\NUM{p1-e16-lam-rho-lo}--\NUM{p1-e16-lam-rho-hi}で並べ，VとAVでは向きの変化も予言する（\NUM{p1-e16-dir-rho-video-lo}--\NUM{p1-e16-dir-rho-video-hi}）．
+2次の展開の精度が低い音声では，向きの変化の予言はそれほど当たらない（\NUM{p1-e16-dir-rho-audio-lo}--\NUM{p1-e16-dir-rho-audio-hi}）．
+重みの経路は，コーパス間の距離が利得を予言しない理由を説明する．
+距離が大きいとソースのみの正解率は下がるが，合併が判断基準を直す経路も広がる．
+式\eqref{eq:lambda}の導出と，それを確かめるシミュレーションは補足資料に示す．
+
+\subsection{ソースの価値}
+\label{sec:part1-value}
+
+ソースは向きをもたらし，その価値はターゲットのラベルの本数で表せる（P4）．
+$e$を，ターゲットにとってのソースの向きの効率，すなわちソースの向きがターゲットの最良の識別力に掛かる係数（$d = e\Delta$）とする．
+式\eqref{eq:dircost}の下では，$K$本のラベルから推定した向きの雑音と信号の比は$q/K$であり，ソースの向きの比は$(1 - e^2)/e^2$である．
+2つの独立な推定を最適な重みで組み合わせると標本サイズが足し合わされる．
+したがって，ソースから出発して$K$本のラベルで学び直すことは，ターゲットだけで感情ごとに$K + n$本のラベルで学習することと同じようにふるまう．
+ここで
+\begin{equation}
+\label{eq:value}
+n = q\,\frac{e^2}{1 - e^2}
+\end{equation}
+である．
+式\eqref{eq:value}は，推定した向きのコサインと標本サイズの古典的な関係\cite{raudys1998intrinsic,dobriban2018highdimensional}を逆に解いたものである．
+逆に解くことでソースの向きがラベルの本数に換算され，$n$は$K$によらない．
+
+$n$は，仮説転移のUARがターゲットのみの学習曲線のどこに当たるかを求め，そこから$K$を引いて測る（図\ref{fig:sourcevalue}）．
+音声のソース1つでは，$n$は感情ごとに\NUM{p1-e32-n1src-audio-lo}--\NUM{p1-e32-n1src-audio-hi}本であり，$K=5$から$K=25$までほぼ一定である．
+顔では\NUM{p1-e32-n1src-v-k5}--\NUM{p1-e32-n1src-v-k10}本である．
+すべてのソースを合併したものから出発すると，WavLMの音声で，$n$は$K=5$と$K=10$でそれぞれ感情ごとに\NUM{p1-e32-nall-a-k5}本と\NUM{p1-e32-nall-a-k10}本である．
+音声の対にわたって，予言した$n$と測った$n$の順位相関は\NUM{p1-e32-rho-audio-lo}--\NUM{p1-e32-rho-audio-hi}であり，測った値は予言した値の\NUM{p1-e32-ratio-audio-lo}--\NUM{p1-e32-ratio-audio-hi}倍である．
+すべてのソースを合併した場合，この比は\NUM{p1-e32-allsrc-ratio-lo}--\NUM{p1-e32-allsrc-ratio-hi}である．
+
+\begin{figure}[t]
+\centering
+\FIG{sourcevalue}{\columnwidth}
+\caption{ソースの価値．予言した値$n = q e^2/(1-e^2)$と，ターゲットのみの学習曲線の上で測った値を，感情ごとのラベルの本数で，単一のソースとすべてのソースを合併したものについて比べる（$K=5$と$K=10$．IEMOCAPの2つのセッションの対を除く）．対角線は一致を表す．学習曲線の範囲を超える点は上の帯に，$n \le 0$の点は下の帯に示す．}
+\label{fig:sourcevalue}
+\end{figure}
+
+\subsection{第I部のまとめ}
+\label{sec:part1-summary}
+
+単一モダリティの音声と顔の特徴では，少数のターゲットのラベルが判断基準を直し，中心化はラベルを使わずに判断基準の誤差の大部分を取り除く．
+費用がかかるのは向きである．
+音声でターゲットの最良の向きに近づくには感情ごとに$q$本程度のラベルが要り，ソース1つはそのうちおよそ10本分を補い，すべてのソースを合わせるとその2倍から3倍を補う．
+したがって，$K \le 5$でさらに改善するには，ラベルとソースがこの形で与えるよりも多くの向きの情報が要る．
+第II部では，その情報をどこから得られるかを導く．

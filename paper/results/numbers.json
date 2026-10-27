@@ -1406,6 +1406,20 @@
   "verified": "2026-10-27",
   "module": "comparison"
  },
+ "cmp-ours-vs-best-cells-n": {
+  "value": 22,
+  "format": "%d",
+  "source": "paper/scripts/ledger/comparison.py の cmp-ours-vs-best-<世界>-<生徒>-k<K> | 11 の生徒 × K ∈ {0, 5} の 22 セル | セルの数",
+  "verified": "2026-10-27",
+  "module": "comparison"
+ },
+ "cmp-ours-vs-best-pos-n": {
+  "value": 19,
+  "format": "%d",
+  "source": "paper/scripts/ledger/comparison.py の cmp-ours-vs-best-<世界>-<生徒>-k<K> | 11 の生徒 × K ∈ {0, 5} の 22 セル | 基本版 ours が最も強い相手の調整版を上回るセルの数",
+  "verified": "2026-10-27",
+  "module": "comparison"
+ },
  "cmp-ours-vs-best-vt-f-k0": {
   "value": 1.6690524936796791,
   "format": "%.1f",
@@ -1991,6 +2005,20 @@
   "value": 1.57100048001859,
   "format": "%.1f",
   "source": "results/baselines_fuse2-audio-video-text/<ターゲット>.csv（調整版の選択は <ターゲット>_pseudo.csv から作り直す），results/multimodal_distill_fuse2-audio-video-text/<ターゲット>.csv（ours の選択は同じ場所の <ターゲット>_pseudo.csv から） | 世界 fuse2-audio-video-text，生徒 video_clip，K=5，E60 の選んだ形（ours）− none（E39） | 反復 0〜9 の平均をターゲットごとに取り，4 ターゲット（IEMOCAP-impro・IEMOCAP-script・MELD・MOSEI）で平均",
+  "verified": "2026-10-27",
+  "module": "comparison"
+ },
+ "cmp-oursx-oracle-gap-ge1-n": {
+  "value": 5,
+  "format": "%d",
+  "source": "paper/scripts/ledger/comparison.py の cmp-oursx-oracle-vs-tuned-<世界>-<生徒>-k0（オラクル．分析専用） | 11 の生徒，K=0 | テストで最良の候補が選んだ候補を 1 ポイント以上上回る生徒の数",
+  "verified": "2026-10-27",
+  "module": "comparison"
+ },
+ "cmp-oursx-oracle-gap-students-n": {
+  "value": 11,
+  "format": "%d",
+  "source": "paper/scripts/ledger/comparison.py の cmp-oursx-oracle-vs-tuned-<世界>-<生徒>-k0（オラクル．分析専用） | 11 の生徒，K=0 | 生徒の数",
   "verified": "2026-10-27",
   "module": "comparison"
  },
@@ -5298,44 +5326,49 @@
   "module": "part1"
  },
  "p1-dirloss-recov-ht-k10-a": {
-  "value": 22.68048556635832,
+  "value": 24.832072788510974,
   "format": "%.0f",
-  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=audio_wavlm，K=10，同じコーパスの組を除く 40 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s_obs)/(D − d_s) の組の中央値（%）．分子の d_s_obs は段階 B のテストで測ったソースのみの d，分母の d_s は E13 の d（文書の U4 の値はこの組み合わせで再現する）",
+  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=audio_wavlm，K=10，同じコーパスの組を除く 40 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s)/(D − d_s) の組の中央値（%）．d_s は E13 のソースのみの d で，基準モデルの割合と同じ定義",
   "verified": "2026-10-27",
+  "note": "文書（docs/exploratory-analyses.md E28 の 9 の U4）の値 23．文書の U4 の値は分子に段階 B の d_s_obs，分母に E13 の d_s を使った混ぜた定義の値．定義をそろえた（audit B8）",
   "module": "part1"
  },
  "p1-dirloss-recov-ht-k10-ah": {
-  "value": 22.236753582007665,
+  "value": 25.243363010957196,
   "format": "%.0f",
-  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=audio_hubert，K=10，同じコーパスの組を除く 40 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s_obs)/(D − d_s) の組の中央値（%）．分子の d_s_obs は段階 B のテストで測ったソースのみの d，分母の d_s は E13 の d（文書の U4 の値はこの組み合わせで再現する）",
+  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=audio_hubert，K=10，同じコーパスの組を除く 40 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s)/(D − d_s) の組の中央値（%）．d_s は E13 のソースのみの d で，基準モデルの割合と同じ定義",
   "verified": "2026-10-27",
+  "note": "文書（docs/exploratory-analyses.md E28 の 9 の U4）の値 22．文書の U4 の値は分子に段階 B の d_s_obs，分母に E13 の d_s を使った混ぜた定義の値．定義をそろえた（audit B8）",
   "module": "part1"
  },
  "p1-dirloss-recov-ht-k10-audio-hi": {
-  "value": 22.68048556635832,
+  "value": 25.243363010957196,
   "format": "%.0f",
-  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv・e28t9_targets.csv | 音声 2 エンコーダ（a，ah），K=10，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した） | 種類ごとの値．既定の仮説転移が取り戻した割合（%） | 範囲（最小 ah，最大 a．対象 a, ah）",
+  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv・e28t9_targets.csv | 音声 2 エンコーダ（a，ah），K=10，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した） | 種類ごとの値．既定の仮説転移が取り戻した割合（%） | 範囲（最小 a，最大 ah．対象 a, ah）",
   "verified": "2026-10-27",
+  "note": "文書（docs/exploratory-analyses.md E28 の 9）の値 23．差の理由は未確認",
   "module": "part1"
  },
  "p1-dirloss-recov-ht-k10-audio-lo": {
-  "value": 22.236753582007665,
+  "value": 24.832072788510974,
   "format": "%.0f",
-  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv・e28t9_targets.csv | 音声 2 エンコーダ（a，ah），K=10，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した） | 種類ごとの値．既定の仮説転移が取り戻した割合（%） | 範囲（最小 ah，最大 a．対象 a, ah）",
+  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv・e28t9_targets.csv | 音声 2 エンコーダ（a，ah），K=10，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した） | 種類ごとの値．既定の仮説転移が取り戻した割合（%） | 範囲（最小 a，最大 ah．対象 a, ah）",
   "verified": "2026-10-27",
+  "note": "文書（docs/exploratory-analyses.md E28 の 9）の値 22．差の理由は未確認",
   "module": "part1"
  },
  "p1-dirloss-recov-ht-k10-av": {
-  "value": 37.3219423161199,
+  "value": 41.516458839969125,
   "format": "%.0f",
-  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=fuse-audio-video，K=10，同じコーパスの組を除く 28 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s_obs)/(D − d_s) の組の中央値（%）．分子の d_s_obs は段階 B のテストで測ったソースのみの d，分母の d_s は E13 の d（文書の U4 の値はこの組み合わせで再現する）",
+  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=fuse-audio-video，K=10，同じコーパスの組を除く 28 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s)/(D − d_s) の組の中央値（%）．d_s は E13 のソースのみの d で，基準モデルの割合と同じ定義",
   "verified": "2026-10-27",
+  "note": "文書（docs/exploratory-analyses.md E28 の 9 の U4）の値 37．文書の U4 の値は分子に段階 B の d_s_obs，分母に E13 の d_s を使った混ぜた定義の値．定義をそろえた（audit B8）",
   "module": "part1"
  },
  "p1-dirloss-recov-ht-k10-v": {
-  "value": 9.747967408045168,
+  "value": 10.126819607943512,
   "format": "%.0f",
-  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=video，K=10，同じコーパスの組を除く 28 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s_obs)/(D − d_s) の組の中央値（%）．分子の d_s_obs は段階 B のテストで測ったソースのみの d，分母の d_s は E13 の d（文書の U4 の値はこの組み合わせで再現する）",
+  "source": "results/explore_relation/snapshots/20261011-0139_e28t9/e28t9_pairs.csv | kind=video，K=10，同じコーパスの組を除く 28 組，反復 0〜9（10 回．ターゲットのみの点数は results/fixc_map/audio_wavlm と同じ条件で学び直した），合併は C を固定した段階 B | 既定の仮説転移（C′=0.01，C_b=8）が取り戻した向きの損の割合 (d_h − d_s)/(D − d_s) の組の中央値（%）．d_s は E13 のソースのみの d で，基準モデルの割合と同じ定義",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -5535,6 +5568,13 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-dir-a-xsame": {
+  "value": 8.774736810826965,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=audio_wavlm，同じコーパスの組を除く 40 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-dir-ah": {
   "value": 8.79588772168768,
   "format": "%.1f",
@@ -5549,10 +5589,24 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-dir-at-xsame": {
+  "value": 10.449095622298085,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-text，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-dir-av": {
   "value": 6.032031837757107,
   "format": "%.1f",
   "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-video，30 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100．2 つの感情の正解率の点）．ソースのみの分類器の点数から測るので地図と反復に依らない（snapshots/20261002-1339_e13 と同じ表）．向きによる損 loss_direction",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e13-loss-dir-av-xsame": {
+  "value": 6.445469801197992,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-video，同じコーパスの組を除く 28 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -5563,10 +5617,24 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-dir-avt-xsame": {
+  "value": 7.925062692993433,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-video-text，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-dir-t": {
   "value": 12.200195595063038,
   "format": "%.1f",
   "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=text_roberta，12 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100．2 つの感情の正解率の点）．ソースのみの分類器の点数から測るので地図と反復に依らない（snapshots/20261002-1339_e13 と同じ表）．向きによる損 loss_direction",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e13-loss-dir-t-xsame": {
+  "value": 11.517947468543312,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=text_roberta，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -5591,6 +5659,13 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-dir-v-xsame": {
+  "value": 2.417549670820924,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=video，同じコーパスの組を除く 28 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-dir-vt": {
   "value": 8.69768631628989,
   "format": "%.1f",
@@ -5598,10 +5673,24 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-dir-vt-xsame": {
+  "value": 8.900476814554793,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-video-text，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．向きによる損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-offset-a": {
   "value": 4.512070612637745,
   "format": "%.1f",
   "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=audio_wavlm，42 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100．2 つの感情の正解率の点）．ソースのみの分類器の点数から測るので地図と反復に依らない（snapshots/20261002-1339_e13 と同じ表）．位置による損 loss_offset",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e13-loss-offset-a-xsame": {
+  "value": 4.678187331492016,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=audio_wavlm，同じコーパスの組を除く 40 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -5619,10 +5708,24 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-offset-at-xsame": {
+  "value": 1.2064867818883418,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-text，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-offset-av": {
   "value": 2.458234937150436,
   "format": "%.1f",
   "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-video，30 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100．2 つの感情の正解率の点）．ソースのみの分類器の点数から測るので地図と反復に依らない（snapshots/20261002-1339_e13 と同じ表）．位置による損 loss_offset",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e13-loss-offset-av-xsame": {
+  "value": 2.542149369076679,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-video，同じコーパスの組を除く 28 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -5633,10 +5736,24 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-offset-avt-xsame": {
+  "value": 1.1239137049501378,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-audio-video-text，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-offset-t": {
   "value": 0.6224755250192376,
   "format": "%.1f",
   "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=text_roberta，12 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100．2 つの感情の正解率の点）．ソースのみの分類器の点数から測るので地図と反復に依らない（snapshots/20261002-1339_e13 と同じ表）．位置による損 loss_offset",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e13-loss-offset-t-xsame": {
+  "value": 0.7296518659099034,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=text_roberta，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -5661,10 +5778,24 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e13-loss-offset-v-xsame": {
+  "value": 2.521804454382847,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=video，同じコーパスの組を除く 28 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e13-loss-offset-vt": {
   "value": 0.8334070203892816,
   "format": "%.1f",
   "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-video-text，12 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100．2 つの感情の正解率の点）．ソースのみの分類器の点数から測るので地図と反復に依らない（snapshots/20261002-1339_e13 と同じ表）．位置による損 loss_offset",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e13-loss-offset-vt-xsame": {
+  "value": 0.9105570877161847,
+  "format": "%.1f",
+  "source": "results/rerun_fixc/explore_relation/snapshots/20261018-0213_fixc/e13_pairs.csv | kind=fuse-video-text，同じコーパスの組を除く 10 組 × 6 対 | 組ごとに 6 対で平均し組で平均（×100）．位置による損",
   "verified": "2026-10-27",
   "module": "part1"
  },
@@ -8641,6 +8772,34 @@
   "value": 7,
   "format": "%d",
   "source": "results/stats_compare/tests.csv | 比較 (a) oursx − 最も強い相手の調整版，K=5，11 の生徒（E61 の 7，E62 の 4），ターゲット × 反復の対 | 同じテストの話者の集合を持つ反復を平均した単位での Holm 後の p（p_dedup_holm）が 0.05 未満のセルの数",
+  "verified": "2026-10-27",
+  "module": "stats_summary"
+ },
+ "st-b-tgt-n": {
+  "value": 92,
+  "format": "%d",
+  "source": "results/stats_compare/tests.csv | 比較 (b) oursx − E39，K ∈ {0, 5}，11 の生徒 × 2 の 22 セル，列 tgt_means（ターゲットごとに反復を平均した差） | ターゲットとセルの組の数",
+  "verified": "2026-10-27",
+  "module": "stats_summary"
+ },
+ "st-b-tgtneg-cells-n": {
+  "value": 10,
+  "format": "%d",
+  "source": "results/stats_compare/tests.csv | 比較 (b) oursx − E39，K ∈ {0, 5}，11 の生徒 × 2 の 22 セル，列 tgt_means（ターゲットごとに反復を平均した差） | 出発点を下回るターゲットが 1 つ以上あるセルの数",
+  "verified": "2026-10-27",
+  "module": "stats_summary"
+ },
+ "st-b-tgtneg-n": {
+  "value": 10,
+  "format": "%d",
+  "source": "results/stats_compare/tests.csv | 比較 (b) oursx − E39，K ∈ {0, 5}，11 の生徒 × 2 の 22 セル，列 tgt_means（ターゲットごとに反復を平均した差） | 差が負のターゲットとセルの組の数",
+  "verified": "2026-10-27",
+  "module": "stats_summary"
+ },
+ "st-b-tgtneg-worst": {
+  "value": -1.89,
+  "format": "%.1f",
+  "source": "results/stats_compare/tests.csv | 比較 (b) oursx − E39，K ∈ {0, 5}，11 の生徒 × 2 の 22 セル，列 tgt_means（ターゲットごとに反復を平均した差） | ターゲットごとの差の最小（ポイント）",
   "verified": "2026-10-27",
   "module": "stats_summary"
  },

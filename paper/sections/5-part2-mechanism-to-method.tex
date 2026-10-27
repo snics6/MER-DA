@@ -7,7 +7,7 @@ Part~II builds the strongest start that sources allow, shows that neither a few 
 \begin{figure*}[t]
 \centering
 \FIG{method}{\textwidth}
-\caption{The method. Source and target features are centered separately. All sources outside the target corpus form a start classifier $(W_0, b_0)$, and the student starts from it with separate $\ell_2$ anchors on the weights and the intercepts. A teacher trained on the sources alone, for a single-modality student typically the fused classifier of the other modalities, labels every unlabeled target utterance with soft labels whose per-emotion totals are equalized; these weak labels enter the student's loss with total weight $m$ next to the $4K$ true labels. The teacher, $m$, and the anchors are selected for each $K$ on pseudo-targets.}
+\caption{The method. Source and target features are centered separately. All sources outside the target corpus form a start classifier $(W_0, b_0)$, and the student starts from it with separate $\ell_2$ anchors on the weights and the intercepts. In the basic method a teacher trained on the sources alone, for a single-modality student the fused start of its configuration, which includes the student's own modality and the modalities it lacks, labels every unlabeled target utterance with soft labels whose per-emotion totals are equalized; these weak labels enter the student's loss with total weight $m$ next to the $4K$ true labels. The five values of the start, including the anchors $C'$ and $C_b$, are selected once on pseudo-targets; the teacher and $m$ are selected for each $K$. The extended version adds as candidate teachers the fused student refit on the $K$ labels and the product of single-modality students trained on the pool, and selects the weighting of the weak labels (balanced, unbalanced, or hard) with $m$ for each $K$.}
 \label{fig:method}
 \end{figure*}
 
@@ -27,7 +27,7 @@ Separate anchors for the weights and the intercepts follow Part~I: the intercept
 The five values $(\gamma, \rho_s, C_b, C', \rho_M)$, three candidates each, are selected on pseudo-targets (Section~\ref{sec:setting-selection}).
 
 Each step of this construction raises UAR.
-Hypothesis transfer from the pooled sources with centering exceeds the best of target-only training, pooling, centered pooling, and source-weighted pooling by \NUM{p2-e31-p4-vs-best-audio-lo}--\NUM{p2-e31-p4-vs-best-audio-hi} points for audio at $K \in \{1, 5, 10\}$ (thirty iterations).
+Hypothesis transfer from the pooled sources with centering exceeds the best of target-only training, pooling, centered pooling, and pooling with a selected target weight by \NUM{p2-e31-p4-vs-best-audio-lo}--\NUM{p2-e31-p4-vs-best-audio-hi} points for audio at $K \in \{1, 5, 10\}$ (thirty iterations).
 Selecting the five values adds \NUM{p2-e39-vs-p4-k5-lo}--\NUM{p2-e39-vs-p4-k5-hi} points at $K=5$ across A, A~(HuBERT), V, and AV, and \NUM{p2-e39-vs-d1-k5-lo}--\NUM{p2-e39-vs-d1-k5-hi} points over a start that weights the sources equally (thirty iterations).
 We call the result the five-value start; it is the reference against which Part~II and Section~\ref{sec:comparison} measure every addition.
 
@@ -42,7 +42,7 @@ Two facts limit what $K$ labels can do about $E_0$.
 Every row of the solution $W - W_0$ of \eqref{eq:student} lies in the span of the $4K$ labeled points $M^{-1}\mathbf{z}_i$, $i \in \mathcal{L}$.
 \end{proposition}
 
-The proposition is a direct consequence of the representer theorem~\cite{CITE:kimeldorf1971,CITE:scholkopf2001} applied to $W - W_0$, since the loss depends on $W$ only through the products $W\mathbf{z}_i$.
+The proposition is a direct consequence of the representer theorem~\cite{kimeldorf1971results,scholkopf2001generalized} applied to $W - W_0$, since the loss depends on $W$ only through the products $W\mathbf{z}_i$.
 Only the projection of $E_0$ onto a subspace of at most $4K$ dimensions can be corrected, and which part of $E_0$ falls there depends on which utterances carry labels.
 
 \begin{proposition}[Label-free design]
@@ -51,12 +51,12 @@ Approximate the loss by a Gaussian likelihood around $W_0$ and the anchor by the
 If $E_0$ has no preferred direction under this prior, the expected fraction of $\|E_0\|^2$ that the span of any $4K$ points captures is the same for every choice of points made without their labels.
 \end{proposition}
 
-In a Gaussian linear model the posterior covariance does not depend on the observed labels, so the best design does not depend on them either~\cite{CITE:chaloner1984,CITE:chaloner1995}.
+In a Gaussian linear model the posterior covariance does not depend on the observed labels, so the best design does not depend on them either~\cite{chaloner1984optimal,chaloner1995bayesian}.
 A label-free choice can still reduce the posterior variance, for example by spreading the points, but without knowledge of the direction of $E_0$ it cannot align the corrected subspace with $E_0$.
 Proposition~\ref{prop:design} rests on this approximation, so we test it directly.
 
 We measured the fraction of $\|E_0\|^2$ captured by the span of $K=5$ labels per emotion under seven label-free selection rules (a second random order, the classifier's margin, herding on predicted classes, a k-center coreset, typicality clustering, and two designs in whitened coordinates) and under a teaching rule that knows the labels of all candidates.
-Relative to random selection, the label-free rules capture \NUM{p2-e58-ratio-unlab-lo}--\NUM{p2-e58-ratio-unlab-hi} times as much, and the teaching rule \NUM{p2-e58-ratio-lll-lo}--\NUM{p2-e58-ratio-lll-hi} times as much (Fig.~\ref{fig:capture}).
+Relative to random selection, measured as the ratio of target means, the label-free rules capture \NUM{p2-e58-ratio-unlab-lo}--\NUM{p2-e58-ratio-unlab-hi} times as much, and the teaching rule \NUM{p2-e58-ratio-lll-lo}--\NUM{p2-e58-ratio-lll-hi} times as much (Fig.~\ref{fig:capture}).
 Subspaces built without target labels from the disagreement of the sources or from corrections learned on pseudo-targets capture \NUM{p2-e58-r-uaub-lo}--\NUM{p2-e58-r-uaub-hi}\% of $\|E_0\|^2$.
 The selection results agree: on the five-value student, no label-free rule, including standard active-learning rules, beats random selection by one point at $K=5$ (largest margin \NUM{p2-cond2-e39-maxgain-k5}), whereas replacing a weaker student by the five-value student raises random selection itself by \NUM{p2-cond2-student-random-k5-lo}--\NUM{p2-cond2-student-random-k5-hi} points.
 The direction error left by a good start is thus specific to the target and invisible to label-free selection; its correction must come from label information, and from much more of it than $4K$ labels provide.
@@ -64,7 +64,7 @@ The direction error left by a good start is thus specific to the target and invi
 \begin{figure}[t]
 \centering
 \FIG{capture}{\columnwidth}
-\caption{Label-free selection does not find the direction error. Fraction of the start's direction error $E_0$ captured by the span of $K=5$ labels per emotion, relative to random selection, for seven label-free rules and for a teaching rule that knows all candidate labels (upper reference). Ten iterations.}
+\caption{Label-free selection does not find the direction error. Fraction of the start's direction error $E_0$ captured by the span of $K=5$ labels per emotion, relative to random selection, for seven label-free rules and for a teaching rule that knows all candidate labels (upper reference), for A, V, and T. Points are ratios of target means; whiskers show the range of the per-target ratios. Ten iterations.}
 \label{fig:capture}
 \end{figure}
 
@@ -79,34 +79,34 @@ The teacher and $m$, chosen from a small grid that includes the option of no wea
 
 The usefulness of a teacher has a natural scale.
 Let $J$ be the UAR of the teacher minus that of the start on the pool; by definition, $J$ equals the class-averaged fraction of utterances that the teacher classifies correctly and the start incorrectly, minus the fraction for which the reverse holds.
-A student that fits the teacher's labels while anchored to the start can reproduce the teacher's advantage but not create one, so the part of its gain that comes from the teacher's information should stay below $J$.
+A student that fits the teacher's labels while anchored to the start can at best approximately reproduce the teacher's advantage, so we expect, without a theorem, that the part of its gain that comes from the teacher's information stays below $J$.
 Column normalization adds a second, label-free effect: the start's own predictions, rebalanced across emotions, already act as a useful teacher.
 
 A teacher from the same modality offers little.
 Combining the votes of the per-source classifiers, each weighted by its confusion pattern on pseudo-targets, gives a belief whose $J$ over the five-value start is \NUM{p2-e52-q-minus-p-a} points for WavLM audio.
 Weak labels from this belief raise the five-value start by \NUM{p2-e59k-a-k0}, \NUM{p2-e59k-a-k1}, and \NUM{p2-e59k-a-k5} points for audio at $K = 0, 1, 5$ and by \NUM{p2-e59k-v-k0}, \NUM{p2-e59k-v-k1}, and \NUM{p2-e59k-v-k5} points for the face (ten iterations), and the gain vanishes by $K=25$.
 For audio at $K=0$, rebalancing the start's own predictions accounts for \NUM{p2-e59k-ctrl-a-k0} points, and the belief's information adds \NUM{p2-e59k-info-a-lo}--\NUM{p2-e59k-info-a-hi} points across $K \le 5$, below its $J$.
-For text, the belief is no better than the start, and the gain is nil.
+For text, the belief is no better than the start, and the gain is close to zero.
 
 \subsection{A Teacher from Another Modality}
 \label{sec:part2-crossmodal}
 
-When the target utterances also come with other modalities, a classifier trained on the sources in those modalities knows a different direction.
-This is the privileged-information setting in which the tasks share their labels and differ in their input modalities~\cite{CITE:lopezpaz2016,CITE:vapnik2009}.
+When the target utterances also come with other modalities, a fused classifier trained on the sources, which sees those modalities, knows a different direction.
+This is the privileged-information setting in which the tasks share their labels and differ in their input modalities~\cite{lopezpaz2016unifying,vapnik2009new}.
 For a single-modality student, the teacher is the fused start of its configuration, trained on the sources alone with the procedure of Section~\ref{sec:part2-start} and never refit on target data; the deployed student uses only its own modality.
-Its $J$ is large: in the AV configuration, the fused start exceeds the audio start by \NUM{p2-e60pre-juar-av-a-fused} UAR points on the pool, and other combinations of modality predictions exceed it by \NUM{p2-e60pre-juar-av-a-lo}--\NUM{p2-e60pre-juar-av-a-hi} points, whereas the face start alone falls \NUM{p2-e60pre-juar-av-a-v} points below it.
-For a fused student, combinations of single-modality predictions do not beat the fused start ($J$ between \NUM{p2-e60pre-juar-av-f-poe} and \NUM{p2-e60pre-juar-av-f-pool} points in AV), so we use a two-stage reference: the single-modality students are first trained with the fused teacher, and the product of their predictions then teaches the fused student.
+Its $J$ is large: in a preliminary check over two iterations in the AV configuration, the fused start exceeds the audio start by \NUM{p2-e60pre-juar-av-a-fused} UAR points on the pool, and other combinations of modality predictions exceed it by \NUM{p2-e60pre-juar-av-a-lo}--\NUM{p2-e60pre-juar-av-a-hi} points, whereas the face start alone falls \NUM{p2-e60pre-juar-av-a-v} points below it.
+For a fused student, combinations of single-modality predictions barely differ from the fused start ($J$ from \NUM{p2-e60pre-juar-av-f-poe} to \NUM{p2-e60pre-juar-av-f-pool} points in AV in the same check), so we use a two-stage reference: the single-modality students are first trained on the target pool with the fused teacher, and the product of their predictions then teaches the fused student.
 
-Cross-modal weak labels raise every student above the five-value start (Fig.~\ref{fig:ladder}).
+At $K \le 5$, cross-modal weak labels raise every student above the five-value start (Fig.~\ref{fig:ladder} shows the audio student).
 At $K=0$, the gains for single-modality students are \NUM{p2-e60-av-a-k0} (audio) and \NUM{p2-e60-av-v-k0} points (face) in AV, \NUM{p2-e60-vt-t-k0} (text) in VT, \NUM{p2-e60-at-t-k0} (text) in AT, and \NUM{p2-e60-avt-a-k0} (audio), \NUM{p2-e60-avt-t-k0} (text), and \NUM{p2-e60-avt-v-k0} points (face) in AVT; all \NUM{p2-e60-m1-n} single-modality students gain at both $K=0$ and $K=5$.
 The fused students gain \NUM{p2-e60-f-k0-lo}--\NUM{p2-e60-f-k0-hi} points at $K=0$.
-These gains exceed the gain from a teacher of the same modality and remain below the $J$ of the cross-modal teacher, as the scale of the previous subsection anticipates.
-With more labels the gains shrink, and at $K \ge 10$ \NUM{p2-e60-m3-loss-n} of the \NUM{p2-e60-m3-students-n} students fall slightly below the five-value start (at most \NUM{p2-e60-m3-worst} points).
-The extended family, which adds as candidate teachers the fused student refit on the $K$ labels and the two-stage reference and adds the weighting of the weak labels (balanced, unbalanced, or hard) to the selection, removes these losses (Section~\ref{sec:comparison}).
+For audio and text students these gains exceed those from a teacher of the same modality; for face students they are smaller (\NUM{p2-e60-vt-v-k0} and \NUM{p2-e60-avt-v-k0} points in VT and AVT against \NUM{p2-e59k-v-k0} at $K=0$). In AV, where $J$ was measured, the audio student's gain stays below the $J$ of its teacher, as the scale of the previous subsection anticipates.
+With more labels the gains shrink, and at $K \ge 10$ \NUM{p2-e60-m3-loss-n} of the \NUM{p2-e60-m3-students-n} students fall below the five-value start (the worst difference is \NUM{p2-e60-m3-worst} points).
+The extended family, which adds as candidate teachers the fused student refit on the $K$ labels and the two-stage reference and adds the weighting of the weak labels (balanced, unbalanced, or hard) to the selection, removes these losses for the AVT audio and AV fused students that the comparison evaluates (Section~\ref{sec:comparison}); the VT text and AT audio students were not run with the extended family.
 
 \begin{figure}[t]
 \centering
 \FIG{ladder}{\columnwidth}
-\caption{The method step by step. UAR of target-only training, pooling, hypothesis transfer from the pooled sources, the five-value start, weak labels from a same-modality belief, and weak labels from the fused teacher, against $K$, on a common set of targets.}
+\caption{The method step by step for the audio student. (a)~UAR of target-only training, pooling (averaged over single sources), hypothesis transfer from the pooled sources (HT), and the five-value start against $K$ (seven targets, thirty iterations). (b)~Differences from the five-value start of the same experiment for weak labels from a same-modality belief (seven targets) and from the fused teacher of AV (six targets) and AVT (four targets), and for the extended family in AVT (four targets), over ten iterations; the start differs between configurations because fused configurations keep only utterances with all their modalities.}
 \label{fig:ladder}
 \end{figure}

@@ -24,9 +24,10 @@ import style  # noqa: E402
 from ledger import comparison as C  # noqa: E402
 
 # 相手の略称（キャプションで定義する）
+# 本文の表（6 節 tab:compare）の略称に合わせる．共訓練・共正則化の変種は同じ略称にまとめる
 ABBR = {"self": "ST", "entmin": "EntM", "kd": "KD", "gd": "GD", "hard": "HPL", "cotrain": "CoT",
-        "cotrain_prod": "CoT-P", "cotrain_fused": "CoT-F", "coreg": "CoR", "coreg_sum": "CoR-S",
-        "saerens": "SEM", "massbal": "MB"}
+        "cotrain_prod": "CoT", "cotrain_fused": "CoT", "coreg": "CoR", "coreg_sum": "CoR",
+        "saerens": "PA", "massbal": "RB"}
 
 # 描く生徒（世界の key, 生徒の名前, 目盛りの名前, 区切りの名前）
 GROUPS = [

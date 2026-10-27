@@ -1,0 +1,74 @@
+% 日本語版（研究者が読むためのもの）．英語版 ../main.tex と節・図・表・式・数値を 1 対 1 に対応させる．
+% ビルドは build.sh（LuaLaTeX と BibTeX）．数値は英語版と同じく \NUM{key} で書き，../numbers.tex を読む．
+\documentclass[paper=a4,fontsize=9.5pt,twocolumn,line_length=26zw,number_of_lines=50,head_space=17mm,baselineskip=1.55zw,column_gap=2zw]{jlreq}
+\usepackage[ipaex]{luatexja-preset}
+\usepackage{amsmath,amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage[nocompress]{cite}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+% 命題の環境（英語版の \newtheorem{proposition}{Proposition} に対応）．本文は立体にする（IEEEtran と同じ）．
+\newtheoremstyle{japroposition}{0.5\baselineskip}{0.5\baselineskip}{\normalfont}{0pt}{\sffamily\gtfamily\bfseries}{}{1\zw}{\thmname{#1}\thmnumber{#2}\thmnote{（#3）}}
+\theoremstyle{japroposition}
+\newtheorem{proposition}{命題}
+
+% \emph の中の和文はゴシックにする（欧文は斜体のまま）．
+\let\jaorigemph\emph
+\renewcommand{\emph}[1]{\jaorigemph{\gtfamily #1}}
+
+% 本文の実験由来の数値は \NUM{key} で書く（英語版と同じ台帳 ../results/numbers.json → ../numbers.tex）．
+\input{../numbers}
+
+% 図：英語版の \FIG と同じ．図は ../figures/<name>.pdf を使う．
+\newcommand{\FIG}[2]{\IfFileExists{../figures/#1.pdf}{\includegraphics[width=#2]{../figures/#1.pdf}}{\fbox{\parbox[c][6em][c]{\dimexpr#2-2\fboxsep-2\fboxrule\relax}{\centering\footnotesize figure \texttt{#1} (pending)}}}}
+
+\renewcommand{\abstractname}{要旨}
+
+\title{少数のターゲットラベルが最初に直すもの：\\コーパス横断のマルチモーダル感情認識における\\判断基準と向きの分析，\\およびモダリティをまたぐ弱いラベルの転移}
+
+\author{著者名（未記入）\thanks{所属（未記入）．}}
+
+\date{IEEE Transactions on Affective Computing 投稿原稿の日本語版}
+
+% jlreq では，2 段組のときにプリアンブルに書いた abstract が \maketitle で全幅に置かれる．
+\begin{abstract}
+新しいコーパスに移した感情認識器には，感情ごとに少数のラベルしか与えられず，それを他のコーパスのラベル付きデータで補うことが多い．
+本論文は，凍結した（微調整しない）音声・顔・テキストの特徴の上の線形分類器において，これらの少数のラベルが何を直すかを，7つのコーパス群のすべての順序対について分析する．
+感情の対ごとの判定を判断基準（threshold）と向き（direction）で表すと，単一モダリティの音声と顔の特徴で感情ごとのラベルが5本以下のとき，ラベルが合併（pooled）の分類器に加える改善のうち\NUM{p1-e29-critshare-kle5-single-lo}から\NUM{p1-e29-critshare-kle5-single-hi}の割合が判断基準の修正から生じる．
+一方，音声の向きは\NUM{p1-qdir-audio-lo}から\NUM{p1-qdir-audio-hi}の実効次元（effective dimension）で決まる速さでしか改善せず，1つのソースコーパスは向きについて感情ごとに\NUM{p1-e32-n1src-audio-lo}から\NUM{p1-e32-n1src-audio-hi}本のラベルに相当する．
+少数のラベルも，ラベルを使わない発話の選択も，強い出発点（start）の向きを直さない．
+そこで本論文は，ソースコーパスだけで学習し，生徒（student）がもたないモダリティを見る融合の分類器が，ラベルのないターゲットの発話すべてに付ける弱いラベル（weak labels）で，出発点にアンカーした線形の生徒を学習する．
+ターゲットのプールで学び直した先生を加え，ラベルの本数ごとに選ぶように拡張すると，この手法は，感情ごとのラベルが0本と5本のとき，11の生徒すべてについて，同じ手順で調整した9つの比較手法のうち最も強いものをUARで\NUM{cmp-oursx-vs-best-range-lo}から\NUM{cmp-oursx-vs-best-range-hi}ポイント上回り，第2のエンコーダでも上回る．
+
+\medskip
+\noindent{\sffamily\gtfamily\bfseries 索引語}\quad
+マルチモーダル感情認識，コーパス横断，少数ショット学習，ドメイン適応，知識蒸留，弱いラベル．
+\end{abstract}
+
+% 段の下端をそろえるために式の前後が引き伸ばされるのを防ぐ．
+\raggedbottom
+% 図と表の説明文：ラベル（図1，表1）はゴシックの太字，本文は明朝で small．
+\jlreqsetup{caption_font={\small},caption_label_font={\small\sffamily\gtfamily\bfseries}}
+
+\begin{document}
+
+\maketitle
+
+\input{sections/1-introduction}
+\input{sections/2-related-work}
+\input{sections/3-setting}
+\input{sections/4-part1-what-few-labels-fix}
+\input{sections/5-part2-mechanism-to-method}
+\input{sections/6-comparison}
+\input{sections/7-discussion}
+\input{sections/8-limitations-ethics}
+\input{sections/9-conclusion}
+
+\bibliographystyle{../IEEEtran}
+\bibliography{../references}
+
+\end{document}
