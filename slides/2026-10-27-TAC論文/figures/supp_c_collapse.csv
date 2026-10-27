@@ -1,0 +1,7 @@
+# 出所：results/baselines_fuse-audio-video-text/<T>.csv（台帳 comparison.py の _world）．AVT の世界の単独の生徒，K=0，4 ターゲット，反復 0〜9．
+# start は 5 つの値を選んだ出発点，EntM・CoR・PA は元の論文の値を使う固定版（エントロピー最小化 entmin|-|n，共正則化 coreg|-|n，事前確率の調整 saerens|-|0）の UAR（%）のターゲットの平均．
+# 出発点は台帳 tab-avt-<生徒>-k0-e39 と，固定版 − 出発点は台帳 cmp-<手法>-fixed-vs-e39-avt-<生徒>-k0 と照合した
+x,student,start,EntM,CoR,PA
+0,音声,47.4409,24.7013,25.5058,35.0033
+1,顔,42.2401,29.0904,25.4103,31.2546
+2,言葉,44.06,33.2669,25.0159,33.5201

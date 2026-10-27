@@ -1,0 +1,7 @@
+# 出所：results/baselines_<世界>/<T>.csv と <T>_pseudo.csv（台帳 comparison.py の _world が作り直した選択．列 entmin:pick）．融合の生徒．
+# none<K> は，調整版のエントロピー最小化が仮のターゲットで「使わない」（none）を選んだターゲットの数（全 n のうち）
+world,n,none0,none1,none5,none10,none25
+AVT,4,4,4,4,4,4
+VT,4,3,4,2,4,4
+AT,4,4,4,4,4,4
+AV,6,6,6,6,6,5

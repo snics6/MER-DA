@@ -30,18 +30,19 @@
   \vspace{0.2em}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.49\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
-        \item 感情は中立・喜び（IEMOCAP は興奮を含む）・悲しみ・怒り．主な指標は UAR（感情ごとの正解率の平均．でたらめなら 25\%）
-        \item IEMOCAP の台本の回は 10 人が同じ台詞を読み，言葉の分類器が台本を覚えるので，即興と台本を分けた
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 4 感情（中立・喜び・悲しみ・怒り）．主な指標は UAR（でたらめなら 25\%）
+        \item IEMOCAP は即興と台本を別の群にした（台本の回では言葉の分類器が台本を覚える）
       \end{itemize}
     \end{column}
     \begin{column}{0.49\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
-        \item CMU-MOSEI は，6 つの強さの評点のうち 1 つだけが 0.5 以上ならその感情，どれも 0.5 未満なら中立とした
-        \item 顔は RAVDESS に無い．言葉は 4 群だけ（AFEW に書き起こしが無く，RAVDESS と CREMA-D は決まった文を読む）
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 顔は RAVDESS に無い．言葉は 4 群だけにある
+        \item CMU-MOSEI の中立は，どの感情の評点も 0.5 未満の発話
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:set:feat}{特徴の作り方，融合で残る発話の数}
 \end{frame}
 
 \begin{frame}{凍結した特徴に線形分類器を載せ，話者で分けて $K$ 本のラベルを抜き出す}
@@ -50,11 +51,10 @@
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.5\textwidth}
       \textbf{\footnotesize 特徴と分類器}\par\vspace{0.2em}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
-        \item エンコーダは微調整しない．音声は WavLM-Large の最終層，言葉は RoBERTa-base の最終層，顔は表情認識で学んだ ResNet-50 の埋め込みを，発話の中で平均する
-        \item 2 つ目のエンコーダ（結論が残るかの確認）：HuBERT-Large，DeBERTa-v3-base，CLIP ViT-L/14
-        \item 融合（AV，VT，AT，AVT）は，次元ごとに標準化した特徴をつなげる．すべてのモダリティがある発話だけを使う
-        \item 分類器は 4 クラスのロジスティック回帰．重みに L2 罰則 $\|W\|_F^2/(2C)$，切片には罰則なし．感情の数の逆数のクラスの重みで UAR をねらう
+      \begin{itemize}\scriptsize\setlength{\itemsep}{7pt}
+        \item エンコーダは微調整しない（音声 WavLM，顔 ResNet-50，言葉 RoBERTa．2 つ目のエンコーダでも確かめる）
+        \item 融合は，次元ごとに標準化した特徴をつなげる
+        \item 分類器は 4 クラスのロジスティック回帰．重みに L2 罰則，切片には罰則なし
       \end{itemize}
     \end{column}
     \begin{column}{0.48\textwidth}
@@ -72,12 +72,13 @@
         \node[anchor=south, font=\tiny] at (2.1,0.35) {話者を 5 つに分ける．反復 $r$ は $r \bmod 5$ 番目でテスト};
         \draw[decorate, decoration={brace, mirror, amplitude=3pt}, mMuted] (-0.5,-0.4) -- (4.7,-0.4);
         \node[tgtbox, text width=5.0cm, align=left] at (2.1,-1.2) {プール（テスト以外の発話）\\・感情ごとに $K$ 本を抜いてラベルを付ける（$4K$ 本）\\・残りはラベル無しで使ってよい};
-        \node[align=left, font=\tiny, text width=5.4cm, anchor=north] at (2.1,-2.0) {・種はターゲットと反復だけで決まる：どのソースでも同じ $K$ 本．$K$ の間で入れ子\\・テストの話者はソースからも除く（IEMOCAP の 2 群の間だけで効く）\\・テストの発話は学習にも選択にも使わない};
+        \node[align=left, font=\tiny, text width=5.4cm, anchor=north] at (2.1,-2.0) {・種はターゲットと反復だけで決まる：どのソースでも同じ $K$ 本．$K$ の間で入れ子\\・テストの話者はソースからも除く（除かれる発話があるのは IEMOCAP の 2 群の間だけ）\\・テストの発話は学習にも選択にも使わない};
       \end{tikzpicture}
     \end{column}
   \end{columns}
   \vspace{0.2em}
   \takeaway{線形分類器は判定の仕組みを解析でき，少ないラベルでは微調整より強い（比較の部で確認）}
+  \hosoku{s:set:split}{分割と $K$ 本の抜き方}
 \end{frame}
 
 \begin{frame}{利得 ＝ 同じ反復の「合併」の UAR − 「ターゲットのみ」の UAR}
@@ -100,14 +101,14 @@
       \end{tikzpicture}
     \end{column}
     \begin{column}{0.46\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item ターゲットとソースの順序つきの組すべてで，反復ごとに 3 つを学ぶ
-        \item $K \in \{1,5,10,25,50\}$ と全件．反復 \NUM{map-reps-a} 回．組の数は A \NUM{map-pairs-a}，V と AV \NUM{map-pairs-v}，言葉を含む種類 \NUM{map-pairs-t}
-        \item ターゲットのみ・ソースのみの $C$ は，話者で 3 分割の交差検証で $\{0.01, 0.1, 1, 10\}$ から選ぶ．合併は同じ反復のソースのみの $C$ を使う（ターゲットのラベルを使わない）
-        \item $K=1$ では検証の点がほとんど同点になり，同点の規則が罰則を弱めるので，ターゲットのラベルで $C$ を選ばない．全件ではこの規則が合併の損を大きく見せる（交差検証の版は補足資料）
+      \begin{itemize}\footnotesize\setlength{\itemsep}{8pt}
+        \item ターゲットとソースのすべての順序つきの組で，反復ごとに 3 つを学ぶ
+        \item $K \in \{1,5,10,25,50\}$ と全件．反復 \NUM{map-reps-a} 回
+        \item 合併の $C$ は，同じ反復のソースのみの $C$ を使う（ターゲットのラベルで選ばない）
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:set:cfix}{$C$ の決め方と，交差検証で選んだ版}
 \end{frame}
 
 \begin{frame}{2 つの感情の判定を，判断基準のずれ $o$ と識別力 $d$ に分けて調べる}
@@ -115,15 +116,11 @@
   \vspace{0.1em}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.47\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 4 感情の分類器を，6 つの感情の対の判定に分ける．感情 $k$ と $l$ のスコアの差 $z$ を横軸に取ると，発話は感情ごとに山を作る
-        \item \disc{識別力 $d$}：2 つの山の中心の離れ方（山の幅で割る）．重みの向き $\mathbf{w}_k - \mathbf{w}_l$ だけで決まる
-        \item \crit{判断基準のずれ $o$}：境界 $z=0$ が 2 つの中心の真ん中からずれた量．切片だけで 0 にできる
-        \item ターゲットの全ラベルで求めた最良の向きの識別力を $\Delta$ とすると，損は 2 つに分かれる
-        \begin{itemize}\scriptsize
-          \item \crit{判断基準による損失}：境界を真ん中に動かすと取り戻せる分
-          \item \disc{向きによる損失}：それでも残る分（$d < \Delta$ による）
-        \end{itemize}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{7pt}
+        \item 4 感情の分類器を，6 つの感情の対の判定に分ける
+        \item \disc{識別力 $d$}：2 つの山の中心の離れ方．重みの向きで決まる
+        \item \crit{判断基準のずれ $o$}：境界が真ん中からずれた量．切片で 0 にできる
+        \item 損は\crit{判断基準による損失}（境界を真ん中に動かすと戻る分）と\disc{向きによる損失}（残る分）に分ける
       \end{itemize}
     \end{column}
     \begin{column}{0.51\textwidth}
@@ -154,6 +151,7 @@
       {\raggedright\tiny 模式図．横軸は 2 つの感情のスコアの差 $z$\par}
     \end{column}
   \end{columns}
+  \hosoku{s:p1:loss}{損の分け方の式}
 \end{frame}
 
 \begin{frame}{山が正規分布なら，正解率は $d$ が大きいほど，$o$ が 0 に近いほど高い}
@@ -175,14 +173,13 @@
       {\raggedright\tiny 2 つの山を正規分布とした式の値（実験の値ではない）\par}
     \end{column}
     \begin{column}{0.46\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
-        \item 正解率（2 つの再現率の平均）は $a(d,o) = \tfrac12[\Phi(\tfrac d2 + o) + \Phi(\tfrac d2 - o)]$（$\Phi$ は標準正規分布の分布関数）
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
         \item 例：$d=2$ のとき，$o=0$ なら 84\%，$o=1$ なら 74\%
-        \item 判断基準による損失 $= a(d,0) - a(d,o)$，向きによる損失 $= a(\Delta,0) - a(d,0)$．6 つの対で平均し，対の正解率のポイントで表す
-        \item この模型で測った $d$ と $o$ から予言した正解率は，実測の正解率と \NUM{p1-e13-fit-r-lo}〜\NUM{p1-e13-fit-r-hi} の相関で合う（平均の誤差 \NUM{p1-e13-fit-mae-lo}〜\NUM{p1-e13-fit-mae-hi} \pt）
+        \item この模型で予言した正解率は，実測の正解率と \NUM{p1-e13-fit-r-lo}〜\NUM{p1-e13-fit-r-hi} の相関で合う
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p1:acc}{2 つの山の模型と正解率の式の導出}
 \end{frame}
 
 \begin{frame}{ハイパーパラメータは，ソースの 1 つを仮のターゲットにして選ぶ}
@@ -205,9 +202,9 @@
     \node[align=left, font=\tiny, text width=6.6cm] at (11.1,0.25) {$T$ のラベルは $K$ 本のほかに使わない．オラクル（$T$ のテスト話者で最良の値）は選び方の損を測るためだけに使う};
   \end{tikzpicture}\par
   \vspace{0.4em}\raggedright
-  \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
-    \item 第 II 部の手法と比較手法のハイパーパラメータは，すべてこの手順で選ぶ（$K$ 本では選べないため．ドメインを 1 つずつ抜いて選ぶ方法と同じ考え方）
-    \item 差は UAR のポイント．区間は反復の対の差の 95\% $t$ 区間で，ラベルとテスト話者の抜き方のばらつきだけを表す（話者やコーパスの抜き直しではない）
-    \item IEMOCAP は 10 人なのでテストの分割が 5 通り（即興）か 7 通り（台本）しかない．ソースが役立つかを判定するときは，同じ分割の反復を先に平均する
-  \end{itemize}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{6pt}
+        \item 第 II 部の手法と比較手法の設定は，すべてこの手順で選ぶ
+        \item 区間は反復の対の差の 95\% $t$ 区間で，ラベルとテスト話者の抜き方のばらつきを表す
+      \end{itemize}
+  \hosoku{s:set:sel}{手順の詳細，区間と IEMOCAP の分割}
 \end{frame}

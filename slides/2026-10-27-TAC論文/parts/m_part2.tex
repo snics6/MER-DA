@@ -17,7 +17,7 @@
     \node[srcbox, text width=2.0cm] (s0) at (1.2,3.45) {ラベル付きの発話};
     \node[clf, text width=1.9cm] (sc) at (4.0,3.45) {中心化\\（ソースごと）};
     \node[draw=cStart, fill=white, rounded corners=2pt, align=center, text width=3.2cm, line width=0.8pt] (st) at (7.6,3.95) {\textbf{出発点} $(W_0, b_0)$\\生徒のモダリティ};
-    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=3.2cm, line width=0.8pt] (te) at (7.6,2.95) {\textbf{先生}：融合の出発点\\（同じ作り方，ソースだけ）};
+    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=3.2cm, line width=0.8pt] (te) at (7.6,2.95) {\textbf{先生}：融合の出発点など\\（同じ作り方，ソースだけ）};
     \draw[arr] (s0) -- (sc);
     \draw[arr] (sc.east) -- (st.west);
     \draw[arr] (sc.east) -- (te.west);
@@ -39,9 +39,9 @@
   \end{tikzpicture}\par
   \vspace{0.2em}\raggedright
   \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
-    \item 縛り：重みに $\|W - W_0\|_M^2/(2C')$，切片に $\|b - b_0\|^2/(2C_b)$．5 つの値 $(\gamma, \rho_s, C_b, C', \rho_M)$ は仮のターゲットで $K$ によらず 1 度選び，先生と $m$ は $K$ ごとに選ぶ
-    \item 融合の生徒の先生と，拡張版で足す候補は，後のスライドで説明する
-  \end{itemize}
+        \item 重みと切片は別の強さで出発点に縛る．5 つの値は仮のターゲットで 1 度，先生と $m$ は $K$ ごとに選ぶ
+      \end{itemize}
+  \hosoku{s:p2:obj}{生徒の目的関数}
 \end{frame}
 
 \begin{frame}{出発点の工夫ごとに UAR が上がる：仮説転移，さらに 5 つの値を選ぶ}
@@ -64,15 +64,14 @@
       {\raggedright\tiny A（WavLM）の生徒．ターゲット 7 つ，反復 30 回の平均\par}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
-        \item 生徒は中心化した特徴で学ぶ．第 I 部の判断基準の損の大半がここで消える
-        \item ソース $s$ の向き：閉じた形の判別の向き $((1-\rho_s)\Sigma_s + \rho_s \tau_s I)^{-1}\tilde M_s$ を，$N_s^{\gamma}$ の比重で足す．切片は感情の事前確率を等しいとする
-        \item 重みと切片を別の強さで縛る：少ないラベルは切片をよく決め，重みを悪く決める（第 I 部）
-        \item 全ソースからの仮説転移（中心化あり）は，ターゲットのみ・合併・中心化した合併・比重を選んだ合併の最良を，音声の $K\in\{1,5,10\}$ で \NUM{p2-e31-p4-vs-best-audio-lo}〜\NUM{p2-e31-p4-vs-best-audio-hi} \pt 上回る
-        \item 5 つの値を選ぶと $K=5$ でさらに \NUM{p2-e39-vs-p4-k5-lo}〜\NUM{p2-e39-vs-p4-k5-hi} \pt（A，A(HuBERT)，V，AV）．ソースを等しい比重で足す出発点より \NUM{p2-e39-vs-d1-k5-lo}〜\NUM{p2-e39-vs-d1-k5-hi} \pt 高い
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
+        \item 生徒は中心化した特徴で学ぶ（判断基準の損の大半が消える）
+        \item 全ソースからの仮説転移は，従来法の最良を音声の $K \le 10$ で \NUM{p2-e31-p4-vs-best-audio-lo}〜\NUM{p2-e31-p4-vs-best-audio-hi} \pt 上回る
+        \item 5 つの値を選ぶと，$K=5$ でさらに \NUM{p2-e39-vs-p4-k5-lo}〜\NUM{p2-e39-vs-p4-k5-hi} \pt 上がる
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p2:start}{出発点の作り方の式と全部の値}
 \end{frame}
 
 \begin{frame}{$K$ 本のラベルで直せる向きは，その $4K$ 本が張る空間の中だけである（命題 1）}
@@ -95,14 +94,14 @@
       {\raggedright\tiny 模式図．青の点はラベルの付いた発話\par}
     \end{column}
     \begin{column}{0.54\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
-        \item $W^{*}$：プールの全ラベルで学んだ生徒．$E_0 = W^{*} - W_0$：出発点の向きの誤差
-        \item \textbf{命題 1}：生徒の解の $W - W_0$ の各行は，ラベルの付いた $4K$ 本の点 $M^{-1}\mathbf{z}_i$ が張る空間にある（損失は $W$ を $W\mathbf{z}_i$ の形でしか含まない．表現定理と同じ理由）
-        \item 直せるのは，$E_0$ の高々 $4K$ 次元への射影だけ．$E_0$ のどの部分がそこに入るかは，どの発話にラベルを付けるかで決まる
-        \item 次の問い：ラベルを付ける発話をうまく選べば，$E_0$ を捉えられるか
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
+        \item $E_0 = W^{*} - W_0$：出発点の向きの誤差（$W^{*}$ はプールの全ラベルで学んだ生徒）
+        \item \textbf{命題 1}：生徒の解の $W - W_0$ は，ラベルの付いた $4K$ 本の点が張る空間にある
+        \item 直せるのは $E_0$ の高々 $4K$ 次元への射影だけ．どの部分かはラベルを付ける発話で決まる
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p2:span}{命題 1 の証明}
 \end{frame}
 
 \begin{frame}{ラベルを見ずに選んでも，向きの誤差を捉える発話は選べない（命題 2）}
@@ -130,14 +129,14 @@
       {\raggedright\tiny $K=5$（20 本）．印はターゲットの平均どうしの比，線はターゲットごとの比の範囲．A 7，V 6，T 4 ターゲット，反復 10 回\par}
     \end{column}
     \begin{column}{0.43\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item \textbf{命題 2}：損失を $W_0$ のまわりで正規分布で近似し，縛りを事前分布 $\mathcal{N}(W_0, C'M^{-1})$ とみなす．$E_0$ に好む向きが無ければ，ラベルを見ずに選んだどの $4K$ 本でも，捉える $\|E_0\|^2$ の割合の期待値は同じ
-        \item 正規の線形模型では，事後の共分散が観測したラベルによらないため
-        \item 実測：ラベル無しの 7 通りはでたらめの \NUM{p2-e58-ratio-unlab-lo}〜\NUM{p2-e58-ratio-unlab-hi} 倍．候補のラベルを全部使っても \NUM{p2-e58-ratio-lll-lo}〜\NUM{p2-e58-ratio-lll-hi} 倍
-        \item 5 つの値の生徒では，どのラベル無しの選び方も $K=5$ ででたらめを 1 \pt 上回らない（最大 \NUM{p2-cond2-e39-maxgain-k5}）
+      \begin{itemize}\scriptsize\setlength{\itemsep}{8pt}
+        \item \textbf{命題 2}：正規近似のもとでは，ラベルを見ずに選んだどの $4K$ 本も，$E_0$ を捉える割合の期待値は同じ
+        \item 実測：ラベル無しの 7 通りはでたらめの \NUM{p2-e58-ratio-unlab-lo}〜\NUM{p2-e58-ratio-unlab-hi} 倍．候補のラベルを使っても \NUM{p2-e58-ratio-lll-lo}〜\NUM{p2-e58-ratio-lll-hi} 倍
+        \item 5 つの値の生徒では，どのラベル無しの選び方もでたらめを 1 \pt 上回らない
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p2:capture}{命題 2 の説明と選び方の定義}
 \end{frame}
 
 \begin{frame}{弱いラベル：先生の予測を，感情ごとの合計がそろうように割り直して全体に付ける}
@@ -177,17 +176,18 @@
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.49\textwidth}
       \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
-        \item 先生は，ラベル無しの $N_u$ 本すべてについて 4 感情の確率を出す（行列 $Q$）．数千本の発話にラベルの情報が付く
-        \item 例の先生は中立を多く予測する（列の合計 1.90）．割り直すと，どの感情も合計が同じになる
+        \item 先生は，ラベル無しの発話すべてに 4 感情の確率を出す
+        \item 例の先生は中立を多く予測する（合計 1.90）．割り直すと，どの感情も合計が同じになる
       \end{itemize}
     \end{column}
     \begin{column}{0.49\textwidth}
       \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
-        \item 生徒は，$K$ 本の損失と出発点への縛りに $\sum_i \sum_c Q_{ic}\,\ell(W\mathbf{z}_i + b, c)$ を足して学ぶ．先生と $m$ は，弱いラベルを使わない候補も含めて $K$ ごとに仮のターゲットで選ぶ
-        \item 割り直しだけでも働く：出発点自身の予測を割り直すと，それが先生の役をする
+        \item 生徒は $K$ 本と弱いラベルの両方で学ぶ．先生と $m$ は $K$ ごとに選ぶ
+        \item 出発点自身の予測を割り直すだけでも先生の役をする
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p2:weak}{弱いラベルの作り方の詳細}
 \end{frame}
 
 \begin{frame}{同じモダリティの先生でも生徒は上がるが，その先生の $J$ は小さい}
@@ -208,14 +208,14 @@
       {\raggedright\tiny $J$ ＝（先生だけが当てる割合）−（出発点だけが当てる割合）を感情ごとに平均したもの ＝ プールでの先生の UAR − 出発点の UAR\par}
     \end{column}
     \begin{column}{0.54\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 出発点に縛った生徒は先生の優位をおおよそ再現するのが精一杯なので，生徒の利得のうち先生の情報から来る分は $J$ を超えないと予想する（定理ではない）
-        \item 見込み：ソースごとの分類器を，仮のターゲットでの混同の仕方で重みづけてまとめた先生．A では $J$ = \NUM{p2-e52-q-minus-p-a} \pt
-        \item その弱いラベルで，A は $K = 0, 1, 5$ に \NUM{p2-e59k-a-k0}，\NUM{p2-e59k-a-k1}，\NUM{p2-e59k-a-k5} \pt，V は \NUM{p2-e59k-v-k0}，\NUM{p2-e59k-v-k1}，\NUM{p2-e59k-v-k5} \pt 上がる（反復 10 回）．$K=25$ までに消える
-        \item A の $K=0$ では，出発点の予測の釣り合い直しだけで \NUM{p2-e59k-ctrl-a-k0} \pt．見込みの情報の分は $K\le5$ で \NUM{p2-e59k-info-a-lo}〜\NUM{p2-e59k-info-a-hi} \pt で，$J$ より小さい．言葉ではほぼ 0
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
+        \item 先生の情報から来る利得は $J$ を超えないと予想する（定理ではない）
+        \item 同じモダリティの見込みの $J$ は，A で \NUM{p2-e52-q-minus-p-a} \pt しかない
+        \item その弱いラベルで A は $K=0$ に \NUM{p2-e59k-a-k0} \pt 上がる．うち \NUM{p2-e59k-ctrl-a-k0} \pt は釣り合い直しだけの分
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p2:e59}{見込みの蒸留の詳細}
 \end{frame}
 
 \begin{frame}{モダリティをまたぐ先生：ソースだけで学んだ融合の出発点が生徒に教える}
@@ -241,11 +241,12 @@
     \draw[arr, cExt] (p2) -- (s2);
   \end{tikzpicture}\par
   \vspace{0.3em}\raggedright
-  \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
-    \item 特権情報（学習のときだけ使える別のモダリティ）と同じ考え方．融合の出発点は，単独のモダリティと違う向きを知っている
-    \item 下調べ（AV，反復 2 回）の $J$：融合の出発点は音声の出発点に対して \NUM{p2-e60pre-juar-av-a-fused} \pt，顔の出発点は \NUM{p2-e60pre-juar-av-a-v} \pt．融合の生徒に対しては，単独の出発点の組み合わせの $J$ が \NUM{p2-e60pre-juar-av-f-poe}〜\NUM{p2-e60pre-juar-av-f-pool} \pt しかないので，2 つ目の形にした
-    \item 基本版の弱いラベルはすべて，ソースだけで学んだ融合の出発点から作る
-  \end{itemize}
+  \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 融合の出発点は，単独のモダリティとは違う向きを知っている（特権情報と同じ考え方）
+        \item 下調べ（AV）の $J$：融合の出発点は，音声の出発点に対して \NUM{p2-e60pre-juar-av-a-fused} \pt
+        \item 基本版の先生の候補：融合の出発点，単独の出発点の予測の積，2 つの一致で重みづけた融合の出発点（どれもソースだけで学ぶ）
+      \end{itemize}
+  \hosoku{s:p2:pre}{下調べの $J$ の全表}
 \end{frame}
 
 \begin{frame}{$K\le5$ では，モダリティをまたぐ弱いラベルがすべての生徒を出発点より上げる}
@@ -261,53 +262,54 @@
             legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=2, /tikz/every even column/.append style={column sep=0.5em}}]
           \draw[black, line width=0.6pt] (axis cs:-0.2,0) -- (axis cs:4.2,0);
           \addplot[mMuted, mark=o, line width=1.1pt] table[x=x, y=e59] {ladder_gains.csv}; \addlegendentry{同じモダリティの先生（7）}
-          \addplot[cExt!55, mark=diamond*, line width=1.1pt] table[x=x, y=e60av] {ladder_gains.csv}; \addlegendentry{AV の融合の先生（6）}
-          \addplot[cExt, mark=square*, line width=1.1pt] table[x=x, y=e60avt] {ladder_gains.csv}; \addlegendentry{AVT の融合の先生（4）}
+          \addplot[cExt!55, mark=diamond*, line width=1.1pt] table[x=x, y=e60av] {ladder_gains.csv}; \addlegendentry{AV の基本版（6）}
+          \addplot[cExt, mark=square*, line width=1.1pt] table[x=x, y=e60avt] {ladder_gains.csv}; \addlegendentry{AVT の基本版（4）}
           \addplot[cExt, mark=*, line width=1.4pt, densely dashed] table[x=x, y=oursx] {ladder_gains.csv}; \addlegendentry{拡張版，AVT（4）}
         \end{axis}
       \end{tikzpicture}\par
       {\raggedright\tiny 音声の生徒．括弧はターゲットの数．線ごとにターゲットと出発点が違うので，高さでなく出発点との差を比べる．反復 10 回\par}
     \end{column}
     \begin{column}{0.5\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
-        \item $K=0$ の単独の生徒：AV の A \NUM{p2-e60-av-a-k0}，V \NUM{p2-e60-av-v-k0}．VT の T \NUM{p2-e60-vt-t-k0}．AT の T \NUM{p2-e60-at-t-k0}．AVT の A \NUM{p2-e60-avt-a-k0}，T \NUM{p2-e60-avt-t-k0}，V \NUM{p2-e60-avt-v-k0} \pt
-        \item 融合の生徒は $K=0$ で \NUM{p2-e60-f-k0-lo}〜\NUM{p2-e60-f-k0-hi} \pt．単独の生徒 \NUM{p2-e60-m1-n} 個はどれも $K=0$ と $K=5$ の両方で上がる
-        \item 同じモダリティの先生より大きいのは音声と言葉の生徒．顔の生徒は VT \NUM{p2-e60-vt-v-k0}，AVT \NUM{p2-e60-avt-v-k0} に対し同じモダリティの先生 \NUM{p2-e59k-v-k0}（$K=0$）
-        \item $K\ge10$ では \NUM{p2-e60-m3-students-n} の生徒のうち \NUM{p2-e60-m3-loss-n} が出発点を下回る（最悪 \NUM{p2-e60-m3-worst} \pt）
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
+        \item 単独の生徒 \NUM{p2-e60-m1-n} 個は，どれも $K=0$ と $K=5$ で上がる（$K=0$ の AV の A は \NUM{p2-e60-av-a-k0} \pt）
+        \item 融合の生徒は $K=0$ で \NUM{p2-e60-f-k0-lo}〜\NUM{p2-e60-f-k0-hi} \pt 上がる
+        \item $K\ge10$ では \NUM{p2-e60-m3-students-n} の生徒のうち \NUM{p2-e60-m3-loss-n} が出発点を下回る
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:p2:e60}{全生徒・全 $K$ の値}
 \end{frame}
 
-\begin{frame}{拡張版は，$K$ 本で学び直した先生を候補に足して，$K\ge10$ の損を消す}
+\begin{frame}{拡張版は $K$ 本で学び直した融合の生徒を先生にして，$K\ge10$ の損を消す}
   \rl{手法：基本版と拡張版}
   \vspace{0.3em}
   \centering\scriptsize
   \renewcommand{\arraystretch}{1.35}
   \begin{tabularx}{\textwidth}{@{}l X X@{}}
     \toprule
-    & \textbf{基本版} & \textbf{拡張版}（基本版の候補に足すもの） \\
+    & \textbf{基本版} & \textbf{拡張版} \\
     \midrule
-    単独の生徒の先生 & 融合の出発点（ソースだけで学ぶ） & $K$ 本で学び直した融合の生徒 \\
-    融合の生徒の先生 & 融合の出発点が教えた単独の生徒の予測の積 & $K$ 本で学び直した融合の生徒が教えた単独の生徒の予測の積 \\
-    弱いラベルの重みづけ & 感情ごとの合計をそろえる & そろえない，しきい値を超えた発話だけを硬いラベルにする \\
+    単独の生徒の先生の候補 & 融合の出発点，単独の出発点の予測の積，2 つの一致で重みづけた融合の出発点（どれもソースだけで学ぶ） & $K$ 本で学び直した融合の生徒（$K=0$ では融合の出発点），それが教えた単独の生徒の予測の積 \\
+    融合の生徒の先生の候補 & 単独の出発点の予測の積，融合の出発点が教えた単独の生徒の予測の積（弱いラベルにするか，そのまま予測に使う） & $K$ 本で学び直した融合の生徒が教えた単独の生徒の予測の積 \\
+    弱いラベルの重みづけ & 感情ごとの合計をそろえる & そろえる，そろえない，しきい値を超えた発話だけを硬いラベルにする \\
     $K$ ごとに選ぶもの & 先生，$m$ & 先生，$m$，重みづけ \\
     \bottomrule
   \end{tabularx}\par
   \vspace{0.6em}\raggedright
   \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
-    \item 拡張版は，比較で評価する AVT の音声の生徒と AV の融合の生徒で，基本版の $K\ge10$ の損を消した（VT の言葉と AT の音声の生徒は拡張版を流していない）
-    \item 基本版の弱いラベルはすべてソースだけで学んだ融合の出発点から作るが，融合の生徒の先生はターゲットのラベル無しの発話を使う．「基本版の先生はターゲットのデータを見ない」とは言えない
-  \end{itemize}
+        \item 拡張版は，AVT の音声の生徒と AV の融合の生徒で $K\ge10$ の損を消した
+        \item どちらの版でも，先生になる単独の生徒はプールのラベル無しの発話で学び，$K\ge1$ では $K$ 本でも学ぶ
+      \end{itemize}
+  \hosoku{s:p2:ext}{拡張版の候補}
 \end{frame}
 
 \begin{frame}{第 II 部のまとめ：向きの情報は，別のモダリティの弱いラベルから得る}
   \rl{まとめ}
   \vspace{0.3em}
-  \begin{itemize}\footnotesize\setlength{\itemsep}{7pt}
-    \item 出発点：中心化，全ソースからの仮説転移，5 つの値の選択の順に UAR が上がり，比べた作り方の中で最も高い出発点になった
-    \item 少ないラベルが直せる向きは $4K$ 本の張る空間の中だけで（命題 1），ラベルを見ない選び方ではそこを向きの誤差に合わせられない（命題 2，実測でもでたらめの \NUM{p2-e58-ratio-unlab-lo}〜\NUM{p2-e58-ratio-unlab-hi} 倍）
-    \item プール全体への弱いラベルは，数千本の発話にラベルの情報を足す．先生の情報から来る利得は先生の優位 $J$ を超えないと予想し（定理ではない），同じモダリティの先生では $J$ が小さい
-    \item ソースだけで学んだ融合の出発点を先生にすると，$K\le5$ ですべての生徒が出発点を上回る．$K\ge10$ の損は拡張版の候補で消える
-  \end{itemize}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{9pt}
+        \item 出発点は，中心化，全ソースからの仮説転移，5 つの値の選択の順に UAR が上がる
+        \item 少ないラベルが直せる向きは $4K$ 本の張る空間の中だけで，ラベルを見ない選び方ではそこを向きの誤差に合わせられない
+        \item 同じモダリティの先生は優位 $J$ が小さい
+        \item ソースだけで学んだ別のモダリティの先生（融合の出発点など）を使うと，$K\le5$ ですべての生徒が出発点を上回る
+      \end{itemize}
 \end{frame}

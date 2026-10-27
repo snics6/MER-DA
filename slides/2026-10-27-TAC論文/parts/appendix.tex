@@ -1,0 +1,190 @@
+% =====================================================================
+%  付録：語の対応，記号の一覧，実験の番号と内部の記号，数値の出所，参考文献
+%  語の元：paper/sections/*.tex（英語）と paper/ja/sections/*.tex（日本語），slides/CLAUDE.md の「語」の節
+%  実験の番号：docs/results.md 3.6 節の「名前」の列．内部の記号：paper/scripts/ledger/comparison.py と paper/CLAIM.md
+%  数値の出所の表：figures/appendix_sources.tex（tools/key_sources.py が資料の \NUM{key} を集め，台帳の source 欄から作る）
+% =====================================================================
+\setband{付録}
+
+\begin{frame}{付録 1：論文の英語の語と，この資料の語（1／4：設定）}
+  \rl{語の対応}\label{a:terms}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    論文の語 & この資料の語 & 意味 \\
+    \midrule
+    target / source corpus & ターゲット／ソース & 新しいコーパス／ラベル付きのほかのコーパス \\
+    pool & プール & ターゲットのテスト以外の発話．$K$ 本を抜いた残りはラベル無しで使う \\
+    $K$ labels per emotion & 感情あたり $K$ 本 & $K=5$ なら 4 感情 × 5 ＝ 20 本 \\
+    target-only / source-only / pooled & ターゲットのみ／ソースのみ／合併 & 3 つの学習法 \\
+    gain, gain map & 利得，利得の総当たり実験 & 合併 − ターゲットのみ（同じ反復）．すべての順序つきの組で測る \\
+    configuration & 種類（世界） & 特徴の組み合わせ A，V，T，AV，VT，AT，AVT \\
+    separation $d$ & 識別力 $d$ & 2 つの感情の山の中心の離れ方（山の幅で割る） \\
+    threshold offset $o$ & 判断基準のずれ $o$ & 境界が 2 つの中心の真ん中からずれた量 \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{付録 1：論文の英語の語と，この資料の語（2／4：第 I 部）}
+  \rl{語の対応}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    論文の語 & この資料の語 & 意味 \\
+    \midrule
+    threshold loss / direction loss & 判断基準による損失／向きによる損失 & 境界を真ん中に動かすと取り戻せる損失／残る損失 \\
+    threshold share & 判断基準の割合 & 合併がソースのみを上回った分のうち，$o$ の変化による分の割合 \\
+    threshold cost / direction cost & 2 つのコスト & $K$ 本で推定した誤差 $1/(2K)$ と $q/K$ \\
+    effective dimension $q$ & $q$ & 向きの誤差の減り方を決める数（音声で約 16〜22） \\
+    centering & 中心化 & コーパスごとにラベル無しの発話の平均を引く \\
+    hypothesis transfer & 仮説転移 & ソースの分類器から出発して $K$ 本で学び直す \\
+    value of a source $n$ & ソースの価値 $n$ & ソースの向きが何本ぶんのターゲットのラベルに当たるか \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{付録 1：論文の英語の語と，この資料の語（3／4：第 II 部）}
+  \rl{語の対応}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    論文の語 & この資料の語 & 意味 \\
+    \midrule
+    start, five-value start & 出発点，5 つの値を選んだ出発点 & 全ソースから作る線形分類器 $(W_0, b_0)$．5 つの値は仮のターゲットで選ぶ \\
+    anchor & 出発点への縛り & 重みと切片を出発点に近づける L2 罰則 \\
+    pseudo-target & 仮のターゲット & ターゲットの代わりにするソースの群（設定の値を選ぶため） \\
+    oracle & オラクル & テスト話者で最良の値．選び方の損を測るためだけに使う \\
+    student / teacher & 生徒／先生 & 学ぶ線形分類器／弱いラベルを出す分類器 \\
+    weak labels & 弱いラベル & 先生がラベル無しの発話に付ける感情の確率（感情ごとの合計をそろえる） \\
+    fused start & 融合の出発点 & 融合した特徴でソースだけから作った出発点（基本版の先生の候補の 1 つ） \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{付録 1：論文の英語の語と，この資料の語（4／4：比較）}
+  \rl{語の対応}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    論文の語 & この資料の語 & 意味 \\
+    \midrule
+    two-stage reference & 融合の出発点が教えた単独の生徒の予測の積 & 基本版の融合の生徒の先生の候補 \\
+    belief & 見込み & ソースごとの分類器を混同の仕方で重みづけてまとめた先生（同じモダリティ） \\
+    $J$ & 先生の優位 $J$ & プールでの先生の UAR − 出発点の UAR \\
+    ours / ours-ext & 基本版／拡張版 & 拡張版は $K$ 本で学び直した融合の生徒を先生にし，重みづけも選ぶ \\
+    tuned / fixed & 調整版／固定版 & 設定を仮のターゲットで選ぶ／元の論文の値を使う \\
+    strongest tuned competitor & 最も強い比較手法 & 調整版の比較手法のうち，ターゲットの平均が最も高いもの \\
+    rebalancing / column normalization & 釣り合い直し／列の割り直し & 感情ごとの合計をそろえる操作 \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{付録 2：記号の一覧（1／2：第 I 部）}
+  \rl{記号}\label{a:symbols}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabularx}{\textwidth}{@{}l X X@{}}
+    \toprule
+    記号 & 何か & 大きさの目安 \\
+    \midrule
+    $K$ & 感情あたりのターゲットのラベルの本数 & 0〜50 と全件 \\
+    $z$ & 2 つの感情のスコアの差（線形分類器の出力の差） & -- \\
+    $d$，$\Delta$ & 識別力（今の向き），ターゲットの全ラベルで求めた最良の向きの識別力 & 2 前後で正解率 84\% \\
+    $o$ & 判断基準のずれ（山の幅で割る） & 1 で正解率が約 10 \pt 下がる（$d=2$） \\
+    $a(d,o)$ & 2 つの感情の正解率（2 つの再現率の平均） & 50〜100\% \\
+    $q$ & 向きの誤差の減り方を決める数 & A \NUM{p1-qdir-a}，A(HuBERT) \NUM{p1-qdir-ah}，AV \NUM{p1-qdir-av}，V \NUM{p1-qdir-v} \\
+    $e$ & ソースの向きの効率（$d = e\Delta$） & 0〜1 \\
+    $n$ & ソースの価値（感情あたりのラベルの本数） & 音声の 1 ソースで \NUM{p1-e32-n1src-audio-lo}〜\NUM{p1-e32-n1src-audio-hi} \\
+    $\lambda$，$\rho$ & 合併が判断基準のずれを直す割合，それを決める量（$\lambda = \rho/(1+\rho)$） & $\lambda$ は 0〜1 \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{付録 2：記号の一覧（2／2：第 II 部）}
+  \rl{記号}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabularx}{\textwidth}{@{}l X X@{}}
+    \toprule
+    記号 & 何か & 大きさの目安 \\
+    \midrule
+    $W_0, b_0$ & 出発点の重みと切片 & -- \\
+    $W^{*}$，$E_0$ & プールの全ラベルで学んだ生徒，出発点の向きの誤差 $W^{*} - W_0$ & -- \\
+    $C'$，$C_b$，$\rho_M$，$\gamma$，$\rho_s$ & 5 つの値（重みと切片の縛りの強さ，計量の混ぜる比，ソースの比重の指数，ソースの向きの縮め方） & 3 つの候補から仮のターゲットで選ぶ \\
+    $Q$，$m$ & 先生の予測（発話 × 4 感情），弱いラベル全体の比重 & $m$ は $K$ ごとに選ぶ \\
+    $J$ & 先生の優位（プールでの UAR の差） & 見込み \NUM{p2-e52-q-minus-p-a}，融合の出発点 \NUM{p2-e60pre-juar-av-a-fused}（A，\pt） \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{付録 3：研究の記録の実験の番号と，台本の中の記号}
+  \rl{実験の番号と記号}\label{a:codes}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.56\textwidth}
+      \centering\tiny
+      \renewcommand{\arraystretch}{1.08}
+      \begin{tabularx}{\linewidth}{@{}l X@{}}
+        \toprule
+        番号 & この資料での中身 \\
+        \midrule
+        E12 & 中心化と，ソースのみの切片だけを学び直す（D1） \\
+        E13 & 損を判断基準による損失と向きによる損失に分ける \\
+        E15，E16 & $\lambda$ の式と，Newton 法の 1 歩の全体 \\
+        E28 & $q$ のあてはめ（E28-9）など手法の数理の確かめ \\
+        E29，E30 & 判断基準の割合（線形，2 層のパーセプトロン） \\
+        E31 & 全ソースからの仮説転移（P4）と従来法の比較 \\
+        E32 & ソースの価値 $n$ \\
+        E39 & 5 つの値を選んだ出発点 \\
+        E49，E50，E53 & 5 つの値の生徒でのラベル無しの選び方 \\
+        E52，E59 & 見込みと見込みの蒸留 \\
+        E58 & 出発点の向きの誤差 $E_0$ を捉える割合 \\
+        E60 & モダリティをまたぐ蒸留（基本版） \\
+        E61，E62，E63，E64 & 比較手法，2 つ目のエンコーダ，微調整，検定 \\
+        \bottomrule
+      \end{tabularx}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \centering\tiny
+      \renewcommand{\arraystretch}{1.08}
+      \begin{tabularx}{\linewidth}{@{}l X@{}}
+        \toprule
+        記号 & この資料の語 \\
+        \midrule
+        e39 & 5 つの値を選んだ出発点 \\
+        P4 & 全ソースからの仮説転移 \\
+        D1（E12） & ソースのみの切片だけを $K$ 本で学び直す \\
+        D1（E39） & ソースを等しい比重で足す出発点 \\
+        B1，B4 & ターゲットのみ，合併（E31） \\
+        pF & 融合の出発点 \\
+        pFK & $K$ 本で学び直した融合の生徒 \\
+        ref & 融合の出発点が教えた単独の生徒の予測の積 \\
+        ours，oursx & 基本版，拡張版 \\
+        meta & 仮のターゲットで選んだ版 \\
+        W7，Hu7 & A，A(HuBERT) \\
+        \bottomrule
+      \end{tabularx}
+    \end{column}
+  \end{columns}
+  \vspace{0.3em}
+  {\raggedright\tiny D1 は 2 つの実験で別のものを指す．本文と補足では記号を使わず，中身で書いた\par}
+\end{frame}
+
+\IfFileExists{figures/appendix_sources.tex}{\input{figures/appendix_sources.tex}}{}
+
+\nocite{bendavid2010theory,schuller2010crosscorpus,busso2008iemocap,zadeh2018mosei,poria2019meld,dhall2012afew,livingstone2018ravdess,cao2014cremad,chen2022wavlm,hsu2021hubert,liu2019roberta,he2023debertav3,ryumina2022facial,radford2021clip,yolov8face,cao2018vggface2,mollahosseini2019affectnet,kumar2022lpft,gulrajani2021domainbed,okamoto1963asymptotic,raudys1998intrinsic,dobriban2018highdimensional,desilva2023value,pregibon1981logistic,koh2019accuracy,kimeldorf1971results,scholkopf2001generalized,chaloner1984optimal,chaloner1995bayesian,vapnik2009new,lopezpaz2016unifying,lee2013pseudolabel,grandvalet2004semisupervised,hinton2015distilling,blum1998combining,sindhwani2005coregularization,saerens2002adjusting,veilleux2021realistic}
+\begin{frame}[allowframebreaks]{付録 5：参考文献（この資料で名前を出したもの）}
+  \rl{参考文献}\label{a:refs}
+  \tiny
+  \bibliography{references_ieee}
+\end{frame}

@@ -13,7 +13,7 @@ for (1 .. 8) {
 die "リポジトリ直下（common/ を含む階層）が見つからない\n" unless $root;
 
 $ENV{'TEXINPUTS'} = "$root/common//:" . ($ENV{'TEXINPUTS'} // '');
-$ENV{'BIBINPUTS'} = "$root/common//:" . ($ENV{'BIBINPUTS'} // '');
+$ENV{'BIBINPUTS'} = "$root/common//:$root/../paper:" . ($ENV{'BIBINPUTS'} // '');   # 論文の references_ieee.bib を引く
 
 $pdf_mode = 4;    # 4 = LuaLaTeX
 $lualatex = 'lualatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S';

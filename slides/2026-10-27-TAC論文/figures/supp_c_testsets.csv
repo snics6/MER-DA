@@ -1,0 +1,9 @@
+# 出所：results/stats_compare/testsets.csv（exp/stats_compare.py が exp/map.py の test_mask で作った，反復ごとのテストの話者の集合）．
+# nsets は反復 0〜9（reps 回）のテストの話者の集合の数（世界によらず同じことを確かめた），spk_lo・spk_hi は集合ごとのテストの話者の数の最小・最大，worlds はそのターゲットを使う世界（微調整の確かめの行 world=ft は除いた）
+target,nsets,reps,spk_lo,spk_hi,worlds
+IEMOCAP 即興,5,10,2,2,AT・AV・AVT・VT・AVT（2 つ目）
+IEMOCAP 台本,6,10,2,2,AT・AV・AVT・VT・AVT（2 つ目）
+MELD,9,10,2,73,AT・AV・AVT・VT・AVT（2 つ目）
+CMU-MOSEI,10,10,521,524,AT・AV・AVT・VT・AVT（2 つ目）
+AFEW,10,10,55,57,AV
+CREMA-D,10,10,18,19,AV

@@ -1,0 +1,14 @@
+# 出所：results/explore_relation/snapshots/20261016-0954_e32/e32_pairs.csv（1 ソースの仮説転移 uar_P1，同じコーパスの組を除く）と e32_allsrc.csv（全ソース P4），
+# results/fixc_map/<種類>/*.csv の tgt_only（学習曲線）．x は予言した n（n_pred），y は測った n（学習曲線で UAR に当たる本数 − K）．K=5・10．
+# 論文の補足の図 sourcevalue（paper/scripts/figures/fig_sourcevalue.py の measured）と同じ集計．g は 2×(種類の番号)+(1 ソース 1，全ソース 2)，種類は a，ah，v，av の順．
+# 台帳 p1-e32-rho-*・p1-e32-ratio-*・p1-e32-allsrc-rho-*・p1-e32-allsrc-ratio-* を同じ行から計算し直して照合した
+# 点の数（main：主な枠，top：上の帯，bot：下の帯）
+g,kind,src,n,main,top,bot
+1,a,one,80,70,9,1
+2,a,all,14,11,3,0
+3,ah,one,80,65,10,5
+4,ah,all,14,10,4,0
+5,v,one,56,30,14,12
+6,v,all,12,7,4,1
+7,av,one,56,38,8,10
+8,av,all,12,8,3,1

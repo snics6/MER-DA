@@ -1,0 +1,7 @@
+# 出所：measure/data.py の load_group(群, 'audio_wavlm'／'video'／'text_roberta') の sample_id の共通部分の数
+# （load_fused と同じ突き合わせ）．言葉のある 4 群．av と avt は台帳 data-n-<群>-av・-avt と照合した．at と vt は台帳に無い
+group,key,av,at,vt,avt
+IEMOCAP-impro,impro,2943,2943,2943,2943
+IEMOCAP-script,script,2549,2588,2549,2549
+MOSEI,mosei,18634,18919,18634,18634
+MELD,meld,11308,11343,11308,11308

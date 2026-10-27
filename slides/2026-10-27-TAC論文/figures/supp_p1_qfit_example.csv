@@ -1,0 +1,6 @@
+# 出所：e28t9_targets.csv の A（WavLM）で q_dir がターゲットの中央値に当たる IEMOCAP-script の行．dT は測ったターゲットのみの識別力，fit は D/√(1 + q/K)．
+# D は own_d（ターゲットの最良の向きの識別力）で固定し，q だけをあてはめた値．台帳 p1-qdir-a と同じ q
+K,dT,fit,D,q,target
+1,0.402957,0.418008,1.7261,16.0514,IEMOCAP-script
+5,0.819782,0.841219,1.7261,16.0514,IEMOCAP-script
+10,1.08339,1.06942,1.7261,16.0514,IEMOCAP-script

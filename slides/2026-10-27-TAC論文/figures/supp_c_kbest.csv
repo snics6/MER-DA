@@ -1,0 +1,9 @@
+# 出所：supp_c_range.csv と同じ（台帳 comparison.py の _world）．AVT の世界の 4 生徒（列 avt<生徒>）と，2 つ目のエンコーダの AVT の世界の 4 生徒（列 w2<生徒>）．
+# 生徒は a 音声，v 顔，t 言葉，f 融合．値は K ごとに選び直した最も強い比較手法の略称（fig_compare.best_label．「なし」は調整版がどのターゲットでも使わないを選んだこと）．
+# 最も強い比較手法の差は台帳 cmp-best-vs-e39-<世界>-<生徒>-k<K> と照合した
+K,avta,avtv,avtt,avtf,w2a,w2v,w2t,w2f
+0,GD,RB,HPL,RB,CoT,CoT,RB,RB
+1,GD,なし,GD,RB,CoT,RB,GD,RB
+5,GD,なし,GD,ST,GD,KD,GD,CoT
+10,GD,CoT,GD,ST,GD,KD,GD,なし
+25,GD,CoT,GD,ST,GD,GD,GD,ST

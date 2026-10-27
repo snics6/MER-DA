@@ -49,6 +49,8 @@
   sAH/.style={kAH, mark=star, line width=1.2pt, mark size=2.2pt},
 }
 \newcommand{\pt}{ポイント}
+\newcommand{\doi}{doi: \begingroup \urlstyle{same}\Url}   % 文献の DOI を本文と同じ字体にする（main.bbl は \providecommand なのでこちらが使われる）
+\renewcommand{\bibsection}{}
 
 \begin{document}
 
@@ -60,5 +62,14 @@
 \input{parts/m_part2}
 \input{parts/m_compare}
 \input{parts/m_end}
+
+\appendix
+\bandheadline
+\metroset{numbering=counter}\setbeamertemplate{frame numbering}{\insertpagenumber/\insertdocumentendpage}   % metropolis は \appendix でページ番号を消すので戻す（本編から補足のページを指すため）
+\InputIfFileExists{parts/supp_setting}{}{}
+\InputIfFileExists{parts/supp_part1}{}{}
+\InputIfFileExists{parts/supp_part2}{}{}
+\InputIfFileExists{parts/supp_compare}{}{}
+\InputIfFileExists{parts/appendix}{}{}
 
 \end{document}

@@ -1,0 +1,362 @@
+% =====================================================================
+%  補足 0：設定の詳細（特徴の作り方，融合で残る発話，分割，C の決め方，交差検証の版の利得，仮のターゲットでの選び方，区間）
+%  文の元：paper/sections/3-setting.tex，paper/supplementary.tex（Feature Extraction，Gain Map with Cross-Validated Penalty），
+%          日本語の語は paper/ja/sections/3-setting.tex と paper/ja/supplementary_ja.tex
+%  設計の定数（手で書いたもの）の出所：
+%    顔の間引き s = ⌊5f/25⌋，400 枚，YOLOv8n-face の確信度 0.25，224×224，20 枚の区間を 10 枚ずつずらす，次元 512・1024
+%        … paper/supplementary.tex の Feature Extraction，features/build_video.py（sample_frames，summarize）
+%    音声 16 kHz・60 秒・1024 次元，言葉 256 トークン・768 次元 … paper/supplementary.tex の Feature Extraction
+%    融合の標準化の統計を全群で 1 組にすること … measure/data.py の _fuse_stats
+%    C の候補 {0.01, 0.1, 1, 10}，3 分割，欠けた感情なら C=1，同点の規則 … paper/sections/3-setting.tex，docs/methods.md 2.3 節
+%    分割の種，人物の突き合わせ … docs/methods.md 2.2 節・6.3 節
+%    IEMOCAP のテストの話者の組が 5 通り（即興）・7 通り（台本） … paper/sections/3-setting.tex の最後の段落，docs/methods.md 2.2 節
+%    仮のターゲットの組み方 … paper/sections/3-setting.tex，exp/multimodal_distill.py の run_target（T のコーパスの群を使わない）
+%  数値：実験の数値は \NUM{key}（paper/results/numbers.json）．台帳に無い値は figures/supp_set_*.csv（scripts/export_supp_part1.py が作る）
+%    supp_set_counts.csv（融合の AT・VT の発話の数），supp_set_crule.csv・supp_set_csrc.csv（C の決まり方），supp_set_cvmap.csv（交差検証の版の利得）
+% =====================================================================
+\setband{補足 0　設定の詳細}
+
+% CSV の 1 つの値を表に出す（supp_part1.tex と同じ定義）
+\providecommand{\csvnum}[4]{\pgfplotstablegetelem{#2}{#3}\of{figures/#1}\pgfmathprintnumber[fixed,fixed zerofill,precision=#4,1000 sep={\mathord{,}}]{\pgfplotsretval}}
+\providecommand{\csvint}[3]{\pgfplotstablegetelem{#2}{#3}\of{figures/#1}\pgfmathprintnumber[fixed,precision=0,1000 sep={\mathord{,}}]{\pgfplotsretval}}
+\providecommand{\csvpct}[3]{\pgfplotstablegetelem{#2}{#3}\of{figures/#1}\pgfmathparse{100*\pgfplotsretval}\pgfmathprintnumber[fixed,precision=0]{\pgfmathresult}}
+\providecommand{\csvstr}[3]{\pgfplotstablegetelem{#2}{#3}\of{figures/#1}\pgfplotsretval}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-1：顔の特徴は，最大の顔の埋め込みを区間ごとに平均して作る}
+  \rl{特徴の作り方：顔}\label{s:set:feat}
+  \vspace{-0.1em}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \node[encbox, text width=3.15cm, minimum height=1.25cm] (f1) at (0,0) {\textbf{フレームを間引く}\\毎秒 $f$ 枚の動画から $\lfloor 5f/25 \rfloor$ 枚ごとに 1 枚（毎秒 5〜6 枚）．1 発話 400 枚まで（等間隔）};
+    \node[encbox, text width=3.15cm, minimum height=1.25cm] (f2) at (3.8,0) {\textbf{顔を検出する}\\YOLOv8n-face（確信度 0.25 以上）．各フレームの最大の顔を 224×224 画素にする};
+    \node[encbox, text width=3.15cm, minimum height=1.25cm] (f3) at (7.6,0) {\textbf{顔を埋め込む}\\ResNet-50（VGGFace2 で学び，AffectNet で微調整したもの）で 512 次元};
+    \node[clf, text width=3.15cm, minimum height=1.25cm] (f4) at (11.4,0) {\textbf{区間で平均する}\\20 顔フレームの区間を 10 枚ずつずらして平均し，区間の平均をさらに平均する};
+    \foreach \a/\b in {f1/f2,f2/f3,f3/f4} {\draw[arr] (\a.east) -- (\b.west);}
+  \end{tikzpicture}\par
+  \vspace{0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      \begin{tikzpicture}[x=0.112cm, y=1cm, font=\scriptsize]
+        \foreach \i in {0,...,44} {\fill[cDisc!55] (\i,0) rectangle ++(0.75,0.32);}
+        \node[anchor=south west, inner sep=0pt] at (0,0.42) {顔の写ったフレーム（例：45 枚）};
+        \draw[cCrit, line width=2.2pt] (0,-0.25) -- (19.8,-0.25);
+        \draw[cCrit, line width=2.2pt] (10,-0.5) -- (29.8,-0.5);
+        \draw[cCrit, line width=2.2pt] (20,-0.75) -- (39.8,-0.75);
+        \draw[cCrit, line width=2.2pt] (30,-1.0) -- (44.8,-1.0);
+        \draw[mMuted, line width=2.2pt, densely dashed] (40,-1.25) -- (44.8,-1.25);
+        \node[anchor=west, text=cCrit] at (45.5,-0.62) {区間 4 つ};
+        \node[anchor=west, text=mMuted, align=left] at (45.5,-1.25) {10 枚未満\\は捨てる};
+        \foreach \i in {0,10,20,30,40} {\node[anchor=north, font=\tiny, text=mMuted] at (\i,-1.38) {\i};}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 区間の切り方の模式図．区間は 0，10，20，… 枚目から始まり，長さは 20 枚（最後は残りの枚数）\par}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item IEMOCAP の動画は 2 人の話者を左右に並べて映すので，発話した話者が映る半分だけを使う
+        \item 第 2 のエンコーダ（CLIP ViT-L/14 の画像エンコーダ，1024 次元）は，ResNet-50 と同じ顔の枠（保存した座標）から切り出した画像を使う
+        \item 区間の間の標準偏差（\texttt{X\_std}）は使わない．顔フレームが 20 枚未満の発話は区間が 1 つしかなく，標準偏差が必ず 0 になるので，この値は発話の長さを表してしまう
+        \item RAVDESS の顔の特徴は抽出していない
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-2：音声と言葉は，エンコーダの最終層を時間とトークンで平均する}
+  \rl{特徴の作り方：音声と言葉}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{5pt}
+  \renewcommand{\arraystretch}{1.08}
+  \begin{tabularx}{\textwidth}{@{}l l l X X@{}}
+    \toprule
+    & 第 1 のエンコーダ & 第 2 のエンコーダ & 入力の前処理 & 発話の特徴にする方法 \\
+    \midrule
+    音声 & WavLM-Large（1024 次元） & HuBERT-Large（1024 次元） & 16 kHz のモノラルに変換し，60 秒で打ち切り，平均 0・分散 1 にそろえる & 最終層の出力を時間で平均する（長さをそろえる詰め物の部分は除く） \\
+    言葉 & RoBERTa-base（768 次元） & DeBERTa-v3-base（768 次元） & 書き起こしの文字コードの誤りを直し，256 トークンで打ち切る & 最終層の出力をトークンで平均する \\
+    顔 & ResNet-50（512 次元） & CLIP ViT-L/14（1024 次元） & 補足 0-1 の手順で顔を切り出す & 区間ごとの平均を区間の間で平均する \\
+    \bottomrule
+  \end{tabularx}\par
+  \vspace{0.3em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+    \item どのエンコーダも 7 つの群で微調整しない．第 1 のエンコーダで分析し，第 2 のエンコーダで結論が残るかを確かめる
+    \item 除外の後の発話の数：音声 \NUM{data-n-total-wavlm}，顔 \NUM{data-n-total-resnet}，言葉 \NUM{data-n-total-roberta}（7 群の和．群ごとは補足 0-3）
+    \item 除外の規則：特徴を作れなかった発話と NaN・Inf を含む発話を落とす．ラベルは発話の一覧から貼り直し，発話の ID で並べて使う
+    \item CMU-MOSEI はチャンネルがわかる動画（\NUM{data-mosei-videos} 本のうち \NUM{data-mosei-chan-videos} 本，\NUM{data-mosei-chan-pct}\%）ではチャンネルを，ほかは動画の ID を話者の代わりにする
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-3：融合では，すべてのモダリティがそろった発話だけが残る}
+  \rl{融合で残る発話の数}\label{s:set:fuse}
+  \vspace{-0.3em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{4.2pt}
+  \renewcommand{\arraystretch}{1.0}
+  \begin{tabular}{@{}l rrr rrrr rrr@{}}
+    \toprule
+    & \multicolumn{3}{c}{単独（第 1 のエンコーダ）} & \multicolumn{4}{c}{融合} & \multicolumn{3}{c}{単独（第 2 のエンコーダ）} \\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-8}\cmidrule(l){9-11}
+    群 & A & V & T & AV & AT & VT & AVT & A(HuBERT) & V(CLIP) & T(DeBERTa) \\
+    \midrule
+    IEMOCAP 即興 & \NUM{data-n-impro-wavlm} & \NUM{data-n-impro-resnet} & \NUM{data-n-impro-roberta} & \NUM{data-n-impro-av} & \csvint{supp_set_counts.csv}{0}{at} & \csvint{supp_set_counts.csv}{0}{vt} & \NUM{data-n-impro-avt} & \NUM{data-n-impro-hubert} & \NUM{data-n-impro-clip} & \NUM{data-n-impro-deberta} \\
+    IEMOCAP 台本 & \NUM{data-n-script-wavlm} & \NUM{data-n-script-resnet} & \NUM{data-n-script-roberta} & \NUM{data-n-script-av} & \csvint{supp_set_counts.csv}{1}{at} & \csvint{supp_set_counts.csv}{1}{vt} & \NUM{data-n-script-avt} & \NUM{data-n-script-hubert} & \NUM{data-n-script-clip} & \NUM{data-n-script-deberta} \\
+    CMU-MOSEI & \NUM{data-n-mosei-wavlm} & \NUM{data-n-mosei-resnet} & \NUM{data-n-mosei-roberta} & \NUM{data-n-mosei-av} & \csvint{supp_set_counts.csv}{2}{at} & \csvint{supp_set_counts.csv}{2}{vt} & \NUM{data-n-mosei-avt} & \NUM{data-n-mosei-hubert} & \NUM{data-n-mosei-clip} & \NUM{data-n-mosei-deberta} \\
+    MELD & \NUM{data-n-meld-wavlm} & \NUM{data-n-meld-resnet} & \NUM{data-n-meld-roberta} & \NUM{data-n-meld-av} & \csvint{supp_set_counts.csv}{3}{at} & \csvint{supp_set_counts.csv}{3}{vt} & \NUM{data-n-meld-avt} & \NUM{data-n-meld-hubert} & \NUM{data-n-meld-clip} & \NUM{data-n-meld-deberta} \\
+    AFEW & \NUM{data-n-afew-wavlm} & \NUM{data-n-afew-resnet} & -- & \NUM{data-n-afew-av} & -- & -- & -- & \NUM{data-n-afew-hubert} & \NUM{data-n-afew-clip} & -- \\
+    RAVDESS & \NUM{data-n-ravdess-wavlm} & -- & -- & -- & -- & -- & -- & \NUM{data-n-ravdess-hubert} & -- & -- \\
+    CREMA-D & \NUM{data-n-cremad-wavlm} & \NUM{data-n-cremad-resnet} & -- & \NUM{data-n-cremad-av} & -- & -- & -- & \NUM{data-n-cremad-hubert} & \NUM{data-n-cremad-clip} & -- \\
+    \midrule
+    計 & \NUM{data-n-total-wavlm} & \NUM{data-n-total-resnet} & \NUM{data-n-total-roberta} & & & & & & & \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.3em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+    \item 融合（早期融合）：各モダリティの特徴を発話の ID で突き合わせ，すべてにある発話だけを標準化して横につなげる
+    \item 標準化の平均と標準偏差は 7 群をまとめた 1 組を全群に使う．群ごとにそろえると，群の間の位置と尺度の違いが消えるためである
+    \item 融合は第 1 のエンコーダで作る（第 II 部の第 2 のエンコーダの世界を除く）．-- はその群にそのモダリティが無いことを表す
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-4：テストの話者は反復ごとに選び直し，$K$ 本は $K$ の間で入れ子にする}
+  \rl{分割の詳細}\label{s:set:split}
+  \vspace{-0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[anchor=west, font=\scriptsize\bfseries] at (-1.3,2.95) {話者の 5 つの分け方とテスト};
+        \foreach \r in {0,...,5} {
+          \pgfmathsetmacro{\yy}{2.4-0.42*\r}
+          \pgfmathtruncatemacro{\tf}{mod(\r,5)}
+          \node[anchor=east, font=\tiny] at (-0.45,\yy) {反復 \r};
+          \foreach \i in {0,...,4} {
+            \ifnum\i=\tf
+              \node[testbox, minimum width=0.78cm, minimum height=0.32cm, inner sep=0pt, font=\tiny] at (\i*0.86,\yy) {テスト};
+            \else
+              \node[tgtbox, minimum width=0.78cm, minimum height=0.32cm, inner sep=0pt] at (\i*0.86,\yy) {};
+            \fi
+          }
+        }
+        \node[anchor=west, font=\tiny, text=mMuted, align=left] at (4.0,1.35) {反復 $r$ では\\$r \bmod 5$ 番目\\をテストにする};
+        % K の入れ子
+        \node[anchor=west, font=\scriptsize\bfseries] at (-1.3,-0.2) {テスト以外のプールから抜く $K$ 本};
+        \draw[draw=mDarkTeal!70, fill=cTgt!35, rounded corners=2pt] (-1.3,-2.75) rectangle (5.0,-0.5);
+        \node[anchor=north east, font=\tiny] at (4.95,-0.55) {全件（感情ごとの本数はそろえない）};
+        \draw[draw=mDarkTeal!70, fill=cTgt!55, rounded corners=2pt] (-1.2,-2.65) rectangle (3.6,-0.85);
+        \node[anchor=north east, font=\tiny] at (3.55,-0.9) {$K=50$（200 本）};
+        \draw[draw=mDarkTeal!70, fill=cTgt!75, rounded corners=2pt] (-1.1,-2.55) rectangle (2.3,-1.2);
+        \node[anchor=north east, font=\tiny] at (2.25,-1.25) {$K=25$（100 本）};
+        \draw[draw=mDarkTeal!70, fill=cTgt!95, rounded corners=2pt] (-1.0,-2.45) rectangle (1.15,-1.55);
+        \node[anchor=north east, font=\tiny] at (1.1,-1.6) {$K=10$};
+        \draw[draw=mDarkTeal!70, fill=cCrit!45, rounded corners=2pt] (-0.9,-2.35) rectangle (0.2,-1.9);
+        \node[font=\tiny] at (-0.35,-2.125) {$K=5$};
+        \node[anchor=west, font=\tiny, text=mMuted] at (1.25,-2.25) {$K=1 \subset 5 \subset 10 \subset \cdots$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 各ターゲットの話者を反復 $r$ を種にして 5 つに分け直し，$r \bmod 5$ 番目をテストにする．テストは平均で発話の \NUM{data-test-pct-mean}\%（\NUM{data-test-pct-lo}〜\NUM{data-test-pct-hi}\%）．同じ反復では $K$ を変えてもテストは同じ
+        \item テスト以外の発話（プール）から感情ごとに $K$ 本をでたらめに抜いてラベルを付ける．$K=5$ の 20 本は $K=10$ の 40 本に含まれる．プールの残りはラベル無しで使ってよい
+        \item 抜き方の種はターゲットと反復の番号だけで決まるので，どのソースと組んでも同じ $K$ 本になる
+        \item テストの話者は「コーパス：話者」で突き合わせてソースからも除く．除く話者が出るのは IEMOCAP の即興と台本の組だけで，この組はソースのみを反復ごとに学び直す
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \takeaway{テストの発話は，どの手法でも学習にも値の選択にも使わない}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-5：$K=1$ で合併の $C$ を交差検証で選ぶと，同点の規則で $C=1$ になる}
+  \rl{$C$ の決め方と同点の規則}\label{s:set:cfix}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 候補は $C \in \{0.01, 0.1, 1, 10\}$（$C$ が小さいほど重みの罰則が強い）．学習データを話者で 3 つに分けて交差検証し，3 回ぶんの予測をまとめて UAR を 1 回計算する
+        \item 規則 1：どれかの分割の学習側に欠ける感情があれば $C=1$ にする．$K=1$ のターゲットのみは 4 本しかないので，いつもこの規則になる
+        \item 規則 2：検証の UAR が同点なら，1 に最も近い候補（10 倍刻みで数える）を採り，なお同点なら小さい方を採る
+        \item $K=1$ で合併を交差検証すると，検証に使うターゲットの発話は 4 本で，UAR は 0，25，50，75，100\% の 5 通りしか取らない．4 つの候補はよく同点になり，規則 2 で弱い罰則の $C=1$ が選ばれる．そこで本文では，合併に同じ反復のソースのみの $C$ を使う
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=6.9cm, height=3.7cm, xmin=-0.2, xmax=5.6, ymin=0, ymax=105,
+            xtick={0,...,5}, xticklabels={1,5,10,25,50,全件}, xlabel={感情あたりのラベル $K$}, ylabel={行の割合（\%）},
+            ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, fill=white, fill opacity=0.9, text opacity=1, at={(0.98,0.97)}, anchor=north east}]
+          \addplot[sA, line width=1.3pt] table[x=x, y expr=100*\thisrow{a_mtie}] {supp_set_crule.csv}; \addlegendentry{合併：同点の規則で決まった}
+          \addplot[sA, dashed, mark=none, line width=1.0pt] table[x=x, y expr=100*\thisrow{a_mc1}] {supp_set_crule.csv}; \addlegendentry{合併：$C=1$ になった}
+          \addplot[black, densely dotted, mark=square*, mark size=1.4pt, line width=1.0pt] table[x=x, y expr=100*\thisrow{a_ttie}] {supp_set_crule.csv}; \addlegendentry{ターゲットのみ：同点の規則}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny A の交差検証の版（合併の $C$ も交差検証で選ぶ）の全組 × 反復 30 回．ターゲットのみの $K=1$ は規則 1 で全部 $C=1$．同点の規則で決まった合併の行は，$K=1$ で A(HuBERT) \csvpct{supp_set_crule.csv}{0}{ah_mtie}\%，V \csvpct{supp_set_crule.csv}{0}{v_mtie}\%，AV \csvpct{supp_set_crule.csv}{0}{av_mtie}\%\par}
+      \vspace{0.1em}
+      \scriptsize
+      \setlength{\tabcolsep}{5pt}
+      \begin{tabular}{@{}lrrrr@{}}
+        \toprule
+        ソースのみで選ばれた $C$ & 0.01 & 0.1 & 1 & 10 \\
+        \midrule
+        A & \csvpct{supp_set_csrc.csv}{0}{c0p01}\% & \csvpct{supp_set_csrc.csv}{0}{c0p1}\% & \csvpct{supp_set_csrc.csv}{0}{c1}\% & \csvpct{supp_set_csrc.csv}{0}{c10}\% \\
+        A(HuBERT) & \csvpct{supp_set_csrc.csv}{1}{c0p01}\% & \csvpct{supp_set_csrc.csv}{1}{c0p1}\% & \csvpct{supp_set_csrc.csv}{1}{c1}\% & \csvpct{supp_set_csrc.csv}{1}{c10}\% \\
+        V，AV & \csvpct{supp_set_csrc.csv}{2}{c0p01}\% & \csvpct{supp_set_csrc.csv}{2}{c0p1}\% & \csvpct{supp_set_csrc.csv}{2}{c1}\% & \csvpct{supp_set_csrc.csv}{2}{c10}\% \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-6：合併の $C$ を交差検証で選ぶと，$K \le 10$ の利得が下がる}
+  \rl{交差検証で $C$ を選んだ利得の総当たり実験}\label{s:set:cvmap}
+  \vspace{-0.4em}
+  \centering
+  \begin{tikzpicture}
+    \draw[kA, line width=1.3pt] (0,0) -- (0.6,0); \node[anchor=west, font=\tiny] at (0.65,0) {実線：合併の $C$ も $K$ 本で交差検証して選ぶ};
+    \draw[kA, line width=1.0pt, densely dotted] (5.6,0) -- (6.2,0); \node[anchor=west, font=\tiny] at (6.25,0) {点線：合併はソースのみの $C$（本文の版）};
+  \end{tikzpicture}\par\vspace{-0.1em}
+  \begin{tikzpicture}
+    \begin{groupplot}[group style={group size=4 by 2, horizontal sep=0.35cm, vertical sep=0.5cm, xticklabels at=edge bottom, yticklabels at=edge left},
+        width=4.35cm, height=2.6cm, xmin=-0.3, xmax=5.3, ymin=-6.5, ymax=15, xtick={0,...,5}, xticklabels={1,5,10,25,50,全},
+        ytick={-5,0,5,10}, ymajorgrids, grid style={mMuted!25}, title style={font=\scriptsize, yshift=-0.75em}, tick label style={font=\tiny}]
+      \nextgroupplot[title={A（30 回）}, ylabel={利得}, ylabel style={font=\tiny}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sA] table[x=x, y=a_cv] {supp_set_cvmap.csv};
+        \addplot[sA, densely dotted, mark=none, line width=1.0pt] table[x=x, y=a_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={A(HuBERT)（30 回）}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sAH] table[x=x, y=ah_cv] {supp_set_cvmap.csv};
+        \addplot[sAH, densely dotted, mark=none, line width=1.0pt] table[x=x, y=ah_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={V（30 回）}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sV] table[x=x, y=v_cv] {supp_set_cvmap.csv};
+        \addplot[sV, densely dotted, mark=none, line width=1.0pt] table[x=x, y=v_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={AV（30 回）}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sAV] table[x=x, y=av_cv] {supp_set_cvmap.csv};
+        \addplot[sAV, densely dotted, mark=none, line width=1.0pt] table[x=x, y=av_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={T（5 回）}, ylabel={利得}, ylabel style={font=\tiny}, xlabel={$K$}, xlabel style={font=\tiny}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sT] table[x=x, y=t_cv] {supp_set_cvmap.csv};
+        \addplot[sT, densely dotted, mark=none, line width=1.0pt] table[x=x, y=t_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={VT（5 回）}, xlabel={$K$}, xlabel style={font=\tiny}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sVT] table[x=x, y=vt_cv] {supp_set_cvmap.csv};
+        \addplot[sVT, densely dotted, mark=none, line width=1.0pt] table[x=x, y=vt_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={AT（5 回）}, xlabel={$K$}, xlabel style={font=\tiny}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sAT] table[x=x, y=at_cv] {supp_set_cvmap.csv};
+        \addplot[sAT, densely dotted, mark=none, line width=1.0pt] table[x=x, y=at_fix] {supp_set_cvmap.csv};
+      \nextgroupplot[title={AVT（5 回）}, xlabel={$K$}, xlabel style={font=\tiny}]
+        \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+        \addplot[sAVT] table[x=x, y=avt_cv] {supp_set_cvmap.csv};
+        \addplot[sAVT, densely dotted, mark=none, line width=1.0pt] table[x=x, y=avt_fix] {supp_set_cvmap.csv};
+    \end{groupplot}
+  \end{tikzpicture}\par
+  \vspace{-0.2em}
+  {\raggedright\tiny 利得（合併 − ターゲットのみ）の組の平均．括弧は交差検証の版の反復の数（本文の版はどれも 30 回）．交差検証の版の合併は保留側のターゲットの発話だけで成績を測る\par}
+  \begin{itemize}\scriptsize\setlength{\itemsep}{1pt}
+    \item $K \le 10$ では 8 種類とも交差検証の版の利得が小さい．$K=1$ では，補足 0-5 の同点の規則で罰則が弱くなることが一因である
+    \item 全件では，A と A(HuBERT) で交差検証の版の損が小さく，本文の版は合併の損を大きく見せる．ほかの種類では 2 つの版の差は小さい
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-7：仮のターゲットで値を選ぶ間，ターゲットのデータは使わない}
+  \rl{仮のターゲットで選ぶ手順}\label{s:set:sel}
+  \vspace{-0.3em}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    % 時間の矢印
+    \draw[-{Stealth[length=2.4mm]}, mMuted, line width=1.0pt] (-0.75,2.75) -- (-0.75,-2.15);
+    \node[rotate=90, font=\tiny, text=mMuted] at (-1.0,0.3) {時間の順};
+    % ① 選ぶ
+    \fill[mMuted!8, rounded corners=3pt] (-0.45,0.55) rectangle (14.3,2.85);
+    \node[anchor=north west, font=\footnotesize\bfseries] at (-0.3,2.8) {① 選ぶ：$T$ と別のコーパスの群 $c$ を 1 つずつ仮のターゲットにする};
+    \node[srcbox, text width=2.55cm] (s1) at (1.05,1.35) {ラベル付きの群\\（$T$ と $c$ のコーパス以外）};
+    \node[tgtbox, text width=1.95cm, line width=1.1pt, minimum height=0.42cm] (k1) at (3.95,1.8) {$c$ の $K$ 本};
+    \node[tgtbox, fill=cTgt!40, text width=1.95cm, densely dashed, minimum height=0.42cm] (p1) at (3.95,1.0) {$c$ のラベル無しの発話};
+    \node[clf, text width=1.8cm] (m1) at (6.55,1.35) {候補の値ごとに\\手法を作る};
+    \node[testbox, text width=1.85cm] (t1) at (9.05,1.35) {$c$ のテスト話者\\で UAR を測る};
+    \node[qbox, text width=3.3cm] (a1) at (12.3,1.35) {$c$，反復（最初の \NUM{cmp-pseudo-reps-n} 回），手法の決める $K$ で平均し，最大の値を選ぶ};
+    \draw[arr] (s1.east) -- (m1.west);
+    \draw[arr] (k1.east) -- (m1.west);
+    \draw[arr] (p1.east) -- (m1.west);
+    \draw[arr] (m1) -- (t1);
+    \draw[arr] (t1) -- (a1);
+    % ② 本番
+    \fill[cTgt!18, rounded corners=3pt] (-0.45,-2.2) rectangle (14.3,0.3);
+    \node[anchor=north west, font=\footnotesize\bfseries] at (-0.3,0.25) {② 本番：ターゲット $T$};
+    \node[srcbox, text width=2.55cm] (s2) at (1.05,-1.2) {ラベル付きの群\\（$T$ のコーパス以外）};
+    \node[tgtbox, text width=1.95cm, line width=1.1pt, minimum height=0.42cm] (k2) at (3.95,-0.75) {$T$ の $K$ 本};
+    \node[tgtbox, fill=cTgt!40, text width=1.95cm, densely dashed, minimum height=0.42cm] (p2) at (3.95,-1.55) {$T$ のラベル無しの発話};
+    \node[clf, text width=1.8cm] (m2) at (6.55,-1.2) {選んだ値で\\手法を作る};
+    \node[testbox, text width=1.85cm] (t2) at (9.05,-1.2) {$T$ のテスト話者\\で評価する};
+    \node[qbox, text width=3.3cm] (a2) at (12.3,-1.2) {$T$ のテストの正解は，ここで初めて使う};
+    \draw[arr] (s2.east) -- (m2.west);
+    \draw[arr] (k2.east) -- (m2.west);
+    \draw[arr] (p2.east) -- (m2.west);
+    \draw[arr] (m2) -- (t2);
+    \draw[tarr] (t2) -- (a2);
+    \draw[arr, line width=1.2pt, cHyp] (11.0,0.82) -- node[left, font=\tiny, text=cHyp] {選んだ値} (6.55,-0.72);
+    % 凡例
+    \node[srcbox, minimum width=0.5cm, minimum height=0.3cm] at (0.0,-2.55) {};
+    \node[anchor=west, font=\tiny] at (0.3,-2.55) {ラベル付きのソース};
+    \node[tgtbox, line width=1.1pt, minimum width=0.5cm, minimum height=0.3cm] at (3.2,-2.55) {};
+    \node[anchor=west, font=\tiny] at (3.5,-2.55) {ラベルを付けた $K$ 本};
+    \node[tgtbox, fill=cTgt!40, densely dashed, minimum width=0.5cm, minimum height=0.3cm] at (6.3,-2.55) {};
+    \node[anchor=west, font=\tiny] at (6.6,-2.55) {ラベル無しの発話};
+    \node[testbox, minimum width=0.5cm, minimum height=0.3cm] at (9.2,-2.55) {};
+    \node[anchor=west, font=\tiny] at (9.5,-2.55) {テスト話者（学習にも選択にも使わない）};
+  \end{tikzpicture}\par
+  \vspace{0.1em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{1pt}
+    \item ① には $T$ の発話が 1 本も入らない．$c$ のラベルはもともとソースのラベルなので，$c$ のテスト話者で UAR を測ってよい
+    \item 第 II 部の手法と比較手法のハイパーパラメータは，すべてこの手順で選ぶ．オラクル（$T$ のテストで最良の値）は選び方の損を測るためだけに使う
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 0-8：区間は反復の対の差の $t$ 区間で，IEMOCAP は分割を共有する}
+  \rl{区間と検定，IEMOCAP の分割の共有}\label{s:set:stat}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      {\tighteq\small
+      \[
+        \bar{\Delta} \pm t_{0.975,\,R-1}\,\frac{s_\Delta}{\sqrt{R}}
+      \]}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item $\Delta_r$：反復 $r$ の利得（合併の UAR − ターゲットのみの UAR）．$\bar{\Delta}$ と $s_\Delta$ は $R$ 回の $\Delta_r$ の平均と標準偏差．$t_{0.975,R-1}$ は自由度 $R-1$ の $t$ 分布の 97.5\% 点（$R=30$ で約 2.05）
+        \item 2 つの学習法は同じ反復でテストの話者と $K$ 本を共有するので，対の差を取るとテストの抜き方の揺れが打ち消される
+        \item この区間はラベルとテスト話者の抜き方の揺れだけを表し，話者やコーパスを集め直す揺れは含まない
+        \item 組は同じコーパスを共有して互いに独立でない．組をまたぐ検定の $p$ 値は目安とし，中央値や順位相関などの効果の大きさと並べる
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\tiny]
+        \node[anchor=west, font=\scriptsize\bfseries] at (-0.3,1.3) {IEMOCAP 即興の 30 回の反復のテスト};
+        \foreach \r in {0,...,29} {
+          \pgfmathtruncatemacro{\f}{mod(\r,5)}
+          \pgfmathtruncatemacro{\row}{\r/10}
+          \pgfmathtruncatemacro{\col}{mod(\r,10)}
+          \pgfmathsetmacro{\shade}{15+15*\f}
+          \node[draw=mDarkTeal!70, fill=mDarkTeal!\shade, minimum width=0.5cm, minimum height=0.36cm, inner sep=0pt, text=black] at (\col*0.6,-\row*0.45+0.75) {\f};
+        }
+        \node[anchor=north west, align=left, text width=6.2cm, font=\tiny] at (-0.3,-0.42) {数字はテストにした分割の番号．同じ番号の反復は同じ 2 人の話者でテストする};
+      \end{tikzpicture}\par
+      \vspace{0.2em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item IEMOCAP の 10 人からは，テストの話者の組が即興で 5 通り，台本で 7 通りしかできない．30 回の差は独立でなく，区間は狭すぎる
+        \item IEMOCAP がターゲットでソースが役立つかを決めるときは，同じ分割の反復を先に平均する．ソースがまだ役立つ最大の $K$ は，IEMOCAP がターゲットの組では決めない
+        \item 比較の部の検定（Wilcoxon の符号つき順位検定と Holm の補正）でも，同じ分割の反復をまとめた版を並べる
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}

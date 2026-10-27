@@ -1,0 +1,813 @@
+% =====================================================================
+%  補足 3：比較の詳細（本編の parts/m_compare.tex・m_end.tex の比較と考察の細部）
+%  文の元：paper/sections/6-comparison.tex，7-discussion.tex，8-limitations-ethics.tex，paper/supplementary.tex（Additional Results for the
+%    Comparison，Fine-Tuning Check，Full Comparison Tables），paper/supp/tables.tex（全部の表）．主張の範囲は paper/CLAIM.md 第 5 版．語は paper/ja/sections/6-comparison.tex
+%  数値：実験の値は \NUM{key}（paper/results/numbers.json）だけで書く．台帳に無い値（ターゲットの間の範囲，K ごとの最も強い比較手法の略称，
+%    同じテストの話者の反復をまとめた後の p，テストの話者の集合の数，固定版の UAR，AVT 以外の拡張版のターゲットごとの値，出発点を下回った組の一覧）は
+%    figures/supp_c_*.csv から読む（scripts/export_supp_compare.py が台帳 comparison.py の _world と同じ集計で作り，台帳の 233 個の値と照合した．行の順も照合する）
+%  設計の定数（手で書いた値）の出所：
+%    比較手法の格子と固定版   exp/baselines_distill.py 69〜81 行（KS，PSEUDO_REPS，TAUS，TEMPS，ROUNDS_SELF，ROUNDS_CO，CO_C，MEFF_B，FIXED，KD_FIXED_TEACHER）
+%    各手法の式               exp/baselines_distill.py 95〜141 行（temp_rows，hard_rows，saerens，massbal），223〜262 行（run_student：self・entmin・kd・gd・hard），
+%                             264〜305 行（cotrain），307〜351 行（coreg）
+%    先生の渡し方             exp/baselines_distill.py 354〜372 行（run_world_unit：kd の先生 pF・poe0，gd の先生 pFK，hard の先生 pF，拡張版の先生 pFK・ref）．
+%                             pFK は K 本で学び直した融合の生徒（K=0 では融合の出発点 pF），ref は pFK が教えた単独の生徒の予測の積
+%    拡張版の候補             exp/baselines_distill.py 206〜220 行（oursx_rows：bal・raw・hard τ × m_eff）
+%    選び方                   exp/baselines_distill.py 375〜388 行（choose），394〜428 行（run_world：仮のターゲットとソース），exp/map.py 121〜132 行（test_mask，kshot_order）
+%    検定                     exp/stats_compare.py 200〜250 行（wilcoxon，summarize の p_dedup），85〜92 行（Holm の族 F-a は 55 検定），182〜197 行（test_sets）
+%    微調整                   exp/finetune_check.py 51〜67 行（TARGETS，REPS，LAMS，LAM_FIXED，MODEL，CROP_SEC，BATCH，LR_LORA・LR_HEAD・WARMUP，EPOCHS_*，LORA，MOSEI_*，CENTER_MOMENTUM），
+%                             333 行（弱いラベルの形），406〜411 行（plan），208〜258 行（train），139〜149 行（make_model）
+%    基本版が単独の生徒を教えるときの比重の合計 100・500   exp/multimodal_distill.py 56 行（MIN2）．拡張版は 500（exp/baselines_distill.py 363 行）
+%  模式図（ST・KD の数値例，クラスタの仮定の図）は説明用の値で，実験の値ではない（図の下に書く）
+% =====================================================================
+\setband{補足 3　比較の詳細}
+
+% ---- 表の値（台帳に無いもの）
+\pgfplotstableread{figures/supp_c_range.csv}\scRange        % 行 0〜10：AVT の A・V・T・融合，AV・VT・AT の融合，2 つ目の A・V・T・融合
+\pgfplotstableread{figures/supp_c_kbest.csv}\scKbest        % 行 0〜4：K = 0, 1, 5, 10, 25
+\pgfplotstableread{figures/supp_c_stats.csv}\scStats        % 行の順は supp_c_range.csv と同じ
+\pgfplotstableread{figures/supp_c_testsets.csv}\scTsets     % 行 0〜5：IEMOCAP 即興・台本，MELD，CMU-MOSEI，AFEW，CREMA-D
+\pgfplotstableread{figures/supp_c_entmin.csv}\scEnt         % 行 0〜3 AVT，4〜7 VT，8〜11 AT（即興・台本・MELD・MOSEI），12〜17 AV（AFEW・CREMA-D・即興・台本・MELD・MOSEI）
+\pgfplotstableread{figures/supp_c_entpick.csv}\scPick       % 行 0〜3：AVT，VT，AT，AV
+\pgfplotstableread{figures/supp_c_negcells.csv}\scNeg       % 行 0〜9：差の小さい順
+\newcommand{\scGet}[3]{\pgfplotstablegetelem{#2}{#3}\of{#1}\pgfplotsretval}
+% Holm 後の p：0.001 未満なら「<0.001」（論文の補足の表と同じ規則．台帳の -pholmlt001），0.05 未満なら太字
+\newcommand{\scPH}[1]{\ifnum\csname NUM@#1-pholmlt001\endcsname=1 \textbf{$<$0.001}\else\ifdim\csname NUM@#1-pholm\endcsname pt<0.05pt \textbf{\NUM{#1-pholm}}\else\NUM{#1-pholm}\fi\fi}
+% 同じテストの話者の反復をまとめた後の Holm 後の p（supp_c_stats.csv）．0.05 未満なら太字
+\newcommand{\scPD}[2]{\pgfplotstablegetelem{#1}{sd#2}\of\scStats\let\scTmp\pgfplotsretval\pgfplotstablegetelem{#1}{pd#2}\of\scStats\ifnum\scTmp=1 \textbf{\pgfplotsretval}\else\pgfplotsretval\fi}
+% 単独の生徒の UAR の行（#1 世界，#2 生徒，#3 K）
+\newcommand{\scModRow}[3]{\NUM{tab-#1-#2-k#3-e39} & \NUM{tab-#1-#2-k#3-self} & \NUM{tab-#1-#2-k#3-hard} & \NUM{tab-#1-#2-k#3-entmin} & \NUM{tab-#1-#2-k#3-kd} & \NUM{tab-#1-#2-k#3-gd} & \NUM{tab-#1-#2-k#3-cotrain} & \NUM{tab-#1-#2-k#3-coreg} & \NUM{tab-#1-#2-k#3-saerens} & \NUM{tab-#1-#2-k#3-massbal} & \textcolor{cOurs}{\NUM{tab-#1-#2-k#3-ours}} & \textcolor{cExt}{\textbf{\NUM{tab-#1-#2-k#3-oursx}}}}
+% 融合の生徒の UAR の行（#1 世界，#2 K）
+\newcommand{\scFusRow}[2]{\NUM{tab-#1-f-k#2-e39} & \NUM{tab-#1-f-k#2-self} & \NUM{tab-#1-f-k#2-entmin} & \NUM{tab-#1-f-k#2-kd} & \NUM{tab-#1-f-k#2-cotrain-fused} & \NUM{tab-#1-f-k#2-cotrain-prod} & \NUM{tab-#1-f-k#2-coreg-sum} & \NUM{tab-#1-f-k#2-saerens} & \NUM{tab-#1-f-k#2-massbal} & \textcolor{cOurs}{\NUM{tab-#1-f-k#2-ours}} & \textcolor{cExt}{\textbf{\NUM{tab-#1-f-k#2-oursx}}}}
+% 出発点との差の行（#1 世界，#2 生徒，#3 K，#4 supp_c_range.csv の行）
+\newcommand{\scDiffRow}[4]{\textcolor{cBest}{\scGet{\scRange}{#4}{lab#3}} & \NUM{cmp-best-vs-e39-#1-#2-k#3} & {\tiny\scGet{\scRange}{#4}{b#3r}} & \NUM{cmp-ours-vs-e39-#1-#2-k#3} & {\tiny\scGet{\scRange}{#4}{o#3r}} & \NUM{cmp-oursx-vs-e39-#1-#2-k#3} & {\tiny\scGet{\scRange}{#4}{e#3r}} & \textbf{\NUM{cmp-oursx-vs-best-#1-#2-k#3}} & \NUM{cmp-ours-vs-best-#1-#2-k#3}}
+% K ごとの値（#1 key の頭，#2 世界，#3 生徒）
+\newcommand{\scK}[3]{\NUM{#1-#2-#3-k0} & \NUM{#1-#2-#3-k1} & \NUM{#1-#2-#3-k5} & \NUM{#1-#2-#3-k10} & \NUM{#1-#2-#3-k25}}
+\newcommand{\scKL}[1]{\textcolor{cBest}{\scGet{\scKbest}{0}{#1}} & \textcolor{cBest}{\scGet{\scKbest}{1}{#1}} & \textcolor{cBest}{\scGet{\scKbest}{2}{#1}} & \textcolor{cBest}{\scGet{\scKbest}{3}{#1}} & \textcolor{cBest}{\scGet{\scKbest}{4}{#1}}}
+% K ごとの表の 1 人ぶん（#1 世界，#2 生徒，#3 生徒の名前，#4 supp_c_kbest.csv の列）
+\newcommand{\scKBlock}[4]{%
+  \multicolumn{6}{@{}l}{\textbf{#3の生徒}} \\
+  最も強い比較手法 & \scKL{#4} \\
+  最も強い − 出発点 & \scK{cmp-best-vs-e39}{#1}{#2} \\
+  \textcolor{cOurs}{基本版} − 出発点 & \scK{cmp-ours-vs-e39}{#1}{#2} \\
+  \textcolor{cExt}{拡張版} − 出発点 & \scK{cmp-oursx-vs-e39}{#1}{#2} \\
+  \textcolor{cExt}{拡張版} − 最も強い & \scK{cmp-oursx-vs-best}{#1}{#2} \\}
+% 生徒ごとの検定の行（#1 世界，#2 生徒，#3 supp_c_stats.csv の行）
+\newcommand{\scStRow}[3]{\NUM{st-oursx-best-#1-#2-k0-mean} & \NUM{st-oursx-best-#1-#2-k0-dz} & \scPH{st-oursx-best-#1-#2-k0} & \scPD{#3}{0} & \NUM{st-oursx-best-#1-#2-k0-tgtpos}/\scGet{\scStats}{#3}{nt0} & \NUM{st-oursx-best-#1-#2-k5-mean} & \NUM{st-oursx-best-#1-#2-k5-dz} & \scPH{st-oursx-best-#1-#2-k5} & \scPD{#3}{5} & \NUM{st-oursx-best-#1-#2-k5-tgtpos}/\scGet{\scStats}{#3}{nt5}}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-1：9 つの比較手法の，調整版が選ぶ値と固定版の値}
+  \rl{比較手法の設定}\label{s:c:grid}
+  \vspace{-0.4em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X l@{}}
+    \toprule
+    略称 & 手法（文献） & 調整版が選ぶ値 & 固定版 \\
+    \midrule
+    ST & 自己訓練（Lee 2013） & $\tau \in \{0.5, 0.7, 0.9\}$ × $m$（3 巡） & $\tau = 0.9$，$m = n$ \\
+    HPL & ハードな擬似ラベル & $\tau \in \{0.5, 0.7, 0.9\}$ × $m$ & $\tau = 0.9$，$m = n$ \\
+    EntM & エントロピー最小化（Grandvalet \& Bengio 2004） & $m$ & $m = n$ \\
+    KD & 温度つきの蒸留（Hinton ら 2015） & $T \in \{1, 2, 4\}$ × $m$ & $T = 2$，$m = n$ \\
+    GD & 一般化蒸留（Lopez-Paz ら 2016） & $T \in \{1, 2, 4\}$ × $m$ & $T = 2$，$m = n$ \\
+    CoT & 共訓練（Blum \& Mitchell 1998） & $c \in \{2, 5, 20\}$（10 巡） & $c = 2$ \\
+    CoR & 共正則化（Sindhwani ら 2005） & $m$ & $m = n$ \\
+    PA & 事前確率の調整（Saerens ら 2002） & 使うか使わないかだけ & 使う \\
+    RB & 出力の釣り合い直し & 使うか使わないかだけ & 使う \\
+    \bottomrule
+  \end{tabularx}\par
+  \vspace{0.4em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+    \item $\tau$：確信度のしきい値，$T$：温度，$c$：1 巡で感情ごとに足す本数．$m \in \{100, 500, 2000, n\}$ はラベル無しの項の比重の合計で，$n$ は候補（ラベル無しのプール）1 本あたり比重 1 にした値（合計は候補の本数）．CoT の比重は 1 本あたり 1
+    \item 固定版は元の論文の値．調整版は生徒と $K$ ごとに，候補と「使わない」（$K$ 本だけで学び直した出発点）のうち仮のターゲットの UAR の平均が最も高いものを選ぶ．拡張版も同じ選び方で，先生 × 重みづけ（合計をそろえる，そろえない，$\tau$ 以上を硬いラベル）× $m$ から選ぶ
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-2：ST と HPL は，確信度の高い予測だけを硬いラベルにする}
+  \rl{比較手法：ST と HPL}
+  \vspace{-0.6em}
+  {\small\tighteq
+  \begin{equation*}
+    \min_{W, b}\ \sum_{i \in \mathcal{L}} \ell(W\mathbf{z}_i + b,\, y_i) + \sum_{i \in \mathcal{U}} \sum_{c} Q_{ic}\, \ell(W\mathbf{z}_i + b,\, c) + \frac{\|W - W_0\|_M^2}{2C'} + \frac{\|b - b_0\|^2}{2C_b}
+  \end{equation*}}
+  \vspace{0.1em}
+  {\raggedright\scriptsize $\mathcal{L}$：ラベル付きの $4K$ 本，$\mathcal{U}$：ラベル無しの候補，$Q_{ic}$：発話 $i$ の感情 $c$ に置く比重．学び直す比較手法はどれも同じ出発点 $(W_0, b_0)$ と同じ縛りで学び，$Q$ の作り方が違う（EntM と CoR は $Q$ の代わりに項を足す）\par}
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      {\small\tighteq
+      \begin{equation*}
+        Q_{ic} = \mathbf{1}\!\left[c = \arg\max_{c'} p_{ic'}\right]\cdot \mathbf{1}\!\left[\max_{c'} p_{ic'} \ge \tau\right]
+      \end{equation*}}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item \textbf{ST}：$p_i$ は生徒自身の予測．最初の $p$ は $K$ 本だけで学び直した生徒の予測で，学び直すたびに $p$ を作り直して 3 巡する
+        \item \textbf{HPL}：$p_i$ を融合の出発点（先生）の予測にして，1 回だけ解く．単独の生徒だけに使う
+        \item $\mathbf{1}[\cdot]$ は中の条件が成り立てば 1，成り立たなければ 0．$m$ を数で選んだときは，$Q$ の合計が $m$ になるように全体を同じ倍率で割る．$m = n$ では選ばれた発話に比重 1
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3pt}
+      \begin{tabular}{@{}c cccc cc@{}}
+        \toprule
+        & \multicolumn{4}{c}{予測 $p_i$} & \multicolumn{2}{c}{付くラベル} \\
+        \cmidrule(lr){2-5}\cmidrule(l){6-7}
+        発話 & 中立 & 喜び & 悲しみ & 怒り & $\tau = 0.9$ & $\tau = 0.5$ \\
+        \midrule
+        1 & 0.95 & 0.03 & 0.01 & 0.01 & 中立 & 中立 \\
+        2 & 0.10 & 0.60 & 0.25 & 0.05 & -- & 喜び \\
+        3 & 0.40 & 0.35 & 0.15 & 0.10 & -- & -- \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      {\tiny 説明用の値（実験の値ではない）．「--」はラベルを付けない\par}
+      \vspace{0.4em}
+      {\raggedright\scriptsize しきい値 $\tau$ を下げるとラベルの付く発話が増えるが，誤ったラベルも増える\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-3：EntM と CoR は，ラベル無しの候補の上の罰を目的関数に足す}
+  \rl{比較手法：EntM と CoR}
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \textbf{\footnotesize EntM：エントロピー最小化}\par
+      {\small\tighteq
+      \begin{equation*}
+        +\ u \sum_{i \in \mathcal{U}} H(\mathbf{p}_i), \qquad H(\mathbf{p}) = -\sum_{c} p_c \log p_c
+      \end{equation*}}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item $\mathbf{p}_i$：生徒が発話 $i$ に出す 4 感情の確率．$H$ はエントロピー（4 感情に確率が散らばるほど大きい）．$u = m/n$ は候補 1 本あたりの比重
+        \item 予測が 1 つの感情に集中するように $W, b$ を動かすので，境目は候補の少ない所へ動く
+        \item $K$ 本だけで学び直した生徒から解き始める
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{\footnotesize CoR：共正則化}\par
+      {\small\tighteq
+      \begin{equation*}
+        +\ \frac{u}{2} \sum_{i \in \mathcal{U}} \sum_{a < a'} \bigl\|\tilde{\mathbf{s}}^{(a)}_i - \tilde{\mathbf{s}}^{(a')}_i\bigr\|^2
+      \end{equation*}}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item $\tilde{\mathbf{s}}^{(a)}_i$：モダリティ $a$ の単独の生徒が発話 $i$ に出す 4 感情のスコアから，その 4 つの平均を引いたもの
+        \item 単独の生徒をすべて同時に解く（縛りは各生徒の出発点のまま）．モダリティの間でスコアがそろうほど罰が小さい
+        \item 結果は，単独の生徒ではその生徒の出力，融合の生徒では単独の生徒のスコアの和
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vspace{0.5em}
+  {\raggedright\scriptsize どちらも，補足 3-2 の目的関数（$Q = 0$）にこの項を足す．固定版の $m = n$ では，候補の本数ぶんの罰が出発点への縛りよりずっと大きくなる（補足 3-15）\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-4：KD と GD は，温度で軟らかくした先生の確率を弱いラベルにする}
+  \rl{比較手法：KD と GD}
+  \vspace{-0.3em}
+  {\small\tighteq
+  \begin{equation*}
+    Q_{ic} = \frac{m}{n} \cdot \frac{P_{ic}^{1/T}}{\sum_{c'} P_{ic'}^{1/T}}
+  \end{equation*}}
+  \vspace{-0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.53\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item $P_{ic}$：先生が発話 $i$ に出す感情 $c$ の確率．$T$ は温度で，大きいほど 4 つの確率が近づく．$m = n$ では各発話の比重の合計が 1
+        \item 基本版との違い：感情ごとの合計をそろえない
+        \item \textbf{KD} の先生：単独の生徒には融合の出発点，融合の生徒には単独の出発点の予測の積
+        \item \textbf{GD}：同じ式で，先生を $K$ 本で学び直した融合の生徒にする（$K=0$ では融合の出発点と同じ）．Lopez-Paz らの，別のモダリティを特権情報（学習のときだけ使える情報）として持つ先生の形．単独の生徒だけに使う
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{4pt}
+      \begin{tabular}{@{}lcccc@{}}
+        \toprule
+        & 中立 & 喜び & 悲しみ & 怒り \\
+        \midrule
+        先生の確率 $P_i$ & 0.60 & 0.20 & 0.10 & 0.10 \\
+        \midrule
+        $T = 1$ & 0.60 & 0.20 & 0.10 & 0.10 \\
+        $T = 2$ & 0.42 & 0.24 & 0.17 & 0.17 \\
+        $T = 4$ & 0.33 & 0.25 & 0.21 & 0.21 \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      {\tiny 説明用の値（実験の値ではない）．$m = n$ のときの $Q_{ic}$．小数 2 桁に丸めた\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-5：CoT は生徒どうしでラベルを付け合い，PA と RB は出力を直す}
+  \rl{比較手法：CoT，PA，RB}
+  \vspace{-0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.46\textwidth}
+      \textbf{\footnotesize CoT：共訓練}\par\vspace{0.3em}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[clf, text width=1.7cm] (a) at (0,1.3) {音声の生徒};
+        \node[clf, text width=1.7cm] (v) at (0,0.3) {顔の生徒};
+        \node[draw=cExt, fill=cExt!8, rounded corners=2pt, align=center, text width=2.5cm] (L) at (3.8,0.8) {共通のラベル集合\\（比重 1）};
+        \draw[arr] (a.east) -- node[above, font=\tiny, sloped] {感情ごとに $c$ 本} (L.north west);
+        \draw[arr] (v.east) -- node[below, font=\tiny, sloped] {確信度の高い順} (L.south west);
+        \draw[arr, cExt] (L.south) |- node[pos=0.75, below, font=\tiny, text=cExt] {全部の生徒を学び直す（10 巡）} (-1.25,-0.55) |- (v.west);
+      \end{tikzpicture}\par
+      \vspace{0.1em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+        \item 言葉の生徒も同じように加わる．先に選んだ生徒の発話を優先し，すでにラベルのある発話は選ばない
+        \item 融合の生徒には 2 つの変種がある：CoT-P は単独の生徒の予測の積，CoT-F は最後のラベル集合で融合の生徒を学び直したもの
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \textbf{\footnotesize PA：事前確率の調整}\par\vspace{-0.3em}
+      {\small\tighteq
+      \begin{equation*}
+        \pi_c \leftarrow \frac{1}{n} \sum_{i \in \mathcal{U}} \frac{\pi_c\, p_{ic}}{\sum_{c'} \pi_{c'}\, p_{ic'}}
+      \end{equation*}}
+      {\raggedright\scriptsize 出発点は感情を等しい割合で学んだとみなし，候補での感情の割合 $\pi$ を EM（推定と更新を交互に繰り返す方法）で求める．テストでは $\pi_c\, p_c$ が最大の感情を答える\par}
+      \vspace{0.2em}
+      \textbf{\footnotesize RB：出力の釣り合い直し}\par\vspace{-0.3em}
+      {\small\tighteq
+      \begin{equation*}
+        \frac{1}{n} \sum_{i \in \mathcal{U}} \frac{a_c\, p_{ic}}{\sum_{c'} a_{c'}\, p_{ic'}} = \frac{1}{4} \quad (\text{すべての } c)
+      \end{equation*}}
+      {\raggedright\scriptsize 候補の上で予測の感情ごとの合計が等しくなる補正 $a$ を繰り返しで求め，テストでは $a_c\, p_c$ が最大の感情を答える．基本版の割り直しを，学び直さずに出力に当てた形．PA も RB も学び直さず，$p$ は出発点（$K \ge 1$ では $K$ 本で学び直した出発点）の予測\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-6：11 の生徒を反復 \NUM{cmp-reps-n} 回で測り，設定は仮のターゲットで選ぶ}
+  \rl{評価の手順}\label{s:c:proto}
+  \vspace{-0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.4\textwidth}
+      \centering\scriptsize
+      \renewcommand{\arraystretch}{1.1}
+      \setlength{\tabcolsep}{3pt}
+      \begin{tabular}{@{}llr@{}}
+        \toprule
+        世界 & 評価する生徒 & ターゲット \\
+        \midrule
+        AVT & 音声・顔・言葉・融合 & \NUM{cmp-targets-avt-n} つ \\
+        AV & 融合 & \NUM{cmp-targets-av-n} つ \\
+        VT & 融合 & \NUM{cmp-targets-vt-n} つ \\
+        AT & 融合 & \NUM{cmp-targets-at-n} つ \\
+        AVT（2 つ目） & 音声・顔・言葉・融合 & \NUM{cmp-targets-w2-n} つ \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.3em}
+      {\raggedright\scriptsize エンコーダ（音声・顔・言葉）は，1 つ目が WavLM・ResNet-50・RoBERTa，2 つ目が HuBERT・CLIP・DeBERTa．ターゲットは IEMOCAP 即興・台本，MELD，CMU-MOSEI で，AV ではこれに言葉の特徴が無い AFEW と CREMA-D を足す（RAVDESS には顔の特徴が無い）．AV・VT・AT の単独の生徒は比較では測っていない\par}
+    \end{column}
+    \begin{column}{0.57\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item \textbf{分割}：ターゲットの話者を 5 つの袋に分け，反復 $r$ では $r$ を 5 で割った余りの番号の袋をテストにする（袋の分け方も $r$ で決まる）．残りの発話がプールで，そこから感情ごとに $K$ 本を乱数で選ぶ．$K = 1$ の 1 本は $K = 5$ の 5 本に含まれる．$K \in \{0, 1, 5, 10, 25\}$
+        \item \textbf{仮のターゲット}：ターゲットのコーパス以外の群を 1 つずつ仮のターゲットにし，その群のコーパスも除いた群をソースにして，反復 \NUM{cmp-pseudo-reps-n} 回で同じことをする．ターゲットが MELD なら仮のターゲットは IEMOCAP 即興・台本と CMU-MOSEI の 3 つ，IEMOCAP なら MELD と CMU-MOSEI の 2 つ
+        \item \textbf{平均}：反復の平均をターゲットごとに取り，ターゲットで平均する
+        \item \textbf{最も強い比較手法}：生徒と $K$ ごとに，調整版のテストの UAR のターゲットの平均が最も高い比較手法．テストで選ぶので比較手法に有利で，拡張版との差は小さめに出る
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-7：拡張版の生徒の積の先生は，どの比較手法にも渡さない}
+  \rl{先生の渡し方}\label{s:c:teach}
+  \vspace{-0.4em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.08}
+  \begin{tabularx}{\textwidth}{@{}p{2.9cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    手法 & 単独の生徒に渡す先生 & 融合の生徒に渡す先生 \\
+    \midrule
+    HPL & 融合の出発点 & 使わない（先生が生徒自身の出発点になる） \\
+    KD & 融合の出発点 & 単独の出発点の予測の積 \\
+    GD & $K$ 本で学び直した融合の生徒（$K=0$ では融合の出発点） & 使わない（先生が学び直した生徒自身になる） \\
+    CoT & なし（単独の生徒どうしがラベルを付け合う） & なし（CoT-P と CoT-F） \\
+    ST，EntM，CoR，PA，RB & なし（生徒自身の予測を使う） & なし \\
+    \midrule
+    \textcolor{cExt}{拡張版}の先生の候補 & $K$ 本で学び直した融合の生徒と，それが教えた単独の生徒の予測の積 & $K$ 本で学び直した融合の生徒が教えた単独の生徒の予測の積 \\
+    \bottomrule
+  \end{tabularx}\par
+  \vspace{0.2em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{1pt}
+    \item 「教えた単独の生徒」：先生の予測を感情ごとの合計をそろえた弱いラベル（比重の合計 500）にして学び直した単独の生徒．基本版の融合の生徒の先生は，融合の出発点が同じように教えた単独の生徒の予測の積（比重の合計 100 か 500）
+    \item どの先生も，ソースだけで学んだ分類器か，ターゲットの $K$ 本とプールで学び直した分類器である．テストの話者のラベルは使わない
+  \end{itemize}
+  \takeaway{比較手法には拡張版の生徒の積の先生を渡さないので，差には先生の選び方の違いも含まれる}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-8：単独の生徒の UAR：調整版の比較手法と私たちの手法}
+  \rl{全部の数値：単独の生徒}\label{s:c:full}
+  \vspace{-0.3em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{3.4pt}
+  \renewcommand{\arraystretch}{1.05}
+  \begin{tabular}{@{}llr|r|rrrrrrrrr|rr@{}}
+    \toprule
+    世界 & 生徒 & $K$ & 出発点 & ST & HPL & EntM & KD & GD & CoT & CoR & PA & RB & \textcolor{cOurs}{基本版} & \textcolor{cExt}{拡張版} \\
+    \midrule
+    AVT & 音声 & 0 & \scModRow{avt}{a}{0} \\
+        &      & 5 & \scModRow{avt}{a}{5} \\
+        & 顔   & 0 & \scModRow{avt}{v}{0} \\
+        &      & 5 & \scModRow{avt}{v}{5} \\
+        & 言葉 & 0 & \scModRow{avt}{t}{0} \\
+        &      & 5 & \scModRow{avt}{t}{5} \\
+    \midrule
+    AVT & 音声 & 0 & \scModRow{w2}{a}{0} \\
+    （2 つ目の & & 5 & \scModRow{w2}{a}{5} \\
+    \quad エンコーダ） & 顔 & 0 & \scModRow{w2}{v}{0} \\
+        &      & 5 & \scModRow{w2}{v}{5} \\
+        & 言葉 & 0 & \scModRow{w2}{t}{0} \\
+        &      & 5 & \scModRow{w2}{t}{5} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.4em}
+  {\raggedright\scriptsize UAR（\%）を反復 \NUM{cmp-reps-n} 回で平均してターゲットごとに取り，ターゲット（4 つ）で平均した値．比較手法はすべて調整版．でたらめに当てると 25\%．論文の補足の全表と同じ値．略称は補足 3-1\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-9：融合の生徒の UAR：調整版の比較手法と私たちの手法}
+  \rl{全部の数値：融合の生徒}
+  \vspace{-0.2em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{4.2pt}
+  \renewcommand{\arraystretch}{1.02}
+  \begin{tabular}{@{}lr|r|rrrrrrrr|rr@{}}
+    \toprule
+    世界 & $K$ & 出発点 & ST & EntM & KD & CoT-F & CoT-P & CoR & PA & RB & \textcolor{cOurs}{基本版} & \textcolor{cExt}{拡張版} \\
+    \midrule
+    AVT & 0 & \scFusRow{avt}{0} \\
+        & 5 & \scFusRow{avt}{5} \\
+    AV  & 0 & \scFusRow{av}{0} \\
+        & 5 & \scFusRow{av}{5} \\
+    VT  & 0 & \scFusRow{vt}{0} \\
+        & 5 & \scFusRow{vt}{5} \\
+    AT  & 0 & \scFusRow{at}{0} \\
+        & 5 & \scFusRow{at}{5} \\
+    \midrule
+    AVT（2 つ目） & 0 & \scFusRow{w2}{0} \\
+                  & 5 & \scFusRow{w2}{5} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.3em}
+  {\raggedright\scriptsize UAR（\%），反復 \NUM{cmp-reps-n} 回とターゲットの平均．ターゲットは AV で \NUM{cmp-targets-av-n}，ほかは 4．比較手法はすべて調整版．融合の生徒には HPL と GD を使わない（補足 3-7）．CoT-F は共訓練の最後のラベル集合で融合の生徒を学び直したもの，CoT-P は共訓練した単独の生徒の予測の積，CoR は単独の生徒のスコアの和\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-10：$K=0$ の出発点との差と，ターゲットの間の範囲}
+  \rl{全部の数値：$K=0$ の差}
+  \vspace{-0.3em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{3.6pt}
+  \renewcommand{\arraystretch}{0.94}
+  \begin{tabular}{@{}ll|l|rl|rl|rl|rr@{}}
+    \toprule
+    & & 最も強い & \multicolumn{2}{c|}{\textcolor{cBest}{最も強い} − 出発点} & \multicolumn{2}{c|}{\textcolor{cOurs}{基本版} − 出発点} & \multicolumn{2}{c|}{\textcolor{cExt}{拡張版} − 出発点} & \textcolor{cExt}{拡張版} & \textcolor{cOurs}{基本版} \\
+    世界 & 生徒 & 比較手法 & 平均 & 範囲 & 平均 & 範囲 & 平均 & 範囲 & − 最も強い & − 最も強い \\
+    \midrule
+    AVT & 音声 & \scDiffRow{avt}{a}{0}{0} \\
+        & 顔   & \scDiffRow{avt}{v}{0}{1} \\
+        & 言葉 & \scDiffRow{avt}{t}{0}{2} \\
+        & 融合 & \scDiffRow{avt}{f}{0}{3} \\
+    AV  & 融合 & \scDiffRow{av}{f}{0}{4} \\
+    VT  & 融合 & \scDiffRow{vt}{f}{0}{5} \\
+    AT  & 融合 & \scDiffRow{at}{f}{0}{6} \\
+    \midrule
+    AVT（2 つ目） & 音声 & \scDiffRow{w2}{a}{0}{7} \\
+        & 顔   & \scDiffRow{w2}{v}{0}{8} \\
+        & 言葉 & \scDiffRow{w2}{t}{0}{9} \\
+        & 融合 & \scDiffRow{w2}{f}{0}{10} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.2em}
+  {\raggedright\tiny 差は UAR の\pt．平均はターゲットの平均（本編の表と棒の高さ），範囲はターゲットの間の最小〜最大（本編の棒のひげ．95\% 区間ではない）\par}
+  \vspace{0.1em}
+  {\raggedright\scriptsize 拡張版は $K=0$・5 の \NUM{cmp-ours-vs-best-cells-n} の組み合わせすべてで最も強い比較手法を \NUM{cmp-oursx-vs-best-range-lo}〜\NUM{cmp-oursx-vs-best-range-hi} \pt 上回り，基本版は \NUM{cmp-ours-vs-best-pos-n} で上回る．どこでも最も強い比較手法は 1 つも無い\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-11：$K=5$ の出発点との差と，ターゲットの間の範囲}
+  \rl{全部の数値：$K=5$ の差}
+  \vspace{-0.3em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{3.6pt}
+  \renewcommand{\arraystretch}{0.94}
+  \begin{tabular}{@{}ll|l|rl|rl|rl|rr@{}}
+    \toprule
+    & & 最も強い & \multicolumn{2}{c|}{\textcolor{cBest}{最も強い} − 出発点} & \multicolumn{2}{c|}{\textcolor{cOurs}{基本版} − 出発点} & \multicolumn{2}{c|}{\textcolor{cExt}{拡張版} − 出発点} & \textcolor{cExt}{拡張版} & \textcolor{cOurs}{基本版} \\
+    世界 & 生徒 & 比較手法 & 平均 & 範囲 & 平均 & 範囲 & 平均 & 範囲 & − 最も強い & − 最も強い \\
+    \midrule
+    AVT & 音声 & \scDiffRow{avt}{a}{5}{0} \\
+        & 顔   & \scDiffRow{avt}{v}{5}{1} \\
+        & 言葉 & \scDiffRow{avt}{t}{5}{2} \\
+        & 融合 & \scDiffRow{avt}{f}{5}{3} \\
+    AV  & 融合 & \scDiffRow{av}{f}{5}{4} \\
+    VT  & 融合 & \scDiffRow{vt}{f}{5}{5} \\
+    AT  & 融合 & \scDiffRow{at}{f}{5}{6} \\
+    \midrule
+    AVT（2 つ目） & 音声 & \scDiffRow{w2}{a}{5}{7} \\
+        & 顔   & \scDiffRow{w2}{v}{5}{8} \\
+        & 言葉 & \scDiffRow{w2}{t}{5}{9} \\
+        & 融合 & \scDiffRow{w2}{f}{5}{10} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.2em}
+  {\raggedright\tiny 「なし」は，調整版の比較手法がどれもラベル無しの発話を使わない設定を選んだこと（最も強い比較手法の差は 0）．範囲はターゲットの間の最小〜最大\par}
+  \vspace{0.1em}
+  {\raggedright\scriptsize 基本版が届かないのは AVT の音声と言葉の生徒（GD に \NUM{cmp-ours-vs-best-avt-a-k5}，\NUM{cmp-ours-vs-best-avt-t-k5} \pt）と AT の融合の生徒（CoT と \NUM{cmp-ours-vs-best-at-f-k5} \pt で同じ水準）\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-12：検定はターゲットと反復の対で行い，同じテストの話者の反復もまとめる}
+  \rl{検定の手順}\label{s:c:stats}
+  \vspace{-0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.58\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item \textbf{対}：同じターゲット・同じ反復（同じテストの話者と同じ $K$ 本）での 2 つの手法の UAR の差．4 ターゲットの世界では \NUM{st-oursx-best-avt-a-k0-n} 対，AV では \NUM{st-oursx-best-av-f-k0-n} 対
+        \item \textbf{Wilcoxon の符号順位検定}（差を絶対値の順位に直し，正の差と負の差の順位の和を比べる検定．正規分布を仮定しない）を両側で行う．差が 0 の対は除く．$d_z$ は差の平均 ÷ 差の標準偏差
+        \item \textbf{Holm の補正}（たくさん検定した分だけ基準を厳しくする手続き）は，\NUM{st-a-k0-cells-n} の生徒 × $K \in \{0, 1, 5, 10, 25\}$ の 55 の検定をまとめてかける
+        \item \textbf{同じテストの話者の反復}：テストは話者の袋で決まるので，右の表のように別の反復が同じテストの話者になることがある．その反復どうしの差を平均して 1 つの単位にし，同じ検定と補正をやり直す（単位は 4 ターゲットの世界で \scGet{\scStats}{0}{nu0}，AV で \scGet{\scStats}{4}{nu0}）
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{4pt}
+      \begin{tabular}{@{}lrr@{}}
+        \toprule
+        ターゲット & テストの話者 & 1 つのテストの \\
+        & の集合の数 & 話者の数 \\
+        \midrule
+        IEMOCAP 即興 & \scGet{\scTsets}{0}{nsets} & \scGet{\scTsets}{0}{spk_lo} \\
+        IEMOCAP 台本 & \scGet{\scTsets}{1}{nsets} & \scGet{\scTsets}{1}{spk_lo} \\
+        MELD & \scGet{\scTsets}{2}{nsets} & \scGet{\scTsets}{2}{spk_lo}〜\scGet{\scTsets}{2}{spk_hi} \\
+        CMU-MOSEI & \scGet{\scTsets}{3}{nsets} & \scGet{\scTsets}{3}{spk_lo}〜\scGet{\scTsets}{3}{spk_hi} \\
+        AFEW & \scGet{\scTsets}{4}{nsets} & \scGet{\scTsets}{4}{spk_lo}〜\scGet{\scTsets}{4}{spk_hi} \\
+        CREMA-D & \scGet{\scTsets}{5}{nsets} & \scGet{\scTsets}{5}{spk_lo}〜\scGet{\scTsets}{5}{spk_hi} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      {\raggedright\tiny 反復 \NUM{cmp-reps-n} 回のうちのテストの話者の集合の数．IEMOCAP は話者が 10 人なので，反復 $r$ と $r+5$ がおおむね同じ集合になる\par}
+    \end{column}
+  \end{columns}
+  \vspace{0.5em}
+  {\raggedright\scriptsize ターゲットは世界ごとに 4〜6 しかないので，この検定は私たちのコーパスの中のばらつき（ラベルとテストの話者の抜き方）を表し，ほかのコーパスへの一般化は表さない．ターゲットの符号だけを使う検定では，4 つのターゲットがすべて正でも 5\% の水準に届かない\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-13：拡張版 − 最も強い比較手法の，生徒ごとの検定の結果}
+  \rl{検定の結果}
+  \vspace{-0.4em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{3.6pt}
+  \renewcommand{\arraystretch}{0.93}
+  \begin{tabular}{@{}ll|rrrrr|rrrrr@{}}
+    \toprule
+    & & \multicolumn{5}{c|}{$K=0$} & \multicolumn{5}{c}{$K=5$} \\
+    世界 & 生徒 & 平均 & $d_z$ & $p$ & まとめた $p$ & 正 & 平均 & $d_z$ & $p$ & まとめた $p$ & 正 \\
+    \midrule
+    AVT & 音声 & \scStRow{avt}{a}{0} \\
+        & 顔   & \scStRow{avt}{v}{1} \\
+        & 言葉 & \scStRow{avt}{t}{2} \\
+        & 融合 & \scStRow{avt}{f}{3} \\
+    AV  & 融合 & \scStRow{av}{f}{4} \\
+    VT  & 融合 & \scStRow{vt}{f}{5} \\
+    AT  & 融合 & \scStRow{at}{f}{6} \\
+    \midrule
+    AVT（2 つ目） & 音声 & \scStRow{w2}{a}{7} \\
+        & 顔   & \scStRow{w2}{v}{8} \\
+        & 言葉 & \scStRow{w2}{t}{9} \\
+        & 融合 & \scStRow{w2}{f}{10} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.2em}
+  {\raggedright\tiny 平均：差の平均（\pt）．$p$：Holm の補正の後．まとめた $p$：同じテストの話者の反復を平均した後の，Holm の補正の後．太字は 5\% 未満．正：差の平均が正のターゲットの数\par}
+  \vspace{0.1em}
+  {\raggedright\scriptsize $K=0$：差が正の生徒 \NUM{st-a-k0-pos-n}／\NUM{st-a-k0-cells-n}，$d_z$ \NUM{st-a-k0-dz-lo}〜\NUM{st-a-k0-dz-hi}，有意 \NUM{st-a-k0-sig-n}（まとめた後 \NUM{st-a-k0-sigdedup-n}）．$K=5$：\NUM{st-a-k5-pos-n}／\NUM{st-a-k5-cells-n}，\NUM{st-a-k5-dz-lo}〜\NUM{st-a-k5-dz-hi}，有意 \NUM{st-a-k5-sig-n}（まとめた後 \NUM{st-a-k5-sigdedup-n}）\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-14：$K$ ごとに選び直した最も強い比較手法と，$K$ ごとの差（AVT）}
+  \rl{$K$ ごとの比較}\label{s:c:kcurves}
+  \vspace{-0.4em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3.4pt}
+      \renewcommand{\arraystretch}{0.88}
+      \begin{tabular}{@{}lrrrrr@{}}
+        \toprule
+        $K$ & 0 & 1 & 5 & 10 & 25 \\
+        \midrule
+        \scKBlock{avt}{a}{音声}{avta}
+        \midrule
+        \scKBlock{avt}{v}{顔}{avtv}
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3.4pt}
+      \renewcommand{\arraystretch}{0.88}
+      \begin{tabular}{@{}lrrrrr@{}}
+        \toprule
+        $K$ & 0 & 1 & 5 & 10 & 25 \\
+        \midrule
+        \scKBlock{avt}{t}{言葉}{avtt}
+        \midrule
+        \scKBlock{avt}{f}{融合}{avtf}
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \vspace{0.2em}
+  {\raggedright\tiny 1 つ目のエンコーダ，ターゲット 4 つ，反復 \NUM{cmp-reps-n} 回．差は UAR の\pt で，本編の $K$ ごとの図の値．「なし」は調整版の比較手法がどれもラベル無しの発話を使わなかったこと．拡張版 − 出発点の範囲は，音声のすべての $K$ で \NUM{cmp-oursx-vs-e39-avt-a-lo}〜\NUM{cmp-oursx-vs-e39-avt-a-hi}，言葉の $K \le 5$ で \NUM{cmp-oursx-vs-e39-avt-t-kle5-lo}〜\NUM{cmp-oursx-vs-e39-avt-t-kle5-hi}，融合の $K \ge 1$ で \NUM{cmp-oursx-vs-e39-avt-f-kge1-lo}〜\NUM{cmp-oursx-vs-e39-avt-f-kge1-hi}\par}
+  \vspace{0.1em}
+  {\raggedright\scriptsize 音声の生徒では，拡張版がすべての $K$ で最も強い比較手法を \NUM{cmp-oursx-vs-best-avt-a-lo}〜\NUM{cmp-oursx-vs-best-avt-a-hi} \pt 上回る．拡張版を上回るのは言葉の $K \ge 10$ の GD だけ（\NUM{cmp-gd-vs-oursx-avt-t-kge10-lo}〜\NUM{cmp-gd-vs-oursx-avt-t-kge10-hi}）．基本版は $K = 25$ の音声と融合で出発点を下回り，拡張版はどの $K$ でも下回らない\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-15：元の論文の値では，EntM・CoR・PA が単独の生徒を大きく下げる}
+  \rl{固定版：大きな損}\label{s:c:entmin}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=7.4cm, height=5.3cm, ybar, /pgf/bar width=8pt, ymin=0, ymax=60, xmin=-0.5, xmax=2.5,
+            xtick={0,1,2}, xticklabels={音声の生徒,顔の生徒,言葉の生徒}, ylabel={UAR（\%）}, ytick={0,10,...,50},
+            ymajorgrids, grid style={mMuted!25}, nodes near coords, every node near coord/.append style={font=\tiny, rotate=90, anchor=west},
+            nodes near coords style={/pgf/number format/.cd, fixed, fixed zerofill, precision=1},
+            area legend, legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=4, /tikz/every even column/.append style={column sep=0.5em}}]
+          \addplot[fill=cStart, draw=none] table[x=x, y=start] {supp_c_collapse.csv}; \addlegendentry{出発点}
+          \addplot[fill=cEnt, draw=none] table[x=x, y=EntM] {supp_c_collapse.csv}; \addlegendentry{EntM}
+          \addplot[fill=cCrit, draw=none] table[x=x, y=CoR] {supp_c_collapse.csv}; \addlegendentry{CoR}
+          \addplot[fill=mDarkTeal!55, draw=none] table[x=x, y=PA] {supp_c_collapse.csv}; \addlegendentry{PA}
+          \draw[black, densely dashed, line width=0.7pt] (axis cs:-0.5,25) -- (axis cs:2.5,25);
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny AVT の世界，1 つ目のエンコーダ，$K=0$，ターゲット 4 つ，反復 \NUM{cmp-reps-n} 回の平均．EntM・CoR・PA は固定版（元の論文の値）．破線は 1 つの感情だけを予測したときの UAR（25\%）\par}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 固定版は候補 1 本ごとに比重 1 を置くので，ラベル無しの項の合計は候補の本数 $n$ になり，出発点への縛りよりずっと大きくなる．そのため予測が 1 つの感情に集まりやすい（ほとんどの発話を同じ感情と予測する状態を「潰れる」と呼ぶ）
+        \item 1 つの感情だけを予測すると UAR は 25\%（でたらめに当てたときと同じ）．CoR はどの生徒でも，EntM は音声の生徒で，ほぼこの水準まで下がる．AVT の単独の生徒の $K=0$ で，3 つの固定版は出発点の UAR を \NUM{cmp-fixed-collapse-avt-mod-k0-lo}〜\NUM{cmp-fixed-collapse-avt-mod-k0-hi} \pt 変える
+        \item 融合の生徒でも，CoR と PA の固定版は 4 つの世界で \NUM{cmp-coreg-saerens-fixed-vs-e39-f-k0-lo}〜\NUM{cmp-coreg-saerens-fixed-vs-e39-f-k0-hi} \pt．2 つ目のエンコーダの世界の EntM の固定版は，4 つの生徒の $K=0$・5 で \NUM{cmp-entmin-fixed-vs-e39-w2-k0k5-lo}〜\NUM{cmp-entmin-fixed-vs-e39-w2-k0k5-hi} \pt
+        \item 調整版は仮のターゲットでこの損を見つけて「使わない」を選ぶので，AVT の単独の生徒の $K=0$ では出発点とほぼ同じ UAR になる（補足 3-8）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-16：固定版の EntM が得をするのは，AVT と AT の IEMOCAP 即興だけ}
+  \rl{固定版：エントロピー最小化}
+  \vspace{-0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.6\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3.2pt}
+      \renewcommand{\arraystretch}{1.08}
+      \begin{tabular}{@{}l|rr|rr|rr|rr@{}}
+        \toprule
+        & \multicolumn{2}{c|}{AVT} & \multicolumn{2}{c|}{VT} & \multicolumn{2}{c|}{AT} & \multicolumn{2}{c}{AV} \\
+        ターゲット & \textcolor{cEnt}{EntM} & \textcolor{cExt}{拡張} & \textcolor{cEnt}{EntM} & \textcolor{cExt}{拡張} & \textcolor{cEnt}{EntM} & \textcolor{cExt}{拡張} & \textcolor{cEnt}{EntM} & \textcolor{cExt}{拡張} \\
+        \midrule
+        IEMOCAP 即興 & \textbf{\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro}} & \NUM{cmp-oursx-vs-e39-avt-f-k0-impro} & \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro} & \scGet{\scEnt}{4}{oxs} & \textbf{\NUM{cmp-entmin-fixed-vs-e39-at-f-k0-impro}} & \scGet{\scEnt}{8}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro} & \scGet{\scEnt}{14}{oxs} \\
+        IEMOCAP 台本 & \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-script} & \NUM{cmp-oursx-vs-e39-avt-f-k0-script} & \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-script} & \scGet{\scEnt}{5}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-at-f-k0-script} & \scGet{\scEnt}{9}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-script} & \scGet{\scEnt}{15}{oxs} \\
+        MELD & \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld} & \NUM{cmp-oursx-vs-e39-avt-f-k0-meld} & \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-meld} & \scGet{\scEnt}{6}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-at-f-k0-meld} & \scGet{\scEnt}{10}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-meld} & \scGet{\scEnt}{16}{oxs} \\
+        CMU-MOSEI & \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-mosei} & \NUM{cmp-oursx-vs-e39-avt-f-k0-mosei} & \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-mosei} & \scGet{\scEnt}{7}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-at-f-k0-mosei} & \scGet{\scEnt}{11}{oxs} & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-mosei} & \scGet{\scEnt}{17}{oxs} \\
+        AFEW & -- & -- & -- & -- & -- & -- & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-afew} & \scGet{\scEnt}{12}{oxs} \\
+        CREMA-D & -- & -- & -- & -- & -- & -- & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-cremad} & \scGet{\scEnt}{13}{oxs} \\
+        \midrule
+        平均 & \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0} & \NUM{cmp-oursx-vs-e39-avt-f-k0} & \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0} & \NUM{cmp-oursx-vs-e39-vt-f-k0} & \NUM{cmp-entmin-fixed-vs-e39-at-f-k0} & \NUM{cmp-oursx-vs-e39-at-f-k0} & \NUM{cmp-entmin-fixed-vs-e39-av-f-k0} & \NUM{cmp-oursx-vs-e39-av-f-k0} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      {\raggedright\tiny 融合の生徒，$K=0$ の出発点との差（\pt），反復 \NUM{cmp-reps-n} 回の平均．EntM は固定版，拡張は拡張版（調整版）．太字は EntM が出発点を上回る所\par}
+      \vspace{0.3em}
+      {\raggedright\scriptsize 調整版の EntM が「使わない」を選んだターゲットの数（$K = 0, 1, 5, 10, 25$）：
+      AVT \scGet{\scPick}{0}{none0}・\scGet{\scPick}{0}{none1}・\scGet{\scPick}{0}{none5}・\scGet{\scPick}{0}{none10}・\scGet{\scPick}{0}{none25}／\scGet{\scPick}{0}{n}，
+      VT \scGet{\scPick}{1}{none0}・\scGet{\scPick}{1}{none1}・\scGet{\scPick}{1}{none5}・\scGet{\scPick}{1}{none10}・\scGet{\scPick}{1}{none25}／\scGet{\scPick}{1}{n}，
+      AT \scGet{\scPick}{2}{none0}・\scGet{\scPick}{2}{none1}・\scGet{\scPick}{2}{none5}・\scGet{\scPick}{2}{none10}・\scGet{\scPick}{2}{none25}／\scGet{\scPick}{2}{n}，
+      AV \scGet{\scPick}{3}{none0}・\scGet{\scPick}{3}{none1}・\scGet{\scPick}{3}{none5}・\scGet{\scPick}{3}{none10}・\scGet{\scPick}{3}{none25}／\scGet{\scPick}{3}{n}\par}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1cm, y=1cm]
+        % 左：塊が分かれている
+        \draw[mMuted!60, rounded corners=2pt] (0,0) rectangle (2.4,1.9);
+        \foreach \p in {(0.35,0.9),(0.5,1.3),(0.6,0.6),(0.75,1.05),(0.4,0.45),(0.85,1.45),(0.55,1.6),(0.3,1.2)} \fill[cOurs] \p circle (1.6pt);
+        \foreach \p in {(1.65,0.9),(1.8,1.3),(1.9,0.6),(2.05,1.05),(1.7,0.45),(2.1,1.45),(1.85,1.65),(1.6,1.2)} \fill[cBest] \p circle (1.6pt);
+        \draw[mDarkTeal, line width=1pt] (1.22,0.1) -- (1.22,1.8);
+        \node[font=\tiny, anchor=north, align=center] at (1.2,-0.05) {塊が分かれている\\（AVT・AT の IEMOCAP 即興）};
+        % 右：塊が重なっている
+        \begin{scope}[xshift=2.7cm]
+          \draw[mMuted!60, rounded corners=2pt] (0,0) rectangle (2.4,1.9);
+          \foreach \p in {(0.5,0.9),(0.8,1.3),(1.1,0.6),(1.3,1.1),(0.7,0.45),(1.5,1.5),(0.95,1.65),(1.6,0.8)} \fill[cOurs] \p circle (1.6pt);
+          \foreach \p in {(0.9,0.95),(1.2,1.4),(1.4,0.5),(1.7,1.15),(1.05,0.3),(1.9,1.6),(1.75,0.55),(0.6,1.25)} \fill[cBest] \p circle (1.6pt);
+          \draw[mDarkTeal, line width=1pt, densely dashed] (2.05,0.1) -- (2.05,1.8);
+          \node[font=\tiny, anchor=north, align=center] at (1.2,-0.05) {塊が重なっている\\（MELD，CMU-MOSEI など）};
+        \end{scope}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 模式図（実験の値ではない）．点は 2 つの感情の発話，線は境目\par}
+      \vspace{0.2em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+        \item EntM はクラスタの仮定（感情ごとの発話がラベル無しのデータの中で離れた塊になっているという仮定）に頼る．塊が分かれていれば，境目は塊の間の空いた所へ動く
+        \item 塊が重なっていると，予測を鋭くしても境目は正しい位置に近づかない
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-17：微調整の確かめは WavLM に LoRA を付け，罰則の重みは 0.01}
+  \rl{微調整：設定}\label{s:c:ft}
+  \vspace{-0.8em}
+  {\small\tighteq
+  \begin{equation*}
+    \min_{\theta}\ \frac{1}{M} \sum_{i} \sum_{k} s_{ik} \bigl(-\log p_k(x_i; \theta)\bigr) + \frac{\lambda}{2} \|\theta - \theta_0\|^2
+  \end{equation*}}
+  {\raggedright\scriptsize $\theta$：LoRA と頭の重み，$\theta_0$：ソースで学んだ $\theta$，$x_i$：発話の音声，$s_{ik}$：発話 $i$ の感情 $k$ の比重（$K$ 本と弱いラベル），$M$：その合計\par}
+  \vspace{0.1em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{0.98}
+  \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    エンコーダ & WavLM-large の畳み込みの部分は凍結し，各層の注意の 4 つの行列に LoRA（重みに小さな 2 つの行列の積を足し，その 2 つだけを学ぶ方法．$r = 8$，$\alpha = 16$）を付け，平均プーリングの後に線形の頭を置く \\
+    学習 & AdamW，学習率は LoRA $10^{-4}$・頭 $10^{-3}$，バッチ 16．発話は学習で 10 秒，評価で 60 秒までに切る \\
+    出発点 $\theta_0$ & ターゲットのコーパスを除くソースで 3 エポック（CMU-MOSEI は感情ごとに 1500 本に間引く） \\
+    手法 & $K$ 本だけと，$K$ 本＋出発点への罰則（20 エポック．$K=0$ は $\theta_0$ のまま），弱いラベルを足す（2 エポック） \\
+    罰則の重み $\lambda$ & $\{0.001, 0.01, 0.1\}$ を測り，本文は 0.01（L2-SP〔出発点からのずれに L2 の罰則をかける微調整〕の既定の値．テストで選ばない） \\
+    弱いラベル & 凍結した特徴の AVT で拡張版が音声の生徒に選んだ形：先生は $K$ 本で学び直した融合の生徒が教えた単独の生徒の予測の積，$K=0$ は感情ごとの合計をそろえ $K=5$ はそろえない，比重の合計は候補の本数 \\
+    中心化あり & 埋め込みから群ごとの平均を引く（ソースは学習中の移動平均，ターゲットは $\theta_0$ で測った候補の平均） \\
+    規模 & 音声の生徒だけ，AVT と同じ 4 ターゲット，反復 \NUM{cmp-ft-reps-n} 回，$K \in \{0, 5\}$．CMU-MOSEI の候補は 4000 本に間引く．凍結した特徴も同じ分割で測る \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-18：微調整した手法は，全部の対で凍結した特徴の同じ手法を下回る}
+  \rl{微調整：全部の値}
+  \vspace{-0.7em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{5pt}
+  \renewcommand{\arraystretch}{0.92}
+  \begin{tabular}{@{}l|rr|rrr@{}}
+    \toprule
+    UAR（\%） & \multicolumn{2}{c|}{$K=0$} & \multicolumn{3}{c}{$K=5$} \\
+    & 出発点 & 弱いラベル & $K$ 本だけ & $K$ 本＋罰則 & 弱いラベル \\
+    \midrule
+    凍結した特徴 & \NUM{cmp-frozen-uar-e39-k0} & \NUM{cmp-frozen-uar-ours-k0} & -- & \NUM{cmp-frozen-uar-e39-k5} & \NUM{cmp-frozen-uar-ours-k5} \\
+    微調整 & \NUM{cmp-ft-uar-start-k0} & \NUM{cmp-ft-uar-ours-k0} & \NUM{cmp-ft-uar-konly-k5} & \NUM{cmp-ft-uar-anchor-k5} & \NUM{cmp-ft-uar-ours-k5} \\
+    微調整＋中心化 & \NUM{cmp-ftc-uar-start-k0} & \NUM{cmp-ftc-uar-ours-k0} & \NUM{cmp-ftc-uar-konly-k5} & \NUM{cmp-ftc-uar-anchor-k5} & \NUM{cmp-ftc-uar-ours-k5} \\
+    \bottomrule
+  \end{tabular}\par
+  {\raggedright\tiny 凍結した特徴の「$K$ 本＋罰則」は 5 つの値を選んだ出発点．$\lambda = 0.01$．4 ターゲットと反復 \NUM{cmp-ft-reps-n} 回の平均\par}
+  \vspace{0.05em}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    差（\pt） & 中心化なし & 中心化あり \\
+    \midrule
+    (1) 出発点：凍結 − 微調整（$K=0$） & \NUM{cmp-ft-start-below-frozen-e39-k0} & \NUM{cmp-ftc-start-below-frozen-e39-k0} \\
+    (2) 凍結の 5 つの値の出発点 − $K$ 本だけ（$K=5$） & \NUM{cmp-ft-konly-below-frozen-e39-k5}（\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}〜\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi}） & \NUM{cmp-ftc-konly-below-frozen-e39-k5}（\NUM{cmp-ftc-konly-below-frozen-e39-k5-tgt-lo}〜\NUM{cmp-ftc-konly-below-frozen-e39-k5-tgt-hi}） \\
+    (3) 罰則 − $K$ 本だけ（$K=5$） & \NUM{cmp-ft-anchor-vs-konly-k5}（$\lambda = 0.001$：\NUM{cmp-ft-anchor-vs-konly-k5-lam0001}，$0.1$：\NUM{cmp-ft-anchor-vs-konly-k5-lam01}） & \NUM{cmp-ftc-anchor-vs-konly-k5} \\
+    (4) 弱いラベルの上乗せ（$K=0$／$K=5$） & \NUM{cmp-ft-weak-vs-start-k0}／\NUM{cmp-ft-weak-vs-anchor-k5}（\NUM{cmp-ft-weak-gain-lo}〜\NUM{cmp-ft-weak-gain-hi}） & \NUM{cmp-ftc-weak-vs-start-k0}／\NUM{cmp-ftc-weak-vs-anchor-k5}（\NUM{cmp-ftc-weak-gain-lo}〜\NUM{cmp-ftc-weak-gain-hi}） \\
+    (5) 同じ手法：凍結 − 微調整（$K=0$／$K=5$） & \NUM{cmp-ft-ours-below-frozen-ours-k0}／\NUM{cmp-ft-ours-below-frozen-ours-k5}（\NUM{cmp-ft-ours-below-frozen-ours-pair-lo}〜\NUM{cmp-ft-ours-below-frozen-ours-pair-hi}） & \NUM{cmp-ftc-ours-below-frozen-ours-k0}／\NUM{cmp-ftc-ours-below-frozen-ours-k5}（\NUM{cmp-ftc-ours-below-frozen-ours-pair-lo}〜\NUM{cmp-ftc-ours-below-frozen-ours-pair-hi}） \\
+    (6) 中心化で上がる幅 & -- & \NUM{cmp-ftc-lift-lo}〜\NUM{cmp-ftc-lift-hi}／\NUM{cmp-ftc-lift-ours-k0}・\NUM{cmp-ftc-lift-ours-k5} \\
+    (7) 中心化が埋める，凍結との差の割合 & -- & \NUM{cmp-ftc-gap-closed-start-k0}\%・\NUM{cmp-ftc-gap-closed-konly-k5}\% \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.1em}
+  {\raggedright\tiny 括弧は最小〜最大：(2) ターゲットごと，(4) 4 ターゲット × 2 つの $K$，(5) ターゲット × 反復の 24 対．(6) 出発点・$K$ 本だけ・罰則／弱いラベルの $K=0$・5．(7) $K=0$ の出発点・$K=5$ の $K$ 本だけ．\textbf{(5) は各 $K$ の \NUM{cmp-ft-pairs-n} 対のうち，中心化なしで \NUM{cmp-ft-ours-below-frozen-ours-k0-pos-n}・\NUM{cmp-ft-ours-below-frozen-ours-k5-pos-n}，ありで \NUM{cmp-ftc-ours-below-frozen-ours-k0-pos-n}・\NUM{cmp-ftc-ours-below-frozen-ours-k5-pos-n} の対で正}（Holm 後の $p$ は \NUM{st-ft-ours-vs-frozen-k0-pholm}・\NUM{st-ft-ours-vs-frozen-k5-pholm}）\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-19：2 つ目のエンコーダの世界の，$K$ ごとの差（HuBERT，CLIP，DeBERTa）}
+  \rl{2 つ目のエンコーダ}\label{s:c:w2}
+  \vspace{-0.4em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3.4pt}
+      \renewcommand{\arraystretch}{0.88}
+      \begin{tabular}{@{}lrrrrr@{}}
+        \toprule
+        $K$ & 0 & 1 & 5 & 10 & 25 \\
+        \midrule
+        \scKBlock{w2}{a}{音声}{w2a}
+        \midrule
+        \scKBlock{w2}{v}{顔}{w2v}
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3.4pt}
+      \renewcommand{\arraystretch}{0.88}
+      \begin{tabular}{@{}lrrrrr@{}}
+        \toprule
+        $K$ & 0 & 1 & 5 & 10 & 25 \\
+        \midrule
+        \scKBlock{w2}{t}{言葉}{w2t}
+        \midrule
+        \scKBlock{w2}{f}{融合}{w2f}
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \vspace{0.2em}
+  {\raggedright\tiny ターゲット \NUM{cmp-targets-w2-n} つ，反復 \NUM{cmp-reps-n} 回．差は UAR の\pt．2 つ目のエンコーダは，手法では AVT の世界だけで確かめた．固定版の EntM − 出発点（$K=0$・5）：音声 \NUM{cmp-entmin-fixed-vs-e39-w2-a-k0}・\NUM{cmp-entmin-fixed-vs-e39-w2-a-k5}，顔 \NUM{cmp-entmin-fixed-vs-e39-w2-v-k0}・\NUM{cmp-entmin-fixed-vs-e39-w2-v-k5}，言葉 \NUM{cmp-entmin-fixed-vs-e39-w2-t-k0}・\NUM{cmp-entmin-fixed-vs-e39-w2-t-k5}，融合 \NUM{cmp-entmin-fixed-vs-e39-w2-f-k0}・\NUM{cmp-entmin-fixed-vs-e39-w2-f-k5}\par}
+  \vspace{0.1em}
+  {\raggedright\scriptsize 基本版は $K=0$ と $K=5$ で 4 つの生徒すべてを出発点より上げる．拡張版は最も強い比較手法を $K=0$・5 で \NUM{cmp-oursx-vs-best-w2-k0k5-lo}〜\NUM{cmp-oursx-vs-best-w2-k0k5-hi} \pt，$K=25$ で \NUM{cmp-oursx-vs-best-w2-k25-lo}〜\NUM{cmp-oursx-vs-best-w2-k25-hi} \pt 上回る（$K=25$ の出発点との差は \NUM{cmp-oursx-vs-e39-w2-k25-lo}〜\NUM{cmp-oursx-vs-e39-w2-k25-hi}）\par}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-20：仮のターゲットで選ぶと，$K=0$ で最大 \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0} \pt 失う}
+  \rl{選び方で失う分}\label{s:c:oracle}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.42\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{5pt}
+      \renewcommand{\arraystretch}{1.08}
+      \begin{tabular}{@{}llr@{}}
+        \toprule
+        世界 & 生徒 & オラクル − 選んだ候補 \\
+        \midrule
+        AVT & 音声 & \NUM{cmp-oursx-oracle-vs-tuned-avt-a-k0} \\
+            & 顔   & \NUM{cmp-oursx-oracle-vs-tuned-avt-v-k0} \\
+            & 言葉 & \textbf{\NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0}} \\
+            & 融合 & \textbf{\NUM{cmp-oursx-oracle-vs-tuned-avt-f-k0}} \\
+        AV  & 融合 & \NUM{cmp-oursx-oracle-vs-tuned-av-f-k0} \\
+        VT  & 融合 & \NUM{cmp-oursx-oracle-vs-tuned-vt-f-k0} \\
+        AT  & 融合 & \NUM{cmp-oursx-oracle-vs-tuned-at-f-k0} \\
+        \midrule
+        AVT（2 つ目） & 音声 & \NUM{cmp-oursx-oracle-vs-tuned-w2-a-k0} \\
+            & 顔   & \textbf{\NUM{cmp-oursx-oracle-vs-tuned-w2-v-k0}} \\
+            & 言葉 & \textbf{\NUM{cmp-oursx-oracle-vs-tuned-w2-t-k0}} \\
+            & 融合 & \textbf{\NUM{cmp-oursx-oracle-vs-tuned-w2-f-k0}} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      {\raggedright\tiny 拡張版，$K=0$，UAR の\pt，反復 \NUM{cmp-reps-n} 回とターゲットの平均．太字は 1 \pt 以上\par}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item オラクル：拡張版の候補のうち，ターゲットごとにテストの話者の UAR が最も高い候補．テストのラベルを使うので手法としては使えない
+        \item 1 \pt 以上失うのは \NUM{cmp-oursx-oracle-gap-students-n} の生徒のうち \NUM{cmp-oursx-oracle-gap-ge1-n}．この差は，よりよい選び方で足せる分の上限になる
+        \item 比較手法も同じ仮のターゲットで同じ手順で選ぶので，この損は私たちの手法を有利にしない
+      \end{itemize}
+      \vspace{0.6em}
+      \takeaway{オラクルの値は選び方で失う分を測るためだけに使い，手法の性能としては出さない}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{補足 3-21：言葉は向きの損が大きく，拡張版が出発点を下回る組は少ない}
+  \rl{考察の細部}\label{s:c:disc}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item 言葉の特徴では，ソースのみの分類器の判断基準による損失が \NUM{p1-e13-loss-offset-t-xsame} \pt，向きによる損失が \NUM{p1-e13-loss-dir-t-xsame} \pt（音声は \NUM{p1-e13-loss-offset-a-xsame} と \NUM{p1-e13-loss-dir-a-xsame}．同じコーパスの組を除く）．少ないラベルが直す判断基準のずれがほとんど無い
+        \item 合併の上乗せに占める判断基準の割合は，言葉で $K=1$ のとき \NUM{p1-e29-critshare-k1-t}，$K=5$ で \NUM{p1-e29-critshare-k5-t}，$K=10$ で \NUM{p1-e29-critshare-k10-t}（音声は $K=1$ で \NUM{p1-e29-critshare-k1-a}）．上乗せの割合は損の割合に従う
+        \item それでも言葉の生徒は，言葉のラベルに足りない向きの情報を融合の先生から得る．AVT の言葉の生徒の拡張版 − 出発点は $K=0$ で \NUM{cmp-oursx-vs-e39-avt-t-k0}，$K=5$ で \NUM{cmp-oursx-vs-e39-avt-t-k5} \pt
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{itemize}\scriptsize
+        \item ターゲットとセル（生徒と $K \in \{0, 5\}$）の \NUM{st-b-tgt-n} の組のうち，拡張版が出発点を下回るのは \NUM{st-b-tgtneg-n} で，最悪でも \NUM{st-b-tgtneg-worst} \pt．固定版の EntM の損（補足 3-16）よりずっと小さい
+      \end{itemize}
+      \vspace{0.1em}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{4pt}
+      \renewcommand{\arraystretch}{0.98}
+      \begin{tabular}{@{}llrlr@{}}
+        \toprule
+        世界 & 生徒 & $K$ & ターゲット & 差 \\
+        \midrule
+        \scGet{\scNeg}{0}{world} & \scGet{\scNeg}{0}{student} & \scGet{\scNeg}{0}{K} & \scGet{\scNeg}{0}{target} & \scGet{\scNeg}{0}{diffs} \\
+        \scGet{\scNeg}{1}{world} & \scGet{\scNeg}{1}{student} & \scGet{\scNeg}{1}{K} & \scGet{\scNeg}{1}{target} & \scGet{\scNeg}{1}{diffs} \\
+        \scGet{\scNeg}{2}{world} & \scGet{\scNeg}{2}{student} & \scGet{\scNeg}{2}{K} & \scGet{\scNeg}{2}{target} & \scGet{\scNeg}{2}{diffs} \\
+        \scGet{\scNeg}{3}{world} & \scGet{\scNeg}{3}{student} & \scGet{\scNeg}{3}{K} & \scGet{\scNeg}{3}{target} & \scGet{\scNeg}{3}{diffs} \\
+        \scGet{\scNeg}{4}{world} & \scGet{\scNeg}{4}{student} & \scGet{\scNeg}{4}{K} & \scGet{\scNeg}{4}{target} & \scGet{\scNeg}{4}{diffs} \\
+        \scGet{\scNeg}{5}{world} & \scGet{\scNeg}{5}{student} & \scGet{\scNeg}{5}{K} & \scGet{\scNeg}{5}{target} & \scGet{\scNeg}{5}{diffs} \\
+        \scGet{\scNeg}{6}{world} & \scGet{\scNeg}{6}{student} & \scGet{\scNeg}{6}{K} & \scGet{\scNeg}{6}{target} & \scGet{\scNeg}{6}{diffs} \\
+        \scGet{\scNeg}{7}{world} & \scGet{\scNeg}{7}{student} & \scGet{\scNeg}{7}{K} & \scGet{\scNeg}{7}{target} & \scGet{\scNeg}{7}{diffs} \\
+        \scGet{\scNeg}{8}{world} & \scGet{\scNeg}{8}{student} & \scGet{\scNeg}{8}{K} & \scGet{\scNeg}{8}{target} & \scGet{\scNeg}{8}{diffs} \\
+        \scGet{\scNeg}{9}{world} & \scGet{\scNeg}{9}{student} & \scGet{\scNeg}{9}{K} & \scGet{\scNeg}{9}{target} & \scGet{\scNeg}{9}{diffs} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.1em}
+      {\raggedright\tiny 拡張版 − 出発点（\pt．小数 2 桁），ターゲットごとに反復 \NUM{cmp-reps-n} 回を平均した値\par}
+    \end{column}
+  \end{columns}
+\end{frame}

@@ -1,0 +1,3 @@
+_part_*.tex
+build_part_*/
+build_part_*.log

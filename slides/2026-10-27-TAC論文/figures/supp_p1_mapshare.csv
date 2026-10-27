@@ -1,0 +1,20 @@
+# 出所：results/fixc_analysis/explore_relation/snapshots/20261009-0105_fixc/decomp_share.csv と results/rerun_fixc/check_h7/share.csv（C を固定した地図）．
+# 組ごとの値 v を v = μ + a_t + b_s + e（ターゲットの効果 a_t とソースの効果 b_s）で当てた決定係数 r2_both．r2_target・r2_source はターゲットだけ・ソースだけの模型の値．
+# 変数は台帳 data_map.py の SHARE_VARS_*（K* は IEMOCAP がターゲットの組を除く）．種類ごとの最小・最大は台帳 map-share-<種類>-lo・-hi と照合した．
+# 同じ変数が 2 つのファイルにあるとき（A の K*）は decomp_share.csv の値（2 つは同じ）
+kind,file,variable,label,n_pairs,r2_target,r2_source,r2_both
+a,decomp_share,gain_K1,利得 K=1,42,0.321375,0.0969892,0.467168
+a,decomp_share,gain_K5,利得 K=5,42,0.170713,0.331423,0.545455
+a,decomp_share,gain_all_Kall,利得 全件,42,0.195286,0.509972,0.671667
+a,decomp_share,kstar,K*,30,0.40671,0.292962,0.662279
+a,check_h7,g_small,利得 K=1・5 の平均,42,0.208086,0.186091,0.456391
+ah,check_h7,g_small,利得 K=1・5 の平均,42,0.240136,0.31763,0.64573
+ah,check_h7,kstar,K*,30,0.352078,0.273839,0.604422
+v,decomp_share,gain_K1,利得 K=1,30,0.362132,0.324843,0.625943
+v,decomp_share,gain_K5,利得 K=5,30,0.749328,0.239513,0.871438
+v,decomp_share,gain_all_Kall,利得 全件,30,0.563762,0.226382,0.728394
+v,decomp_share,kstar,K*,20,0.727059,0.355882,0.887185
+av,decomp_share,gain_K1,利得 K=1,30,0.381604,0.21339,0.686905
+av,decomp_share,gain_K5,利得 K=5,30,0.606475,0.327781,0.865213
+av,decomp_share,gain_all_Kall,利得 全件,30,0.375472,0.431275,0.727683
+av,decomp_share,kstar,K*,20,0.82712,0.150009,0.874971

@@ -1,0 +1,220 @@
+% 生成物（tools/key_sources.py）．資料の \NUM の key 761 個を 111 の頭にまとめた．手で直さない
+\begin{frame}{付録 4：数値の出所（1／12）}
+  \rl{数値の出所}\label{a:sources}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{cmp-best-vs} & 22 & m\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video/\allowbreak{}<ターゲット>.csv；ほか} \\
+    \texttt{cmp-coreg-saerens} & 2 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}<世界>/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-entmin-fixed} & 34 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}IEMOCAP-impro.csv；ほか} \\
+    \texttt{cmp-fixed-collapse} & 2 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video-text/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-frozen-uar} & 4 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-anchor} & 3 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-konly} & 3 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-ours} & 6 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-pairs} & 1 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-reps} & 1 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv；ほか} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（2／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{cmp-ft-start} & 1 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-uar} & 5 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ft-weak} & 4 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ftc-anchor} & 1 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv} \\
+    \texttt{cmp-ftc-gap} & 2 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv；ほか} \\
+    \texttt{cmp-ftc-konly} & 3 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ftc-lift} & 4 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ftc-ours} & 6 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ftc-start} & 1 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv；results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}teacher\_\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ftc-uar} & 5 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（3／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{cmp-ftc-weak} & 4 & supp\_compare & \texttt{results/\allowbreak{}finetune\_\allowbreak{}check/\allowbreak{}<ターゲット>\_\allowbreak{}c.csv} \\
+    \texttt{cmp-gd-vs} & 2 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video-text/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-ours-vs} & 27 & m\_compare, m\_intro, supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}multimodal\_\allowbreak{}distill\_\allowbreak{}fuse-audio-text/\allowbreak{}<ターゲット>.csv；ほか} \\
+    \texttt{cmp-oursx-oracle} & 13 & m\_compare, m\_end, supp\_compare & \texttt{paper/\allowbreak{}scripts/\allowbreak{}ledger/\allowbreak{}comparison.py；results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}<ターゲット>.csv；ほか} \\
+    \texttt{cmp-oursx-vs} & 42 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video-text/\allowbreak{}<ターゲット>.csv；paper/\allowbreak{}scripts/\allowbreak{}ledger/\allowbreak{}comparison.py；ほか} \\
+    \texttt{cmp-pseudo-reps} & 1 & supp\_compare, supp\_setting & \texttt{results/\allowbreak{}baselines\_\allowbreak{}<世界>/\allowbreak{}<ターゲット>\_\allowbreak{}pseudo.csv} \\
+    \texttt{cmp-reps-n} & 1 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}<世界>/\allowbreak{}<ターゲット>.csv；results/\allowbreak{}multimodal\_\allowbreak{}distill\_\allowbreak{}<世界>/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{cmp-targets-at} & 1 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}} \\
+    \texttt{cmp-targets-av} & 1 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video/\allowbreak{}} \\
+    \texttt{cmp-targets-avt} & 1 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video-text/\allowbreak{}} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（4／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{cmp-targets-vt} & 1 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-video-text/\allowbreak{}} \\
+    \texttt{cmp-targets-w2} & 1 & supp\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse2-audio-video-text/\allowbreak{}} \\
+    \texttt{data-afew} & 4 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('AFEW', 'audio\_\allowbreak{}wavlm')} \\
+    \texttt{data-cremad} & 4 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('CREMA-D', 'audio\_\allowbreak{}wavlm')} \\
+    \texttt{data-impro} & 4 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('IEMOCAP-impro', 'audio\_\allowbreak{}wavlm')} \\
+    \texttt{data-meld} & 4 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('MELD', 'audio\_\allowbreak{}wavlm')} \\
+    \texttt{data-mosei} & 7 & m\_setting, supp\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('MOSEI', 'audio\_\allowbreak{}wavlm')；data/\allowbreak{}metadata/\allowbreak{}mosei\_\allowbreak{}channel\_\allowbreak{}map.csv, data/\allowbreak{}metadata/\allowbreak{}mosei\_\allowbreak{}utterance\_\allowbreak{}manifest.csv；ほか} \\
+    \texttt{data-n} & 47 & m\_setting, supp\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}any('AFEW', 'fuse-audio-video')；measure/\allowbreak{}data.py load\_\allowbreak{}group('AFEW', 'video\_\allowbreak{}clip')；ほか} \\
+    \texttt{data-ravdess} & 4 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('RAVDESS', 'audio\_\allowbreak{}wavlm')} \\
+    \texttt{data-script} & 4 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('IEMOCAP-script', 'audio\_\allowbreak{}wavlm')} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（5／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{data-spk} & 7 & m\_setting & \texttt{measure/\allowbreak{}data.py load\_\allowbreak{}group('AFEW', 'audio\_\allowbreak{}wavlm')；measure/\allowbreak{}data.py load\_\allowbreak{}group('CREMA-D', 'audio\_\allowbreak{}wavlm')；ほか} \\
+    \texttt{data-test} & 3 & supp\_setting & \texttt{results/\allowbreak{}fixc\_\allowbreak{}map/\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv, measure/\allowbreak{}data.py load\_\allowbreak{}group(群, 'audio\_\allowbreak{}wavlm')} \\
+    \texttt{map-gain} & 3 & m\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}map/\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}summary/\allowbreak{}pairs.csv} \\
+    \texttt{map-pairs} & 16 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}map/\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv；results/\allowbreak{}fixc\_\allowbreak{}map/\allowbreak{}audio\_\allowbreak{}hubert/\allowbreak{}*.csv；ほか} \\
+    \texttt{map-reps} & 1 & m\_setting, supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}map/\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv} \\
+    \texttt{map-share} & 2 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}analysis/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261009-0105\_\allowbreak{}fixc/\allowbreak{}decomp\_\allowbreak{}share.csv；results/\allowbreak{}rerun\_\allowbreak{}fixc/\allowbreak{}check\_\allowbreak{}h7/\allowbreak{}share.csv} \\
+    \texttt{p1-center-d1} & 3 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv；results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}hubert/\allowbreak{}*.csv；ほか} \\
+    \texttt{p1-center-merged} & 3 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv；results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}hubert/\allowbreak{}*.csv；ほか} \\
+    \texttt{p1-center-srconly} & 9 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv；results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}hubert/\allowbreak{}*.csv；ほか} \\
+    \texttt{p1-d1-gain} & 3 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv；results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}hubert/\allowbreak{}*.csv；ほか} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（6／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{p1-dirloss-recov} & 10 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}pairs.csv；results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}pairs.csv・e28t9\_\allowbreak{}targets.csv} \\
+    \texttt{p1-dirloss-remain} & 4 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e12-reps} & 1 & supp\_part1 & \texttt{results/\allowbreak{}mech\_\allowbreak{}{audio\_\allowbreak{}wavlm,audio\_\allowbreak{}hubert,video}/\allowbreak{}*.csv} \\
+    \texttt{p1-e13-fit} & 18 & m\_setting, supp\_part1 & \texttt{results/\allowbreak{}rerun\_\allowbreak{}fixc/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261018-0213\_\allowbreak{}fixc/\allowbreak{}e13\_\allowbreak{}pairs.csv；results/\allowbreak{}rerun\_\allowbreak{}fixc/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261018-0213\_\allowbreak{}fixc/\allowbreak{}check\_\allowbreak{}mh/\allowbreak{}e13.csv} \\
+    \texttt{p1-e13-loss} & 30 & m\_part1, supp\_compare, supp\_part1 & \texttt{results/\allowbreak{}rerun\_\allowbreak{}fixc/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261018-0213\_\allowbreak{}fixc/\allowbreak{}e13\_\allowbreak{}pairs.csv；results/\allowbreak{}rerun\_\allowbreak{}fixc/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261018-0213\_\allowbreak{}fixc/\allowbreak{}check\_\allowbreak{}mh/\allowbreak{}e13.csv} \\
+    \texttt{p1-e15-lam} & 6 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}analysis/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261009-0105\_\allowbreak{}fixc/\allowbreak{}stageB/\allowbreak{}e15b\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e16-dir} & 4 & supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}analysis/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261009-0105\_\allowbreak{}fixc/\allowbreak{}stageB/\allowbreak{}e16\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e16-lam} & 4 & supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}analysis/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261009-0105\_\allowbreak{}fixc/\allowbreak{}stageB/\allowbreak{}e16\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e28t9-reps} & 1 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}provenance\_\allowbreak{}audio\_\allowbreak{}wavlm.json} \\
+    \texttt{p1-e29-critcorr} & 3 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-1524\_\allowbreak{}e29/\allowbreak{}e29\_\allowbreak{}pairs.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（7／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{p1-e29-critshare} & 28 & m\_end, m\_intro, m\_part1, supp\_compare, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-1524\_\allowbreak{}e29/\allowbreak{}e29\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e29-lossshare} & 10 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-1524\_\allowbreak{}e29/\allowbreak{}e29\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e29-shares} & 1 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-1524\_\allowbreak{}e29/\allowbreak{}e29\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e30-critshare} & 8 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261013-1346\_\allowbreak{}e30/\allowbreak{}e30\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e30-reps} & 1 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261013-1346\_\allowbreak{}e30/\allowbreak{}provenance\_\allowbreak{}audio\_\allowbreak{}wavlm.json} \\
+    \texttt{p1-e32-allsrc} & 8 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}allsrc.csv} \\
+    \texttt{p1-e32-n1src} & 14 & appendix, m\_end, m\_intro, m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}pairs.csv・e32\_\allowbreak{}allsrc.csv；results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e32-nall} & 10 & m\_intro, m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}pairs.csv・e32\_\allowbreak{}allsrc.csv；results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}allsrc.csv} \\
+    \texttt{p1-e32-ratio} & 8 & supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}pairs.csv} \\
+    \texttt{p1-e32-rho} & 10 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261016-0954\_\allowbreak{}e32/\allowbreak{}e32\_\allowbreak{}pairs.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（8／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{p1-merged-gain} & 3 & m\_part1, supp\_part1 & \texttt{results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}wavlm/\allowbreak{}*.csv；results/\allowbreak{}mech\_\allowbreak{}audio\_\allowbreak{}hubert/\allowbreak{}*.csv；ほか} \\
+    \texttt{p1-qdir-a} & 1 & appendix, m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}targets.csv} \\
+    \texttt{p1-qdir-ah} & 1 & appendix, m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}targets.csv} \\
+    \texttt{p1-qdir-audio} & 2 & m\_intro & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}pairs.csv・e28t9\_\allowbreak{}targets.csv} \\
+    \texttt{p1-qdir-av} & 1 & appendix, m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}targets.csv} \\
+    \texttt{p1-qdir-v} & 1 & appendix, m\_part1, supp\_part1 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261011-0139\_\allowbreak{}e28t9/\allowbreak{}e28t9\_\allowbreak{}targets.csv} \\
+    \texttt{p1-stageb-reps} & 1 & supp\_part1 & \texttt{results/\allowbreak{}fixc\_\allowbreak{}analysis/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261009-0105\_\allowbreak{}fixc/\allowbreak{}stageB/\allowbreak{}provenance\_\allowbreak{}merged\_\allowbreak{}scores\_\allowbreak{}audio\_\allowbreak{}wavlm.json} \\
+    \texttt{p2-cond2-e39} & 6 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-0440\_\allowbreak{}e49/\allowbreak{}e49\_\allowbreak{}targets.csv；results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-1220\_\allowbreak{}e50/\allowbreak{}e50\_\allowbreak{}targets.csv；ほか} \\
+    \texttt{p2-cond2-student} & 7 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-0440\_\allowbreak{}e49/\allowbreak{}e49\_\allowbreak{}targets.csv；results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-1450\_\allowbreak{}e53/\allowbreak{}e53\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e31-p4} & 12 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261017-1654\_\allowbreak{}e31final/\allowbreak{}e31\_\allowbreak{}finals30.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（9／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{p2-e39-vs} & 10 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261018-0213\_\allowbreak{}ext30/\allowbreak{}ext30\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e52-q} & 2 & appendix, m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-1355\_\allowbreak{}e52/\allowbreak{}e52\_\allowbreak{}belief.csv} \\
+    \texttt{p2-e54-pq} & 2 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-1625\_\allowbreak{}e54/\allowbreak{}e54\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e58-lll} & 12 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-0440\_\allowbreak{}e49/\allowbreak{}e49\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e58-r} & 11 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-2245\_\allowbreak{}e58/\allowbreak{}e58\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e58-ratio} & 10 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261021-2245\_\allowbreak{}e58/\allowbreak{}e58\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e59k-a} & 5 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0055\_\allowbreak{}e59k/\allowbreak{}e59k\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e59k-ctrl} & 6 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0055\_\allowbreak{}e59k/\allowbreak{}e59k\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e59k-info} & 8 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0055\_\allowbreak{}e59k/\allowbreak{}e59k\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e59k-t} & 5 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0055\_\allowbreak{}e59k/\allowbreak{}e59k\_\allowbreak{}targets.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（10／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{p2-e59k-v} & 5 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0055\_\allowbreak{}e59k/\allowbreak{}e59k\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-at} & 15 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-av} & 15 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-avt} & 20 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-ctrl} & 2 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-f} & 2 & m\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-m1} & 3 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-m2} & 1 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-m3} & 3 & m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \texttt{p2-e60-vt} & 15 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}snapshots/\allowbreak{}20261022-0810\_\allowbreak{}e60/\allowbreak{}e60\_\allowbreak{}targets.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（11／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{p2-e60pre-juar} & 17 & appendix, m\_end, m\_part2, supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}e60\_\allowbreak{}mm\_\allowbreak{}check.csv} \\
+    \texttt{p2-e60pre-uar} & 4 & supp\_part2 & \texttt{results/\allowbreak{}explore\_\allowbreak{}relation/\allowbreak{}e60\_\allowbreak{}mm\_\allowbreak{}check.csv} \\
+    \texttt{st-a} & 12 & m\_compare, supp\_compare & \texttt{results/\allowbreak{}stats\_\allowbreak{}compare/\allowbreak{}tests.csv} \\
+    \texttt{st-b} & 3 & m\_end, supp\_compare & \texttt{results/\allowbreak{}stats\_\allowbreak{}compare/\allowbreak{}tests.csv} \\
+    \texttt{st-ft} & 2 & supp\_compare & \texttt{results/\allowbreak{}stats\_\allowbreak{}compare/\allowbreak{}tests.csv} \\
+    \texttt{st-oursx} & 2 & supp\_compare & \texttt{results/\allowbreak{}stats\_\allowbreak{}compare/\allowbreak{}tests.csv} \\
+    \texttt{tab-at} & 2 & m\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-text/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{tab-av} & 2 & m\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{tab-avt} & 8 & m\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-audio-video-text/\allowbreak{}<ターゲット>.csv} \\
+    \texttt{tab-vt} & 2 & m\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse-video-text/\allowbreak{}<ターゲット>.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}
+\begin{frame}{付録 4：数値の出所（12／12）}
+  \rl{数値の出所}
+  \vspace{-0.3em}\centering\tiny\renewcommand{\arraystretch}{1.0}
+  \begin{tabularx}{\textwidth}{@{}l r l X@{}}
+    \toprule key の頭 & 数 & 使った part & 台帳の出所（結果ファイル） \\ \midrule
+    \texttt{tab-w2} & 8 & m\_compare & \texttt{results/\allowbreak{}baselines\_\allowbreak{}fuse2-audio-video-text/\allowbreak{}<ターゲット>.csv} \\
+    \bottomrule
+  \end{tabularx}\par
+  {\raggedright\tiny key の実体（値・書式・出所・確かめた日）は paper/results/numbers.json．数は資料で使った key の数\par}
+\end{frame}

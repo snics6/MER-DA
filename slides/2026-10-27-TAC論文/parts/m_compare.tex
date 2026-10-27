@@ -29,18 +29,19 @@
   {\raggedright\tiny KD の先生は，単独の生徒には融合の出発点，融合の生徒には単独の出発点の積．融合の生徒では GD と HPL は定義できず，CoT は 2 つの変種で入る\par}
   \vspace{0.2em}
   \takeaway{拡張版で使う「生徒の積の先生」はどの比較手法にも渡さない．差には先生の選び方も含まれる}
+  \hosoku{s:c:grid}{各手法の中身と設定の格子}
 \end{frame}
 
 \begin{frame}{比べ方：再学習する手法はすべて同じ縛りつきの生徒で，設定は仮のターゲットで選ぶ}
   \rl{比べ方}
   \vspace{0.3em}
-  \begin{itemize}\footnotesize\setlength{\itemsep}{7pt}
-    \item 分類器を再学習する手法は，すべて同じ縛りつきの線形の生徒を，同じ 5 つの値を選んだ出発点から，同じ $K$ 本と同じプールで学ぶ．事前確率の調整と釣り合い直しは出発点の出力を直す
-    \item \textbf{調整版}：しきい値・温度・ラベル無しの損失の比重を，私たちの手法と同じ仮のターゲットで $K$ ごとに選ぶ．\textbf{固定版}：元の論文の値を使う
-    \item 基本版は第 II 部の基本の手法，拡張版はその候補を足した手法
-    \item 評価する生徒：AVT の世界の音声・顔・言葉・融合の生徒（ターゲット \NUM{cmp-targets-avt-n} つ），AV・VT・AT の融合の生徒（\NUM{cmp-targets-av-n}・\NUM{cmp-targets-vt-n}・\NUM{cmp-targets-at-n} つ），全部のエンコーダを 2 つ目のもの（HuBERT，CLIP，DeBERTa）に替えた AVT の 4 つの生徒．計 11 の生徒
-    \item ターゲットごとに反復 \NUM{cmp-reps-n} 回の平均．仮のターゲットは反復 \NUM{cmp-pseudo-reps-n} 回
-  \end{itemize}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{9pt}
+        \item 再学習する手法はすべて，同じ縛りつきの生徒を同じ出発点から，同じ $K$ 本とプールで学ぶ
+        \item \textbf{調整版}は設定を仮のターゲットで $K$ ごとに選ぶ．\textbf{固定版}は元の論文の値を使う
+        \item 11 の生徒：AVT の 4 生徒，AV・VT・AT の融合の生徒，2 つ目のエンコーダの AVT の 4 生徒
+        \item ターゲットごとに反復 \NUM{cmp-reps-n} 回の平均
+      \end{itemize}
+  \hosoku{s:c:proto}{評価の細部と先生の渡し方}
 \end{frame}
 
 \begin{frame}{拡張版は $K=0$・5 のすべての生徒で，最も強い比較手法を上回る（論文の表 3）}
@@ -73,6 +74,7 @@
   {\raggedright\tiny 差は UAR のポイントで，ターゲットと反復 10 回の平均．「なし」は，調整版の比較手法がどれもラベル無しの発話を使わない設定を選んだこと．略称は前のスライド\par}
   \vspace{0.15em}
   \takeaway{拡張版は全部で \NUM{cmp-oursx-vs-best-range-lo}〜\NUM{cmp-oursx-vs-best-range-hi} \pt 上回る．どこでも最も強い比較手法は 1 つも無い}
+  \hosoku{s:c:full}{全部の数値とターゲットの間の範囲}
 \end{frame}
 
 \begin{frame}{基本版は 22 の組み合わせのうち \NUM{cmp-ours-vs-best-pos-n} で，最も強い比較手法を上回る}
@@ -81,7 +83,7 @@
   \centering
   \begin{tikzpicture}
     \begin{groupplot}[group style={group size=1 by 2, vertical sep=0.95cm},
-        width=15.2cm, height=3.3cm, ybar, /pgf/bar width=5.2pt, xmin=-0.6, xmax=11.6, ymin=-2.5, ymax=10.5,
+        width=15.2cm, height=3.6cm, ybar, /pgf/bar width=5.2pt, xmin=-0.6, xmax=11.6, ymin=-2.5, ymax=10.5,
         xtick=data, xticklabel style={font=\tiny}, ytick={-2,0,2,4,6,8,10}, ymajorgrids, grid style={mMuted!25},
         ylabel={出発点との差}, ylabel style={font=\tiny}]
       \nextgroupplot[xticklabels from table={figures/compare_k0.csv}{tick},
@@ -106,7 +108,7 @@
   \end{tikzpicture}\par
   \vspace{0.1em}
   {\raggedright\tiny 目盛りの括弧はその生徒と $K$ で最も強い比較手法．棒はターゲットの平均，ひげはターゲットの間の最小から最大（95\% 区間ではない）．差は UAR のポイント\par}
-  {\raggedright\scriptsize 基本版が届かないのは $K=5$ の AVT の音声と言葉（一般化蒸留に負ける）と AT の融合（共訓練と同じ）\par}
+  \hosoku{s:c:full}{全部の数値}
 \end{frame}
 
 \begin{frame}{最も強い比較手法との差は，同じ分割の反復をまとめても多くの生徒で有意である}
@@ -128,14 +130,13 @@
       \end{tabular}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 両側の Wilcoxon 符号順位検定を，ターゲットと反復の対で行う．Holm の補正（たくさん検定した分だけ基準を厳しくする手続き）は全部の生徒と $K$ にかける
-        \item $d_z$：差の平均を差の標準偏差で割った値
-        \item 平均した後に有意なのは，$K=0$ は AVT の音声の生徒と VT・AT の融合の生徒．$K=5$ は AVT の顔と言葉の生徒，AV と AT の融合の生徒を除く全部
-        \item ターゲットは世界ごとに 4〜6 しかないので，この検定は私たちのコーパスの中のばらつきを表し，ほかのコーパスへの一般化は表さない
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
+        \item 両側の Wilcoxon 符号順位検定に，Holm の補正（たくさん検定した分だけ基準を厳しくする手続き）をかけた
+        \item ターゲットは世界ごとに 4〜6 なので，ほかのコーパスへの一般化は表さない
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:c:stats}{検定の詳細}
 \end{frame}
 
 \begin{frame}{$K$ を変えても，拡張版は音声の生徒ですべての $K$ で最も強い比較手法を上回る}
@@ -175,14 +176,14 @@
       {\raggedright\tiny AVT の世界，1 つ目のエンコーダ，ターゲット 4 つ，反復 10 回．差は UAR のポイント\par}
     \end{column}
     \begin{column}{0.43\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 音声の生徒では，拡張版がすべての $K$ で最も強い比較手法を \NUM{cmp-oursx-vs-best-avt-a-lo}〜\NUM{cmp-oursx-vs-best-avt-a-hi} \pt 上回る
+      \begin{itemize}\scriptsize\setlength{\itemsep}{9pt}
+        \item 音声の生徒：拡張版はすべての $K$ で \NUM{cmp-oursx-vs-best-avt-a-lo}〜\NUM{cmp-oursx-vs-best-avt-a-hi} \pt 上回る
         \item 拡張版を上回るのは，言葉の生徒の $K\ge10$ での一般化蒸留だけ（\NUM{cmp-gd-vs-oursx-avt-t-kge10-lo}〜\NUM{cmp-gd-vs-oursx-avt-t-kge10-hi} \pt）
-        \item 拡張版は出発点を，音声の生徒ですべての $K$ に \NUM{cmp-oursx-vs-e39-avt-a-lo}〜\NUM{cmp-oursx-vs-e39-avt-a-hi}，言葉の生徒で $K\le5$ に \NUM{cmp-oursx-vs-e39-avt-t-kle5-lo}〜\NUM{cmp-oursx-vs-e39-avt-t-kle5-hi}，融合の生徒で $K\ge1$ に \NUM{cmp-oursx-vs-e39-avt-f-kge1-lo}〜\NUM{cmp-oursx-vs-e39-avt-f-kge1-hi} \pt 上回る
         \item 基本版は $K\ge10$ で出発点を下回ることがあるが，拡張版は下回らない
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:c:kcurves}{$K$ ごとの最も強い比較手法}
 \end{frame}
 
 \begin{frame}{固定版のエントロピー最小化は，ターゲットと世界で大きく得も損もする}
@@ -207,14 +208,14 @@
       {\raggedright\tiny 点はターゲット，黒い横棒はターゲットの平均，灰の線は同じターゲットの 2 点を結ぶ．反復 10 回\par}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 元の論文の設定では，エントロピー最小化・共正則化・事前確率の調整が，AVT の単独の生徒を $K=0$ で 1 つの感情に潰し，出発点の UAR を \NUM{cmp-fixed-collapse-avt-mod-k0-lo}〜\NUM{cmp-fixed-collapse-avt-mod-k0-hi} \pt 変える
-        \item 融合の生徒のエントロピー最小化は，4 つの世界の平均で \NUM{cmp-entmin-fixed-vs-e39-f-k0-lo}〜\NUM{cmp-entmin-fixed-vs-e39-f-k0-hi} \pt
-        \item IEMOCAP 即興では AVT で $+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro}，AT で $+$\NUM{cmp-entmin-fixed-vs-e39-at-f-k0-impro} だが，同じターゲットで VT \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro}，AV \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro}．AVT の MELD では \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld}
-        \item 仮のターゲットで選ぶとこの失敗を見つけ，AVT の融合の生徒ではどの $K$ でもエントロピー最小化を使わない
+      \begin{itemize}\footnotesize\setlength{\itemsep}{10pt}
+        \item IEMOCAP 即興では AVT で $+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro}，AV では \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro} \pt
+        \item 4 つの世界の平均は \NUM{cmp-entmin-fixed-vs-e39-f-k0-lo}〜\NUM{cmp-entmin-fixed-vs-e39-f-k0-hi} \pt
+        \item 仮のターゲットで選ぶと，AVT の融合の生徒ではエントロピー最小化を使わない
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:c:entmin}{固定版の値とクラスタの仮定}
 \end{frame}
 
 \begin{frame}{音声のエンコーダを微調整しても，凍結した特徴での手法に届かない}
@@ -242,14 +243,14 @@
       {\raggedright\tiny 音声の生徒．ターゲット 4 つ（IEMOCAP 即興・台本，MELD，CMU-MOSEI），反復 3 回．凍結の $K=5$ の「$K$ 本＋罰則」は 5 つの値を選んだ出発点．棒は偶然の水準 25\% から立てた\par}
     \end{column}
     \begin{column}{0.45\textwidth}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 凍結した特徴の設定が，微調整でできることを小さく見せていないかを確かめた（WavLM を低ランクの適応器 LoRA で微調整）
-        \item $K=5$ 本だけで微調整すると，凍結した 5 つの値の出発点を \NUM{cmp-ft-konly-below-frozen-e39-k5} \pt 下回る（ターゲットごとに \NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}〜\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi}）
-        \item 弱いラベルは微調整したモデルも上げる：$K=0$ で \NUM{cmp-ft-weak-vs-start-k0}，$K=5$ で \NUM{cmp-ft-weak-vs-anchor-k5} \pt
-        \item それでも微調整版の手法は，凍結した特徴の同じ手法より \NUM{cmp-ft-ours-below-frozen-ours-k0}（$K=0$），\NUM{cmp-ft-ours-below-frozen-ours-k5}（$K=5$）\pt 低い．中心化は差の \NUM{cmp-ftc-gap-closed-start-k0}〜\NUM{cmp-ftc-gap-closed-konly-k5}\% しか埋めない
+      \begin{itemize}\scriptsize\setlength{\itemsep}{9pt}
+        \item $K=5$ 本だけで微調整すると，凍結した出発点を \NUM{cmp-ft-konly-below-frozen-e39-k5} \pt 下回る
+        \item 弱いラベルは微調整したモデルも上げる（$K=0$ で \NUM{cmp-ft-weak-vs-start-k0} \pt）
+        \item それでも凍結した特徴の同じ手法より低い（$K=0$ で \NUM{cmp-ft-ours-below-frozen-ours-k0}，$K=5$ で \NUM{cmp-ft-ours-below-frozen-ours-k5} \pt）
       \end{itemize}
     \end{column}
   \end{columns}
+  \hosoku{s:c:ft}{微調整の設定と全部の値}
 \end{frame}
 
 \begin{frame}{2 つ目のエンコーダでも結論は同じで，仮のターゲットで選ぶ損は手法を有利にしない}
@@ -258,20 +259,20 @@
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.49\textwidth}
       \textbf{\footnotesize 2 つ目のエンコーダ（HuBERT，CLIP，DeBERTa）}\par\vspace{0.2em}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item 基本版は $K=0$ と $K=5$ で，4 つの生徒すべてを出発点より上げる
-        \item 拡張版は最も強い比較手法を，$K=0$・5 で \NUM{cmp-oursx-vs-best-w2-k0k5-lo}〜\NUM{cmp-oursx-vs-best-w2-k0k5-hi} \pt，$K=25$ で \NUM{cmp-oursx-vs-best-w2-k25-lo}〜\NUM{cmp-oursx-vs-best-w2-k25-hi} \pt 上回る
+      \begin{itemize}\scriptsize\setlength{\itemsep}{7pt}
+        \item 基本版は $K=0$ と $K=5$ で 4 つの生徒すべてを出発点より上げる
+        \item 拡張版は最も強い比較手法を $K=0$・5 で \NUM{cmp-oursx-vs-best-w2-k0k5-lo}〜\NUM{cmp-oursx-vs-best-w2-k0k5-hi} \pt 上回る
       \end{itemize}
     \end{column}
     \begin{column}{0.49\textwidth}
       \textbf{\footnotesize 選び方で失う分（$K=0$）}\par\vspace{0.2em}
-      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
-        \item テスト話者で最良の候補（オラクル）は，選んだ候補を AVT の言葉の生徒で \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0}，2 つ目のエンコーダの言葉の生徒で \NUM{cmp-oursx-oracle-vs-tuned-w2-t-k0}，ほかの生徒で \NUM{cmp-oursx-oracle-vs-tuned-at-f-k0}〜\NUM{cmp-oursx-oracle-vs-tuned-w2-v-k0} \pt 上回る
-        \item 差が 1 \pt に届くのは \NUM{cmp-oursx-oracle-gap-students-n} の生徒のうち \NUM{cmp-oursx-oracle-gap-ge1-n}．よりよい選び方で足せる分の上限になる
+      \begin{itemize}\scriptsize\setlength{\itemsep}{7pt}
+        \item オラクルは選んだ候補を最大 \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0} \pt 上回る（AVT の言葉の生徒）
         \item 比較手法も同じ手順で選ぶので，この損は私たちの手法を有利にしない
       \end{itemize}
     \end{column}
   \end{columns}
   \vspace{0.6em}
   \takeaway{オラクルの値は選び方の損を測るためだけに使い，手法の性能としては出さない}
+  \hosoku{s:c:oracle}{選び方の損の全表}
 \end{frame}

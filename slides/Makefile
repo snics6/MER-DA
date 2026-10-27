@@ -2,7 +2,7 @@
 #
 #   make                         名前順で最後の資料を PDF に組む（<資料>/<資料>.pdf）
 #   make DECK=2026-10-27-TAC論文  資料を指定して組む
-#   make data                    作図用の CSV を結果ファイルから書き出す（<資料>/scripts/export_figdata.py）
+#   make data                    作図用の CSV を結果ファイルから書き出す（<資料>/scripts/export_*.py を名前順に流し，付録の出所の表を作る）
 #   make list                    資料の一覧
 #   make png                     全ページを PNG にする（目視の確認用．<資料>/build/png/）
 #   make clean                   中間生成物を消す
@@ -28,7 +28,8 @@ pdf:
 	@echo "    errors=$$(grep -c '^!' "$(DECK)/build/main.log") undefined=$$(grep -ciE 'undefined (reference|control)|Reference .* undefined' "$(DECK)/build/main.log") overfull=$$(grep -c 'Overfull' "$(DECK)/build/main.log")"
 
 data:
-	@cd "$(DECK)" && $(PY) scripts/export_figdata.py
+	@cd "$(DECK)" && for f in scripts/export_*.py; do $(PY) $$f > /dev/null || exit 1; echo "    $$f：済み"; done
+	@cd "$(DECK)" && if [ -f tools/key_sources.py ]; then python3 tools/key_sources.py; fi
 
 list:
 	@for d in $(DECKS); do if [ "$$d" = "$(DECK)" ]; then echo "* $$d"; else echo "  $$d"; fi; done

@@ -1,0 +1,22 @@
+# 出所：results/baselines_<世界>/<T>.csv（台帳 comparison.py の _world）．融合の生徒，K=0，反復 0〜9 の平均．
+# ent は固定版のエントロピー最小化（候補 1 本あたり重み 1．entmin|-|n）− 5 つの値を選んだ出発点，ox は拡張版の調整版 − 出発点（UAR のポイント）．
+# oxs は ox を小数 1 桁にした TeX の文字列．ent は台帳 cmp-entmin-fixed-vs-e39-<世界>-f-k0-<ターゲット> と，AVT の ox は台帳 cmp-oursx-vs-e39-avt-f-k0-<ターゲット> と照合した（ほかの世界の ox は台帳に無い）
+world,target,tkey,ent,ox,oxs
+AVT,IEMOCAP 即興,impro,4.6165,3.88748,3.9
+AVT,IEMOCAP 台本,script,-0.786822,4.68165,4.7
+AVT,MELD,meld,-9.37672,2.7372,2.7
+AVT,CMU-MOSEI,mosei,-6.04846,0.242342,0.2
+VT,IEMOCAP 即興,impro,-19.9803,4.7871,4.8
+VT,IEMOCAP 台本,script,-6.40176,5.18936,5.2
+VT,MELD,meld,-12.8154,0.651255,0.7
+VT,CMU-MOSEI,mosei,-1.86308,1.20005,1.2
+AT,IEMOCAP 即興,impro,2.44959,4.42003,4.4
+AT,IEMOCAP 台本,script,-1.79394,3.5709,3.6
+AT,MELD,meld,-20.0465,1.54039,1.5
+AT,CMU-MOSEI,mosei,-9.3849,1.21956,1.2
+AV,AFEW,afew,-7.40909,-0.986211,\ensuremath{-}1.0
+AV,CREMA-D,cremad,-8.01648,3.67891,3.7
+AV,IEMOCAP 即興,impro,-28.3466,0.76751,0.8
+AV,IEMOCAP 台本,script,-17.3868,1.26901,1.3
+AV,MELD,meld,-17.3072,0.833445,0.8
+AV,CMU-MOSEI,mosei,-7.13018,0.959035,1.0

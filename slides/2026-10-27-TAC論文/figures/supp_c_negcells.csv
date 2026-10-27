@@ -1,0 +1,13 @@
+# 出所：results/stats_compare/tests.csv の比較 (b)（拡張版の調整版 − 5 つの値を選んだ出発点），実験 E61・E62，K ∈ {0, 5} の 22 セル，列 tgt_means（ターゲットごとに反復 0〜9 を平均した差．小数 2 桁）．
+# 差が負のターゲットとセルの組だけを差の小さい順に並べた（diffs は小数 2 桁にした TeX の文字列．小数 1 桁では −0.04 が 0.0 になるため）．組の総数・負の数・最小は台帳 st-b-tgt-n・st-b-tgtneg-n・st-b-tgtneg-worst と照合した
+world,student,K,target,diff,diffs
+AVT（2 つ目）,顔,0,IEMOCAP 即興,-1.89,\ensuremath{-}1.89
+AV,融合,0,AFEW,-0.99,\ensuremath{-}0.99
+AVT（2 つ目）,言葉,0,CMU-MOSEI,-0.58,\ensuremath{-}0.58
+AV,融合,5,AFEW,-0.56,\ensuremath{-}0.56
+AVT,言葉,0,CMU-MOSEI,-0.39,\ensuremath{-}0.39
+AVT,顔,5,IEMOCAP 即興,-0.29,\ensuremath{-}0.29
+AVT,言葉,5,MELD,-0.15,\ensuremath{-}0.15
+AVT（2 つ目）,言葉,5,CMU-MOSEI,-0.12,\ensuremath{-}0.12
+AVT,顔,0,CMU-MOSEI,-0.05,\ensuremath{-}0.05
+AVT,融合,5,CMU-MOSEI,-0.04,\ensuremath{-}0.04

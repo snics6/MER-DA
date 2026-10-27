@@ -1,0 +1,860 @@
+% =====================================================================
+%  補足 2：第 II 部の式と詳細（本編 parts/m_part2.tex の細部の置き場所）
+%  文の元：paper/sections/5-part2-mechanism-to-method.tex，paper/supplementary.tex（Additional Results for Part II），
+%          paper/CLAIM.md 第 5 版．語は paper/ja/sections/5-part2-mechanism-to-method.tex と slides/CLAUDE.md の「語」
+%  数値：本文と表の実験の数値は \NUM{key}（paper/results/numbers.json）だけで書く
+%  図と表の値：figures/supp_p2_*.csv（scripts/export_supp_part2.py が台帳 part2.py と同じ結果ファイル・同じ集計で作り，台帳の 107 個と照合した）
+%              figures/capture.csv（scripts/export_figdata.py．本編と共有．読むだけ）
+%  模式図（記号の形，事後のばらつきの楕円，弱いラベルの例の数）は実験の値ではない（図の下に書く）
+%
+%  設計の定数の出所（台本のファイルと行．MER-DA/exp/）
+%    出発点の向き W_s(ρ_s)・切片         meta5.py 64〜88 行（pool_info）．a_s は 104〜107 行，比重 π_s と c は 122〜128 行
+%    計量 M と ρ_M                      meta5.py 108〜121 行（e_ = (1 − ρ_M) λ/τ + ρ_M）
+%    5 つの値の候補（3 つずつ）          meta5.py 40〜42 行（GRIDS["base"]）
+%    第 II 部の後半の生徒の (ρ_M, C′, C_b) geom_e0.py 68〜80 行（settings）．A・A(HuBERT)・V・AV は E40 の random の組
+%                                      （候補は teach_joint.py 46〜48 行：ρ_M 3 × C′ 5 × C_b 3 ＝ 45 通り）．言葉を含む種類は E39 の言葉の値
+%    目的関数の割り算（比重の和 S）      logreg.py 207 行（S），241〜243 行（目的関数）
+%    ラベル無しの選び方と W*            geom_e0.py 53〜58 行（N_SEL，CS_STAR，CB_STAR，SETS），167〜184 行（選び方）
+%    弱いラベルの列の割り直し            distill_belief.py 61〜65 行（weak_rows）
+%    見込みの蒸留の候補                 distill_belief.py 50〜57 行（MEFFS，CANDS）．見込み q は committee.py の C（LAMS は 52 行）
+%    モダリティをまたぐ基本版の候補      multimodal_distill.py 55〜58 行（BEL1，MEFF1，MIN2，BEL2，MEFF2，AGREE_LOW），95〜100 行（poe・agree），135 行（選ぶ候補）
+%    下調べの先生の候補                 check_e60_mm.py 1〜8 行（poe・poolC・mlp）
+%    拡張版の候補                       baselines_distill.py 72・78 行（TAUS，MEFF_B），95〜113 行（raw・hard），206〜220 行（oursx），361〜370 行（ref′ の m_in = 500）
+% =====================================================================
+\setband{補足 2　第 II 部の式と詳細}
+
+% ---- この part だけの部品（ほかの part と名前がぶつからないよう stw を頭に付ける）
+\pgfplotstableread{figures/capture.csv}\stwCap
+\newcommand{\stwGet}[4]{\pgfplotstablegetelem{#2}{#3}\of{#1}\pgfmathprintnumber[fixed,fixed zerofill,precision=#4]{\pgfplotsretval}}
+\newcommand{\stwCapCell}[2]{\stwGet{\stwCap}{#1}{#2}{2}\,{\tiny[\stwGet{\stwCap}{#1}{#2_lo}{2}, \stwGet{\stwCap}{#1}{#2_hi}{2}]}}
+\newcommand{\stwCapRow}[3]{#2 & #3 & \stwCapCell{#1}{a} & \stwCapCell{#1}{v} & \stwCapCell{#1}{t} \\}
+\newcommand{\stwNote}[1]{{\raggedright\scriptsize\color{mMuted}#1\par}}
+\newcommand{\stwSq}[1]{\tikz[baseline=-0.6ex]\fill[#1] (0,-0.09) rectangle (0.22,0.13);}
+
+% =====================================================================
+\begin{frame}{補足 2-1：出発点はソースごとの判別の向きを比重つきで足す}
+  \rl{出発点の作り方（1）}\label{s:p2:start}
+  \tighteq
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.6\textwidth}
+      \scriptsize
+      ソース $s$ ごとに閉じた形の判別の向きと切片を作る．
+      \[
+        W_s(\rho_s) = \bigl((1-\rho_s)\,\Sigma_s + \rho_s\,\tau_s I\bigr)^{-1}\tilde M_s,\qquad
+        b_{s,k} = -\tfrac12\,\mathbf w_{s,k}^{\top}\tilde{\mathbf m}_{s,k}
+      \]
+      それをソースの比重 $\pi_s$ で足して出発点にする．
+      \[
+        (W_0,\,\mathbf b_0) = c\sum_{s} \pi_s\,a_s\,\bigl(W_s(\rho_s),\,\mathbf b_s\bigr),\qquad
+        \pi_s = \frac{N_s^{\gamma}}{\sum_{s'} N_{s'}^{\gamma}}
+      \]
+      \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.05}
+      \begin{tabular}{@{}l p{5.3cm} l@{}}
+        \toprule
+        記号 & 何か & 大きさの目安 \\
+        \midrule
+        $\tilde M_s$ & 感情ごとの平均 − 全体の平均 & 4 本の $\tilde{\mathbf m}_{s,k}$ \\
+        $\Sigma_s,\ \tau_s$ & 感情の中の共分散行列と，その固有値の平均 & A は $d=1024$ \\
+        $\rho_s$ & 0 で LDA の向き，1 で平均の差 & 0.3，0.5，0.7 \\
+        $N_s,\ \gamma$ & 発話の数と比重の形．$\gamma=0$ で等しい比重 & $-0.5$，0，0.5 \\
+        $a_s,\ c$ & 点数の幅をそろえる係数 & ラベル無しで決まる \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      \stwNote{切片 $b_{s,k}$ は，感情の事前確率を等しいとしたときの LDA の切片}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[srcbox, text width=1.25cm] (s1) at (0,1.6) {ソース 1};
+        \node[srcbox, text width=1.25cm] (s2) at (0,0.8) {ソース 2};
+        \node[srcbox, text width=1.25cm] (s3) at (0,0) {ソース 3};
+        \node[clf, text width=1.15cm] (w1) at (1.75,1.6) {$W_1,\,\mathbf b_1$};
+        \node[clf, text width=1.15cm] (w2) at (1.75,0.8) {$W_2,\,\mathbf b_2$};
+        \node[clf, text width=1.15cm] (w3) at (1.75,0) {$W_3,\,\mathbf b_3$};
+        \node[draw=cStart, line width=0.9pt, fill=white, rounded corners=2pt, align=center, text width=1.3cm] (w0) at (4.1,0.8) {\textbf{出発点}\\$(W_0,\,\mathbf b_0)$};
+        \draw[arr] (s1) -- (w1); \draw[arr] (s2) -- (w2); \draw[arr] (s3) -- (w3);
+        \draw[arr, cStart] (w1.east) -- (w0.north west);
+        \draw[arr, cStart] (w2.east) -- (w0.west);
+        \draw[arr, cStart] (w3.east) -- (w0.south west);
+        \node[text=cStart, anchor=north] at (3.0,-0.35) {$\pi_s a_s$ を掛けて足す};
+      \end{tikzpicture}\par
+      \vspace{0.1em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 閉じた形：1 本の式で計算できる形．LDA：線形判別分析（感情ごとの正規分布でばらつきが共通とした判別）
+        \item ソースはターゲットのコーパス以外の群すべて．$a_s$ はラベル無しのターゲットの発話で点数の幅をそろえ，$c$ は全体の幅を全ソースの合併の分類器に合わせる
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-2：5 つの値は 3 つずつの候補から仮のターゲットで選ぶ}
+  \rl{出発点の作り方（2）}
+  \tighteq\scriptsize
+  重みの縛りの計量 $M$ は，ラベル無しのプール（テスト以外のターゲットの発話）のばらつきと単位行列を $\rho_M$ で混ぜて作る．
+  \[
+    M = (1-\rho_M)\,\frac{\Sigma_u}{\tau_u} + \rho_M I,\qquad
+    \|W-W_0\|_M^2 = \sum_{k=1}^{4}(\mathbf w_k-\mathbf w_{0,k})^{\top} M\,(\mathbf w_k-\mathbf w_{0,k})
+  \]
+  $\Sigma_u$ はプールの特徴の共分散行列，$\tau_u$ はその固有値の平均．$\rho_M=1$ ならどの向きも同じ強さで縛り，$\rho_M$ が小さいほど，プールでばらつきの大きい向きを強く，小さい向きを弱く縛る．
+  \vspace{0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.15}
+      \begin{tabular}{@{}l l l@{}}
+        \toprule
+        値 & 何を決めるか & 候補 \\
+        \midrule
+        $\gamma$ & ソースの比重 $N_s^{\gamma}$ & $-0.5$，0，0.5 \\
+        $\rho_s$ & ソースの向きの縮め方 & 0.3，0.5，0.7 \\
+        $C_b$ & 切片の縛りの弱さ & 2，8，縛らない \\
+        $C'$ & 重みの縛りの弱さ & 0.01，0.03，0.1 \\
+        $\rho_M$ & 計量 $M$ の混ぜ方 & 1，0.97，0.9 \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      {\scriptsize 全部で $3^5 = 243$ 通り．$C'$ と $C_b$ は小さいほど強く縛る\par}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 選び方：$T$ と別のコーパスのソースの群 $c$ を仮のターゲットにし，$T$ と $c$ のコーパスを除くソースで出発点を作る．$c$ の $K\in\{1,5,10,25\}$ 本で学んだ生徒の UAR を $c$・$K$・反復 0〜4 で平均し，最大の組を選ぶ
+        \item $T$ ごとに 1 組で，$K$ によらない．$T$ のラベルは使わない
+        \item 第 II 部の後半（ラベル無しの選び方，弱いラベル，比較）の音声・A(HuBERT)・顔・AV の生徒は，$(\rho_M, C', C_b)$ だけを 45 通り（$C'$ は 0.003〜0.3 の 5 つ，$C_b\in\{0.5,2,8\}$）から同じ規則で選び直した値を使う
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-3：仮説転移と 5 つの値の上がり幅の全部の値}
+  \rl{結果：出発点}
+  \scriptsize
+  全ソースからの仮説転移（中心化あり，$C'=0.01$，$C_b=8$）は，比べた 4 つの作り方の最良を音声の $K=1,5,10$ で上回る．5 つの値を選ぶと，$K=5$ でさらに上がる．
+  \vspace{0.4em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \textbf{全ソースからの仮説転移 − 4 つの作り方の最良（\pt）}\\[0.2em]
+      \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.2}
+      \begin{tabular}{@{}l c c c@{}}
+        \toprule
+        & $K=1$ & $K=5$ & $K=10$ \\
+        \midrule
+        A & \NUM{p2-e31-p4-vs-best-a-k1} & \NUM{p2-e31-p4-vs-best-a-k5} & \NUM{p2-e31-p4-vs-best-a-k10} \\
+        A(HuBERT) & \NUM{p2-e31-p4-vs-best-ah-k1} & \NUM{p2-e31-p4-vs-best-ah-k5} & \NUM{p2-e31-p4-vs-best-ah-k10} \\
+        最良だった作り方 & 中心化した合併 & \multicolumn{2}{c}{比重を選んだ合併} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.3em}
+      \stwNote{4 つの作り方：ターゲットのみ，合併，中心化した合併，比重を選んだ合併．組（ターゲットとソースの対）の平均どうしの差．同じコーパスの組を除く 40 組，反復 30 回}
+      \vspace{0.6em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 右上の表だけがターゲットの平均で，ほかの 2 つは組の平均である
+        \item 5 つの値を選んだ出発点が，第 II 部と比較のすべての追加の基準になる
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \textbf{5 つの値を選んだ出発点の上がり幅（$K=5$，\pt）}\\[0.2em]
+      \setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.2}
+      \begin{tabular}{@{}l c c c c@{}}
+        \toprule
+        比べる相手 & A & A(HuBERT) & V & AV \\
+        \midrule
+        仮説転移 & \NUM{p2-e39-vs-p4-k5-a} & \NUM{p2-e39-vs-p4-k5-ah} & \NUM{p2-e39-vs-p4-k5-v} & \NUM{p2-e39-vs-p4-k5-av} \\
+        等しい比重 & \NUM{p2-e39-vs-d1-k5-a} & \NUM{p2-e39-vs-d1-k5-ah} & \NUM{p2-e39-vs-d1-k5-v} & \NUM{p2-e39-vs-d1-k5-av} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      \stwNote{仮説転移：全ソースからの仮説転移．等しい比重：ソースを等しい比重で足す出発点．ターゲットの平均（A・A(HuBERT) 7，V・AV 6），反復 30 回}
+      \vspace{0.5em}
+      \textbf{全ソースからの仮説転移の UAR（$K=5$，\%）}\\[0.2em]
+      \begin{tabular}{@{}c c c c@{}}
+        \toprule
+        A & A(HuBERT) & V & AV \\
+        \midrule
+        \NUM{p2-e31-p4-uar-k5-a} & \NUM{p2-e31-p4-uar-k5-ah} & \NUM{p2-e31-p4-uar-k5-v} & \NUM{p2-e31-p4-uar-k5-av} \\
+        \bottomrule
+      \end{tabular}\par
+      \stwNote{組の平均（A・A(HuBERT) 40 組，V・AV 28 組），反復 30 回}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-4：生徒の目的関数はラベル・弱いラベル・出発点の 3 項の和}
+  \rl{生徒の目的関数}\label{s:p2:obj}
+  \tighteq\scriptsize
+  生徒は，次の 3 項の和を最小にする重み $W$（$4\times d$）と切片 $\mathbf b$（長さ 4）を求める．
+  \[
+    \min_{W,\mathbf b}\;
+    \underbrace{\sum_{i\in\mathcal L}\ell\bigl(W\mathbf z_i+\mathbf b,\;y_i\bigr)}_{\text{ラベルの項}}
+    \;+\;\underbrace{\sum_{i\in\mathcal U}\sum_{c=1}^{4} q_{ic}\,\ell\bigl(W\mathbf z_i+\mathbf b,\;c\bigr)}_{\text{弱いラベルの項}}
+    \;+\;\underbrace{\frac{\|W-W_0\|_M^2}{2C'}+\frac{\|\mathbf b-\mathbf b_0\|^2}{2C_b}}_{\text{出発点の項}}
+  \]
+  \centering
+  \setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.0}
+  \begin{tabular}{@{}l p{7.9cm} p{3.6cm}@{}}
+    \toprule
+    項 & 何をするか & 大きさの目安 \\
+    \midrule
+    ラベルの項 & $4K$ 本の本当のラベル（集合 $\mathcal L$）で正解の感情の確率を上げる．$\ell(\mathbf s, c) = -\log\bigl(e^{s_c}/\textstyle\sum_{c'} e^{s_{c'}}\bigr)$ は交差エントロピー（正解の感情の確率の対数に負号） & 1 本の比重 1，合計 $4K$．$K=0$ なら無い \\
+    弱いラベルの項 & プールのラベル無しの $N_u$ 本（集合 $\mathcal U$）に 4 つの感情を全部付け，先生の予測から作った比重 $q_{ic}$ で数える（補足 2-11） & 合計 $m$（20〜2000）．使わないも候補 \\
+    出発点の項 & 重み $W$ を計量 $M$ で $W_0$ の近くに，切片 $\mathbf b$ を $\mathbf b_0$ の近くに縛る．少ないラベルは切片をよく決め，重みを悪く決めるので（第 I 部），強さを分ける & 候補は $C'$ 0.003〜0.3，$C_b$ 0.5〜8 か縛らない \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.3em}
+  \stwNote{$\mathbf z_i$ は中心化（ターゲットはプールの平均を引く．これで第 I 部の判断基準による損失の大半が消える）と標準化をした特徴（A は 1024 次元）．本編の式は弱いラベルの項を除いたもの．台本は和を比重の合計 $4K+m$ で割って解く（解は同じ）}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-5：命題 1 の証明（1）：解では目的関数の勾配が 0 になる}
+  \rl{命題 1 の証明}\label{s:p2:span}
+  \tighteq\scriptsize
+  弱いラベルの項の無い生徒（本編の式）を考える．最小の点では，$W$ についての勾配が 0 になる．
+  \[
+    \underbrace{\sum_{i\in\mathcal L}\mathbf g_i\,\mathbf z_i^{\top}}_{\text{ラベルの項の勾配}}
+    \;+\;\underbrace{\frac{1}{C'}\,(W-W_0)\,M}_{\text{出発点の項の勾配}} \;=\; 0,
+    \qquad \mathbf g_i = \mathbf p_i - \mathbf e_{y_i}
+  \]
+  $M$ は逆行列を持つ（固有値は $\rho_M$ 以上）ので，両辺に右から $C' M^{-1}$ を掛けて $W-W_0$ について解く．
+  \[
+    W - W_0 \;=\; -\,C'\sum_{i\in\mathcal L}\mathbf g_i\,\bigl(M^{-1}\mathbf z_i\bigr)^{\top}
+  \]
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item $\mathbf p_i$：生徒が発話 $i$ に付けた 4 感情の確率（長さ 4）
+        \item $\mathbf e_{y_i}$：正解の感情の場所だけが 1 の長さ 4 のベクトル
+        \item $\mathbf g_i$：外れの大きさ．交差エントロピーを点数 $W\mathbf z_i + \mathbf b$ で微分したもの
+        \item 損失は $W$ を積 $W\mathbf z_i$ の形でしか含まないので，勾配は $\mathbf g_i\mathbf z_i^{\top}$ の和になる
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+        \draw[cOurs, fill=cOurs!10] (0,0) rectangle (2.0,0.8); \node at (1.0,0.4) {$W-W_0$};
+        \node[anchor=north] at (1.0,-0.05) {$4\times d$};
+        \node at (2.85,0.4) {$=\ -C'\displaystyle\sum_{i\in\mathcal L}$};
+        \draw[cOurs, fill=cOurs!25] (3.75,0) rectangle (3.95,0.8); \node[anchor=north] at (3.85,-0.05) {$\mathbf g_i$（長さ 4）};
+        \draw[cOurs, fill=cOurs!25] (4.1,0.6) rectangle (6.1,0.8); \node[anchor=south] at (5.1,0.82) {$(M^{-1}\mathbf z_i)^{\top}$（長さ $d$）};
+      \end{tikzpicture}\par
+      \vspace{0.3em}
+      \stwNote{形を示す模式図（実験の値ではない）．和はラベルの付いた $4K$ 本にわたり，各項は長さ 4 の列と長さ $d$ の行の積}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-6：命題 1 の証明（2）：各行は $4K$ 本の点の組み合わせ}
+  \rl{命題 1 の証明}
+  \tighteq\scriptsize
+  前の式の第 $k$ 行（感情 $k$ の重み）を取り出すと，$4K$ 本のベクトル $M^{-1}\mathbf z_i$ の足し合わせになる．
+  \[
+    \mathbf w_k - \mathbf w_{0,k} \;=\; -\,C'\sum_{i\in\mathcal L} g_{ik}\; M^{-1}\mathbf z_i,\qquad k = 1,\dots,4
+  \]
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 係数 $-C' g_{ik}$ がどんな値でも，右辺はラベルの付いた $4K$ 本の点 $M^{-1}\mathbf z_i$ が張る空間に入る．その空間は高々 $4K$ 次元である（命題 1）
+        \item これは表現定理（Kimeldorf \& Wahba 1971，Schölkopf ほか 2001）を $W-W_0$ に当てはめたものと同じ理由で，新しい定理ではない
+        \item 直せるのは，出発点の向きの誤差 $E_0 = W^{*}-W_0$（$W^{*}$ はプールの全ラベルで学んだ生徒）のうちこの空間への射影だけである．A では $d=1024$ 次元のうち $K=5$ で高々 20 次元で，$E_0$ のどの部分が入るかはどの発話にラベルを付けるかで決まる
+        \item 弱いラベルの項があると，同じ計算で和がプールの $N_u$ 本の点にも広がり，直せる空間は $4K$ 次元に限られなくなる
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize, scale=1.0]
+        \fill[cOurs!10] (-0.6,-0.45) -- (3.6,-0.45) -- (4.5,1.0) -- (0.3,1.0) -- cycle;
+        \node[text=cOurs, anchor=west] at (1.7,-0.25) {$M^{-1}\mathbf z_i$ が張る空間};
+        \fill[black] (0,0) circle (1.3pt) node[below left] {$\mathbf w_{0,k}$};
+        \draw[->, line width=1.1pt, cBest] (0,0) -- (2.9,2.4) node[above] {$\mathbf w^{*}_k$};
+        \draw[->, line width=1.1pt, cOurs] (0,0) -- (2.9,0.5) node[right] {直せる分};
+        \draw[densely dashed, mMuted] (2.9,2.4) -- (2.9,0.5);
+        \node[text=mMuted, anchor=west, align=left] at (3.0,1.5) {直せない分};
+        \foreach \p in {(0.7,0.25),(1.5,0.65),(2.2,0.05)} \fill[cOurs] \p circle (1.5pt);
+      \end{tikzpicture}\par
+      \stwNote{模式図（実験の値ではない）．青の点はラベルの付いた発話の $M^{-1}\mathbf z_i$}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-7：命題 2：正規の線形模型では事後のばらつきがラベルを含まない}
+  \rl{命題 2 の説明}\label{s:p2:design}
+  \tighteq\scriptsize
+  損失を $W_0$ のまわりで 2 次式（正規分布の尤度）に近づけ，出発点の項を事前分布 $W\sim\mathcal N(W_0,\,C'M^{-1})$ とみなす．感情 $k$ の行の事後分布のばらつきは次の式になる．
+  \[
+    \Sigma_{\text{事後}} = \Bigl(\frac{M}{C'} + \sum_{i\in\mathcal L} h_i\,\mathbf z_i\mathbf z_i^{\top}\Bigr)^{-1},\qquad
+    h_i = p_{ik}\,(1-p_{ik})
+  \]
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.54\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item $h_i$ は損失の曲がり具合で，出発点が発話 $i$ に付けた確率 $p_{ik}$ だけで決まる．正解 $y_i$ を含まない（感情の行どうしの結びつきは省いた）
+        \item 正解 $y_i$ が入るのは事後分布の平均だけである．どの発話を選ぶと，どの向きの不確かさがどれだけ減るかは，ラベルを見る前に決まる（Chaloner 1984，Chaloner \& Verdinelli 1995）
+        \item ラベルを見ない選び方は不確かさを減らす向きを選べるが，$E_0$ の向きを知らないので，減らす向きを $E_0$ に合わせられない
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \draw[mMuted, line width=0.7pt] (0,0) circle (1.25);
+        \draw[cOurs, line width=1.0pt, rotate=20] (0,0) ellipse (0.45 and 1.25);
+        \draw[->, cOurs] (-1.75,-0.64) -- (1.75,0.64) node[anchor=west, align=left] {選んだ\\発話の向き};
+        \draw[->, line width=1.1pt, cBest] (0,0) -- (-1.5,0.75) node[anchor=east] {$E_0$};
+      \end{tikzpicture}\par
+      \vspace{0.2em}
+      \stwNote{模式図（実験の値ではない）．灰色の円が事前分布，青の楕円が事後分布のばらつき．ばらつきが減るのは選んだ発話の向きで，$E_0$ の向きとは限らない}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-8：$E_0$ に好む向きが無ければ，どの選び方も同じだけ捉える}
+  \rl{命題 2 の近似の中身}
+  \tighteq\scriptsize
+  事前分布の下で $E_0$ に好む向きが無い（生徒の座標でどの向きにも同じだけ広がる）と仮定すると，ラベルを見ずに選んだどの $4K$ 本でも，捉える割合の期待値は同じになる．
+  \[
+    \mathbb E\bigl[r(S)\bigr] = \mathbb E\Bigl[\frac{\|P_S E_0^{\top}\|^2}{\|E_0\|^2}\Bigr] = \frac{4K}{d}
+  \]
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item $P_S$：選んだ $4K$ 本が張る空間への射影．$d$：生徒の座標の次元（A 1024，V 512，T 768）
+        \item 近似は 3 つ：損失を 2 次式にする，出発点の項を正規の事前分布にする，$E_0$ に好む向きが無いとする．主張は「期待値が選び方によらない」までで，ロジスティック回帰でそのまま成り立つとは言わない
+        \item 実測の $E_0$ は等方ではない．でたらめの 20 本が，等方なら捉える割合（$20/d$）の数倍を捉える（右図）．だから命題に頼らず，捉える割合を選び方ごとに直接測った（次のスライド）
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=7.0cm, height=3.7cm, ybar, /pgf/bar width=6pt, ymin=0, xmin=-0.6, xmax=2.6,
+            xtick={0,1,2}, xticklabels={A,V,T}, ylabel={$E_0$ の割合（\%）}, ymajorgrids, grid style={mMuted!25},
+            enlarge y limits={upper, value=0.08},
+            legend style={font=\scriptsize, draw=none, at={(0.5,1.03)}, anchor=south, legend columns=2, /tikz/every even column/.append style={column sep=0.6em}}]
+          \addplot[fill=mMuted!45, draw=none] table[x=x, y=null20] {supp_p2_e58.csv}; \addlegendentry{等方なら（$20/d$）}
+          \addplot[fill=cStart, draw=none] table[x=x, y=frac_top20] {supp_p2_e58.csv}; \addlegendentry{分散の上位 20 方向}
+          \addplot[fill=cOurs, draw=none] table[x=x, y=r_random_true] {supp_p2_e58.csv}; \addlegendentry{でたらめの 20 本}
+          \addplot[fill=cExt, draw=none] table[x=x, y=r_LLL] {supp_p2_e58.csv}; \addlegendentry{教える選び方の 20 本}
+        \end{axis}
+      \end{tikzpicture}\par
+      \stwNote{$K=5$．ターゲットの平均（A 7，V 6，T 4），反復 10 回．でたらめは感情ごとに 5 本．教える選び方は全ラベルを使う（参考）}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-9：捉える割合 $r$ と，比べた 8 通りの選び方}
+  \rl{結果：ラベル無しの選び方}\label{s:p2:capture}
+  \scriptsize
+  ラベル無しの 7 通りはでたらめの \NUM{p2-e58-ratio-unlab-lo}〜\NUM{p2-e58-ratio-unlab-hi} 倍，教える選び方は \NUM{p2-e58-ratio-lll-lo}〜\NUM{p2-e58-ratio-lll-hi} 倍を捉える．$r(S) = \|P_S E_0^{\top}\|^2/\|E_0\|^2$ を $K=5$ の 20 本で測り，でたらめ（感情ごとに 5 本）の $r$ に対する比を示す．$W^{*}$ はプールの全ラベルで出発点から学び直した生徒（$C'$ はプールを話者で 2 つに分けて選び，$C_b=8$）．
+  \vspace{0.2em}\par
+  \centering
+  \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{0.96}
+  \begin{tabular}{@{}l p{5.6cm} c c c@{}}
+    \toprule
+    選び方 & 何を選ぶか（20 本） & A & V & T \\
+    \midrule
+    \stwCapRow{0}{でたらめ（プールの順）}{ラベルを見ずにでたらめに選ぶ}
+    \stwCapRow{1}{余裕が最小}{予測の 1 位と 2 位の確率の差が小さい順}
+    \stwCapRow{2}{予測で herding}{予測した感情ごとに，平均が近づくよう 5 本}
+    \stwCapRow{3}{TypiClust}{20 の塊に分け，塊ごとに最も典型的な発話}
+    \stwCapRow{4}{core-set}{選んだ発話から最も遠い発話を 1 本ずつ足す}
+    \stwCapRow{5}{白色化した k-center}{共分散で白色化した座標での core-set}
+    \stwCapRow{6}{白色化したノルム最大}{白色化した座標で長さが大きい順}
+    \midrule
+    \stwCapRow{7}{教える選び方}{全ラベルを使い，損失が最も下がる順（上の参考）}
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.2em}
+  \raggedright
+  \stwNote{ターゲットの平均の $r$ どうしの比．括弧はターゲットごとの比の範囲．A 7，V 6，T 4 ターゲット，反復 10 回．でたらめの $r$ は A \NUM{p2-e58-r-random-a}\%，V \NUM{p2-e58-r-random-v}\%，T \NUM{p2-e58-r-random-t}\%．ラベル無しの 7 通りの範囲は A \NUM{p2-e58-ratio-unlab-a-lo}〜\NUM{p2-e58-ratio-unlab-a-hi}，V \NUM{p2-e58-ratio-unlab-v-lo}〜\NUM{p2-e58-ratio-unlab-v-hi}，T \NUM{p2-e58-ratio-unlab-t-lo}〜\NUM{p2-e58-ratio-unlab-t-hi} 倍．白色化：どの向きのばらつきも 1 にそろえる座標の変換}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-10：ラベル無しの選び方はでたらめを 1 \pt 上回らない}
+  \rl{結果：ラベル無しの選び方}
+  \scriptsize
+  5 つの値を選んだ生徒で $K=5$ の UAR を比べると，どのラベル無しの選び方もプールの順のでたらめを 1 \pt 上回らない（最大 \NUM{p2-cond2-e39-maxgain-k5}）．生徒を弱い生徒から替えると，でたらめ自身が \NUM{p2-cond2-student-random-k5-lo}〜\NUM{p2-cond2-student-random-k5-hi} \pt 上がる．
+  \vspace{0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.56\textwidth}
+      \centering
+      \setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{1.2}
+      \begin{tabular}{@{}p{3.6cm} c c c c c@{}}
+        \toprule
+        $K=5$，\pt & A & A(HuBERT) & V & AV & T \\
+        \midrule
+        ラベル無しの版の最大 − でたらめ & \NUM{p2-cond2-e39-maxgain-k5-a} & \NUM{p2-cond2-e39-maxgain-k5-ah} & \NUM{p2-cond2-e39-maxgain-k5-v} & \NUM{p2-cond2-e39-maxgain-k5-av} & \NUM{p2-cond2-e39-maxgain-k5-t} \\
+        弱い生徒から替えたときのでたらめの上がり幅 & \NUM{p2-cond2-student-random-k5-a} & \NUM{p2-cond2-student-random-k5-ah} & \NUM{p2-cond2-student-random-k5-v} & \NUM{p2-cond2-student-random-k5-av} & \NUM{p2-cond2-student-random-k5-t} \\
+        \midrule
+        教える選び方 − でたらめ & \NUM{p2-e58-lll-gain-a} & \NUM{p2-e58-lll-gain-ah} & \NUM{p2-e58-lll-gain-v} & \NUM{p2-e58-lll-gain-av} & — \\
+        \quad うち選び方を替えた分 & \NUM{p2-e58-lll-gain-sel-a} & \NUM{p2-e58-lll-gain-sel-ah} & \NUM{p2-e58-lll-gain-sel-v} & \NUM{p2-e58-lll-gain-sel-av} & — \\
+        \quad うち $C'$ を緩めた分 & \NUM{p2-e58-lll-gain-cp-a} & \NUM{p2-e58-lll-gain-cp-ah} & \NUM{p2-e58-lll-gain-cp-v} & \NUM{p2-e58-lll-gain-cp-av} & — \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      \stwNote{ラベル無しの版は既存の能動学習の規則（余裕，BADGE，core-set，TypiClust など）と見込みで選ぶ版のすべて．でたらめはプールの順．弱い生徒は全ソースからの仮説転移の既定．教える選び方はプールの全ラベルを使う（上の参考）．ターゲットの平均，反復 10 回}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \centering
+      \textbf{ラベル無しで作った部分空間が捉える $E_0$（\%）}\\[0.2em]
+      \setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.2}
+      \begin{tabular}{@{}l c c c@{}}
+        \toprule
+        部分空間 & A & V & T \\
+        \midrule
+        ソースの向きの食い違い $U_A$ & \NUM{p2-e58-r-ua-a} & \NUM{p2-e58-r-ua-v} & \NUM{p2-e58-r-ua-t} \\
+        仮のターゲットでの直し $U_B$ & \NUM{p2-e58-r-ub-a} & \NUM{p2-e58-r-ub-v} & \NUM{p2-e58-r-ub-t} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.3em}
+      \raggedright
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item $U_A$：ソースの群ごとの向きと，その平均との差が張る空間．$U_B$：仮のターゲットごとに全ラベルで直した向き $W^{*}_c - W_0^{(c)}$ が張る空間
+        \item どちらもターゲットのラベルを使わずに作れるが，$E_0$ の \NUM{p2-e58-r-uaub-lo}〜\NUM{p2-e58-r-uaub-hi}\% しか含まない
+        \item 弱い生徒（全ソースからの仮説転移）では，見込みで選ぶ 2 版の高い方が $K=1$ ででたらめを \NUM{p2-e54-pq-k1-lo}〜\NUM{p2-e54-pq-k1-hi} \pt 上回る（A・V・T）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-11：弱いラベルは先生の予測の列を割り直し，合計を $m$ にする}
+  \rl{手法：弱いラベル}\label{s:p2:weak}
+  \tighteq\scriptsize
+  先生の予測 $Q$（$N_u\times 4$）の列ごとに合計で割り，全体を $m/4$ 倍する．どの感情も同じ合計 $m/4$ を受け，全体の合計は $m$ になる．
+  \[
+    q_{ic} = \frac{m}{4}\cdot\frac{Q_{ic}}{\sum_{j\in\mathcal U} Q_{jc}},\qquad
+    \sum_{i\in\mathcal U} q_{ic} = \frac{m}{4}\ \ (c=1,\dots,4),\qquad
+    \sum_{i\in\mathcal U}\sum_{c=1}^{4} q_{ic} = m
+  \]
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.08}
+      \begin{tabular}{@{}l p{6.0cm}@{}}
+        \toprule
+        記号 & 何か \\
+        \midrule
+        $Q_{ic}$ & 先生が発話 $i$ に付けた感情 $c$ の確率（行の和は 1） \\
+        $N_u$ & プール（テスト以外のターゲットの発話）の本数．数千本 \\
+        $m$ & 弱いラベル全体の比重．本当のラベル 1 本を 1 として何本ぶんか \\
+        $q_{ic}$ & 発話 $i$ を感情 $c$ の例として数える比重 \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+        \item 先生が中立を多く予測しても，割り直すと 4 感情が同じ合計を受ける
+        \item 出発点自身の予測を割り直すだけで先生の役をする（釣り合い直し）．これを対照にし，先生の情報の分と分ける
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[tgtbox, text width=1.3cm] (u) at (0,0) {発話 $i$\\（ラベル無し）};
+        \foreach \c/\y/\lab in {1/0.96/中立,2/0.32/喜び,3/-0.32/悲しみ,4/-0.96/怒り} {
+          \node[draw=cExt, fill=cExt!8, rounded corners=2pt, minimum width=2.6cm, minimum height=0.45cm, align=left, anchor=west] (c\c) at (1.3,\y) {感情 \lab，比重 $q_{i\c}$};
+          \draw[arr, cExt] (u.east) -- (c\c.west);
+        }
+      \end{tikzpicture}\par
+      \vspace{0.2em}
+      \stwNote{1 本の発話を 4 回，感情を替えて数える．例：$m=500$，$N_u=2000$ なら 1 本あたりの比重は平均 0.25（説明用の数．実験の値ではない）}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-12：先生と $m$ は $K$ ごとに格子から仮のターゲットで選ぶ}
+  \rl{手法：先生と $m$ の選び方}
+  \scriptsize
+  \centering
+  \setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.05}
+  \begin{tabularx}{\textwidth}{@{}p{2.6cm} X l@{}}
+    \toprule
+    生徒 & 先生の候補（どの生徒でも「使わない」も候補） & $m$ の候補 \\
+    \midrule
+    同じモダリティ & 見込み $q$，見込みと出発点の予測を積み上げた $pq$（補足 2-14） & 20，100，500 \\
+    単独の生徒（またぐ） & 融合の出発点 pF，単独の出発点の予測の積，単独の出発点の票が全部はそろわない発話を 0.2 倍にした pF（一致で比重）．どれもソースだけで学ぶ & 100，500，2000 \\
+    融合の生徒 & 単独の出発点の予測の積，pF が教えた単独の生徒の予測の積 ref（教えるときの $m_{\text{in}}$ は 100 か 500．弱いラベルにするか，そのまま予測に使う．補足 2-19） & 100，500 \\
+    \bottomrule
+  \end{tabularx}\par
+  \raggedright
+  {\scriptsize $K\in\{0,1,5,10,25\}$ ごとに，仮のターゲット（反復 0〜4）で UAR が最大の組を選ぶ．下の図はその数\par}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.33\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=5.2cm, height=2.6cm, ybar stacked, /pgf/bar width=7pt, ymin=0, xmin=-0.6, xmax=4.6,
+            xtick={0,...,4}, xticklabels from table={supp_p2_choice.csv}{K}, ylabel={選ばれた数},
+            ymajorgrids, grid style={mMuted!25}, title={\scriptsize 単独の生徒が選んだ $m$}, title style={yshift=-0.6em},
+            legend style={font=\scriptsize, draw=none, at={(0.5,-0.3)}, anchor=north, legend columns=4, /tikz/every even column/.append style={column sep=0.15em}}]
+          \addplot[fill=mMuted!45, draw=none] table[x=x, y=s_m0] {supp_p2_choice.csv}; \addlegendentry{使わない}
+          \addplot[fill=cExt!25, draw=none] table[x=x, y=s_m100] {supp_p2_choice.csv}; \addlegendentry{100}
+          \addplot[fill=cExt!55, draw=none] table[x=x, y=s_m500] {supp_p2_choice.csv}; \addlegendentry{500}
+          \addplot[fill=cExt, draw=none] table[x=x, y=s_m2000] {supp_p2_choice.csv}; \addlegendentry{2000}
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=5.2cm, height=2.6cm, ybar stacked, /pgf/bar width=7pt, ymin=0, xmin=-0.6, xmax=4.6,
+            xtick={0,...,4}, xticklabels from table={supp_p2_choice.csv}{K},
+            ymajorgrids, grid style={mMuted!25}, title={\scriptsize 単独の生徒が選んだ先生}, title style={yshift=-0.6em},
+            legend style={font=\scriptsize, draw=none, at={(0.5,-0.3)}, anchor=north, legend columns=4, /tikz/every even column/.append style={column sep=0.15em}}]
+          \addplot[fill=mMuted!45, draw=none] table[x=x, y=s_m0] {supp_p2_choice.csv}; \addlegendentry{使わない}
+          \addplot[fill=cExt, draw=none] table[x=x, y=s_pF] {supp_p2_choice.csv}; \addlegendentry{pF}
+          \addplot[fill=cDisc!60, draw=none] table[x=x, y=s_poe] {supp_p2_choice.csv}; \addlegendentry{積}
+          \addplot[fill=cCrit!60, draw=none] table[x=x, y=s_agree] {supp_p2_choice.csv}; \addlegendentry{一致}
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=5.2cm, height=2.6cm, ybar stacked, /pgf/bar width=7pt, ymin=0, xmin=-0.6, xmax=4.6,
+            xtick={0,...,4}, xticklabels from table={supp_p2_choice.csv}{K},
+            ymajorgrids, grid style={mMuted!25}, title={\scriptsize 融合の生徒が選んだ先生}, title style={yshift=-0.6em},
+            legend style={font=\scriptsize, draw=none, at={(0.5,-0.3)}, anchor=north, legend columns=4, /tikz/every even column/.append style={column sep=0.15em}}]
+          \addplot[fill=mMuted!45, draw=none] table[x=x, y=f_none] {supp_p2_choice.csv}; \addlegendentry{使わない}
+          \addplot[fill=cDisc!60, draw=none] table[x=x, y=f_poe0] {supp_p2_choice.csv}; \addlegendentry{積}
+          \addplot[fill=cExt, draw=none] table[x=x, y=f_ref] {supp_p2_choice.csv}; \addlegendentry{ref}
+          \addplot[fill=cExt!35, draw=none] table[x=x, y=f_refdirect] {supp_p2_choice.csv}; \addlegendentry{ref 直接}
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \stwNote{横軸は $K$．積：単独の出発点の予測の積，一致：一致で比重，ref 直接：ref をそのまま予測に使う}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-13：$J$ は先生の UAR から出発点の UAR を引いた値}
+  \rl{考え方：先生の優位 $J$}\label{s:p2:J}
+  \tighteq\scriptsize
+  UAR は感情ごとの正解率の平均なので，両方が当てる発話の割合は差を取ると消え，$J$ は「先生だけが当てる割合 − 出発点だけが当てる割合」の感情の平均になる．
+  \[
+    J = \mathrm{UAR}_{\text{先生}} - \mathrm{UAR}_{\text{出発点}}
+      = \frac14\sum_{c=1}^{4}\Bigl[\,P(\text{先生○，出発点×}\mid c) - P(\text{先生×，出発点○}\mid c)\,\Bigr]
+  \]
+  $P(\cdot\mid c)$ は本当の感情が $c$ の発話の中での割合（○は当てる，×は外す）．$J$ はプールの発話で，プールのラベル（分析のためだけに使う）で数える．
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.53\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 予想（定理ではない）：出発点に縛った生徒は，プールで先生の予測をまねて学ぶので，先生の優位をおおよそ再現するのが精一杯である．だから生徒の利得のうち先生の情報から来る分は $J$ を超えないと予想する
+        \item 保証が無い点：生徒は自分のモダリティだけの線形の分類器で，先生の予測を再現できるとは限らない．$J$ はプールで，利得はテストの話者で測る
+        \item 割り直しの効果（釣り合い直し）は先生の情報ではないので，対照で別に測る
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \centering
+      \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+      \begin{tabular}{@{}l c l@{}}
+        \toprule
+        先生 & $J$ & 生徒の利得 \\
+        \midrule
+        見込み（A） & \NUM{p2-e52-q-minus-p-a} & 情報の分 \NUM{p2-e59k-info-a-lo}〜\NUM{p2-e59k-info-a-hi}（$K\le5$） \\
+        見込み（A(HuBERT)） & \NUM{p2-e52-q-minus-p-ah} & — \\
+        AV の融合の出発点 & \NUM{p2-e60pre-juar-av-a-fused} & 利得 \NUM{p2-e60-av-a-k0}（$K=0$） \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      \stwNote{単位は\pt．$J$ は 5 つの値を選んだ出発点に対する値．融合の出発点の行は音声の生徒で，$J$ は下調べ（反復 2 回），利得は釣り合い直しの分を含む．見込みの情報の分は釣り合い直しの分を除く．利得は反復 10 回}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-14：見込みはソースごとの票を混同の仕方でまとめる}
+  \rl{手法：見込みの蒸留}\label{s:p2:e59}
+  \tighteq\scriptsize
+  見込み $q$ は，ソースごとの分類器の確率を，4 × 4 の表 $V_s$ で直してから足す（対数の確率の足し算）．
+  \[
+    \log q(y\mid x) = b_y + \frac{1}{|S|}\sum_{s\in S}\sum_{\hat y=1}^{4} V_s[y,\hat y]\,\log p_s(\hat y\mid x) + (\text{$y$ によらない定数})
+  \]
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+      \begin{tabular}{@{}l p{6.0cm}@{}}
+        \toprule
+        記号 & 何か \\
+        \midrule
+        $p_s$ & ソースの群 $s$ だけで学んだ分類器の確率（ターゲットのコーパスの群は除く） \\
+        $V_s$ & 「$s$ が $\hat y$ と言うとき本当は $y$ である」傾向（混同の仕方）．ソースの発話を仮のターゲットにして学ぶ \\
+        $\lambda$ & $V_s$ を単位行列に近づける縛りの強さ．0.001〜10 の 5 つから，仮のターゲットを 1 つずつ外して選ぶ．大きいと確率の積に近づく \\
+        $b_y$ & 感情ごとの切片 \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item $pq$：出発点の予測 $p$ と $q$ を，同じ形で積み上げた見込み
+        \item 先生の候補は $\{q, pq\}\times m\in\{20,100,500\}$ と「使わない」．$K\in\{0,1,5,10,25\}$ ごとに仮のターゲットで選ぶ
+        \item 対照：出発点自身の予測を弱いラベルにする（選んだ $m$．使わないを選んだ $K$ では $m=20$）．利得 − 対照を見込みの情報の分とする
+        \item 生徒は見込みと同じモダリティ（A，V，T のどれか 1 つ）の 5 つの値の生徒
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-15：見込みの蒸留は A と V を上げ，T をほぼ上げない}
+  \rl{結果：見込みの蒸留}
+  \scriptsize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      {\scriptsize\textcolor{kA}{■ A（7）}\quad\textcolor{kV}{■ V（6）}\quad\textcolor{kT}{■ T（4）}\quad 実線：利得\quad 破線：対照\par}
+      \begin{tikzpicture}
+        \begin{axis}[width=7.4cm, height=4.6cm, xmin=-0.3, xmax=4.3, ymin=-0.5, ymax=1.6,
+            xtick={0,...,4}, xticklabels from table={supp_p2_e59.csv}{K}, xlabel={感情あたりのラベル $K$},
+            ylabel={出発点との差（\pt）}, ymajorgrids, grid style={mMuted!25}]
+          \draw[black, line width=0.5pt] (axis cs:-0.3,0) -- (axis cs:4.3,0);
+          \addplot[sA] table[x=x, y=a_gain] {supp_p2_e59.csv};
+          \addplot[sV] table[x=x, y=v_gain] {supp_p2_e59.csv};
+          \addplot[sT] table[x=x, y=t_gain] {supp_p2_e59.csv};
+          \addplot[kA, densely dashed, line width=1.0pt] table[x=x, y=a_ctrl] {supp_p2_e59.csv};
+          \addplot[kV, densely dashed, line width=1.0pt] table[x=x, y=v_ctrl] {supp_p2_e59.csv};
+        \end{axis}
+      \end{tikzpicture}\par
+      \stwNote{括弧はターゲットの数．反復 10 回．対照は出発点自身の予測を弱いラベルにしたもの（釣り合い直しだけ）}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{1.15}
+      \begin{tabular}{@{}l c c c c c@{}}
+        \toprule
+        \pt & $K=0$ & 1 & 5 & 10 & 25 \\
+        \midrule
+        A の利得 & \NUM{p2-e59k-a-k0} & \NUM{p2-e59k-a-k1} & \NUM{p2-e59k-a-k5} & \NUM{p2-e59k-a-k10} & \NUM{p2-e59k-a-k25} \\
+        \quad 釣り合い直し & \NUM{p2-e59k-ctrl-a-k0} & \NUM{p2-e59k-ctrl-a-k1} & \NUM{p2-e59k-ctrl-a-k5} & & \\
+        \quad 情報の分 & \NUM{p2-e59k-info-a-k0} & \NUM{p2-e59k-info-a-k1} & \NUM{p2-e59k-info-a-k5} & & \\
+        V の利得 & \NUM{p2-e59k-v-k0} & \NUM{p2-e59k-v-k1} & \NUM{p2-e59k-v-k5} & \NUM{p2-e59k-v-k10} & \NUM{p2-e59k-v-k25} \\
+        \quad 釣り合い直し & \NUM{p2-e59k-ctrl-v-k0} & \NUM{p2-e59k-ctrl-v-k1} & \NUM{p2-e59k-ctrl-v-k5} & & \\
+        \quad 情報の分 & \NUM{p2-e59k-info-v-k0} & \NUM{p2-e59k-info-v-k1} & \NUM{p2-e59k-info-v-k5} & & \\
+        T の利得 & \NUM{p2-e59k-t-k0} & \NUM{p2-e59k-t-k1} & \NUM{p2-e59k-t-k5} & \NUM{p2-e59k-t-k10} & \NUM{p2-e59k-t-k25} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.3em}
+      \raggedright
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 情報の分 ＝ 利得 − 釣り合い直し．A の見込みの $J$ は \NUM{p2-e52-q-minus-p-a} \pt で，情報の分 \NUM{p2-e59k-info-a-lo}〜\NUM{p2-e59k-info-a-hi}（$K\le5$）はそれを下回る
+        \item T では $K\ge5$ で仮のターゲットが「使わない」を選ぶので，利得は 0 になる
+        \item 顔の生徒では，モダリティをまたぐ先生の利得（$K=0$ で VT \NUM{p2-e60-vt-v-k0}，AVT \NUM{p2-e60-avt-v-k0}）は同じモダリティの見込みの利得 \NUM{p2-e59k-v-k0} より小さい（補足 2-17）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-16：モダリティをまたぐ先生の $J$（下調べの全表）}
+  \rl{下調べ：先生の候補}\label{s:p2:pre}
+  \scriptsize
+  音声の生徒には別のモダリティを含む先生の $J$ が大きく，融合の生徒には単独の出発点をまとめた先生の $J$ が AV で 0 に近い．そこで融合の生徒には，融合の出発点が教えた単独の生徒の予測の積（補足 2-19）を先生の候補にした．
+  \vspace{0.3em}\par
+  \centering
+  \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{0.95}
+  \begin{tabular}{@{}l c c c c@{}}
+    \toprule
+    & \multicolumn{2}{c}{音声の生徒（基準は音声の出発点）} & \multicolumn{2}{c}{融合の生徒（基準は融合の出発点）} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+    先生の候補 & AV & AVT & AV & AVT \\
+    \midrule
+    融合の出発点 & \NUM{p2-e60pre-juar-av-a-fused} & \NUM{p2-e60pre-juar-avt-a-fused} & （基準） & （基準） \\
+    単独の出発点の予測の積 & \NUM{p2-e60pre-juar-av-a-poe} & \NUM{p2-e60pre-juar-avt-a-poe} & \NUM{p2-e60pre-juar-av-f-poe} & \NUM{p2-e60pre-juar-avt-f-poe} \\
+    同じく見込みの形でまとめたもの & \NUM{p2-e60pre-juar-av-a-pool} & \NUM{p2-e60pre-juar-avt-a-pool} & \NUM{p2-e60pre-juar-av-f-pool} & \NUM{p2-e60pre-juar-avt-f-pool} \\
+    同じく小さな MLP でまとめたもの & \NUM{p2-e60pre-juar-av-a-mlp} & \NUM{p2-e60pre-juar-avt-a-mlp} & \NUM{p2-e60pre-juar-av-f-mlp} & \NUM{p2-e60pre-juar-avt-f-mlp} \\
+    顔の出発点 & \NUM{p2-e60pre-juar-av-a-v} & \NUM{p2-e60pre-juar-avt-a-v} & — & — \\
+    言葉の出発点 & — & \NUM{p2-e60pre-juar-avt-a-t} & — & — \\
+    \midrule
+    基準の出発点のプールでの UAR（\%） & \NUM{p2-e60pre-uar-av-start-a} & \NUM{p2-e60pre-uar-avt-start-a} & \NUM{p2-e60pre-uar-av-start-f} & \NUM{p2-e60pre-uar-avt-start-f} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.3em}
+  \raggedright
+  \stwNote{$J$ ＝ 先生の UAR − 基準の出発点の UAR（プールの上，\pt）．負なら先生が基準より低い（AV の顔の出発点は $J=\NUM{p2-e60pre-juar-av-a-v}$）．AV 6，AVT 4 ターゲット，反復 2 回．見込みの形（補足 2-14）と MLP（隠れ層 1 つ）は仮のターゲットで学ぶ．単独の生徒はテストでは自分のモダリティだけを使う（特権情報：学習のときだけ使える別のモダリティ，と同じ考え方）}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-17：基本版の利得の全表（全生徒・全 $K$）}
+  \rl{結果：モダリティをまたぐ蒸留}\label{s:p2:e60}
+  \scriptsize
+  $K\le5$ ではすべての生徒が出発点を上回り，$K\ge10$ では一部の生徒が下回る．先生と $m$ は $K$ ごとに選んだ（補足 2-12）．
+  \vspace{0.2em}\par
+  \centering
+  \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{0.86}
+  \begin{tabular}{@{}l l c c c c c c@{}}
+    \toprule
+    世界 & 生徒 & ターゲット & $K=0$ & 1 & 5 & 10 & 25 \\
+    \midrule
+    AV & 音声 & 6 & \NUM{p2-e60-av-a-k0} & \NUM{p2-e60-av-a-k1} & \NUM{p2-e60-av-a-k5} & \NUM{p2-e60-av-a-k10} & \NUM{p2-e60-av-a-k25} \\
+       & 顔   & 6 & \NUM{p2-e60-av-v-k0} & \NUM{p2-e60-av-v-k1} & \NUM{p2-e60-av-v-k5} & \NUM{p2-e60-av-v-k10} & \NUM{p2-e60-av-v-k25} \\
+       & 融合 & 6 & \NUM{p2-e60-av-f-k0} & \NUM{p2-e60-av-f-k1} & \NUM{p2-e60-av-f-k5} & \NUM{p2-e60-av-f-k10} & \NUM{p2-e60-av-f-k25} \\
+    \midrule
+    VT & 顔   & 4 & \NUM{p2-e60-vt-v-k0} & \NUM{p2-e60-vt-v-k1} & \NUM{p2-e60-vt-v-k5} & \NUM{p2-e60-vt-v-k10} & \NUM{p2-e60-vt-v-k25} \\
+       & 言葉 & 4 & \NUM{p2-e60-vt-t-k0} & \NUM{p2-e60-vt-t-k1} & \NUM{p2-e60-vt-t-k5} & \NUM{p2-e60-vt-t-k10} & \NUM{p2-e60-vt-t-k25} \\
+       & 融合 & 4 & \NUM{p2-e60-vt-f-k0} & \NUM{p2-e60-vt-f-k1} & \NUM{p2-e60-vt-f-k5} & \NUM{p2-e60-vt-f-k10} & \NUM{p2-e60-vt-f-k25} \\
+    \midrule
+    AT & 音声 & 4 & \NUM{p2-e60-at-a-k0} & \NUM{p2-e60-at-a-k1} & \NUM{p2-e60-at-a-k5} & \NUM{p2-e60-at-a-k10} & \NUM{p2-e60-at-a-k25} \\
+       & 言葉 & 4 & \NUM{p2-e60-at-t-k0} & \NUM{p2-e60-at-t-k1} & \NUM{p2-e60-at-t-k5} & \NUM{p2-e60-at-t-k10} & \NUM{p2-e60-at-t-k25} \\
+       & 融合 & 4 & \NUM{p2-e60-at-f-k0} & \NUM{p2-e60-at-f-k1} & \NUM{p2-e60-at-f-k5} & \NUM{p2-e60-at-f-k10} & \NUM{p2-e60-at-f-k25} \\
+    \midrule
+    AVT & 音声 & 4 & \NUM{p2-e60-avt-a-k0} & \NUM{p2-e60-avt-a-k1} & \NUM{p2-e60-avt-a-k5} & \NUM{p2-e60-avt-a-k10} & \NUM{p2-e60-avt-a-k25} \\
+        & 顔   & 4 & \NUM{p2-e60-avt-v-k0} & \NUM{p2-e60-avt-v-k1} & \NUM{p2-e60-avt-v-k5} & \NUM{p2-e60-avt-v-k10} & \NUM{p2-e60-avt-v-k25} \\
+        & 言葉 & 4 & \NUM{p2-e60-avt-t-k0} & \NUM{p2-e60-avt-t-k1} & \NUM{p2-e60-avt-t-k5} & \NUM{p2-e60-avt-t-k10} & \NUM{p2-e60-avt-t-k25} \\
+        & 融合 & 4 & \NUM{p2-e60-avt-f-k0} & \NUM{p2-e60-avt-f-k1} & \NUM{p2-e60-avt-f-k5} & \NUM{p2-e60-avt-f-k10} & \NUM{p2-e60-avt-f-k25} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.1em}
+  \raggedright
+  \stwNote{出発点の生徒との UAR の差（\pt），ターゲットの平均，反復 10 回．出発点は世界と生徒ごとに違う}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-18：予想 M1 は成り立ち，M2 と M3 は成り立たなかった}
+  \rl{結果：予想の判定}
+  \scriptsize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      {\scriptsize\textcolor{kA}{■ 音声}\quad\textcolor{kV}{■ 顔}\quad\textcolor{kT}{■ 言葉}\quad\textcolor{kAVT}{■ 融合}\quad 赤の破線は $-0.1$\par}
+      \begin{tikzpicture}
+        \begin{groupplot}[group style={group size=2 by 2, horizontal sep=0.3cm, vertical sep=0.8cm, xticklabels at=edge bottom, yticklabels at=edge left},
+            width=3.9cm, height=3.0cm, xmin=-0.3, xmax=4.3, ymin=-2.1, ymax=3.9,
+            xtick={0,...,4}, xticklabels from table={supp_p2_e60.csv}{K}, ytick={-2,0,2}, ymajorgrids, grid style={mMuted!25},
+            title style={yshift=-0.7em}]
+          \nextgroupplot[title={\scriptsize AV}, ylabel={差（\pt）}]
+            \draw[mBad, densely dashed, line width=0.6pt] (axis cs:-0.3,-0.1) -- (axis cs:4.3,-0.1);
+            \addplot[sA] table[x=x, y=av_a] {supp_p2_e60.csv};
+            \addplot[sV] table[x=x, y=av_v] {supp_p2_e60.csv};
+            \addplot[sAVT] table[x=x, y=av_f] {supp_p2_e60.csv};
+          \nextgroupplot[title={\scriptsize VT}]
+            \draw[mBad, densely dashed, line width=0.6pt] (axis cs:-0.3,-0.1) -- (axis cs:4.3,-0.1);
+            \addplot[sV] table[x=x, y=vt_v] {supp_p2_e60.csv};
+            \addplot[sT] table[x=x, y=vt_t] {supp_p2_e60.csv};
+            \addplot[sAVT] table[x=x, y=vt_f] {supp_p2_e60.csv};
+          \nextgroupplot[title={\scriptsize AT}, ylabel={差（\pt）}, xlabel={$K$}]
+            \draw[mBad, densely dashed, line width=0.6pt] (axis cs:-0.3,-0.1) -- (axis cs:4.3,-0.1);
+            \addplot[sA] table[x=x, y=at_a] {supp_p2_e60.csv};
+            \addplot[sT] table[x=x, y=at_t] {supp_p2_e60.csv};
+            \addplot[sAVT] table[x=x, y=at_f] {supp_p2_e60.csv};
+          \nextgroupplot[title={\scriptsize AVT}, xlabel={$K$}]
+            \draw[mBad, densely dashed, line width=0.6pt] (axis cs:-0.3,-0.1) -- (axis cs:4.3,-0.1);
+            \addplot[sA] table[x=x, y=avt_a] {supp_p2_e60.csv};
+            \addplot[sV] table[x=x, y=avt_v] {supp_p2_e60.csv};
+            \addplot[sT] table[x=x, y=avt_t] {supp_p2_e60.csv};
+            \addplot[sAVT] table[x=x, y=avt_f] {supp_p2_e60.csv};
+        \end{groupplot}
+      \end{tikzpicture}\par
+      \stwNote{前の表の値．ターゲットの平均，反復 10 回}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.18}
+      \begin{tabular}{@{}p{3.1cm} p{4.2cm}@{}}
+        \toprule
+        予想（計算の前に書いた） & 結果 \\
+        \midrule
+        M1：単独の生徒はどれも $K=0$ と $K=5$ で出発点を上回る & $K=0$ で \NUM{p2-e60-m1-pos-k0-n}／\NUM{p2-e60-m1-n}，$K=5$ で \NUM{p2-e60-m1-pos-k5-n}／\NUM{p2-e60-m1-n} が上回る．\good{成り立つ} \\
+        M2：融合の生徒はどの世界でも $K=0$ と $K=5$ で 0.5 \pt 以上上回る & 4 世界のうち \NUM{p2-e60-m2-n}．AT の $K=5$ は \NUM{p2-e60-at-f-k5}．\bad{成り立たない} \\
+        M3：どの生徒もどの $K$ でも出発点を 0.1 \pt より大きくは下回らない & \NUM{p2-e60-m3-students-n} の生徒のうち \NUM{p2-e60-m3-loss-n} が $K\ge10$ で下回る．最悪は AT の音声の $K=25$ で \NUM{p2-e60-m3-worst}．\bad{成り立たない} \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0.2em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+        \item M3 の根拠は「使わない」を候補に入れることだった．下回った生徒では，$K\ge10$ でも仮のターゲット（世界により 2〜3 群）が弱いラベルを使う組を選んだ
+        \item 釣り合い直しだけの対照は，\NUM{p2-e60-m3-students-n} の生徒の $K=0$ と $K=5$ で \NUM{p2-e60-ctrl-lo}〜\NUM{p2-e60-ctrl-hi} \pt
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-19：融合の生徒には単独の生徒の予測の積が教える}
+  \rl{手法：融合の生徒の先生}\label{s:p2:fused}
+  \tighteq\scriptsize
+  融合の出発点が単独の生徒を教え，その生徒たちの予測の積を融合の生徒の弱いラベルにする．
+  \vspace{0.1em}\par
+  \centering
+  \begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=2.3cm, line width=0.8pt] (f) at (0,0) {\textbf{融合の出発点} pF\\ソースだけで学ぶ};
+    \node[draw=cExt, fill=cExt!8, rounded corners=2pt, align=center, text width=2.3cm] (w1) at (3.0,0) {弱いラベル\\$m_{\text{in}}\in\{100,500\}$};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.3cm] (sa) at (6.1,0.85) {音声の生徒};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.3cm] (sv) at (6.1,0) {顔の生徒};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.3cm, densely dashed] (st) at (6.1,-0.85) {言葉の生徒（AT・VT・AVT）};
+    \node[draw=cExt, fill=cExt!8, rounded corners=2pt, align=center, text width=2.1cm] (pr) at (9.2,0) {予測の積 $r_{ic}$\\$m\in\{100,500\}$};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.0cm, line width=0.9pt] (fs) at (12.0,0) {\textbf{融合の生徒}\\出発点に縛る};
+    \draw[arr, cExt] (f) -- (w1);
+    \draw[arr, cExt] (w1.east) -- (sa.west); \draw[arr, cExt] (w1.east) -- (sv.west); \draw[arr, cExt] (w1.east) -- (st.west);
+    \draw[arr, cOurs] (sa.east) -- (pr.west); \draw[arr, cOurs] (sv.east) -- (pr.west); \draw[arr, cOurs] (st.east) -- (pr.west);
+    \draw[arr, cExt] (pr) -- (fs);
+  \end{tikzpicture}\par
+  \[
+    r_{ic} = \frac{\prod_{\mu} p_{\mu}(c\mid x_i)}{\sum_{c'=1}^{4}\prod_{\mu} p_{\mu}(c'\mid x_i)}
+  \]
+  \raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+    \item 単独の生徒も融合の生徒も，弱いラベル（列を割り直す）でプールの上で学び，$K\ge1$ では $K$ 本のラベルでも学ぶ．$\mu$ はその世界のモダリティ，$p_\mu$ は単独の生徒がプールの発話 $x_i$ に付けた確率
+    \item 単独の生徒の予測の積をそのまま分類器にする版も，$K$ ごとの候補に入る（補足 2-12）
+    \item この先生はターゲットのラベル無しの発話で学んだ生徒から作るので，「基本版の先生はターゲットのデータを見ない」とは言えない
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{補足 2-20：拡張版の先生と重みづけの候補}
+  \rl{手法：拡張版}\label{s:p2:ext}
+  \scriptsize
+  拡張版は，$K$ 本で学び直した先生と 3 通りの重みづけを候補にし，先生・重みづけ・$m$ を $K$ ごとに仮のターゲットで選ぶ．
+  \vspace{-0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{0.98}
+      \begin{tabular}{@{}l p{6.4cm}@{}}
+        \toprule
+        & 候補 \\
+        \midrule
+        先生 & pF$_K$：$K$ 本で学び直した融合の生徒（$K=0$ では融合の出発点）\newline ref′：pF$_K$ が $m_{\text{in}}=500$ の釣り合わせた弱いラベルで教えた単独の生徒（$K\ge1$ では $K$ 本でも学ぶ）の予測の積 \\
+        重みづけ & 釣り合わせる：列を割り直す（基本版と同じ）\newline 釣り合わせない：$q_{ic} = m\,Q_{ic}/N_u$\newline しきい値：最大の確率が $\tau\in\{0.5,0.7,0.9\}$ 以上の発話だけ，予測した感情を硬いラベルにする（合計 $m$） \\
+        $m$ & 100，500，2000，$N_u$（$N_u$ では 1 本あたり 1） \\
+        生徒ごと & 単独の生徒は先生 2 つ，融合の生徒は ref′ だけ．「使わない」も候補 \\
+        \bottomrule
+      \end{tabular}\par
+      \vspace{0em}
+      \stwNote{基本版の候補（予測の積，一致で比重，ref，ref をそのまま）は入らない．基本版の pF とは $K=0$ の pF$_K$ だけが同じになる}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=6.1cm, height=3.3cm, xbar stacked, /pgf/bar width=11pt, xmin=0, xmax=100, ymin=-0.6, ymax=1.6,
+            ytick={0,1}, yticklabels={単独の生徒,融合の生徒}, yticklabel style={font=\scriptsize},
+            xlabel={選ばれた割合（\%）}, xmajorgrids, grid style={mMuted!25}]
+          \addplot[fill=cOurs, draw=none] table[y=x, x expr=100*\thisrow{pFK_bal}/\thisrow{n}] {supp_p2_ext.csv};
+          \addplot[fill=cOurs!55, draw=none] table[y=x, x expr=100*\thisrow{pFK_raw}/\thisrow{n}] {supp_p2_ext.csv};
+          \addplot[fill=cOurs!25, draw=none] table[y=x, x expr=100*\thisrow{pFK_hard}/\thisrow{n}] {supp_p2_ext.csv};
+          \addplot[fill=cExt, draw=none] table[y=x, x expr=100*\thisrow{ref_bal}/\thisrow{n}] {supp_p2_ext.csv};
+          \addplot[fill=cExt!55, draw=none] table[y=x, x expr=100*\thisrow{ref_raw}/\thisrow{n}] {supp_p2_ext.csv};
+          \addplot[fill=cExt!25, draw=none] table[y=x, x expr=100*\thisrow{ref_hard}/\thisrow{n}] {supp_p2_ext.csv};
+          \addplot[fill=mMuted!45, draw=none] table[y=x, x expr=100*\thisrow{none}/\thisrow{n}] {supp_p2_ext.csv};
+        \end{axis}
+      \end{tikzpicture}\par
+      \vspace{0.1em}
+      {\scriptsize
+      \setlength{\tabcolsep}{3pt}
+      \begin{tabular}{@{}l c c c@{}}
+        & 釣り合わせる & 釣り合わせない & しきい値 \\
+        pF$_K$ & \stwSq{cOurs} & \stwSq{cOurs!55} & \stwSq{cOurs!25} \\
+        ref′ & \stwSq{cExt} & \stwSq{cExt!55} & \stwSq{cExt!25} \\
+        使わない & \stwSq{mMuted!45} & & \\
+      \end{tabular}\par}
+      \vspace{0em}
+      \stwNote{仮のターゲットが選んだ候補の割合．（世界，ターゲット，生徒，$K$）ごとに 1 つ数え，$K=0$〜25 をまとめた．拡張版を流したのは AVT の 4 つの生徒と AV・VT・AT の融合の生徒で，AVT の音声と AV の融合の生徒では基本版の $K\ge10$ の損が消えた（VT の言葉と AT の音声は流していない）}
+    \end{column}
+  \end{columns}
+\end{frame}
