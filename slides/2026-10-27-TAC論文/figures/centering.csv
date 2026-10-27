@@ -1,0 +1,7 @@
+# 出所：results/mech_<種類>/*.csv（中心化 center と none，src_only・src_only+D1・merged，学び直しの反復 0〜2，C は交差検証）と
+# results/fixc_map/<種類>/*.csv（src_only，merged の K=5）．ソースのみからの差 ×100 の組の平均．論文の補足の図 S2（fig_centering.py）と同じ．
+# c_d1・c_pooled は「中心化の分 ＋ 中心化の後の上乗せ（c_d1_x・c_pooled_x）」．台帳 p1-center-*・p1-d1-gain-*・p1-merged-gain-*
+x,kind,center,d1,pooled,c_d1,c_pooled,c_d1_x,c_pooled_x
+0,a,4.89125,4.9192,5.39005,5.22297,5.45377,0.331719,0.562522
+1,ah,4.22209,4.11666,4.62494,4.3718,4.34144,0.149709,0.119348
+2,v,2.52664,1.86374,2.35017,1.99851,0.950902,-0.528125,-1.57573

@@ -1,0 +1,21 @@
+# 出所：results/baselines_<世界>/<T>.csv（融合の生徒，K=0）．ent はエントロピー最小化の論文どおりの設定（entmin|-|n），ox は拡張版の調整版．
+# 5 つの値の出発点との差（ポイント），反復 0〜9 の平均．論文の補足の図 S8 と同じ．台帳 cmp-entmin-fixed-vs-e39-*
+x,world,target,ent,ox
+0,AVT,IEMOCAP-impro,4.6165,3.88748
+0,AVT,IEMOCAP-script,-0.786822,4.68165
+0,AVT,MELD,-9.37672,2.7372
+0,AVT,MOSEI,-6.04846,0.242342
+1,VT,IEMOCAP-impro,-19.9803,4.7871
+1,VT,IEMOCAP-script,-6.40176,5.18936
+1,VT,MELD,-12.8154,0.651255
+1,VT,MOSEI,-1.86308,1.20005
+2,AT,IEMOCAP-impro,2.44959,4.42003
+2,AT,IEMOCAP-script,-1.79394,3.5709
+2,AT,MELD,-20.0465,1.54039
+2,AT,MOSEI,-9.3849,1.21956
+3,AV,AFEW,-7.40909,-0.986211
+3,AV,CREMA-D,-8.01648,3.67891
+3,AV,IEMOCAP-impro,-28.3466,0.76751
+3,AV,IEMOCAP-script,-17.3868,1.26901
+3,AV,MELD,-17.3072,0.833445
+3,AV,MOSEI,-7.13018,0.959035

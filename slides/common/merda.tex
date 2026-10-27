@@ -1,0 +1,78 @@
+%% =====================================================================
+%%  common/merda.tex — MER-DA の資料に共通の部品（上端の帯，補足のページを指す命令，色，図の部品）
+%%  2026-10-27 に ~/slides/decks/MER-DA/2026-10-22-6つの問いの整理/main.tex の前置きから写した．
+%%  以後はこのファイルを正本とし，~/slides とは同期しない．
+%%  読み込み：各資料の main.tex で \input{preamble} の後に \input{merda}
+%% =====================================================================
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{tabularx}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{legend cell align=left}
+\usetikzlibrary{decorations.pathreplacing,patterns}
+\metroset{sectionpage=none}
+
+\setbeamertemplate{frame numbering}{\insertpagenumber/\insertdocumentendpage}
+\setbeamerfont{page number in head/foot}{size=\tiny}
+
+% ---------- 上端の帯：部の名前｜スライドの役割 ----------------------------
+%   \setband{部の名前}   部の最初のスライドの前で 1 回
+%   \rl{役割}            各スライドの本文の最初の行（目的・方法・結果・まとめなど）
+\newcommand{\bandq}{}\newcommand{\bandrole}{}
+\newcommand{\setband}[1]{\gdef\bandq{#1}}
+\newcommand{\rl}[1]{\gdef\bandrole{#1}}
+\definecolor{bandbg}{HTML}{E9EEF0}
+\newcommand{\bandheadline}{\setbeamertemplate{headline}{%
+  \ifx\bandq\empty\else
+  \begin{beamercolorbox}[wd=\paperwidth,ht=1.9ex,dp=0.7ex,leftskip=0.9em,rightskip=0.9em]{headline}%
+    \colorbox{bandbg}{\makebox[\dimexpr\paperwidth-1.8em-2\fboxsep\relax][l]{\tiny\color{mDarkTeal}%
+      \textbf{\bandq}\ifx\bandrole\empty\else\enspace{}｜\enspace{}\textbf{\bandrole}\fi}}%
+  \end{beamercolorbox}\fi}}
+\bandheadline   % metropolis は \appendix で headline を消すので，\appendix の後でもう一度呼ぶ
+
+% ---------- 本編のスライドから補足のページを指す ------------------------------
+%   \hosoku{ラベル}{何があるか}：左下のフッターに「補足 p.N：…」と出し，次のスライドには出さない
+\def\hosokutext{}
+\newcommand{\hosoku}[2]{\gdef\hosokutext{\textcolor{mDarkTeal}{補足 p.~\pageref{#1}：#2}}}
+\setbeamertemplate{frame footer}{\ifx\hosokutext\empty\insertshortinstitute\else\hosokutext\fi\global\let\hosokutext\empty}
+
+% ---------- 箱と帯 ----------------------------------------------------------
+\renewcommand{\source}[1]{\par\vspace{-0.45em}\hfill{\tiny\color{mMuted}[#1]}\par}
+\renewcommand{\takeaway}[1]{\vspace{0.12em}\begin{beamercolorbox}[wd=\textwidth,sep=0.34em,rounded=true]{block body}\textbf{#1}\end{beamercolorbox}}
+\newcommand{\band}[3]{\par\noindent\fcolorbox{#1}{#1!7}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{\raggedright\small\textbf{\textcolor{#1}{#2}}\enspace #3}}\par}
+\definecolor{cAsk}{HTML}{5B4A9E}\definecolor{cHyp}{HTML}{8A6418}
+\newcommand{\toi}[1]{\band{cAsk}{問い}{#1}}
+\newcommand{\imi}[1]{\band{mDarkTeal}{この結果の意味}{#1}}
+\newcommand{\tighteq}{\setlength{\abovedisplayskip}{3pt}\setlength{\belowdisplayskip}{3pt}\setlength{\abovedisplayshortskip}{2pt}\setlength{\belowdisplayshortskip}{2pt}}
+\newcommand{\crit}[1]{\textcolor{cCrit}{\textbf{#1}}}
+\newcommand{\disc}[1]{\textcolor{cDisc}{\textbf{#1}}}
+\ltjsetparameter{prebreakpenalty={`〜,10000}}\ltjsetparameter{postbreakpenalty={`〜,10000}}\ltjsetparameter{prebreakpenalty={`／,10000}}   % 範囲の「〜」の前後と，並べた値の「／」の前で改行しない
+
+% ---------- 色 ----------------------------------------------------------------
+\definecolor{cCrit}{HTML}{D9822B}   % 判断基準のずれ o・切片
+\definecolor{cDisc}{HTML}{2A6FA8}   % 識別力 d・重みの向き
+\definecolor{cSrc}{HTML}{D9E6F2}    % ソース
+\definecolor{cTgt}{HTML}{F6E3C8}    % ターゲット
+\definecolor{cMod}{HTML}{E4D9EF}    % 別のモダリティ
+
+% ---------- 図の部品 ----------------------------------------------------------
+\pgfplotsset{
+  table/search path={figures},
+  table/col sep=comma,
+  table/comment chars={\#},
+  every axis/.append style={label style={font=\scriptsize}, tick label style={font=\scriptsize}},
+}
+\tikzset{
+  srcbox/.style={draw=mDarkTeal!70, fill=cSrc, rounded corners=2pt, align=center, font=\scriptsize, minimum height=0.6cm},
+  tgtbox/.style={draw=mDarkTeal!70, fill=cTgt, rounded corners=2pt, align=center, font=\scriptsize, minimum height=0.6cm},
+  modbox/.style={draw=mDarkTeal!70, fill=cMod, rounded corners=2pt, align=center, font=\scriptsize, minimum height=0.6cm},
+  clf/.style={draw=mDarkTeal, fill=white, rounded corners=2pt, align=center, font=\scriptsize, minimum height=0.55cm},
+  arr/.style={-{Stealth[length=2.2mm]}, line width=0.8pt, mDarkTeal},
+  testbox/.style={draw=mBad, densely dashed, line width=0.8pt, fill=mBad!7, rounded corners=2pt, align=center, font=\scriptsize, minimum height=0.6cm},
+  encbox/.style={draw=mMuted, fill=mMuted!22, rounded corners=2pt, align=center, font=\scriptsize},
+  tarr/.style={-{Stealth[length=2.2mm]}, line width=0.8pt, mBad, densely dashed},
+  warr/.style={-{Stealth[length=2.2mm]}, line width=0.8pt, cHyp, densely dotted},
+  tag/.style={rounded corners=1.5pt, inner sep=1.5pt, font=\tiny\bfseries, text=white},
+  qbox/.style={draw=mDarkTeal!70, fill=white, rounded corners=2pt, align=left, font=\scriptsize, inner sep=3pt},
+}

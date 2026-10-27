@@ -1,0 +1,64 @@
+%% =====================================================================
+%%  2026-10-27-TAC論文：IEEE TAC に出す論文（paper/）の内容を説明する資料
+%%  組み方：MER-DA/slides で  make DECK=2026-10-27-TAC論文（作図用の CSV は make data）
+%%  決まりは MER-DA/slides/CLAUDE.md
+%%
+%%  文の元：paper/main.tex と paper/sections/*.tex（2026-10-27，コミット 92aaeeb の時点）．主張の範囲は paper/CLAIM.md 第 5 版
+%%  数値：本文の実験由来の数値は \NUM{key} だけで書く（paper/numbers.tex を読み込む．key の実体と出所は paper/results/numbers.json）
+%%  図の値：figures/*.csv（scripts/export_figdata.py が論文の図の台本と同じ集計で作り，台帳の 278 個の値と照合した．各 CSV の先頭に出所）
+%%    利得の総当たり実験      gain_mean.csv，gain_sign.csv（results/fixc_map/<種類>/summary/pairs.csv）
+%%    損の内訳                loss_split.csv（e13_pairs.csv）
+%%    判断基準の割合と q      thrshare.csv（e29_pairs.csv），qdir.csv（e28t9_targets.csv）
+%%    中心化                  centering.csv（results/mech_<種類>/，results/fixc_map/）
+%%    λ                       lambda_<種類>.csv，lambda_rho.csv（e15b_pairs.csv）
+%%    出発点と弱いラベル      ladder_levels.csv，ladder_gains.csv（e31_finals30.csv，ext30_targets.csv，e59k_targets.csv，e60_targets.csv，baselines_fuse-audio-video-text）
+%%    ラベル無しの選び方      capture.csv（e58_targets.csv）
+%%    比較                    compare_k0.csv，compare_k5.csv，kcurves.csv，entmin.csv，finetune.csv（results/baselines_*/，multimodal_distill_*/，finetune_check/）
+%%  模式図（2 つの山，λ の曲線，ソースの価値，命題）は式の値か説明用の値で，実験の値ではない（図の下に書く）
+%% =====================================================================
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\input{preamble}   % common/preamble.tex（日本語・テーマ・パッケージ・マクロ）
+\input{merda}      % common/merda.tex（上端の帯，補足のページを指す命令，色，図の部品）
+\input{../../paper/numbers.tex}   % \NUM{key}（論文の台帳）
+
+% ---------- 発表情報 --------------------------------------------------
+\title{少数のターゲットラベルが最初に直すもの}
+\subtitle{コーパスをまたぐマルチモーダル感情認識での判断基準と向きの分析と，\\モダリティをまたぐ弱いラベルの転移（IEEE TAC に出す論文の内容．題は仮題）}
+\author{杉浦 伸一}
+\institute[北陸先端大学]{北陸先端大学}
+\date{2026年10月27日}
+
+% ---------- この資料だけの部品 ------------------------------------------
+\definecolor{cStart}{HTML}{8A8985}   % 出発点・ソース（論文の図の灰）
+\definecolor{cOurs}{HTML}{2A78D6}    % 基本版・ターゲットのラベル・生徒（論文の図の青）
+\definecolor{cExt}{HTML}{6250D6}     % 拡張版・先生・弱いラベル（論文の図の紫）
+\definecolor{cBest}{HTML}{EB6834}    % 最も強い比較手法（論文の図の橙）
+\definecolor{cEnt}{HTML}{E34948}     % エントロピー最小化の固定版（論文の図の赤）
+% 種類（特徴の組み合わせ）の色と印は論文の図と同じ（paper/scripts/figures/style.py の CONFIG）．色は k<種類>，線の型は s<種類>（同じ名前にすると型が自分を呼んで止まる）
+\definecolor{kA}{HTML}{2A78D6}\definecolor{kV}{HTML}{EB6834}\definecolor{kT}{HTML}{1BAF7A}\definecolor{kAV}{HTML}{EDA100}
+\definecolor{kVT}{HTML}{E87BA4}\definecolor{kAT}{HTML}{008300}\definecolor{kAVT}{HTML}{6250D6}\definecolor{kAH}{HTML}{E34948}
+\pgfplotsset{
+  sA/.style={kA, mark=*, line width=1.2pt, mark size=1.8pt},
+  sV/.style={kV, mark=square*, line width=1.2pt, mark size=1.7pt},
+  sT/.style={kT, mark=triangle*, line width=1.2pt, mark size=2.1pt},
+  sAV/.style={kAV, mark=diamond*, line width=1.2pt, mark size=2.1pt},
+  sVT/.style={kVT, mark=triangle*, mark options={rotate=180}, line width=1.2pt, mark size=2.1pt},
+  sAT/.style={kAT, mark=pentagon*, line width=1.2pt, mark size=1.9pt},
+  sAVT/.style={kAVT, mark=x, line width=1.2pt, mark size=2.2pt},
+  sAH/.style={kAH, mark=star, line width=1.2pt, mark size=2.2pt},
+}
+\newcommand{\pt}{ポイント}
+
+\begin{document}
+
+\maketitle
+
+\input{parts/m_intro}
+\input{parts/m_setting}
+\input{parts/m_part1}
+\input{parts/m_part2}
+\input{parts/m_compare}
+\input{parts/m_end}
+
+\end{document}

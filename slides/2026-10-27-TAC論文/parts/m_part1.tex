@@ -1,0 +1,364 @@
+% =====================================================================
+%  第 I 部：少数のターゲットラベルが最初に直すもの
+%  文の元：paper/sections/4-part1-what-few-labels-fix.tex．表は論文の表 2
+%  図の値：gain_mean.csv，gain_sign.csv，cost_curves.csv，loss_split.csv，centering_t.csv，thrshare.csv，dirrecov.csv，
+%          lambda_<種類>.csv，value_curve.csv・value_points.csv（模式図）．出所は各 CSV の先頭
+% =====================================================================
+\setband{第 I 部　少ないラベルが最初に直すもの}
+
+\begin{frame}{ソースを混ぜると，$K$ が小さいときは得，$K \ge 25$ ではどの種類でも損になる}
+  \rl{結果：利得の総当たり実験}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.53\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=7.4cm, height=5.5cm, xmin=-0.3, xmax=5.3, ymin=-6, ymax=15,
+            xtick={0,...,5}, xticklabels={1,5,10,25,50,全件},
+            xlabel={感情あたりのターゲットのラベル $K$}, ylabel={利得（UAR の\pt）},
+            ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, fill=white, fill opacity=0.85, text opacity=1, at={(0.98,0.98)}, anchor=north east}, legend columns=2]
+          \draw[black, line width=0.7pt] (axis cs:-0.3,0) -- (axis cs:5.3,0);
+          \addplot[sA] table[x=x, y=a] {gain_mean.csv}; \addlegendentry{A}
+          \addplot[sV] table[x=x, y=v] {gain_mean.csv}; \addlegendentry{V}
+          \addplot[sT] table[x=x, y=t] {gain_mean.csv}; \addlegendentry{T}
+          \addplot[sAV] table[x=x, y=av] {gain_mean.csv}; \addlegendentry{AV}
+          \addplot[sVT] table[x=x, y=vt] {gain_mean.csv}; \addlegendentry{VT}
+          \addplot[sAT] table[x=x, y=at] {gain_mean.csv}; \addlegendentry{AT}
+          \addplot[sAVT] table[x=x, y=avt] {gain_mean.csv}; \addlegendentry{AVT}
+          \addplot[sAH] table[x=x, y=ah] {gain_mean.csv}; \addlegendentry{A(HuBERT)}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 利得の組の平均．同じコーパスの組を含む全組，各組 30 回．合併はソースのみの $C$ を使う\par}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
+        \item A の $K=1$：利得は \NUM{map-gain-a-k1} \pt．95\% 区間が 0 を上回る組は \NUM{map-pairs-a} 組のうち \NUM{map-gain-pos-a-k1} 組
+        \item A の $K=25$：\NUM{map-gain-a-k25} \pt．全件では \NUM{map-gain-neg-a-kall} 組で区間が 0 を下回る
+        \item 8 種類とも同じ形：$K=1$ の平均は V の \NUM{map-gain-v-k1} から AVT の \NUM{map-gain-avt-k1} \pt．$K=25$ ではすべての種類で負
+        \item 区間は 30 回の反復を独立とみなして求めた
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{得の出る組は $K$ とともに減り，得の大きさは主に 2 つのコーパスの性質で決まる}
+  \rl{結果：利得の総当たり実験}
+  \vspace{-0.3em}
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[width=14.2cm, height=4.6cm, ybar stacked, bar width=9pt, ymin=0, ymax=1, xmin=-0.7, xmax=26.7,
+        xtick={0,...,5,7,8,...,12,14,15,...,19,21,22,...,26},
+        xticklabels={1,5,10,25,50,全,1,5,10,25,50,全,1,5,10,25,50,全,1,5,10,25,50,全},
+        xticklabel style={font=\tiny}, ytick={0,0.25,0.5,0.75,1}, ylabel={組の割合},
+        legend style={font=\tiny, draw=none, at={(1,1.02)}, anchor=south east, legend columns=3, /tikz/every even column/.append style={column sep=0.8em}},
+        clip=false]
+      \addplot[fill=cOurs, draw=none] table[x=x, y=pos] {gain_sign.csv}; \addlegendentry{95\% 区間が 0 を上回る}
+      \addplot[fill=kAV!35, draw=none] table[x=x, y=mid] {gain_sign.csv}; \addlegendentry{区間が 0 をまたぐ}
+      \addplot[fill=cBest, draw=none] table[x=x, y=neg] {gain_sign.csv}; \addlegendentry{区間が 0 を下回る}
+      \node[font=\scriptsize, anchor=north] at (axis cs:2.5,-0.13) {A（\NUM{map-pairs-a} 組）};
+      \node[font=\scriptsize, anchor=north] at (axis cs:9.5,-0.13) {V（\NUM{map-pairs-v} 組）};
+      \node[font=\scriptsize, anchor=north] at (axis cs:16.5,-0.13) {AV（\NUM{map-pairs-v} 組）};
+      \node[font=\scriptsize, anchor=north] at (axis cs:23.5,-0.13) {T（\NUM{map-pairs-t} 組）};
+    \end{axis}
+  \end{tikzpicture}\par
+  \vspace{0.5em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+    \item 各群の棒は左から $K = 1, 5, 10, 25, 50$，全件．IEMOCAP がターゲットの組は反復がテストの分割を共有するので，区間が狭すぎる
+    \item ターゲットごとに 1 つ，ソースごとに 1 つの効果を足す模型で，利得と「ソースがまだ役立つ最大の $K$」のばらつきの \NUM{map-share-a-lo}〜\NUM{map-share-v-hi}\% を説明できる（A，A(HuBERT)，V，AV）
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{$K$ 本で推定した判断基準の誤差は $1/(2K)$，向きの誤差は $q/K$ で減る}
+  \rl{考え方：2 つのコスト}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{loglogaxis}[width=6.6cm, height=5.4cm, xmin=1, xmax=50, ymin=0.0001, ymax=40,
+            xtick={1,5,10,25,50}, xticklabels={1,5,10,25,50}, xlabel={感情あたりのラベル $K$}, ylabel={$K$ 本で推定した誤差},
+            ymajorgrids, grid style={mMuted!25}, legend style={font=\tiny, draw=none, fill=none, at={(0.02,0.02)}, anchor=south west, legend columns=2, /tikz/every even column/.append style={column sep=0.5em}}]
+          \addplot[black, line width=1.6pt] table[x=K, y=thr] {cost_curves.csv}; \addlegendentry{判断基準：$1/(2K)$}
+          \addplot[sAH, no marks] table[x=K, y=ah] {cost_curves.csv}; \addlegendentry{向き：A(HuBERT)}
+          \addplot[sA, no marks] table[x=K, y=a] {cost_curves.csv}; \addlegendentry{向き：A}
+          \addplot[sAV, no marks] table[x=K, y=av] {cost_curves.csv}; \addlegendentry{向き：AV}
+          \addplot[sV, no marks] table[x=K, y=v] {cost_curves.csv}; \addlegendentry{向き：V}
+        \end{loglogaxis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 式の値．向きの線は $q/K$（$q$ はターゲットの中央値）．両軸とも対数\par}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item 仮定：対のスコアの差は感情ごとに正規分布で分散が共通．重みには有限の L2 罰則，切片には罰則なし．$K$ 本はプールからでたらめに抜く
+        \item \crit{判断基準}：向きを固定すると，釣り合いを取る切片は境界を 2 つの中心の真ん中に置く．$K$ 本ずつで推定した真ん中のずれは $\mathbb{E}[o^2] = 1/(2K)$．残る損失の期待値は $\phi(1)/(4K)$ 以下で，数本で大半が消える
+        \item \disc{向き}：識別力は $d(K) = \Delta/\sqrt{1+q/K}$（線形判別の誤り率の展開の，次元に比例する項）．ターゲットのみの分類器に合わせた $q$ は A \NUM{p1-qdir-a}，A(HuBERT) \NUM{p1-qdir-ah}，AV \NUM{p1-qdir-av}，V \NUM{p1-qdir-v}
+        \item 音声で最良に近い向きを得るには，感情あたり 20 本ほど要る
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{2 つのコストから 4 つの予想が出る}
+  \rl{予想}
+  \vspace{0.3em}
+  \centering\footnotesize
+  \renewcommand{\arraystretch}{1.35}
+  \begin{tabularx}{\textwidth}{@{}l X X@{}}
+    \toprule
+    & 予想 & 確かめ方 \\
+    \midrule
+    P1 & 少ないラベルが取り戻すソースのみの損の大半は，判断基準による損失である & 合併がソースのみを上回った分を，$o$ の変化の分と $d$ の変化の分に分ける \\
+    P2 & 上回った分に占める判断基準の割合は，$K$ が増えると減る & 同じ割合を $K = 1, 5, 10$ で比べる \\
+    P3 & 合併は，ターゲットが受ける比重に応じて判断基準を直す & Newton 法の 1 歩から直る割合 $\lambda$ を予言し，測った $\lambda$ と比べる \\
+    P4 & ソースは，$q$ と，ソースの向きがターゲットにどれだけ合うかで決まる本数のラベルの代わりになる & ソースの価値 $n$ を予言し，学習曲線の上で測った $n$ と比べる \\
+    \bottomrule
+  \end{tabularx}
+\end{frame}
+
+\begin{frame}{ソースのみの分類器は主に向きで損をする．顔だけは 2 つの損がほぼ同じ}
+  \rl{結果：損の内訳}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.56\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=7.8cm, height=5.3cm, ybar, bar width=8pt, ymin=0, ymax=13, xmin=-0.6, xmax=7.6,
+            xtick={0,...,7}, xticklabels={A,V,T,AV,VT,AT,AVT,{A(Hu)}}, xticklabel style={font=\tiny},
+            ylabel={損失（対の正解率の\pt）}, ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=2, /tikz/every even column/.append style={column sep=1em}}]
+          \addplot[fill=cCrit, draw=none] table[x=x, y=thr] {loss_split.csv}; \addlegendentry{判断基準による損失}
+          \addplot[fill=white, draw=cDisc, pattern=north east lines, pattern color=cDisc] table[x=x, y=dir] {loss_split.csv}; \addlegendentry{向きによる損失}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny ターゲットで最良の線形の規則と比べた損失．6 つの感情の対と，違うコーパスの組で平均（A(HuBERT) は全組）\par}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
+        \item A：判断基準 \NUM{p1-e13-loss-offset-a-xsame}，向き \NUM{p1-e13-loss-dir-a-xsame} \pt
+        \item V：判断基準 \NUM{p1-e13-loss-offset-v-xsame}，向き \NUM{p1-e13-loss-dir-v-xsame} \pt
+        \item T：判断基準 \NUM{p1-e13-loss-offset-t-xsame}，向き \NUM{p1-e13-loss-dir-t-xsame} \pt．言葉を含む種類は判断基準の損が小さい
+        \item 損に占める判断基準の割合（組の中央値）は，種類によって \NUM{p1-e29-lossshare-lo}〜\NUM{p1-e29-lossshare-hi}
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{判断基準の損の多くはコーパスの平均のずれで，ラベル無しの中心化で消える}
+  \rl{結果：中心化}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \pgfplotstablegetelem{0}{a_center}\of{figures/centering_t.csv}\edef\cca{\pgfplotsretval}%
+      \pgfplotstablegetelem{0}{ah_center}\of{figures/centering_t.csv}\edef\ccah{\pgfplotsretval}%
+      \pgfplotstablegetelem{0}{v_center}\of{figures/centering_t.csv}\edef\ccv{\pgfplotsretval}%
+      \begin{tikzpicture}
+        \begin{axis}[width=7.8cm, height=5.2cm, ybar, bar width=6.5pt, ymin=-2, ymax=6.5, xmin=-0.5, xmax=4.5,
+            xtick={0,...,4}, xticklabels={\shortstack{中心化\\（ラベル無し）},\shortstack{切片だけ\\学び直す},合併,\shortstack{中心化\\＋切片},\shortstack{中心化\\＋合併}},
+            xticklabel style={font=\tiny, align=center}, ylabel={ソースのみからの差（\pt）},
+            ymajorgrids, grid style={mMuted!25}, legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=4},
+            clip=false]
+          \draw[black, line width=0.6pt] (axis cs:-0.5,0) -- (axis cs:4.5,0);
+          \draw[mMuted, densely dashed] (axis cs:2.5,-2) -- (axis cs:2.5,6.5);
+          \addplot[fill=kA, draw=none] table[x=x, y=a] {centering_t.csv}; \addlegendentry{A}
+          \addplot[fill=kAH, draw=none] table[x=x, y=ah] {centering_t.csv}; \addlegendentry{A(HuBERT)}
+          \addplot[fill=kV, draw=none] table[x=x, y=v] {centering_t.csv}; \addlegendentry{V}
+          \addlegendimage{line legend, black, line width=1pt}\addlegendentry{中心化だけの高さ}
+          % 中心化だけの高さ（後ろの 2 群）．棒の中心は x + (−1, 0, +1) × 8.5pt（棒の幅 6.5pt ＋ 間 2pt）
+          % \foreach は使わない（pgfplots は軸の中の描画を後回しにするので，ループの変数が消える）
+          \draw[black, line width=1.0pt] (axis cs:3,\cca) ++(-11.75pt,0) -- ++(6.5pt,0);
+          \draw[black, line width=1.0pt] (axis cs:3,\ccah) ++(-3.25pt,0) -- ++(6.5pt,0);
+          \draw[black, line width=1.0pt] (axis cs:3,\ccv) ++(5.25pt,0) -- ++(6.5pt,0);
+          \draw[black, line width=1.0pt] (axis cs:4,\cca) ++(-11.75pt,0) -- ++(6.5pt,0);
+          \draw[black, line width=1.0pt] (axis cs:4,\ccah) ++(-3.25pt,0) -- ++(6.5pt,0);
+          \draw[black, line width=1.0pt] (axis cs:4,\ccv) ++(5.25pt,0) -- ++(6.5pt,0);
+          \node[font=\tiny, text=mMuted] at (axis cs:1.5,6.1) {$K=5$};
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 組の平均．中心化：コーパスごとにラベル無しの発話の平均を引く．合併は総当たり実験の値，中心化の版は学び直し（$C$ は交差検証，反復 3 回）\par}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item 中心化だけで，ソースのみの UAR が A \NUM{p1-center-srconly-a}，A(HuBERT) \NUM{p1-center-srconly-ah}，V \NUM{p1-center-srconly-v} \pt 上がる．A は \NUM{p1-center-srconly-pairs-a-n} 組のうち \NUM{p1-center-srconly-up-a-n} 組で上がる
+        \item ソースのみの切片だけを $K=5$ 本で学び直すと A で \NUM{p1-d1-gain-a-k5} \pt 上がり，同じラベルで合併した利得 \NUM{p1-merged-gain-a-k5} \pt に近い
+        \item 中心化の後は，この 2 つの上乗せが \NUM{p1-center-d1-gain-a-k5} と \NUM{p1-center-merged-gain-a-k5} \pt に縮む
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{単独の A・V の $K\le5$ では，上乗せの \NUM{p1-e29-critshare-kle5-single-lo}〜\NUM{p1-e29-critshare-kle5-single-hi} が判断基準の分}
+  \rl{結果：P1・P2}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=6.4cm, height=5.4cm, xmin=-0.15, xmax=2.15, ymin=0, ymax=1,
+            xtick={0,1,2}, xticklabels={1,5,10}, xlabel={感情あたりのラベル $K$},
+            ylabel={上乗せに占める判断基準の割合}, ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, fill=white, fill opacity=0.85, text opacity=1, at={(1.02,1)}, anchor=north west}]
+          \draw[black, line width=0.7pt] (axis cs:-0.15,0.5) -- (axis cs:2.15,0.5);
+          \addplot[sA] table[x=x, y=a] {thrshare.csv}; \addlegendentry{A}
+          \addplot[sAH] table[x=x, y=ah] {thrshare.csv}; \addlegendentry{A(Hu)}
+          \addplot[sV] table[x=x, y=v] {thrshare.csv}; \addlegendentry{V}
+          \addplot[sAV, dashed, line width=0.9pt] table[x=x, y=av] {thrshare.csv}; \addlegendentry{AV}
+          \addplot[sVT, dashed, line width=0.9pt] table[x=x, y=vt] {thrshare.csv}; \addlegendentry{VT}
+          \addplot[sAVT, dashed, line width=0.9pt] table[x=x, y=avt] {thrshare.csv}; \addlegendentry{AVT}
+          \addplot[sAT, dashed, line width=0.9pt] table[x=x, y=at] {thrshare.csv}; \addlegendentry{AT}
+          \addplot[sT, dashed, line width=0.9pt] table[x=x, y=t] {thrshare.csv}; \addlegendentry{T}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 上乗せ：合併がソースのみを上回った分．組の中央値（IEMOCAP の 2 群の組を除く，反復 10 回）．実線は単独の A・V\par}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item 損に占める判断基準の割合（\NUM{p1-e29-lossshare-lo}〜\NUM{p1-e29-lossshare-hi}）よりずっと大きい．ラベルは誤差の安い部分を先に直す（P1）
+        \item $K$ とともに減る（P2）．A(HuBERT) は $K=10$ で \NUM{p1-e29-critshare-k10-ah}
+        \item 融合と言葉では判断基準の損が小さく，$K=5$ で半分前後以下（\NUM{p1-e29-critshare-k5-fused-text-lo}〜\NUM{p1-e29-critshare-k5-fused-text-hi}．AV は \NUM{p1-e29-critshare-k5-av}）．$K=1$ では AV \NUM{p1-e29-critshare-k1-av}，VT \NUM{p1-e29-critshare-k1-vt}，AVT \NUM{p1-e29-critshare-k1-avt} と半分を超える
+        \item 2 層のパーセプトロンでも $K=5$ で音声 \NUM{p1-e30-critshare-k5-audio-lo}〜\NUM{p1-e30-critshare-k5-audio-hi}，顔 \NUM{p1-e30-critshare-k5-v-wd2}〜\NUM{p1-e30-critshare-k5-v-wd4}．ただし A(HuBERT) は半分を下回る
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{判断基準の割合は，判断基準の損が大きい音声と顔で大きい（論文の表 2）}
+  \rl{結果：まとめの表}
+  \vspace{0.2em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{7pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{@{}lrrrrrr@{}}
+    \toprule
+     & \multicolumn{2}{c}{ソースのみの損失（\pt）} & & \multicolumn{3}{c}{上乗せに占める判断基準の割合} \\
+    \cmidrule(lr){2-3}\cmidrule(l){5-7}
+    種類 & \crit{判断基準} & \disc{向き} & $q$ & $K{=}1$ & $K{=}5$ & $K{=}10$ \\
+    \midrule
+    A & \NUM{p1-e13-loss-offset-a-xsame} & \NUM{p1-e13-loss-dir-a-xsame} & \NUM{p1-qdir-a} & \NUM{p1-e29-critshare-k1-a} & \NUM{p1-e29-critshare-k5-a} & \NUM{p1-e29-critshare-k10-a} \\
+    A (HuBERT) & \NUM{p1-e13-loss-offset-ah} & \NUM{p1-e13-loss-dir-ah} & \NUM{p1-qdir-ah} & \NUM{p1-e29-critshare-k1-ah} & \NUM{p1-e29-critshare-k5-ah} & \NUM{p1-e29-critshare-k10-ah} \\
+    V & \NUM{p1-e13-loss-offset-v-xsame} & \NUM{p1-e13-loss-dir-v-xsame} & \NUM{p1-qdir-v} & \NUM{p1-e29-critshare-k1-v} & \NUM{p1-e29-critshare-k5-v} & \NUM{p1-e29-critshare-k10-v} \\
+    AV & \NUM{p1-e13-loss-offset-av-xsame} & \NUM{p1-e13-loss-dir-av-xsame} & \NUM{p1-qdir-av} & \NUM{p1-e29-critshare-k1-av} & \NUM{p1-e29-critshare-k5-av} & \NUM{p1-e29-critshare-k10-av} \\
+    T & \NUM{p1-e13-loss-offset-t-xsame} & \NUM{p1-e13-loss-dir-t-xsame} & -- & \NUM{p1-e29-critshare-k1-t} & \NUM{p1-e29-critshare-k5-t} & \NUM{p1-e29-critshare-k10-t} \\
+    VT & \NUM{p1-e13-loss-offset-vt-xsame} & \NUM{p1-e13-loss-dir-vt-xsame} & -- & \NUM{p1-e29-critshare-k1-vt} & \NUM{p1-e29-critshare-k5-vt} & \NUM{p1-e29-critshare-k10-vt} \\
+    AT & \NUM{p1-e13-loss-offset-at-xsame} & \NUM{p1-e13-loss-dir-at-xsame} & -- & \NUM{p1-e29-critshare-k1-at} & \NUM{p1-e29-critshare-k5-at} & \NUM{p1-e29-critshare-k10-at} \\
+    AVT & \NUM{p1-e13-loss-offset-avt-xsame} & \NUM{p1-e13-loss-dir-avt-xsame} & -- & \NUM{p1-e29-critshare-k1-avt} & \NUM{p1-e29-critshare-k5-avt} & \NUM{p1-e29-critshare-k10-avt} \\
+    \bottomrule
+  \end{tabular}\par
+  \vspace{0.4em}
+  {\raggedright\tiny 違うコーパスの組で平均（A(HuBERT) の損失は全組）．割合は組の中央値．$q$ は言葉を含む種類では求めていない\par}
+  \vspace{0.3em}
+  \takeaway{言葉は判断基準の損が小さいので，ラベルが直す判断基準も少ない：上乗せの割合は損の割合に従う}
+\end{frame}
+
+\begin{frame}{音声の向きは，ソースが残した所からほとんど動かない}
+  \rl{結果：向き}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=6.9cm, height=5.0cm, ybar, bar width=10pt, ymin=0, ymax=100, xmin=-0.6, xmax=3.6,
+            xtick={0,...,3}, xticklabels={A,A(HuBERT),AV,V}, ylabel={取り戻した向きの損失（\%）},
+            ymajorgrids, grid style={mMuted!25}, legend style={font=\tiny, draw=none, at={(0.02,0.98)}, anchor=north west}]
+          \addplot[fill=white, draw=cDisc, pattern=north east lines, pattern color=cDisc] table[x=x, y=bound] {dirrecov.csv}; \addlegendentry{式の上限（最適な組み合わせ）}
+          \addplot[fill=cDisc, draw=none] table[x=x, y=ht] {dirrecov.csv}; \addlegendentry{仮説転移の実測}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny $K=10$．組の中央値（違うコーパスの組）\par}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
+        \item 式 $d(K)$ のもとでは，ソースの向きと感情あたり 10 本を最適に組み合わせても，音声の向きによる損失の \NUM{p1-dirloss-recov-bound-k10-audio-lo}〜\NUM{p1-dirloss-recov-bound-k10-audio-hi}\% しか取り戻せない
+        \item 仮説転移（ソースの分類器から出発して $K$ 本で学び直す）は，A で \NUM{p1-dirloss-recov-ht-k10-a}\%，A(HuBERT) で \NUM{p1-dirloss-recov-ht-k10-ah}\% を取り戻した
+        \item 顔は $q$ が小さい（\NUM{p1-qdir-v}）ので式の上限は大きいが，仮説転移が取り戻したのは \NUM{p1-dirloss-recov-ht-k10-v}\%．AV は \NUM{p1-dirloss-recov-ht-k10-av}\%
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{合併が判断基準を直す割合 $\lambda$ は，1 つの量 $\rho$ で予言できる}
+  \rl{結果：P3}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item ソースのみの解から Newton 法を 1 歩進めると，ソースのみの判断基準のずれ $o_s$ のうち $1-\lambda$ が残る．$\lambda = \rho/(1+\rho)$
+        \item $\rho$ の第 1 項（切片の経路）：ターゲットが学習の比重に占める割合で決まる
+        \item $\rho$ の第 2 項（重みの経路）：ソースの特徴があまり散らばらない向きにターゲットの平均が離れていると，合併はその向きに重みを置く．その重みは，ターゲットの発話にだけ加わる切片の役をする
+        \item 測った $\lambda = 1 - o_m/o_s$ の組の順位は，予言と \NUM{p1-e15-lam-rho-lo}〜\NUM{p1-e15-lam-rho-hi} の順位相関で合う．式は平均を大きめに見積もる
+        \item コーパスの距離が利得を予言しない理由になる：距離が大きいとソースのみの正解率は下がるが，重みの経路は広がる
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=5.3cm, height=5.0cm, xmin=-0.22, xmax=1.06, ymin=-0.22, ymax=1.06,
+            xlabel={予言した $\lambda = \rho/(1+\rho)$}, ylabel={合併で測った $\lambda$},
+            xtick={0,0.25,0.5,0.75,1}, ytick={0,0.25,0.5,0.75,1}, ymajorgrids, xmajorgrids, grid style={mMuted!20},
+            legend style={font=\tiny, draw=none, fill=none, at={(0.5,-0.3)}, anchor=north, legend columns=2, /tikz/every even column/.append style={column sep=0.6em}}]
+          \draw[mMuted, densely dashed] (axis cs:-0.22,-0.22) -- (axis cs:1.06,1.06);
+          \addplot[only marks, mark=*, mark size=1.0pt, kA, opacity=0.7] table[x=pred, y=obs] {lambda_a.csv}; \addlegendentry{A：\NUM{p1-e15-lam-rho-a}}
+          \addplot[only marks, mark=star, mark size=1.4pt, kAH, opacity=0.7] table[x=pred, y=obs] {lambda_ah.csv}; \addlegendentry{A(HuBERT)：\NUM{p1-e15-lam-rho-ah}}
+          \addplot[only marks, mark=square*, mark size=1.0pt, kV, opacity=0.7] table[x=pred, y=obs] {lambda_v.csv}; \addlegendentry{V：\NUM{p1-e15-lam-rho-v}}
+          \addplot[only marks, mark=diamond*, mark size=1.3pt, kAV, opacity=0.7] table[x=pred, y=obs] {lambda_av.csv}; \addlegendentry{AV：\NUM{p1-e15-lam-rho-av}}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 点は組 $\times$ $K \in \{1,5,10\}$（反復 10 回）．凡例の値は順位相関．破線は $y=x$\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{ソースから出発すると，ターゲットだけで $K+n$ 本学んだのと同じになる}
+  \rl{結果：P4　ソースの価値}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{semilogxaxis}[width=6.4cm, height=5.0cm, xmin=1, xmax=100, ymin=55, ymax=92,
+            xtick={1,5,15,50,100}, xticklabels={1,$K$,$K+n$,50,100}, ytick=\empty,
+            xlabel={ターゲットだけで学ぶラベルの本数}, ylabel={正解率}, clip=false]
+          \addplot[cOurs, line width=1.3pt] table[x=K, y=acc] {value_curve.csv};
+          \node[font=\tiny, text=cOurs, anchor=west] at (axis cs:22,84) {ターゲットのみの学習曲線};
+          \addplot[only marks, mark=*, mark size=2pt, cOurs] table[x=K, y=acc] {value_points.csv};
+          \pgfplotstablegetelem{1}{acc}\of{figures/value_points.csv}\edef\accn{\pgfplotsretval}
+          \addplot[only marks, mark=*, mark size=2.4pt, cExt] coordinates {(5,\accn)};
+          \node[font=\tiny, text=cExt, anchor=south east] at (axis cs:5,\accn) {仮説転移（$K$ 本）};
+          \draw[->, cExt, line width=0.9pt] (axis cs:5.6,\accn) -- (axis cs:13.8,\accn);
+          \node[font=\tiny, text=cExt, anchor=north] at (axis cs:8.8,\accn) {$n$};
+        \end{semilogxaxis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 模式図（A の $q$ と説明用の $\Delta$，$n=10$ で描いた）\par}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item ソースの向きの効率 $e$：ターゲットの最良の識別力を $d = e\Delta$ に縮める係数
+        \item ソースの向きの雑音と信号の比は $(1-e^2)/e^2$，$K$ 本の向きは $q/K$．独立な 2 つの推定を最適に組むと本数が足し算になり，$n = q\,e^2/(1-e^2)$．$n$ は $K$ によらない
+        \item 測り方：仮説転移の UAR をターゲットのみの学習曲線の上で読み，$K$ を引く
+        \item 1 ソースの音声：$K$ が 5 から 25 に増えても \NUM{p1-e32-n1src-audio-lo} から \NUM{p1-e32-n1src-audio-hi} 本にしか増えない．顔は \NUM{p1-e32-n1src-v-k5}〜\NUM{p1-e32-n1src-v-k10} 本
+        \item 全ソースから出発すると A で $K=5$ に \NUM{p1-e32-nall-a-k5} 本，$K=10$ に \NUM{p1-e32-nall-a-k10} 本
+        \item 音声の組で予言と実測の順位相関は \NUM{p1-e32-rho-audio-lo}〜\NUM{p1-e32-rho-audio-hi}，実測は予言の \NUM{p1-e32-ratio-audio-lo}〜\NUM{p1-e32-ratio-audio-hi} 倍．全ソースでは \NUM{p1-e32-allsrc-ratio-lo}〜\NUM{p1-e32-allsrc-ratio-hi} 倍
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{第 I 部のまとめ：ラベルは安い判断基準を先に直し，向きは直りにくい}
+  \rl{まとめ}
+  \vspace{0.2em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabularx}{\textwidth}{@{}l X X@{}}
+    \toprule
+    & 予想 & 測った結果 \\
+    \midrule
+    P1 & 少ないラベルが取り戻す損の大半は判断基準 & 単独の A・V の $K\le5$ で上乗せの \NUM{p1-e29-critshare-kle5-single-lo}〜\NUM{p1-e29-critshare-kle5-single-hi} が判断基準の分．融合と言葉の $K=5$ では半分前後以下 \\
+    P2 & 判断基準の割合は $K$ とともに減る & 8 種類とも $K = 1 \to 10$ で減る \\
+    P3 & 合併はターゲットの比重に応じて判断基準を直す & 予言と測った $\lambda$ の順位相関 \NUM{p1-e15-lam-rho-lo}〜\NUM{p1-e15-lam-rho-hi}．平均は大きめに予言する \\
+    P4 & ソースは $n = q e^2/(1-e^2)$ 本ぶんのラベルになる & 音声の 1 ソースで \NUM{p1-e32-n1src-audio-lo}〜\NUM{p1-e32-n1src-audio-hi} 本．順位相関 \NUM{p1-e32-rho-audio-lo}〜\NUM{p1-e32-rho-audio-hi} \\
+    \bottomrule
+  \end{tabularx}\par
+  \vspace{0.5em}
+  \takeaway{判断基準は中心化と切片の学び直しで足りる．残る主な損は向きで，音声では $q$ 本ほどのラベルが要り，ソース 1 つは約 10 本ぶんしか補わない}
+\end{frame}

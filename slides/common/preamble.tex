@@ -1,0 +1,81 @@
+%% 2026-10-27 に ~/slides/common/ から写した（MER-DA を自己完結させるため）．以後は MER-DA/slides/common/ のこのファイルを正本とし，~/slides とは同期しない．
+%% =====================================================================
+%%  common/preamble.tex — 全スライド共通のプリアンブル
+%%  エンジン : LuaLaTeX（日本語は luatexja）
+%%  読み込み : 各 deck の main.tex から \input{preamble}
+%%             （common/ は .latexmkrc が TEXINPUTS に通す）
+%%
+%%  読み込み順には意味がある．並べ替えないこと．
+%%    1. luatexja        … 和文組版の土台．最初に読む
+%%    2. theme.tex       … \usetheme{metropolis}．内部で fontspec を読む
+%%    3. luatexja-preset … fontspec より後に和文フォントを確定させる
+%%    4. 一般パッケージ / マクロ
+%% =====================================================================
+
+% ---------- 1. 日本語（土台）------------------------------------------
+\usepackage{luatexja}
+
+% ---------- 2. テーマ（metropolis）------------------------------------
+\input{theme}
+
+% ---------- 3. 和文フォント -------------------------------------------
+% Harano Aji は texlive-lang-japanese 同梱なので環境依存が少ない．
+% Noto CJK を使う場合は [haranoaji] を [noto-otc] に差し替える．
+\usepackage[haranoaji,deluxe]{luatexja-preset}
+% スライドの既定は明朝ではなくゴシック（プロジェクタでの可読性）
+\renewcommand{\kanjifamilydefault}{\gtdefault}
+% 和欧文間の空きをやや詰める（スライドは行長が短いため）
+\ltjsetparameter{xkanjiskip=0.20\zw plus 0.1\zw minus 0.05\zw}
+
+% ---------- 4. 数式 ----------------------------------------------------
+\usepackage{amsmath,amssymb}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{siunitx}
+\sisetup{detect-all, per-mode=symbol, group-minimum-digits=4}
+
+% ---------- 5. 図表 ----------------------------------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{adjustbox}
+\graphicspath{{figures/}{./}}
+
+% ---------- 6. 作図 ----------------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+% pgfplots の既定を「論文の figure」ではなく「スライド」向けに寄せる
+\pgfplotsset{
+  every axis/.append style={
+    tick label style={font=\scriptsize},
+    label style={font=\small},
+    legend style={font=\scriptsize, draw=none, fill=none},
+    line width=0.9pt, tick style={line width=0.6pt},
+  },
+}
+
+% ---------- 7. 参考文献 ------------------------------------------------
+% biblatex/biber は未導入のため BibTeX + natbib を使う
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{abbrvnat}
+\setbeamertemplate{bibliography item}[text]
+
+% ---------- 8. 体裁 ----------------------------------------------------
+\usepackage{appendixnumberbeamer}   % \appendix 以降をページ番号の分母から除く
+\usepackage{xcolor}
+\usepackage{microtype}
+
+% 図表キャプションは番号なし（スライド中で番号参照しないため）
+\setbeamertemplate{caption}{\insertcaption}
+\setbeamerfont{caption}{size=\scriptsize}
+
+% リンク色（metropolis の配色に合わせる）
+% 目次とセクション扉は内部リンクなので linkcolor が効く．
+% 既定のオレンジは白地で読みにくいため，地の文と同じ色にする．
+\hypersetup{colorlinks=true, allcolors=., urlcolor=mAccentBlue,
+            linkcolor=mDarkTeal, citecolor=mAccentBlue}
+
+% ---------- 9. マクロ --------------------------------------------------
+\input{macros}

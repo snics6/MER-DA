@@ -1,0 +1,59 @@
+%% 2026-10-27 に ~/slides/common/ から写した（MER-DA を自己完結させるため）．以後は MER-DA/slides/common/ のこのファイルを正本とし，~/slides とは同期しない．
+%% =====================================================================
+%%  common/theme.tex — 見た目の設定（metropolis テーマ）
+%%
+%%  metropolis を選ぶ理由:
+%%    - 装飾が最小限で，1枚あたりの情報量（図・数式）を最大化できる
+%%    - フレームタイトルが大きく，「主張文をタイトルにする」書き方と相性が良い
+%%    - プロジェクタで潰れにくい高コントラストの既定配色
+%%    - 機械学習・物理系の国際会議発表で広く使われており，見慣れた形式
+%% =====================================================================
+
+\usetheme[
+  progressbar=frametitle,   % フレームタイトル下に進捗バー
+  numbering=fraction,       % 「7/23」形式のページ番号
+  block=fill,               % block 環境に淡い背景を敷く
+  sectionpage=progressbar,  % セクション扉に進捗バー
+  subsectionpage=none,
+  titleformat=regular,      % スモールキャップスにしない（和文と混ぜるため）
+]{metropolis}
+
+% ---------- 欧文フォント ----------------------------------------------
+% metropolis 本来の指定は Fira Sans だが，本環境には未導入（警告が出るだけで
+% ビルドは通る）．導入済みの Lato を代替に使う．Fira を入れた場合はこの
+% ブロックを丸ごとコメントアウトすればテーマ既定に戻る．
+\IfFontExistsTF{Lato}{\setsansfont{Lato}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont[Scale=0.85]{DejaVu Sans Mono}}{}
+
+% ---------- 配色 ------------------------------------------------------
+% metropolis の既定 (mDarkTeal / mLightBrown) を土台に，
+% 「強調」「良い結果」「悪い結果」を区別できる色を足す．
+\definecolor{mDarkTeal}{HTML}{23373B}    % 地の文・見出し
+\definecolor{mLightBrown}{HTML}{EB811B}  % アクセント（alert）
+\definecolor{mMediumBrown}{HTML}{C87A2F}
+\definecolor{mAccentBlue}{HTML}{2A6FA8}  % 提案手法・注目対象
+\definecolor{mGood}{HTML}{1B7F5C}        % 改善・良い結果
+\definecolor{mBad}{HTML}{B3312B}         % 劣化・悪い結果
+\definecolor{mMuted}{HTML}{7A8A8E}       % 補足・出典
+
+% metropolis 既定の mLightBrown（オレンジ）は，白地に細い文字だと視認性が低い．
+% alerted text はセクション扉と目次の文字色にも使われるので，青に置き換える．
+\setbeamercolor{alerted text}{fg=mAccentBlue}
+\setbeamercolor{progress bar}{fg=mAccentBlue}
+\setbeamercolor{title separator}{fg=mAccentBlue}
+\setbeamercolor{progress bar in head/foot}{fg=mAccentBlue}
+\setbeamercolor{progress bar in section page}{fg=mAccentBlue}
+% ---------- 余白・行間 ------------------------------------------------
+\setbeamersize{text margin left=0.9em, text margin right=0.9em}
+\setbeamertemplate{itemize items}[circle]
+\setlength{\parskip}{0.4em}
+
+% 箇条書きの階層ごとの間隔を詰める（1枚に収める調整用）
+\setlength{\leftmargini}{1.2em}
+\setlength{\leftmarginii}{1.0em}
+
+% ---------- フッタに所属を出す ----------------------------------------
+% \institute{} を設定していれば下部に小さく表示される
+\setbeamertemplate{frame footer}{\insertshortinstitute}
+\setbeamerfont{page number in head/foot}{size=\tiny}
+\setbeamercolor{frame footer}{fg=mMuted}

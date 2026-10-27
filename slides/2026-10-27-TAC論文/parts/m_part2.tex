@@ -1,0 +1,313 @@
+% =====================================================================
+%  第 II 部：仕組みから手法へ
+%  文の元：paper/sections/5-part2-mechanism-to-method.tex（図 method，ladder）．基本版と拡張版の書き方は paper/CLAIM.md 第 5 版
+%  図の値：ladder_levels.csv，ladder_gains.csv，capture.csv．弱いラベルの表の数は説明用の値（実験の値ではない）
+% =====================================================================
+\setband{第 II 部　仕組みから手法へ}
+
+\begin{frame}{手法の全体：出発点を作り，先生の弱いラベルと $K$ 本で生徒を学ぶ}
+  \rl{手法}
+  \vspace{-0.3em}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+    \fill[cSrc!45, rounded corners=3pt] (-0.2,2.35) rectangle (15.2,4.7);
+    \fill[cTgt!45, rounded corners=3pt] (-0.2,-0.2) rectangle (15.2,2.15);
+    \node[anchor=north west, font=\scriptsize\bfseries] at (-0.1,4.65) {ソース（ターゲットのコーパス以外の群）};
+    \node[anchor=north west, font=\scriptsize\bfseries] at (-0.1,2.1) {ターゲット};
+    \node[srcbox, text width=2.0cm] (s0) at (1.2,3.45) {ラベル付きの発話};
+    \node[clf, text width=1.9cm] (sc) at (4.0,3.45) {中心化\\（ソースごと）};
+    \node[draw=cStart, fill=white, rounded corners=2pt, align=center, text width=3.2cm, line width=0.8pt] (st) at (7.6,3.95) {\textbf{出発点} $(W_0, b_0)$\\生徒のモダリティ};
+    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=3.2cm, line width=0.8pt] (te) at (7.6,2.95) {\textbf{先生}：融合の出発点\\（同じ作り方，ソースだけ）};
+    \draw[arr] (s0) -- (sc);
+    \draw[arr] (sc.east) -- (st.west);
+    \draw[arr] (sc.east) -- (te.west);
+    \node[tgtbox, text width=2.0cm] (tp) at (1.2,0.95) {プール\\（テスト以外）};
+    \node[clf, text width=1.9cm] (tc) at (4.0,0.95) {中心化\\（プールの平均）};
+    \node[tgtbox, text width=2.4cm] (kl) at (7.6,1.55) {$K$ 本のラベル（$4K$ 本）};
+    \node[tgtbox, text width=2.4cm] (ul) at (7.6,0.4) {ラベル無しの発話};
+    \draw[arr] (tp) -- (tc);
+    \draw[arr] (tc.east) -- (kl.west);
+    \draw[arr] (tc.east) -- (ul.west);
+    \node[draw=cExt, fill=cExt!8, rounded corners=2pt, align=center, text width=2.6cm] (wl) at (11.0,0.4) {\textbf{弱いラベル}\\感情ごとの合計をそろえ，\\全体を $m$ にする};
+    \draw[arr, cExt] (ul) -- node[below, font=\tiny, text=cExt] {先生の予測} (wl);
+    \draw[arr, cExt] (te.east) .. controls (10.4,2.95) and (11.0,2.2) .. (wl.north);
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.2cm, line width=0.9pt] (stu) at (13.9,1.55) {\textbf{生徒}（線形）\\$K$ 本と弱いラベル\\で学ぶ};
+    \draw[arr, cOurs] (kl.east) -- (stu.west);
+    \draw[arr, cExt] (wl.east) -- (stu.south west);
+    \draw[cStart, line width=0.9pt, decorate, decoration={coil, aspect=0.4, segment length=3pt, amplitude=2.2pt}] (st.east) -- (stu.north);
+    \node[font=\tiny, text=cStart, anchor=south west] at (11.6,3.3) {出発点に縛る};
+  \end{tikzpicture}\par
+  \vspace{0.2em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{2pt}
+    \item 縛り：重みに $\|W - W_0\|_M^2/(2C')$，切片に $\|b - b_0\|^2/(2C_b)$．5 つの値 $(\gamma, \rho_s, C_b, C', \rho_M)$ は仮のターゲットで $K$ によらず 1 度選び，先生と $m$ は $K$ ごとに選ぶ
+    \item 融合の生徒の先生と，拡張版で足す候補は，後のスライドで説明する
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{出発点の工夫ごとに UAR が上がる：仮説転移，さらに 5 つの値を選ぶ}
+  \rl{結果：出発点}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=7.0cm, height=4.8cm, ybar, bar width=5.5pt, ymin=30, ymax=62, xmin=0.5, xmax=4.5,
+            xtick={1,...,4}, xticklabels={1,5,10,25}, xlabel={感情あたりのラベル $K$}, ylabel={UAR（\%）},
+            ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=2, /tikz/every even column/.append style={column sep=0.6em}}]
+          \addplot[fill=cTgt!90!black, draw=none] table[x=x, y=target] {ladder_levels.csv}; \addlegendentry{ターゲットのみ}
+          \addplot[fill=mMuted!60, draw=none] table[x=x, y=pooled] {ladder_levels.csv}; \addlegendentry{合併（1 ソースの平均）}
+          \addplot[fill=cStart, draw=none] table[x=x, y=p4] {ladder_levels.csv}; \addlegendentry{全ソースからの仮説転移}
+          \addplot[fill=cOurs, draw=none] table[x=x, y=e39] {ladder_levels.csv}; \addlegendentry{5 つの値を選んだ出発点}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny A（WavLM）の生徒．ターゲット 7 つ，反復 30 回の平均\par}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item 生徒は中心化した特徴で学ぶ．第 I 部の判断基準の損の大半がここで消える
+        \item ソース $s$ の向き：閉じた形の判別の向き $((1-\rho_s)\Sigma_s + \rho_s \tau_s I)^{-1}\tilde M_s$ を，$N_s^{\gamma}$ の比重で足す．切片は感情の事前確率を等しいとする
+        \item 重みと切片を別の強さで縛る：少ないラベルは切片をよく決め，重みを悪く決める（第 I 部）
+        \item 全ソースからの仮説転移（中心化あり）は，ターゲットのみ・合併・中心化した合併・比重を選んだ合併の最良を，音声の $K\in\{1,5,10\}$ で \NUM{p2-e31-p4-vs-best-audio-lo}〜\NUM{p2-e31-p4-vs-best-audio-hi} \pt 上回る
+        \item 5 つの値を選ぶと $K=5$ でさらに \NUM{p2-e39-vs-p4-k5-lo}〜\NUM{p2-e39-vs-p4-k5-hi} \pt（A，A(HuBERT)，V，AV）．ソースを等しい比重で足す出発点より \NUM{p2-e39-vs-d1-k5-lo}〜\NUM{p2-e39-vs-d1-k5-hi} \pt 高い
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{$K$ 本のラベルで直せる向きは，その $4K$ 本が張る空間の中だけである（命題 1）}
+  \rl{考え方：向きの情報が得られないところ}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize, scale=1.0]
+        \fill[cOurs!10] (-0.6,-0.45) -- (4.0,-0.45) -- (4.9,1.1) -- (0.3,1.1) -- cycle;
+        \node[text=cOurs, anchor=west, font=\tiny] at (2.6,-0.25) {$4K$ 本の点が張る空間};
+        \fill[black] (0,0) circle (1.3pt) node[below left, font=\tiny] {$W_0$};
+        \draw[->, line width=1.2pt, cBest] (0,0) -- (3.2,2.6) node[above, font=\tiny, text=cBest] {$E_0 = W^{*} - W_0$};
+        \draw[->, line width=1.2pt, cOurs] (0,0) -- (3.2,0.55);
+        \draw[densely dashed, mMuted] (3.2,2.6) -- (3.2,0.55);
+        \node[text=cOurs, anchor=north, font=\tiny] at (1.9,0.25) {直せる部分（射影）};
+        \node[text=mMuted, anchor=west, font=\tiny, align=left] at (3.3,1.6) {直せない\\部分};
+        \foreach \p in {(0.7,0.25),(1.6,0.7),(2.4,0.1),(3.4,0.85)} \fill[cOurs] \p circle (1.5pt);
+      \end{tikzpicture}\par
+      {\raggedright\tiny 模式図．青の点はラベルの付いた発話\par}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
+        \item $W^{*}$：プールの全ラベルで学んだ生徒．$E_0 = W^{*} - W_0$：出発点の向きの誤差
+        \item \textbf{命題 1}：生徒の解の $W - W_0$ の各行は，ラベルの付いた $4K$ 本の点 $M^{-1}\mathbf{z}_i$ が張る空間にある（損失は $W$ を $W\mathbf{z}_i$ の形でしか含まない．表現定理と同じ理由）
+        \item 直せるのは，$E_0$ の高々 $4K$ 次元への射影だけ．$E_0$ のどの部分がそこに入るかは，どの発話にラベルを付けるかで決まる
+        \item 次の問い：ラベルを付ける発話をうまく選べば，$E_0$ を捉えられるか
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{ラベルを見ずに選んでも，向きの誤差を捉える発話は選べない（命題 2）}
+  \rl{考え方と結果}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=5.6cm, height=5.3cm, xmin=0.25, xmax=2.5, ymin=-0.6, ymax=7.6,
+            ytick={0,...,7}, yticklabels={教える選び方（ラベルを使う）,白色化したノルム最大,白色化した k-center,core-set,TypiClust,予測で herding,余裕が最小,でたらめ（プールの順）},
+            yticklabel style={font=\tiny}, xlabel={$E_0$ を捉える割合（でたらめ ＝ 1）},
+            xmajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=3, /tikz/every even column/.append style={column sep=0.8em}}]
+          \draw[black, densely dashed] (axis cs:1,-0.6) -- (axis cs:1,7.6);
+          \draw[mMuted] (axis cs:0.25,0.5) -- (axis cs:2.5,0.5);
+          \addplot[only marks, mark=*, mark size=1.6pt, kA, error bars/.cd, x dir=both, x explicit, error mark=none, error bar style={kA, line width=0.6pt}]
+            table[x=a, y expr=\thisrow{y}+0.22, x error plus expr=\thisrow{a_hi}-\thisrow{a}, x error minus expr=\thisrow{a}-\thisrow{a_lo}] {capture.csv}; \addlegendentry{A}
+          \addplot[only marks, mark=square*, mark size=1.5pt, kV, error bars/.cd, x dir=both, x explicit, error mark=none, error bar style={kV, line width=0.6pt}]
+            table[x=v, y=y, x error plus expr=\thisrow{v_hi}-\thisrow{v}, x error minus expr=\thisrow{v}-\thisrow{v_lo}] {capture.csv}; \addlegendentry{V}
+          \addplot[only marks, mark=triangle*, mark size=1.9pt, kT, error bars/.cd, x dir=both, x explicit, error mark=none, error bar style={kT, line width=0.6pt}]
+            table[x=t, y expr=\thisrow{y}-0.22, x error plus expr=\thisrow{t_hi}-\thisrow{t}, x error minus expr=\thisrow{t}-\thisrow{t_lo}] {capture.csv}; \addlegendentry{T}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny $K=5$（20 本）．印はターゲットの平均どうしの比，線はターゲットごとの比の範囲．A 7，V 6，T 4 ターゲット，反復 10 回\par}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item \textbf{命題 2}：損失を $W_0$ のまわりで正規分布で近似し，縛りを事前分布 $\mathcal{N}(W_0, C'M^{-1})$ とみなす．$E_0$ に好む向きが無ければ，ラベルを見ずに選んだどの $4K$ 本でも，捉える $\|E_0\|^2$ の割合の期待値は同じ
+        \item 正規の線形模型では，事後の共分散が観測したラベルによらないため
+        \item 実測：ラベル無しの 7 通りはでたらめの \NUM{p2-e58-ratio-unlab-lo}〜\NUM{p2-e58-ratio-unlab-hi} 倍．候補のラベルを全部使っても \NUM{p2-e58-ratio-lll-lo}〜\NUM{p2-e58-ratio-lll-hi} 倍
+        \item 5 つの値の生徒では，どのラベル無しの選び方も $K=5$ ででたらめを 1 \pt 上回らない（最大 \NUM{p2-cond2-e39-maxgain-k5}）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{弱いラベル：先生の予測を，感情ごとの合計がそろうように割り直して全体に付ける}
+  \rl{手法：弱いラベル}
+  \vspace{-0.1em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{3.5pt}
+  \begin{tabular}{@{}lcccc@{}}
+    \multicolumn{5}{c}{\textbf{先生の予測 $Q$（例）}} \\
+    \toprule
+    & 中立 & 喜び & 悲しみ & 怒り \\
+    \midrule
+    発話 1 & 0.70 & 0.10 & 0.10 & 0.10 \\
+    発話 2 & 0.60 & 0.20 & 0.10 & 0.10 \\
+    発話 3 & 0.50 & 0.10 & 0.30 & 0.10 \\
+    発話 4 & 0.10 & 0.20 & 0.10 & 0.60 \\
+    \midrule
+    列の合計 & \bad{1.90} & 0.60 & 0.60 & 0.90 \\
+    \bottomrule
+  \end{tabular}
+  \quad\raisebox{-1.2em}{\begin{tabular}{c}$\Longrightarrow$\\[-0.2em]{\tiny 列ごとに}\\[-0.4em]{\tiny 合計で割る}\end{tabular}}\quad
+  \begin{tabular}{@{}lcccc@{}}
+    \multicolumn{5}{c}{\textbf{割り直した弱いラベル}} \\
+    \toprule
+    & 中立 & 喜び & 悲しみ & 怒り \\
+    \midrule
+    発話 1 & 0.37 & 0.17 & 0.17 & 0.11 \\
+    発話 2 & 0.32 & 0.33 & 0.17 & 0.11 \\
+    発話 3 & 0.26 & 0.17 & 0.50 & 0.11 \\
+    発話 4 & 0.05 & 0.33 & 0.17 & 0.67 \\
+    \midrule
+    列の合計 & \good{1} & \good{1} & \good{1} & \good{1} \\
+    \bottomrule
+  \end{tabular}\par
+  {\raggedright\tiny 説明用の数（実験の値ではない）．右の表は小数 2 桁に丸めた．このあと全体を $m/4$ 倍して合計を $m$ にする\par}
+  \vspace{0.3em}\raggedright
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 先生は，ラベル無しの $N_u$ 本すべてについて 4 感情の確率を出す（行列 $Q$）．数千本の発話にラベルの情報が付く
+        \item 例の先生は中立を多く予測する（列の合計 1.90）．割り直すと，どの感情も合計が同じになる
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 生徒は，$K$ 本の損失と出発点への縛りに $\sum_i \sum_c Q_{ic}\,\ell(W\mathbf{z}_i + b, c)$ を足して学ぶ．先生と $m$ は，弱いラベルを使わない候補も含めて $K$ ごとに仮のターゲットで選ぶ
+        \item 割り直しだけでも働く：出発点自身の予測を割り直すと，それが先生の役をする
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{同じモダリティの先生でも生徒は上がるが，その先生の $J$ は小さい}
+  \rl{結果：見込みの蒸留}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[font=\scriptsize\bfseries] at (2.0,3.0) {$J$ の定義（プールの発話で数える）};
+        \node[font=\tiny] at (1.3,2.4) {出発点が正しい}; \node[font=\tiny] at (3.7,2.4) {出発点が誤る};
+        \node[font=\tiny, anchor=east, align=right] at (0.05,1.6) {先生が\\正しい}; \node[font=\tiny, anchor=east, align=right] at (0.05,0.5) {先生が\\誤る};
+        \draw[mMuted] (0.1,-0.05) rectangle (4.9,2.15); \draw[mMuted] (2.5,-0.05) -- (2.5,2.15); \draw[mMuted] (0.1,1.05) -- (4.9,1.05);
+        \fill[mGood!25] (2.52,1.07) rectangle (4.88,2.13); \node[align=center, font=\tiny] at (3.7,1.6) {\good{\textbf{＋}}\quad 先生だけが当てる};
+        \fill[mBad!20] (0.12,-0.03) rectangle (2.48,1.03); \node[align=center, font=\tiny] at (1.3,0.5) {\bad{\textbf{−}}\quad 出発点だけが当てる};
+      \end{tikzpicture}\par
+      \vspace{0.3em}
+      {\raggedright\tiny $J$ ＝（先生だけが当てる割合）−（出発点だけが当てる割合）を感情ごとに平均したもの ＝ プールでの先生の UAR − 出発点の UAR\par}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item 出発点に縛った生徒は先生の優位をおおよそ再現するのが精一杯なので，生徒の利得のうち先生の情報から来る分は $J$ を超えないと予想する（定理ではない）
+        \item 見込み：ソースごとの分類器を，仮のターゲットでの混同の仕方で重みづけてまとめた先生．A では $J$ = \NUM{p2-e52-q-minus-p-a} \pt
+        \item その弱いラベルで，A は $K = 0, 1, 5$ に \NUM{p2-e59k-a-k0}，\NUM{p2-e59k-a-k1}，\NUM{p2-e59k-a-k5} \pt，V は \NUM{p2-e59k-v-k0}，\NUM{p2-e59k-v-k1}，\NUM{p2-e59k-v-k5} \pt 上がる（反復 10 回）．$K=25$ までに消える
+        \item A の $K=0$ では，出発点の予測の釣り合い直しだけで \NUM{p2-e59k-ctrl-a-k0} \pt．見込みの情報の分は $K\le5$ で \NUM{p2-e59k-info-a-lo}〜\NUM{p2-e59k-info-a-hi} \pt で，$J$ より小さい．言葉ではほぼ 0
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{モダリティをまたぐ先生：ソースだけで学んだ融合の出発点が生徒に教える}
+  \rl{手法：別のモダリティの先生}
+  \vspace{0.1em}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \node[anchor=west, font=\scriptsize\bfseries] at (-0.2,2.55) {単独の生徒（例：AV の音声の生徒）};
+    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=2.9cm] (f1) at (1.4,1.75) {融合の出発点（AV）\\ソースだけで学び，学び直さない};
+    \node[draw=cExt, fill=cExt!8, rounded corners=2pt, align=center, text width=2.0cm] (w1) at (4.9,1.75) {弱いラベル\\（プール全体）};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.0cm] (a1) at (7.8,1.75) {音声の生徒};
+    \node[testbox, text width=2.3cm] (t1) at (10.8,1.75) {テストでは音声だけ};
+    \draw[arr, cExt] (f1) -- (w1); \draw[arr, cExt] (w1) -- (a1); \draw[tarr] (a1) -- (t1);
+    \node[anchor=west, font=\scriptsize\bfseries] at (-0.2,0.75) {融合の生徒（例：AV の生徒）};
+    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=2.9cm] (f2) at (1.4,-0.15) {融合の出発点（AV）\\ソースだけで学ぶ};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.4cm] (a2) at (5.0,0.3) {音声の生徒（プールで学ぶ）};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.4cm] (v2) at (5.0,-0.6) {顔の生徒（プールで学ぶ）};
+    \node[draw=cExt, fill=cExt!8, rounded corners=2pt, align=center, text width=2.0cm] (p2) at (8.2,-0.15) {2 つの予測の積\\を弱いラベルに};
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=2.0cm] (s2) at (11.0,-0.15) {AV の生徒};
+    \draw[arr, cExt] (f2.east) -- node[above, font=\tiny, text=cExt, pos=0.45] {教える} (a2.west);
+    \draw[arr, cExt] (f2.east) -- (v2.west);
+    \draw[arr, cOurs] (a2.east) -- (p2.west); \draw[arr, cOurs] (v2.east) -- (p2.west);
+    \draw[arr, cExt] (p2) -- (s2);
+  \end{tikzpicture}\par
+  \vspace{0.3em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+    \item 特権情報（学習のときだけ使える別のモダリティ）と同じ考え方．融合の出発点は，単独のモダリティと違う向きを知っている
+    \item 下調べ（AV，反復 2 回）の $J$：融合の出発点は音声の出発点に対して \NUM{p2-e60pre-juar-av-a-fused} \pt，顔の出発点は \NUM{p2-e60pre-juar-av-a-v} \pt．融合の生徒に対しては，単独の出発点の組み合わせの $J$ が \NUM{p2-e60pre-juar-av-f-poe}〜\NUM{p2-e60pre-juar-av-f-pool} \pt しかないので，2 つ目の形にした
+    \item 基本版の弱いラベルはすべて，ソースだけで学んだ融合の出発点から作る
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{$K\le5$ では，モダリティをまたぐ弱いラベルがすべての生徒を出発点より上げる}
+  \rl{結果：モダリティをまたぐ蒸留}
+  \vspace{-0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=6.8cm, height=4.7cm, xmin=-0.2, xmax=4.2, ymin=-1, ymax=4.5,
+            xtick={0,...,4}, xticklabels={0,1,5,10,25}, xlabel={感情あたりのラベル $K$},
+            ylabel={出発点との差（\pt）}, ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, at={(0.5,1.02)}, anchor=south, legend columns=2, /tikz/every even column/.append style={column sep=0.5em}}]
+          \draw[black, line width=0.6pt] (axis cs:-0.2,0) -- (axis cs:4.2,0);
+          \addplot[mMuted, mark=o, line width=1.1pt] table[x=x, y=e59] {ladder_gains.csv}; \addlegendentry{同じモダリティの先生（7）}
+          \addplot[cExt!55, mark=diamond*, line width=1.1pt] table[x=x, y=e60av] {ladder_gains.csv}; \addlegendentry{AV の融合の先生（6）}
+          \addplot[cExt, mark=square*, line width=1.1pt] table[x=x, y=e60avt] {ladder_gains.csv}; \addlegendentry{AVT の融合の先生（4）}
+          \addplot[cExt, mark=*, line width=1.4pt, densely dashed] table[x=x, y=oursx] {ladder_gains.csv}; \addlegendentry{拡張版，AVT（4）}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 音声の生徒．括弧はターゲットの数．線ごとにターゲットと出発点が違うので，高さでなく出発点との差を比べる．反復 10 回\par}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item $K=0$ の単独の生徒：AV の A \NUM{p2-e60-av-a-k0}，V \NUM{p2-e60-av-v-k0}．VT の T \NUM{p2-e60-vt-t-k0}．AT の T \NUM{p2-e60-at-t-k0}．AVT の A \NUM{p2-e60-avt-a-k0}，T \NUM{p2-e60-avt-t-k0}，V \NUM{p2-e60-avt-v-k0} \pt
+        \item 融合の生徒は $K=0$ で \NUM{p2-e60-f-k0-lo}〜\NUM{p2-e60-f-k0-hi} \pt．単独の生徒 \NUM{p2-e60-m1-n} 個はどれも $K=0$ と $K=5$ の両方で上がる
+        \item 同じモダリティの先生より大きいのは音声と言葉の生徒．顔の生徒は VT \NUM{p2-e60-vt-v-k0}，AVT \NUM{p2-e60-avt-v-k0} に対し同じモダリティの先生 \NUM{p2-e59k-v-k0}（$K=0$）
+        \item $K\ge10$ では \NUM{p2-e60-m3-students-n} の生徒のうち \NUM{p2-e60-m3-loss-n} が出発点を下回る（最悪 \NUM{p2-e60-m3-worst} \pt）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{拡張版は，$K$ 本で学び直した先生を候補に足して，$K\ge10$ の損を消す}
+  \rl{手法：基本版と拡張版}
+  \vspace{0.3em}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.35}
+  \begin{tabularx}{\textwidth}{@{}l X X@{}}
+    \toprule
+    & \textbf{基本版} & \textbf{拡張版}（基本版の候補に足すもの） \\
+    \midrule
+    単独の生徒の先生 & 融合の出発点（ソースだけで学ぶ） & $K$ 本で学び直した融合の生徒 \\
+    融合の生徒の先生 & 融合の出発点が教えた単独の生徒の予測の積 & $K$ 本で学び直した融合の生徒が教えた単独の生徒の予測の積 \\
+    弱いラベルの重みづけ & 感情ごとの合計をそろえる & そろえない，しきい値を超えた発話だけを硬いラベルにする \\
+    $K$ ごとに選ぶもの & 先生，$m$ & 先生，$m$，重みづけ \\
+    \bottomrule
+  \end{tabularx}\par
+  \vspace{0.6em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+    \item 拡張版は，比較で評価する AVT の音声の生徒と AV の融合の生徒で，基本版の $K\ge10$ の損を消した（VT の言葉と AT の音声の生徒は拡張版を流していない）
+    \item 基本版の弱いラベルはすべてソースだけで学んだ融合の出発点から作るが，融合の生徒の先生はターゲットのラベル無しの発話を使う．「基本版の先生はターゲットのデータを見ない」とは言えない
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{第 II 部のまとめ：向きの情報は，別のモダリティの弱いラベルから得る}
+  \rl{まとめ}
+  \vspace{0.3em}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{7pt}
+    \item 出発点：中心化，全ソースからの仮説転移，5 つの値の選択の順に UAR が上がり，比べた作り方の中で最も高い出発点になった
+    \item 少ないラベルが直せる向きは $4K$ 本の張る空間の中だけで（命題 1），ラベルを見ない選び方ではそこを向きの誤差に合わせられない（命題 2，実測でもでたらめの \NUM{p2-e58-ratio-unlab-lo}〜\NUM{p2-e58-ratio-unlab-hi} 倍）
+    \item プール全体への弱いラベルは，数千本の発話にラベルの情報を足す．先生の情報から来る利得は先生の優位 $J$ を超えないと予想し（定理ではない），同じモダリティの先生では $J$ が小さい
+    \item ソースだけで学んだ融合の出発点を先生にすると，$K\le5$ ですべての生徒が出発点を上回る．$K\ge10$ の損は拡張版の候補で消える
+  \end{itemize}
+\end{frame}

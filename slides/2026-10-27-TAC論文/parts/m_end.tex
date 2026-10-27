@@ -1,0 +1,75 @@
+% =====================================================================
+%  締め：実務への手順，考察，限界，まとめ，投稿までに残っている作業
+%  文の元：paper/sections/7-discussion.tex，8-limitations-ethics.tex，9-conclusion.tex
+%  残っている作業：2026-10-27 の組版（本文 12 頁）と，この資料を作るときに見つけた論文の誤り
+% =====================================================================
+\setband{締め}
+
+\begin{frame}{新しいコーパスに数本のラベルしかないときの 4 つの手順}
+  \rl{考察：実務への手順}
+  \vspace{0.4em}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \foreach \i/\t/\d/\c in {
+      0/中心化/{ソースとターゲットを別々に中心化する．ラベル無しで判断基準の損の大半が消える}/cCrit,
+      1/全ソースから出発/{全ソースからの出発点に，切片はゆるく，重みは強く縛る}/cStart,
+      2/選び方に頼らない/{ラベルを付ける発話をラベル無しで選んでも，よい出発点の向きは直らない}/mMuted,
+      3/別のモダリティ/{別のモダリティが記録されていれば（ラベルを付けるときだけでも），ソースで学んだ融合の先生にプール全体のラベルを付けさせる}/cExt} {
+      \node[draw=\c, line width=0.9pt, fill=white, rounded corners=3pt, text width=3.4cm, minimum height=3.0cm, align=left, anchor=north] (b\i) at (\i*3.85,0) {};
+      \node[anchor=north west, font=\footnotesize\bfseries, text=\c] at ($(b\i.north west)+(0.12,-0.1)$) {\number\numexpr\i+1\relax．\t};
+      \node[anchor=north west, text width=3.15cm, align=left] at ($(b\i.north west)+(0.12,-0.6)$) {\d};
+    }
+    \foreach \i in {0,1,2} \draw[arr] (b\i.east) -- ++(0.4,0);
+  \end{tikzpicture}\par
+  \vspace{0.6em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+    \item 根拠：1 は第 I 部の中心化，2 は第 II 部の出発点，3 は命題 1・2 とその実測，4 はモダリティをまたぐ蒸留と比較
+    \item 4 でも，使う分類器は単独のモダリティのままでよい（テストのときは生徒のモダリティだけを使う）
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{考察：言葉の振る舞いと，クラスタの仮定に頼らない弱いラベル}
+  \rl{考察}
+  \vspace{0.3em}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{8pt}
+    \item \textbf{言葉は違う振る舞いをする}：言葉の特徴は判断基準の損が小さく向きの損が大きい（表 2）．少ないラベルが直す判断基準がほとんど無く，上乗せに占める判断基準の割合は最大で \NUM{p1-e29-critshare-k1-t}．上乗せの割合は損の割合に従う．それでも言葉の生徒は，言葉のラベルに足りない向きの情報を融合の先生から得て上がる
+    \item \textbf{エントロピー最小化はクラスタの仮定に頼る}：感情がラベル無しのデータの中で分かれた塊を作るという仮定は，AVT と AT の IEMOCAP 即興では成り立つが，MELD，CMU-MOSEI，VT・AV の同じターゲットでは成り立たない
+    \item \textbf{モダリティをまたぐ弱いラベルはモダリティの相補性に頼る}：ターゲットとセル（生徒と $K$）の \NUM{st-b-tgt-n} 個の組み合わせ（$K=0$・5）のうち，拡張版が出発点を下回るのは \NUM{st-b-tgtneg-n} 個で，最悪でも \NUM{st-b-tgtneg-worst} \pt
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{限界：凍結した特徴と線形分類器，近似に立つ式，4 感情と 6 つの英語のコーパス}
+  \rl{限界}
+  \vspace{-0.2em}
+  \begin{itemize}\scriptsize\setlength{\itemsep}{2.5pt}
+    \item \textbf{解析の範囲}：すべて凍結したエンコーダと線形分類器．微調整の確認は音声のエンコーダ 1 つ（LoRA），4 ターゲット，反復 3 回だけ
+    \item \textbf{模型と式}：2 つの山の模型は，対のスコアの差が感情ごとに正規分布で分散が共通と仮定する．$\lambda$ の式，$n$ の式，命題 2 は 1 次か 2 次の近似に立つ．予言を実測で確かめたのであって，厳密な結果とは言わない
+    \item \textbf{判断基準が先という説明の範囲}：単独の音声と顔の $K\le5$ に限る．融合と言葉の $K=5$ には当てはまらない．顔は 2 つの損がほぼ同じなのに判断基準の割合が大きく，その理由は説明できていない
+    \item \textbf{データ}：4 感情，6 つの英語のコーパスの 7 群で，ラベルの定義がコーパスごとに違う．CMU-MOSEI の話者の分離は不完全で，RAVDESS には顔の特徴が無い．言葉を含む比較は 4 ターゲットだけで，2 つ目のエンコーダは手法では AVT だけで確かめた
+    \item \textbf{統計と選び方}：区間と検定は，私たちのコーパスの中でのラベルとテスト話者の抜き方のばらつきを表す．仮のターゲットで選ぶと，$K=0$ でテスト話者の最良の値より最大 \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0} \pt 失う
+    \item \textbf{列の割り直し}：プールの感情の比が偏っていても（例：MELD）感情ごとの合計をそろえる．その利得が感情の比にどう依存するかは調べていない．偏りが強いと害になりうる
+    \item \textbf{倫理}：公開のコーパスだけを使い，顔は埋め込みとしてだけ使う．感情認識は同意の無い監視に悪用されうる．この手法は個人についての判断には検証していない
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{まとめ：判断基準は少ないラベルで直り，向きは別のモダリティの弱いラベルで直る}
+  \rl{まとめ}
+  \vspace{0.3em}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{8pt}
+    \item 凍結した特徴の線形分類器に感情あたり数本のラベルを足すと，ラベルはまず判断基準を直す．単独の音声と顔の $K\le5$ では，合併の上乗せの \NUM{p1-e29-critshare-kle5-single-lo}〜\NUM{p1-e29-critshare-kle5-single-hi} が判断基準の分で，音声の向きは $q/K$（$q$ = \NUM{p1-qdir-audio-lo}〜\NUM{p1-qdir-audio-hi}）でしか良くならない
+    \item 音声の 1 つのソースは，向きについて感情あたり \NUM{p1-e32-n1src-audio-lo}〜\NUM{p1-e32-n1src-audio-hi} 本ぶんのラベルを補う．少ないラベルも，ラベル無しの選び方も，よい出発点の向きをあまり動かさない
+    \item ソースだけで学んだ融合の先生がプール全体に付ける弱いラベルは，向きを動かす．$K\le5$ ですべての単独の生徒を出発点より上げ，拡張版は 2 つ目のエンコーダを含むすべての生徒で，同じ手順で調整した最も強い比較手法を $K=0$・5 で上回る
+    \item 次の一歩：$q$，$e$，$J$ はターゲットのラベルを使って測った．これらを仮のターゲットで推定できれば，ラベルを足すか，ソースを足すか，モダリティを足すかを，ラベルを付ける前に選べる
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{投稿までに残っている作業}
+  \rl{残っている作業}
+  \vspace{0.3em}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{7pt}
+    \item \textbf{著者と略歴}：著者名・所属・略歴がまだ空欄．題は仮題
+    \item \textbf{頁}：本文は参考文献 78 本を含めて 12 頁で，12 頁目は右の段の下の約 2 割が空いている．略歴を入れると 12 頁を少し超えるおそれがあり，投稿の目安の 11.5 頁には届いていない
+    \item \textbf{論文の誤り（この資料を作るときに見つけた）}：第 II 部の下調べの文 \texttt{the face start falls \textbackslash NUM\{p2-e60pre-juar-av-a-v\} points below it} は，値が負（\NUM{p2-e60pre-juar-av-a-v}）なので「\NUM{p2-e60pre-juar-av-a-v} points below」と組まれる．符号の扱いを直す必要がある
+    \item \textbf{未検証}：列の割り直しの利得と感情の比の関係（R1）は計算していない．計算には承認が要る
+  \end{itemize}
+\end{frame}

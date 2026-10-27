@@ -1,0 +1,213 @@
+% =====================================================================
+%  設定：群とラベル，特徴と分類器，分割，3 つの学習法と利得，判断基準のずれと識別力，設定の選び方
+%  文の元：paper/sections/3-setting.tex．表は論文の表 1（\NUM{data-*}）
+%  正解率のグラフ：figures/acc_do.csv（式の値）．2 つの山の絵は 10-22 の資料の問い 2 の絵を写した（説明用の値）
+% =====================================================================
+\setband{設定}
+
+\begin{frame}{6 つのコーパスを 7 つの群に分け，4 つの感情のラベルを使う}
+  \rl{データ}
+  \vspace{-0.3em}
+  \centering\scriptsize
+  \setlength{\tabcolsep}{5pt}
+      \begin{tabular}{@{}llrrrrrr@{}}
+        \toprule
+        群 & モダリティ & 話者 & 発話 & 中立 & 喜び & 悲しみ & 怒り \\
+        \midrule
+        IEMOCAP 即興 & AVT & \NUM{data-spk-impro} & \NUM{data-n-impro-wavlm} & \NUM{data-impro-neu} & \NUM{data-impro-hap} & \NUM{data-impro-sad} & \NUM{data-impro-ang} \\
+        IEMOCAP 台本 & AVT & \NUM{data-spk-script} & \NUM{data-n-script-wavlm} & \NUM{data-script-neu} & \NUM{data-script-hap} & \NUM{data-script-sad} & \NUM{data-script-ang} \\
+        CMU-MOSEI & AVT & \NUM{data-spk-mosei}\textsuperscript{a} & \NUM{data-n-mosei-wavlm} & \NUM{data-mosei-neu} & \NUM{data-mosei-hap} & \NUM{data-mosei-sad} & \NUM{data-mosei-ang} \\
+        MELD & AVT & \NUM{data-spk-meld} & \NUM{data-n-meld-wavlm} & \NUM{data-meld-neu} & \NUM{data-meld-hap} & \NUM{data-meld-sad} & \NUM{data-meld-ang} \\
+        AFEW & AV & \NUM{data-spk-afew} & \NUM{data-n-afew-wavlm} & \NUM{data-afew-neu} & \NUM{data-afew-hap} & \NUM{data-afew-sad} & \NUM{data-afew-ang} \\
+        RAVDESS & A & \NUM{data-spk-ravdess} & \NUM{data-n-ravdess-wavlm} & \NUM{data-ravdess-neu} & \NUM{data-ravdess-hap} & \NUM{data-ravdess-sad} & \NUM{data-ravdess-ang} \\
+        CREMA-D & AV & \NUM{data-spk-cremad} & \NUM{data-n-cremad-wavlm} & \NUM{data-cremad-neu} & \NUM{data-cremad-hap} & \NUM{data-cremad-sad} & \NUM{data-cremad-ang} \\
+        \midrule
+        計 & & & \NUM{data-n-total-wavlm} & & & & \\
+        \bottomrule
+      \end{tabular}\par
+  \vspace{0.1em}
+  {\raggedright\tiny A：音声，V：顔，T：言葉．発話の数は音声の特徴の数．\textsuperscript{a} チャンネルがわかる動画はチャンネル，ほかは動画の ID で話者の代わりにする（話者の分離は不完全）\par}
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item 感情は中立・喜び（IEMOCAP は興奮を含む）・悲しみ・怒り．主な指標は UAR（感情ごとの正解率の平均．でたらめなら 25\%）
+        \item IEMOCAP の台本の回は 10 人が同じ台詞を読み，言葉の分類器が台本を覚えるので，即興と台本を分けた
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{3pt}
+        \item CMU-MOSEI は，6 つの強さの評点のうち 1 つだけが 0.5 以上ならその感情，どれも 0.5 未満なら中立とした
+        \item 顔は RAVDESS に無い．言葉は 4 群だけ（AFEW に書き起こしが無く，RAVDESS と CREMA-D は決まった文を読む）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{凍結した特徴に線形分類器を載せ，話者で分けて $K$ 本のラベルを抜き出す}
+  \rl{分類器と分割}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \textbf{\footnotesize 特徴と分類器}\par\vspace{0.2em}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+        \item エンコーダは微調整しない．音声は WavLM-Large の最終層，言葉は RoBERTa-base の最終層，顔は表情認識で学んだ ResNet-50 の埋め込みを，発話の中で平均する
+        \item 2 つ目のエンコーダ（結論が残るかの確認）：HuBERT-Large，DeBERTa-v3-base，CLIP ViT-L/14
+        \item 融合（AV，VT，AT，AVT）は，次元ごとに標準化した特徴をつなげる．すべてのモダリティがある発話だけを使う
+        \item 分類器は 4 クラスのロジスティック回帰．重みに L2 罰則 $\|W\|_F^2/(2C)$，切片には罰則なし．感情の数の逆数のクラスの重みで UAR をねらう
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{\footnotesize ターゲットの分け方（反復 $r$）}\par\vspace{0.3em}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \foreach \i in {0,...,4} {
+          \pgfmathsetmacro{\xx}{\i*1.05}
+          \ifnum\i=2
+            \node[testbox, minimum width=0.95cm, minimum height=0.55cm] at (\xx,0) {テスト};
+          \else
+            \node[tgtbox, minimum width=0.95cm, minimum height=0.55cm] at (\xx,0) {};
+          \fi
+        }
+        \node[anchor=south, font=\tiny] at (2.1,0.35) {話者を 5 つに分ける．反復 $r$ は $r \bmod 5$ 番目でテスト};
+        \draw[decorate, decoration={brace, mirror, amplitude=3pt}, mMuted] (-0.5,-0.4) -- (4.7,-0.4);
+        \node[tgtbox, text width=5.0cm, align=left] at (2.1,-1.2) {プール（テスト以外の発話）\\・感情ごとに $K$ 本を抜いてラベルを付ける（$4K$ 本）\\・残りはラベル無しで使ってよい};
+        \node[align=left, font=\tiny, text width=5.4cm, anchor=north] at (2.1,-2.0) {・種はターゲットと反復だけで決まる：どのソースでも同じ $K$ 本．$K$ の間で入れ子\\・テストの話者はソースからも除く（IEMOCAP の 2 群の間だけで効く）\\・テストの発話は学習にも選択にも使わない};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \vspace{0.2em}
+  \takeaway{線形分類器は判定の仕組みを解析でき，少ないラベルでは微調整より強い（比較の部で確認）}
+\end{frame}
+
+\begin{frame}{利得 ＝ 同じ反復の「合併」の UAR − 「ターゲットのみ」の UAR}
+  \rl{3 つの学習法と利得の総当たり実験}
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[tgtbox, text width=1.9cm] (t) at (0,1.6) {ターゲットの\\$4K$ 本};
+        \node[srcbox, text width=1.9cm] (s) at (0,0) {ソースの\\ラベル付き全部};
+        \node[clf, text width=2.0cm] (c1) at (3.4,2.2) {ターゲットのみ};
+        \node[clf, text width=2.0cm] (c2) at (3.4,0.8) {合併};
+        \node[clf, text width=2.0cm] (c3) at (3.4,-0.6) {ソースのみ};
+        \draw[arr] (t.east) -- (c1.west);
+        \draw[arr] (t.east) -- (c2.west);
+        \draw[arr] (s.east) -- (c2.west);
+        \draw[arr] (s.east) -- (c3.west);
+        \draw[<->, mGood, line width=0.9pt] (4.75,2.2) -- node[right, font=\scriptsize, align=left] {利得} (4.75,0.8);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item ターゲットとソースの順序つきの組すべてで，反復ごとに 3 つを学ぶ
+        \item $K \in \{1,5,10,25,50\}$ と全件．反復 \NUM{map-reps-a} 回．組の数は A \NUM{map-pairs-a}，V と AV \NUM{map-pairs-v}，言葉を含む種類 \NUM{map-pairs-t}
+        \item ターゲットのみ・ソースのみの $C$ は，話者で 3 分割の交差検証で $\{0.01, 0.1, 1, 10\}$ から選ぶ．合併は同じ反復のソースのみの $C$ を使う（ターゲットのラベルを使わない）
+        \item $K=1$ では検証の点がほとんど同点になり，同点の規則が罰則を弱めるので，ターゲットのラベルで $C$ を選ばない．全件ではこの規則が合併の損を大きく見せる（交差検証の版は補足資料）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{2 つの感情の判定を，判断基準のずれ $o$ と識別力 $d$ に分けて調べる}
+  \rl{判断基準と向き}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{5pt}
+        \item 4 感情の分類器を，6 つの感情の対の判定に分ける．感情 $k$ と $l$ のスコアの差 $z$ を横軸に取ると，発話は感情ごとに山を作る
+        \item \disc{識別力 $d$}：2 つの山の中心の離れ方（山の幅で割る）．重みの向き $\mathbf{w}_k - \mathbf{w}_l$ だけで決まる
+        \item \crit{判断基準のずれ $o$}：境界 $z=0$ が 2 つの中心の真ん中からずれた量．切片だけで 0 にできる
+        \item ターゲットの全ラベルで求めた最良の向きの識別力を $\Delta$ とすると，損は 2 つに分かれる
+        \begin{itemize}\scriptsize
+          \item \crit{判断基準による損失}：境界を真ん中に動かすと取り戻せる分
+          \item \disc{向きによる損失}：それでも残る分（$d < \Delta$ による）
+        \end{itemize}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \centering
+      \begin{tikzpicture}[x=0.5cm, y=1.0cm, font=\scriptsize]
+        \begin{scope}
+          \draw[mDarkTeal, line width=0.9pt, domain=-4:2.6, samples=50, smooth] plot (\x,{exp(-((\x+1.2)^2)/2)});
+          \draw[mDarkTeal!60, line width=0.9pt, domain=-2.6:4, samples=50, smooth] plot (\x,{exp(-((\x-1.2)^2)/2)});
+          \draw[-{Stealth}, mMuted] (-4.2,0) -- (4.4,0);
+          \draw[black, line width=1.1pt] (0,0) -- (0,1.15);
+          \node[above, align=center] at (0,1.15) {$o=0$：境界が真ん中};
+          \draw[<->, cDisc, line width=0.8pt] (-1.2,0.45) -- (1.2,0.45) node[pos=0.22, above] {$d$};
+          \node[font=\tiny, anchor=east] at (-2.6,1.0) {怒りの発話};
+          \node[font=\tiny, anchor=west] at (2.6,1.0) {喜びの発話};
+        \end{scope}
+        \begin{scope}[yshift=-1.9cm]
+          \draw[mDarkTeal, line width=0.9pt, domain=-4:2.6, samples=50, smooth] plot (\x,{exp(-((\x+1.2)^2)/2)});
+          \draw[mDarkTeal!60, line width=0.9pt, domain=-2.6:4, samples=50, smooth] plot (\x,{exp(-((\x-1.2)^2)/2)});
+          \draw[-{Stealth}, mMuted] (-4.2,0) -- (4.4,0);
+          \draw[black, line width=1.1pt] (1.0,0) -- (1.0,1.15);
+          \draw[densely dotted] (0,0) -- (0,1.0);
+          \node[above, align=center] at (1.0,1.15) {$o\neq0$：境界がずれる};
+          \draw[->, cCrit, line width=0.8pt] (0,-0.13) -- (1.0,-0.13);
+          \node[cCrit, below, inner sep=1pt] at (0.5,-0.15) {$o$};
+          \node[font=\tiny, text=mBad, align=left, anchor=west] at (4.1,0.45) {喜びの一部を\\怒りと誤る};
+        \end{scope}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 模式図．横軸は 2 つの感情のスコアの差 $z$\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{山が正規分布なら，正解率は $d$ が大きいほど，$o$ が 0 に近いほど高い}
+  \rl{判断基準と向き}
+  \vspace{0.1em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[width=6.6cm, height=4.8cm, xmin=-3, xmax=3, ymin=45, ymax=100,
+            xlabel={判断基準のずれ $o$}, ylabel={2 つの感情の正解率（\%）}, xtick={-3,-2,-1,0,1,2,3},
+            ymajorgrids, grid style={mMuted!25},
+            legend style={font=\tiny, draw=none, fill=white, at={(0.5,1.03)}, anchor=south, /tikz/every even column/.append style={column sep=0.5em}}, legend columns=3]
+          \addplot[cDisc, line width=1.4pt] table[x=o, y=d3] {acc_do.csv}; \addlegendentry{$d=3$}
+          \addplot[cDisc!60, line width=1.2pt, dashed] table[x=o, y=d2] {acc_do.csv}; \addlegendentry{$d=2$}
+          \addplot[cDisc!35, line width=1.2pt, densely dotted] table[x=o, y=d1] {acc_do.csv}; \addlegendentry{$d=1$}
+        \end{axis}
+      \end{tikzpicture}\par
+      {\raggedright\tiny 2 つの山を正規分布とした式の値（実験の値ではない）\par}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{6pt}
+        \item 正解率（2 つの再現率の平均）は $a(d,o) = \tfrac12[\Phi(\tfrac d2 + o) + \Phi(\tfrac d2 - o)]$（$\Phi$ は標準正規分布の分布関数）
+        \item 例：$d=2$ のとき，$o=0$ なら 84\%，$o=1$ なら 74\%
+        \item 判断基準による損失 $= a(d,0) - a(d,o)$，向きによる損失 $= a(\Delta,0) - a(d,0)$．6 つの対で平均し，対の正解率のポイントで表す
+        \item この模型で測った $d$ と $o$ から予言した正解率は，実測の正解率と \NUM{p1-e13-fit-r-lo}〜\NUM{p1-e13-fit-r-hi} の相関で合う（平均の誤差 \NUM{p1-e13-fit-mae-lo}〜\NUM{p1-e13-fit-mae-hi} \pt）
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{ハイパーパラメータは，ソースの 1 つを仮のターゲットにして選ぶ}
+  \rl{設定の選び方と報告の仕方}
+  \vspace{0.1em}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \fill[cSrc!45, rounded corners=3pt] (-0.2,-0.2) rectangle (7.2,2.75);
+    \fill[cTgt!45, rounded corners=3pt] (7.6,-0.2) rectangle (14.6,2.75);
+    \node[anchor=north west, font=\footnotesize\bfseries] at (0,2.65) {選ぶとき：仮のターゲット $c$（ソースの群を順に）};
+    \node[anchor=north west, font=\footnotesize\bfseries] at (7.8,2.65) {本番：ターゲット $T$};
+    \node[srcbox, text width=2.6cm] (o1) at (1.45,1.4) {$T$ と $c$ のコーパス\\以外の群で手法を作る};
+    \node[srcbox, text width=3.0cm] (o2) at (5.2,1.4) {$c$ から $K$ 本を抜き，\\$c$ のテスト話者で UAR};
+    \draw[arr] (o1) -- (o2);
+    \node[align=left, font=\tiny, text width=6.8cm] at (3.5,0.25) {$c$，反復 0〜4，手法の決める $K$ で平均した UAR が最大の値を選ぶ};
+    \node[tgtbox, text width=3.1cm] (b1) at (9.45,1.4) {選んだ値で $T$ の $K$ 本と\\ラベル無しのプールで学ぶ};
+    \node[testbox, text width=2.3cm] (b2) at (12.95,1.4) {$T$ のテスト話者で\\評価（ここで初めて）};
+    \draw[arr] (b1) -- (b2);
+    \draw[arr, line width=1.2pt] (6.85,1.4) -- (7.8,1.4);
+    \node[align=left, font=\tiny, text width=6.6cm] at (11.1,0.25) {$T$ のラベルは $K$ 本のほかに使わない．オラクル（$T$ のテスト話者で最良の値）は選び方の損を測るためだけに使う};
+  \end{tikzpicture}\par
+  \vspace{0.4em}\raggedright
+  \begin{itemize}\scriptsize\setlength{\itemsep}{4pt}
+    \item 第 II 部の手法と比較手法のハイパーパラメータは，すべてこの手順で選ぶ（$K$ 本では選べないため．ドメインを 1 つずつ抜いて選ぶ方法と同じ考え方）
+    \item 差は UAR のポイント．区間は反復の対の差の 95\% $t$ 区間で，ラベルとテスト話者の抜き方のばらつきだけを表す（話者やコーパスの抜き直しではない）
+    \item IEMOCAP は 10 人なのでテストの分割が 5 通り（即興）か 7 通り（台本）しかない．ソースが役立つかを判定するときは，同じ分割の反復を先に平均する
+  \end{itemize}
+\end{frame}

@@ -1,0 +1,139 @@
+% =====================================================================
+%  序：この論文で言うこと，背景，3 つの問いと全体図
+%  文の元：paper/main.tex の要旨，paper/sections/1-introduction.tex（貢献 1〜4）
+% =====================================================================
+\setband{序}
+
+\begin{frame}{要約：少ないラベルは判断基準を先に直し，向きは別のモダリティで補う}
+  \rl{要約}
+  \vspace{0.1em}
+  \begin{itemize}\footnotesize\setlength{\itemsep}{5pt}
+    \item \textbf{利得の総当たり実験}：7 つの群のすべての順序つきの組で，音声・顔・言葉とその融合について，感情あたりのラベル $K$ を 1 本から全件まで変えて，ソースを混ぜた利得を反復 30 回で測った
+    \item \textbf{少ないラベルが直すもの}：分類器の 2 つの感情の判定を\crit{判断基準のずれ $o$} と\disc{識別力 $d$}（向きで決まる）に分けた．単独の音声と顔の $K \le 5$ では，合併がソースのみを上回った分に占める判断基準の分の割合は \NUM{p1-e29-critshare-kle5-single-lo}〜\NUM{p1-e29-critshare-kle5-single-hi} である．音声の向きの誤差は $q/K$（$q$ = \NUM{p1-qdir-audio-lo}〜\NUM{p1-qdir-audio-hi}）でしか減らない
+    \item \textbf{ソースの価値}：ソースの向きを，ターゲットのラベルの本数 $n = q e^2/(1-e^2)$ に換算した．音声の 1 つのソースは感情あたり \NUM{p1-e32-n1src-audio-lo}〜\NUM{p1-e32-n1src-audio-hi} 本，全ソースをまとめると \NUM{p1-e32-nall-audio-lo}〜\NUM{p1-e32-nall-audio-hi} 本に当たる
+    \item \textbf{手法}：ソースだけで学んだ融合の分類器が，ターゲットのラベルの無い発話すべてに弱いラベルを付け，出発点に縛った線形の生徒がそれで学ぶ．基本版は，同じ手順で調整した 9 つの比較手法のうち最も強いものを，22 の組み合わせ（生徒 $\times$ $K \in \{0,5\}$）のうち \NUM{cmp-ours-vs-best-pos-n} で上回る．拡張版は全部で \NUM{cmp-oursx-vs-best-range-lo}〜\NUM{cmp-oursx-vs-best-range-hi} \pt 上回る
+  \end{itemize}
+  \takeaway{凍結した特徴＋線形分類器で，理論の予言を実測し，その答えから手法を作った}
+\end{frame}
+
+\begin{frame}{新しいコーパスではラベルが少なく，ほかのコーパスを混ぜると得にも損にもなる}
+  \rl{背景}
+  \vspace{0.2em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize]
+        \node[srcbox, text width=2.3cm] (s1) at (0,1.9) {ソース 1\\（ラベル付き）};
+        \node[srcbox, text width=2.3cm] (s2) at (0,0.95) {ソース 2\\（ラベル付き）};
+        \node[font=\scriptsize] at (0,0.35) {$\vdots$};
+        \node[tgtbox, text width=2.3cm, minimum height=1.25cm] (t) at (0,-0.75) {ターゲット\\感情ごとに $K$ 本の\\ラベル＋ラベル無し};
+        \node[clf, text width=1.8cm, minimum height=1.0cm] (c) at (3.2,0.55) {分類器\\（4 感情）};
+        \draw[arr] (s1.east) -- (c.west);
+        \draw[arr] (s2.east) -- (c.west);
+        \draw[arr] (t.east) -- (c.west);
+        \node[testbox, text width=1.8cm] (te) at (3.2,-0.75) {ターゲットの\\別の話者で評価};
+        \draw[tarr] (c.south) -- (te.north);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{itemize}\footnotesize\setlength{\itemsep}{6pt}
+        \item 感情の分類器は，学習に無いコーパス（話者，録音，演技の仕方，ラベルの付け方が違う）で正解率が下がる
+        \item 実務では，新しいコーパス（ターゲット）に感情ごとに数本のラベルを付け，ほかのコーパス（ソース）のラベル付きの発話を足す
+        \item 複数のドメインから学ぶ理論は，ターゲットのラベルが少ないと混ぜて得，多いと損になると言う．分類器のどの部分をラベルが直すかは言わない
+        \item ターゲットの発話には，音声・顔・言葉が同時にあることが多い
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{3 つの問い：ラベルは何を直すか，ソースは何本ぶんか，その答えで手法を作れるか}
+  \rl{問い}
+  \vspace{0.4em}
+  \begin{itemize}\small\setlength{\itemsep}{10pt}
+    \item \textbf{問い 1}　少ない $K$ 本のラベルは，分類器の何を直すか\par
+      \muted{\footnotesize → 第 I 部：判断基準と向きに分け，$K$ 本で減る誤差を式で出して，利得の総当たり実験で確かめる}
+    \item \textbf{問い 2}　ソースは，ラベルの代わりに何本ぶんを補うか\par
+      \muted{\footnotesize → 第 I 部：ソースの向きの価値を，ターゲットのラベルの本数に換算する式を出して測る}
+    \item \textbf{問い 3}　その答えから，同じ手順で調整した標準の手法を上回る方法を作れるか\par
+      \muted{\footnotesize → 第 II 部と比較：残った向きの誤差を，別のモダリティの先生の弱いラベルで補う}
+  \end{itemize}
+  \vspace{0.3em}
+  \takeaway{分類器はどれも凍結したエンコーダの特徴に載せた線形分類器（解析できるほど単純で，少ないラベルでは微調整より強い）}
+\end{frame}
+
+\begin{frame}{全体図：ソースで出発点を作り，$K$ 本は判断基準を直し，弱いラベルが向きを補う}
+  \rl{全体図}
+  \vspace{-0.3em}
+  \centering
+  \begin{tikzpicture}[x=0.87cm, y=1.0cm, font=\tiny]
+    % 枠
+    \fill[cStart!12, rounded corners=3pt] (0,0) rectangle (4.3,5.3);
+    \fill[cOurs!8, rounded corners=3pt] (4.5,0) rectangle (10.6,5.3);
+    \fill[cExt!8, rounded corners=3pt] (10.8,0) rectangle (17.6,5.3);
+    \node[anchor=north west, font=\scriptsize\bfseries] at (0.15,5.15) {ソースのコーパス};
+    \node[anchor=north west, text=mMuted] at (0.15,4.72) {ラベル付き．エンコーダは凍結};
+    \node[anchor=north west, font=\scriptsize\bfseries] at (4.65,5.15) {第 I 部：$K$ 本が直すもの};
+    \node[anchor=north west, text=mMuted] at (4.65,4.72) {単独の A・V，$K\le5$．\textcolor{cOurs}{$\bullet$} ラベルの付いた $K$ 本};
+    \node[anchor=north west, font=\scriptsize\bfseries] at (10.95,5.15) {第 II 部：モダリティをまたぐ弱いラベル};
+    \node[anchor=north west, text=mMuted] at (10.95,4.72) {テストでは，生徒は自分のモダリティだけを使う};
+    % 左：ソースと出発点
+    \foreach \y in {3.75,2.9,2.05} {
+      \node[draw=cStart, fill=cStart!25, rounded corners=1pt, minimum width=0.75cm, minimum height=0.45cm] at (0.9,\y) {};
+      \node[draw=mMuted, fill=white, minimum size=0.32cm, inner sep=0pt, font=\tiny\bfseries] at (1.85,\y) {A};
+      \node[draw=mMuted, fill=white, minimum size=0.32cm, inner sep=0pt, font=\tiny\bfseries] at (2.3,\y) {V};
+      \node[draw=mMuted, fill=white, minimum size=0.32cm, inner sep=0pt, font=\tiny\bfseries] at (2.75,\y) {T};
+    }
+    \node[text=mMuted] at (0.9,1.55) {$\vdots$};
+    \node[draw=cStart, fill=white, rounded corners=2pt, align=center, text width=2.9cm] (st) at (2.15,0.65) {\textbf{出発点}：全ソースで学んだ\\線形分類器 $(W_0, b_0)$};
+    % 中：2 つの感情の雲と境界
+    \fill[mMuted!18] (6.3,1.75) ellipse [x radius=0.95cm, y radius=0.55cm, rotate=21];
+    \fill[mMuted!18] (8.7,2.75) ellipse [x radius=0.95cm, y radius=0.55cm, rotate=21];
+    \node[text=mMuted] at (5.35,2.55) {感情 $k$};
+    \node[text=mMuted] at (9.9,2.05) {感情 $l$};
+    \pgfmathsetseed{7}
+    \foreach \i in {1,...,22} {
+      \pgfmathsetmacro{\u}{rand*0.8}\pgfmathsetmacro{\v}{rand*0.38}
+      \fill[mMuted!75] ($(6.3,1.75)+(21:\u)+(111:\v)$) circle (0.7pt);
+      \pgfmathsetmacro{\u}{rand*0.8}\pgfmathsetmacro{\v}{rand*0.38}
+      \fill[mMuted!75] ($(8.7,2.75)+(21:\u)+(111:\v)$) circle (0.7pt);
+    }
+    \foreach \p in {(5.95,1.85),(6.6,1.6),(6.25,2.1)} \fill[cOurs] \p circle (1.6pt);
+    \foreach \p in {(8.35,2.9),(9.05,2.6),(8.75,3.05)} \fill[cOurs] \p circle (1.6pt);
+    \draw[cStart, line width=1.0pt, dash pattern=on 3pt off 1.5pt] (7.25,0.5) -- (6.747,3.35);
+    \draw[cOurs, line width=1.0pt] (7.809,0.5) -- (7.306,3.35);
+    \draw[mDarkTeal, line width=0.7pt, dotted] (8.172,0.5) -- (7.078,3.35);
+    \draw[->, cCrit, line width=0.8pt] (7.18,0.9) -- (7.74,0.9);
+    \node[anchor=west, text=cCrit, align=left] at (8.3,0.75) {判断基準 $o$\\誤差 $1/(2K)$\\先に直る};
+    \draw[->, cDisc, line width=0.6pt] (7.5,2.25) ++(100:1.0) arc[start angle=100, end angle=112, radius=1.0cm];
+    \node[anchor=west, text=cDisc, align=left] at (7.6,4.0) {向き（識別力 $d$ を決める）\\誤差 $q/K$，直りにくい};
+    \draw[cStart, line width=1.0pt, dash pattern=on 3pt off 1.5pt] (4.7,4.2) -- ++(0.45,0); \node[anchor=west] at (5.15,4.2) {出発点};
+    \draw[cOurs, line width=1.0pt] (4.7,3.92) -- ++(0.45,0); \node[anchor=west] at (5.15,3.92) {$K$ 本の後};
+    \draw[mDarkTeal, line width=0.7pt, dotted] (4.7,3.64) -- ++(0.45,0); \node[anchor=west] at (5.15,3.64) {ターゲットで最良};
+    \draw[arr, cStart] (st.east) -- (5.6,0.65);
+    % 右：先生，弱いラベル，生徒
+    \node[draw=cExt, fill=white, rounded corners=2pt, align=center, text width=2.1cm] (tea) at (12.2,3.1) {\textbf{先生}：融合の\\分類器（A+V+T）\\ソースだけで学ぶ};
+    \begin{scope}[shift={(13.95,3.55)}]
+      \foreach \r/\a/\b/\c/\d in {0/60/15/10/15, 1/10/55/20/15, 2/15/10/65/10, 3/20/20/10/50, 4/45/25/15/15} {
+        \fill[cExt!\a] (0.00,-\r*0.27) rectangle ++(0.36,0.24);
+        \fill[cExt!\b] (0.39,-\r*0.27) rectangle ++(0.36,0.24);
+        \fill[cExt!\c] (0.78,-\r*0.27) rectangle ++(0.36,0.24);
+        \fill[cExt!\d] (1.17,-\r*0.27) rectangle ++(0.36,0.24);
+      }
+      \node[anchor=south] at (0.77,0.24) {4 感情};
+      \draw[decorate, decoration={brace, amplitude=2.5pt}, mMuted] (1.62,0.24) -- (1.62,-1.08);
+      \node[anchor=west, align=left] at (1.72,-0.42) {ラベル無しの\\発話すべて};
+    \end{scope}
+    \draw[arr, cExt] (tea.east) -- (13.9,3.1);
+    \node[anchor=west, text=cExt, align=left] at (13.9,2.05) {弱いラベル：感情ごとの\\合計をそろえる};
+    \draw[arr, cExt] (15.6,1.75) -- (16.1,1.0);
+    \node[draw=cOurs, fill=white, rounded corners=2pt, align=center, text width=1.8cm] (stu) at (16.35,0.6) {\textbf{生徒}：線形\\1 つのモダリティ};
+    \node[draw=cStart, fill=white, rounded corners=2pt, align=center, text width=1.6cm] (st2) at (12.0,0.6) {出発点\\（同じモダリティ）};
+    \draw[cStart, line width=0.9pt, decorate, decoration={coil, aspect=0.4, segment length=3pt, amplitude=2.2pt}] (st2.east) -- (stu.west);
+    \node[anchor=south] at ($(st2.east)!0.5!(stu.west)+(0,0.12)$) {出発点に縛る};
+    \foreach \x in {0,1,2} \fill[cOurs] ($(11.25,1.85)+(\x*0.2,0)$) circle (1.6pt);
+    \node[anchor=west, text=cOurs] at (11.8,1.85) {$K$ 本};
+    \draw[arr, cOurs] (11.45,1.65) .. controls (11.45,1.35) and (13.0,1.45) .. (14.4,1.15);
+  \end{tikzpicture}\par
+  \vspace{0.2em}
+  {\raggedright\scriptsize 中の図は模式図．灰の破線（出発点）を青の実線（$K$ 本の後）が平行に動かすが，黒の点線（ターゲットで最良）の向きまでは回らない\par}
+\end{frame}

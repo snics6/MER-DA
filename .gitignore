@@ -49,3 +49,8 @@ paper/ja/*.toc
 paper/ja/*.pdf
 paper/ja/sections/*.aux
 paper/ja/supp/*.aux
+
+# ---- slides/（LaTeX の中間生成物と PDF・PPTX） ----
+slides/*/build/
+slides/*/*.pdf
+slides/*/*.pptx
