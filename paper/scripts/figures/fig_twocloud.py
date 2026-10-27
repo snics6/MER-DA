@@ -110,7 +110,7 @@ def bars(ax, loss) -> None:
         ax.bar(x[i] + w / 2, di, w, facecolor="white", edgecolor=c, hatch="//////", lw=0.8)
     ax.set_xticks(x, [style.CONFIG[k]["label"].replace(" (", "\n(") for k in ks])
     ax.tick_params(axis="x", length=0)
-    ax.set_ylabel("Loss (points of\npairwise accuracy)")
+    ax.set_ylabel("Loss (points)")
     ax.grid(axis="x", visible=False)
     ax.set_axisbelow(True)
     ax.set_xlim(-0.6, len(ks) - 0.4)
@@ -123,7 +123,7 @@ def bars(ax, loss) -> None:
 def main() -> None:
     style.setup()
     loss = e13_losses()
-    fig = plt.figure(figsize=(style.COL, 2.8))
+    fig = plt.figure(figsize=(style.COL, 2.6))
     gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.0], hspace=0.7, left=0.16, right=0.99, bottom=0.1, top=0.93)
     ax = fig.add_subplot(gs[0])
     bx = fig.add_subplot(gs[1])
