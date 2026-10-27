@@ -326,6 +326,21 @@ def _e29(b: Book) -> None:
           f"{base} | a，ah，v，av と言葉を含む 4 種類をまとめた 40 組 | 種類ごとの share_loss の中央値", doc=((0.10, 0.27), where))
     b.rng("p1-e29-critcorr-k5", {k: corr[k] for k in ("a", "ah", "text4")},
           f"{base} | 判定に使った 3 つ（a，ah，言葉を含む 4 種類をまとめた 40 組）| G_crit と L_crit の順位相関", doc=((0.59, 0.78), where + "（「+0.6〜+0.8」）"))
+    # K=1・10 の同じ割合（記述．主張の範囲を「単独の音声と顔，K ≤ 5」とした根拠．2026-10-27 に足した）
+    for kk in ("1", "10"):
+        gk = p[p.K == kk]
+        basek = base.replace("K=5，", f"K={kk}，")
+        for k in KIND:
+            g = gk[gk.kind == KIND[k]]
+            b.add(f"p1-e29-critshare-k{kk}-{k}", float(g.share_pos.median()),
+                  f"{basek}，kind={KIND[k]} {len(g)} 組 | share_pos の組の中央値", "%.2f")
+    single = {f"{k}-k{kk}": float(p[(p.K == kk) & (p.kind == KIND[k])].share_pos.median())
+              for k in ("a", "ah", "v") for kk in ("1", "5")}
+    b.rng("p1-e29-critshare-kle5-single", single,
+          f"{_rel(E29)}/e29_pairs.csv | K=1・5，C を固定した条件，反復 0〜9（10 回），同じコーパスの組を除く | 単独の音声 2 エンコーダと顔の share_pos の組の中央値")
+    fusedk5 = {k: share[k] for k in ("av", "t", "at", "vt", "avt")}
+    b.rng("p1-e29-critshare-k5-fused-text", fusedk5,
+          f"{base} | 融合の AV と言葉を含む 4 種類 | share_pos の組の中央値")
     rt = tests[tests.group == "all8"].rho.iloc[0]
     b.add("p1-e29-shares-corr-all8", _spearman(g5.share_pos, g5.share_loss),
           f"{base}，8 種類まとめて {len(g5)} 組 | share_pos と share_loss のスピアマンの順位相関（P29-3）", "%.2f",
