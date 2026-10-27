@@ -5879,6 +5879,118 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e29-critshare-k1-a": {
+  "value": 0.7268035527639309,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=audio_wavlm 40 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-ah": {
+  "value": 0.608679881481237,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=audio_hubert 40 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-at": {
+  "value": 0.3665394065241447,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-audio-text 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-av": {
+  "value": 0.72213031947434,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-audio-video 28 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-avt": {
+  "value": 0.5177191771488749,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-audio-video-text 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-t": {
+  "value": 0.251752670130676,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=text_roberta 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-v": {
+  "value": 0.8277783986268568,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=video 28 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k1-vt": {
+  "value": 0.8012751230155677,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-video-text 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-a": {
+  "value": 0.52827545778436,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=audio_wavlm 40 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-ah": {
+  "value": 0.4196201154562737,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=audio_hubert 40 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-at": {
+  "value": 0.25983446520406656,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-audio-text 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-av": {
+  "value": 0.4036706340213281,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-audio-video 28 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-avt": {
+  "value": 0.36829498617026885,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-audio-video-text 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-t": {
+  "value": 0.20810367270039776,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=text_roberta 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-v": {
+  "value": 0.5989028531507887,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=video 28 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k10-vt": {
+  "value": 0.43049530879321907,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=10，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-video-text 10 組 | share_pos の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e29-critshare-k5-a": {
   "value": 0.6193308913001319,
   "format": "%.2f",
@@ -5928,6 +6040,20 @@
   "verified": "2026-10-27",
   "module": "part1"
  },
+ "p1-e29-critshare-k5-fused-text-hi": {
+  "value": 0.5094207828200735,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=5，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く | 融合の AV と言葉を含む 4 種類 | share_pos の組の中央値 | 範囲（最小 t，最大 vt．対象 av, t, at, vt, avt）",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-k5-fused-text-lo": {
+  "value": 0.23495227213735276,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=5，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く | 融合の AV と言葉を含む 4 種類 | share_pos の組の中央値 | 範囲（最小 t，最大 vt．対象 av, t, at, vt, avt）",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
  "p1-e29-critshare-k5-t": {
   "value": 0.23495227213735276,
   "format": "%.2f",
@@ -5967,6 +6093,20 @@
   "value": 0.5094207828200735,
   "format": "%.2f",
   "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=5，C を固定した条件（E25 の手と C を固定した段階 B），反復 0〜9（10 回），同じコーパスの組を除く，kind=fuse-video-text 10 組 | 合併の得に占める基準（位置）の分の割合 share_pos = 位置の分/(位置の分 + 向きの分) の組の中央値",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-kle5-single-hi": {
+  "value": 0.8277783986268568,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1・5，C を固定した条件，反復 0〜9（10 回），同じコーパスの組を除く | 単独の音声 2 エンコーダと顔の share_pos の組の中央値 | 範囲（最小 ah-k5，最大 v-k1．対象 a-k1, a-k5, ah-k1, ah-k5, v-k1, v-k5）",
+  "verified": "2026-10-27",
+  "module": "part1"
+ },
+ "p1-e29-critshare-kle5-single-lo": {
+  "value": 0.5391026613365058,
+  "format": "%.2f",
+  "source": "results/explore_relation/snapshots/20261011-1524_e29/e29_pairs.csv | K=1・5，C を固定した条件，反復 0〜9（10 回），同じコーパスの組を除く | 単独の音声 2 エンコーダと顔の share_pos の組の中央値 | 範囲（最小 ah-k5，最大 v-k1．対象 a-k1, a-k5, ah-k1, ah-k5, v-k1, v-k5）",
   "verified": "2026-10-27",
   "module": "part1"
  },
