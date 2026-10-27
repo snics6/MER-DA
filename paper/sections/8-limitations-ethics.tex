@@ -2,20 +2,16 @@
 \label{sec:limitations-ethics}
 
 \emph{Scope of the analysis.}
-All analyses use frozen encoders and a linear head.
-The fine-tuning check covers one audio encoder adapted with low-rank adapters on four targets over three iterations, so it bounds the claim only for that setting.
+All analyses use frozen encoders and a linear head, and the fine-tuning check covers one audio encoder with low-rank adapters on four targets over three iterations.
 The two-cloud model assumes Gaussian score differences with a shared variance within each emotion pair, and \eqref{eq:lambda}, \eqref{eq:value}, and Proposition~\ref{prop:design} rest on first- or second-order approximations; we test their predictions empirically rather than claiming exact results.
-The threshold-first account holds for single-modality audio and face features at $K \le 5$; for fused and text configurations the threshold part is about half of the gain or less at $K=5$.
+The threshold-first account holds for single-modality audio and face features at $K \le 5$, not for fused and text configurations at $K=5$, and why the threshold share is large for the face, whose two losses are about equal, remains unexplained.
 
 \emph{Data.}
-We study four emotions in seven groups from six corpora, all in English.
-The corpora define their labels differently; in particular, the neutral class of CMU-MOSEI is defined by the absence of rated emotions.
-Speaker separation in CMU-MOSEI is incomplete because the channel is unknown for most videos, and RAVDESS has no face features in our pipeline.
-Configurations with text have four groups, and the method comparisons use four targets for every configuration with text, so differences between targets are estimated from few targets.
-The second encoders are tested for the method only in the configuration with all three modalities.
+We study four emotions in seven groups from six English corpora, which define their labels differently (Section~\ref{sec:setting-data}); speaker separation in CMU-MOSEI is incomplete, and RAVDESS has no face features in our pipeline.
+Configurations with text have four groups, so the method comparisons with text rest on four targets, and the second encoders are tested for the method only in the AVT configuration.
 
 \emph{Statistics and selection.}
-Our intervals reflect the draw of target labels and test speakers, not the resampling of speakers or corpora, and the iterations are not independent for IEMOCAP targets.
+Our intervals and tests reflect the draw of labels and test speakers within our corpora (Section~\ref{sec:setting-selection}).
 Selecting hyperparameters on pseudo-targets loses up to \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0} points against the best value on the test speakers at $K=0$ (Section~\ref{sec:comparison-selection}).
 Column normalization equalizes the per-emotion totals although the pools of our targets are skewed (Table~\ref{tab:data}, e.g., MELD); we did not analyze how its gain depends on the class ratios, and stronger skew can make it harmful~\cite{veilleux2021realistic}.
 

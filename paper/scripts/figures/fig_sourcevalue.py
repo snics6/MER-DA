@@ -63,7 +63,7 @@ def main() -> None:
     D = pd.concat(rows, ignore_index=True)
     assert (D.n_pred > XLO).all() and (D.n_pred < XHI).all()
 
-    fig = plt.figure(figsize=(style.COL, 2.45))
+    fig = plt.figure(figsize=(style.COL, 2.2))
     gs = fig.add_gridspec(3, 1, height_ratios=[0.13, 1.0, 0.13], hspace=0.08,
                           left=0.14, right=0.735, bottom=0.15, top=0.98)
     top = fig.add_subplot(gs[0])

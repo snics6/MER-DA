@@ -1,8 +1,7 @@
 \section{Part I: What Few Target Labels Fix First}
 \label{sec:part1-what-few-labels-fix}
 
-Part~I asks two questions about the linear head of Section~\ref{sec:setting}: what $K$ labels per emotion change in it, and how much of that change a source corpus can supply instead.
-We first describe the gain map, then state the assumptions under which a threshold and a direction have different estimation costs, and then test four predictions that follow from these costs.
+Part~I asks what $K$ labels per emotion change in the linear head and how much of that change a source corpus can supply instead.
 
 \subsection{The Gain Map}
 \label{sec:part1-map}
@@ -11,26 +10,19 @@ Adding a source helps when target labels are scarce and hurts when they are plen
 For audio, the mean gain at $K=1$ is $\NUM{map-gain-a-k1}$ points, and its 95\% interval, treating the thirty iterations as independent, lies above zero for \NUM{map-gain-pos-a-k1} of the \NUM{map-pairs-a} ordered pairs.
 The mean gain falls below zero by $K=25$ ($\NUM{map-gain-a-k25}$ points), and with the full pool the interval lies below zero for \NUM{map-gain-neg-a-kall} pairs.
 All eight configurations follow the same course: the mean gain at $K=1$ ranges from $\NUM{map-gain-v-k1}$ (V) to $\NUM{map-gain-avt-k1}$ points (AVT), and at $K=25$ it is negative in every configuration.
-The size of the gain is largely a property of the two corpora.
-An additive model with one effect per target and one per source explains \NUM{map-share-a-lo}--\NUM{map-share-v-hi}\% of the variance of the gains and of the largest budget at which a source still helps, across A, A~(HuBERT), V, and AV.
-The rest of Part~I explains this course through what the labels change in the classifier.
+The size of the gain is largely a property of the two corpora: an additive model with one effect per target and one per source explains \NUM{map-share-a-lo}--\NUM{map-share-v-hi}\% of the variance of the gains and of the largest budget at which a source still helps, across A, A~(HuBERT), V, and AV.
 
 \begin{figure*}[t]
 \centering
 \FIG{gainmap}{\textwidth}
-\caption{The gain map. (a)~Mean gain of pooling over training on the target labels alone (pooled minus target-only UAR in the same iteration), averaged over ordered pairs, against the label budget $K$ per emotion. (b)~For A, V, AV, and T, share of pairs whose 95\% interval of the gain lies above zero, includes zero, or lies below zero; these intervals treat the thirty iterations as independent, which makes them too narrow for IEMOCAP targets. All ordered pairs, including the two pairs of IEMOCAP sessions; the pooled classifier uses the penalty of the source-only classifier.}
+\caption{The gain map. (a)~Mean gain of pooling over target-only training (pooled minus target-only UAR in the same iteration) over ordered pairs, against $K$. (b)~For A, V, AV, and T, share of pairs whose 95\% interval of the gain lies above zero, includes zero, or lies below zero (too narrow for IEMOCAP targets, whose iterations share test folds). All ordered pairs; the pooled classifier uses the penalty of the source-only classifier.}
 \label{fig:gainmap}
 \end{figure*}
 
 \subsection{Two Costs of a Few Labels}
 \label{sec:part1-costs}
 
-We analyze the pairwise decisions of Section~\ref{sec:setting-model} under three assumptions.
-\begin{enumerate}
-\item[(A1)] Within each emotion, the score difference $z$ of a pair is Gaussian with a variance shared by the two emotions, so that \eqref{eq:twocloud} gives the pairwise accuracy.
-\item[(A2)] The learner keeps a finite $\ell_2$ penalty on the weights and leaves the intercepts unpenalized. With a vanishing penalty on separable data, additive corrections of the logits lose their effect~\cite{kini2021labelimbalanced}; a finite penalty keeps the intercepts free to move.
-\item[(A3)] The $K$ labels per emotion are a random draw from the pool.
-\end{enumerate}
+We assume that (A1)~within each emotion the score difference $z$ of a pair is Gaussian with a variance shared by the two emotions, so that \eqref{eq:twocloud} holds; (A2)~the learner keeps a finite $\ell_2$ penalty on the weights and none on the intercepts (with a vanishing penalty on separable data, additive corrections of the logits lose their effect~\cite{kini2021labelimbalanced}); and (A3)~the $K$ labels per emotion are a random draw from the pool.
 
 \emph{Threshold.}
 With the direction fixed, the intercept that balances two emotions places the threshold at the midpoint of the two class means of $z$.
@@ -44,17 +36,14 @@ where $\phi$ is the standard normal density and the maximum over $d$ is attained
 A handful of labels therefore removes most of any threshold offset, however large the offset was.
 
 \emph{Direction.}
-Estimating the direction requires estimating a vector, and its error shrinks with the ratio of an effective dimension $q$ to $K$.
-For a linear rule estimated from $K$ labels per emotion, the separation behaves as
+The error of an estimated direction shrinks with the ratio of an effective dimension $q$ to $K$: for a linear rule estimated from $K$ labels per emotion, the separation behaves as
 \begin{equation}
 \label{eq:dircost}
 d(K) = \frac{\Delta}{\sqrt{1 + q/K}},
 \end{equation}
 the form obtained from the dimension-proportional term of the asymptotic expansion of the misclassification rate of the linear discriminant, which we read as the cost of the direction~\cite{okamoto1963asymptotic,raudys1998intrinsic}.
-We measure $q$ by fitting \eqref{eq:dircost} to the separations of target-only classifiers along the label budget.
-The fitted $q$ is $\NUM{p1-qdir-a}$ for WavLM audio, $\NUM{p1-qdir-ah}$ for HuBERT audio, $\NUM{p1-qdir-av}$ for AV, and $\NUM{p1-qdir-v}$ for the face, so for audio a direction comparable to the target's best needs on the order of twenty labels per emotion.
-In the ranges of $K$ studied here, labels thus fix thresholds cheaply and audio directions slowly.
-Four predictions follow; Table~\ref{tab:part1} collects the per-configuration measurements that test the first two.
+Fitted to the separations of target-only classifiers along the label budget, $q$ is $\NUM{p1-qdir-a}$ for WavLM audio, $\NUM{p1-qdir-ah}$ for HuBERT audio, $\NUM{p1-qdir-av}$ for AV, and $\NUM{p1-qdir-v}$ for the face, so for audio a direction comparable to the target's best needs on the order of twenty labels per emotion.
+Four predictions follow; Table~\ref{tab:part1} collects the measurements that test the first two.
 (P1)~Most of the loss of a source-only classifier that a few labels recover is threshold loss.
 (P2)~The share of the gain that comes from the threshold falls as $K$ grows.
 (P3)~Pooling corrects the threshold in proportion to the weight that the target receives (Section~\ref{sec:part1-pooling}).
@@ -63,31 +52,29 @@ Four predictions follow; Table~\ref{tab:part1} collects the per-configuration me
 \begin{figure}[t]
 \centering
 \FIG{twocloud}{\columnwidth}
-\caption{Threshold and direction of a pairwise decision. (a)~Two Gaussian classes along the score difference $z$; the threshold offset $o$ moves the decision point away from the midpoint, and the separation $d$ is set by the direction. (b)~Loss of source-only classifiers against the target's best linear rule, split into the threshold loss and the direction loss, in points of pairwise accuracy, averaged over the six emotion pairs and over ordered pairs from different corpora.}
+\caption{Threshold and direction of a pairwise decision. (a)~Two Gaussian classes along the score difference $z$; the offset $o$ moves the decision point away from the midpoint, and the direction sets the separation $d$. (b)~Threshold and direction losses of source-only classifiers against the target's best linear rule, in points of pairwise accuracy, averaged over emotion pairs and over ordered pairs from different corpora.}
 \label{fig:twocloud}
 \end{figure}
 
 \subsection{What the Labels Fix}
 \label{sec:part1-fix}
 
-The two-cloud model reproduces the pairwise accuracies of the classifiers we train.
-Over all emotion pairs and ordered pairs of the eight configurations, the accuracy predicted from the measured $d$ and $o$ correlates with the measured accuracy at \NUM{p1-e13-fit-r-lo}--\NUM{p1-e13-fit-r-hi}, with a mean absolute error of \NUM{p1-e13-fit-mae-lo}--\NUM{p1-e13-fit-mae-hi} points.
+The two-cloud model reproduces the pairwise accuracies of the classifiers we train: over all emotion pairs and ordered pairs of the eight configurations, the accuracy predicted from the measured $d$ and $o$ correlates with the measured accuracy at \NUM{p1-e13-fit-r-lo}--\NUM{p1-e13-fit-r-hi}, with a mean absolute error of \NUM{p1-e13-fit-mae-lo}--\NUM{p1-e13-fit-mae-hi} points.
 
-\emph{Source-only classifiers lose mainly through the direction, except on the face, where the two losses are about equal.}
+\emph{Source-only classifiers lose mainly through the direction, except on the face.}
 Over ordered pairs from different corpora, the threshold loss is \NUM{p1-e13-loss-offset-a-xsame} points and the direction loss \NUM{p1-e13-loss-dir-a-xsame} points for WavLM audio (Fig.~\ref{fig:twocloud}b), \NUM{p1-e13-loss-offset-v-xsame} and \NUM{p1-e13-loss-dir-v-xsame} points for the face, and \NUM{p1-e13-loss-offset-t-xsame} and \NUM{p1-e13-loss-dir-t-xsame} points for text.
 The median over pairs of the threshold's share of the loss is \NUM{p1-e29-lossshare-lo}--\NUM{p1-e29-lossshare-hi} across configurations.
 
 \emph{The threshold loss is mostly a shift of the corpus mean.}
-Centering, which subtracts the mean of the unlabeled utterances of each corpus and uses no label, raises the source-only UAR by \NUM{p1-center-srconly-a} points for WavLM audio, \NUM{p1-center-srconly-ah} for HuBERT audio, and \NUM{p1-center-srconly-v} for the face, and it raises it for \NUM{p1-center-srconly-up-a-n} of the \NUM{p1-center-srconly-pairs-a-n} audio pairs (three iterations).
-Refitting only the intercepts of the source-only classifier on $K=5$ labels per emotion, with the weights frozen, gains \NUM{p1-d1-gain-a-k5} points for WavLM audio, close to the \NUM{p1-merged-gain-a-k5} points that pooling gains with the same labels.
+Centering, which subtracts the mean of the unlabeled utterances of each corpus, raises the source-only UAR by \NUM{p1-center-srconly-a} points for WavLM audio, \NUM{p1-center-srconly-ah} for HuBERT audio, and \NUM{p1-center-srconly-v} for the face, and it raises it for \NUM{p1-center-srconly-up-a-n} of the \NUM{p1-center-srconly-pairs-a-n} audio pairs (three iterations).
+Refitting only the intercepts of the source-only classifier on $K=5$ labels per emotion gains \NUM{p1-d1-gain-a-k5} points for WavLM audio, close to the \NUM{p1-merged-gain-a-k5} points that pooling gains with the same labels.
 After centering, the two gains shrink to \NUM{p1-center-d1-gain-a-k5} and \NUM{p1-center-merged-gain-a-k5} points (Fig.~S2 of the supplementary material).
 
 \emph{The labels go to the threshold first (P1, P2).}
-Writing the improvement of the pooled classifier over the source-only classifier as the sum of a threshold part and a direction part, computed from the measured $d$ and $o$ with \eqref{eq:twocloud}, the threshold part dominates for single-modality audio and face at $K \le 5$: its share is \NUM{p1-e29-critshare-kle5-single-lo}--\NUM{p1-e29-critshare-kle5-single-hi} across WavLM audio, HuBERT audio, and the face at $K=1$ and $K=5$ (Fig.~\ref{fig:thresholdshare}a and Table~\ref{tab:part1}; the shares exclude the two pairs of IEMOCAP sessions).
-The share is much larger than the threshold's share of the loss, so the labels correct the cheap part of the error first.
-As predicted, the share falls with $K$; at $K=10$ it is \NUM{p1-e29-critshare-k10-ah} for HuBERT audio.
+Split into a threshold part and a direction part with \eqref{eq:twocloud}, the improvement of the pooled classifier over the source-only classifier is dominated by the threshold part for single-modality audio and face at $K \le 5$: its share is \NUM{p1-e29-critshare-kle5-single-lo}--\NUM{p1-e29-critshare-kle5-single-hi} across WavLM audio, HuBERT audio, and the face at $K=1$ and $K=5$ (Fig.~\ref{fig:thresholdshare}a and Table~\ref{tab:part1}; the shares exclude the two pairs of IEMOCAP sessions).
+This share is much larger than the threshold's share of the loss, so the labels correct the cheap part of the error first, and it falls with $K$ (\NUM{p1-e29-critshare-k10-ah} for HuBERT audio at $K=10$).
 In the fused and text configurations the threshold loss is smaller than in audio, and at $K=5$ the threshold part is about half of the gain or less (\NUM{p1-e29-critshare-k5-fused-text-lo}--\NUM{p1-e29-critshare-k5-fused-text-hi}, with \NUM{p1-e29-critshare-k5-av} for AV); at $K=1$ it still exceeds half for AV (\NUM{p1-e29-critshare-k1-av}), VT (\NUM{p1-e29-critshare-k1-vt}), and AVT (\NUM{p1-e29-critshare-k1-avt}).
-A two-layer perceptron on the same features gives threshold shares of \NUM{p1-e30-critshare-k5-audio-lo}--\NUM{p1-e30-critshare-k5-audio-hi} for audio and \NUM{p1-e30-critshare-k5-v-wd2}--\NUM{p1-e30-critshare-k5-v-wd4} for the face at $K=5$, so the pattern is not specific to the linear head, although for HuBERT audio it falls below half.
+A two-layer perceptron gives threshold shares of \NUM{p1-e30-critshare-k5-audio-lo}--\NUM{p1-e30-critshare-k5-audio-hi} for audio and \NUM{p1-e30-critshare-k5-v-wd2}--\NUM{p1-e30-critshare-k5-v-wd4} for the face at $K=5$, so the pattern is not specific to the linear head, although for HuBERT audio it falls below half.
 
 \emph{The direction stays where the source left it.}
 Under \eqref{eq:dircost}, even the optimal combination of the source direction with ten labels per emotion recovers \NUM{p1-dirloss-recov-bound-k10-audio-lo}--\NUM{p1-dirloss-recov-bound-k10-audio-hi}\% of the direction loss for audio, and hypothesis transfer, which starts from the source classifier and refits it on the labels, recovers \NUM{p1-dirloss-recov-ht-k10-a}\% for WavLM and \NUM{p1-dirloss-recov-ht-k10-ah}\% for HuBERT audio (medians over pairs from different corpora).
@@ -95,12 +82,12 @@ Under \eqref{eq:dircost}, even the optimal combination of the source direction w
 \begin{figure}[t]
 \centering
 \FIG{thresholdshare}{\columnwidth}
-\caption{Where the labels go. (a)~Share of the improvement of the pooled classifier over the source-only classifier that comes from the threshold, against $K$ (median over ordered pairs without the two pairs of IEMOCAP sessions; ten iterations). Solid lines: single-modality audio and face; dashed lines: fused and text configurations; the horizontal black line marks one half. (b)~Expected residual errors after estimation from $K$ labels per emotion: the threshold offset falls as $1/(2K)$ and the direction error as $q/K$, with $q$ the median over targets fitted for A, A~(HuBERT), V, and AV.}
+\caption{Where the labels go. (a)~Threshold's share of the improvement of the pooled over the source-only classifier (median over ordered pairs without the two pairs of IEMOCAP sessions; ten iterations; dashed: fused and text). (b)~Expected residual errors after estimation from $K$ labels per emotion: $1/(2K)$ for the threshold offset and $q/K$ for the direction, with $q$ the median over targets.}
 \label{fig:thresholdshare}
 \end{figure}
 
 \begin{table}[t]
-\caption{Part~I quantities per configuration, over ordered pairs from different corpora (for A~(HuBERT) the losses include all pairs). Losses of the source-only classifier in points of pairwise accuracy; $q$ is the effective dimension of the direction in \eqref{eq:dircost}; the last three columns give the share of the pooled improvement that comes from the threshold (median over ordered pairs).}
+\caption{Part~I quantities over ordered pairs from different corpora (for A~(HuBERT) the losses include all pairs): losses of the source-only classifier (points of pairwise accuracy), $q$ of \eqref{eq:dircost}, and the threshold's share of the pooled improvement (median over pairs).}
 \label{tab:part1}
 \centering
 \footnotesize
@@ -126,27 +113,24 @@ AVT & \NUM{p1-e13-loss-offset-avt-xsame} & \NUM{p1-e13-loss-dir-avt-xsame} & -- 
 \subsection{How Pooling Corrects the Threshold}
 \label{sec:part1-pooling}
 
-Pooling corrects the threshold without a separate intercept for the target, and one Newton step from the source-only solution shows how (P3).
-Let $N_s$ and $N_t$ be the numbers of source and target training utterances, $\kappa_s$ and $\kappa_t$ the mean curvatures of the loss at the source-only solution, $A_s$ the curvature-weighted scatter of the source features, and $\boldsymbol{\delta}$ the difference between the target mean and the curvature-weighted source mean.
+Pooling corrects the threshold without a separate intercept for the target; one Newton step from the source-only solution shows how (P3).
+Let $N_s$ and $N_t$ be the numbers of source and target training utterances, $\kappa_s$ and $\kappa_t$ the mean curvatures of the loss at the source-only solution, $A_s$ the curvature-weighted scatter of the source features, and $\boldsymbol{\delta}$ the target mean minus the curvature-weighted source mean.
 One step leaves the fraction $1 - \lambda$ of the source-only offset $o_s$, with
 \begin{equation}
 \label{eq:lambda}
 \lambda = \frac{\rho}{1 + \rho},\qquad \rho = N_t\kappa_t\left[\frac{1}{N_s\kappa_s} + \boldsymbol{\delta}^{\top}\left(A_s + \frac{I}{C}\right)^{-1}\boldsymbol{\delta}\right].
 \end{equation}
-The first term in the bracket is the intercept path, through which the target corrects the threshold in proportion to its share of the training weight.
-The second term is a weight path: when the target is linearly separable from the source along directions in which the source varies little, the pooled classifier places weight on such a direction, and that weight acts as an intercept that only the target utterances see.
-This form is the group influence of a set of points~\cite{koh2019accuracy,pregibon1981logistic} written for added points, and its intercept path reduces to the threshold shift $m/(n+m)$ of a one-dimensional discriminant pooled from $n$ target and $m$ source points~\cite{desilva2023value}.
+The first term is an intercept path, through which the target corrects the threshold in proportion to its share of the training weight; the second is a weight path: when the target is separable from the source along directions in which the source varies little, the pooled classifier puts weight on such a direction, which acts as an intercept that only target utterances see.
+This form is the group influence of a set of points~\cite{koh2019accuracy,pregibon1981logistic} written for added points, and its intercept path reduces to the threshold shift $m/(n+m)$ of a one-dimensional discriminant pooled from $n$ target and $m$ source points~\cite{desilva2023value}; the derivation is in the supplementary material.
 
-The measured correction $\lambda = 1 - o_m/o_s$ of pooled classifiers, computed from their $d$ and $o$ on the target, is ordered as \eqref{eq:lambda} predicts, although the expression overestimates its average (Fig.~S1 of the supplementary material).
-Over ordered pairs and $K \in \{1, 5, 10\}$, the rank correlation between the predicted and the measured $\lambda$ is \NUM{p1-e15-lam-rho-lo}--\NUM{p1-e15-lam-rho-hi} across A, A~(HuBERT), V, and AV (ten iterations).
-The full Newton step orders the corrections with a rank correlation of \NUM{p1-e16-lam-rho-lo}--\NUM{p1-e16-lam-rho-hi}, and it also predicts the change of the direction for V and AV (\NUM{p1-e16-dir-rho-video-lo}--\NUM{p1-e16-dir-rho-video-hi}), but less well for audio (\NUM{p1-e16-dir-rho-audio-lo}--\NUM{p1-e16-dir-rho-audio-hi}), where the second-order expansion is less accurate.
-The weight path is consistent with the observation that the distance between corpora does not predict the gain: a large distance lowers the source-only accuracy but also widens the path through which pooling corrects the threshold.
-The derivation is in the supplementary material.
+The measured correction $\lambda = 1 - o_m/o_s$ of pooled classifiers is ordered as \eqref{eq:lambda} predicts, although the expression overestimates its average (Fig.~S1 of the supplementary material): over ordered pairs and $K \in \{1, 5, 10\}$, the rank correlation between the predicted and the measured $\lambda$ is \NUM{p1-e15-lam-rho-lo}--\NUM{p1-e15-lam-rho-hi} across A, A~(HuBERT), V, and AV (ten iterations).
+The full Newton step orders them at \NUM{p1-e16-lam-rho-lo}--\NUM{p1-e16-lam-rho-hi} and predicts the change of the direction better for V and AV (\NUM{p1-e16-dir-rho-video-lo}--\NUM{p1-e16-dir-rho-video-hi}) than for audio (\NUM{p1-e16-dir-rho-audio-lo}--\NUM{p1-e16-dir-rho-audio-hi}).
+The weight path is consistent with the observation that the distance between corpora does not predict the gain: a large distance lowers the source-only accuracy but widens the path through which pooling corrects the threshold.
 
 \subsection{What a Source Is Worth}
 \label{sec:part1-value}
 
-A source contributes a direction, and its value can be expressed in target labels (P4).
+A source contributes a direction, whose value can be expressed in target labels (P4).
 Let $e$ be the efficiency of the source direction for the target, the factor by which it scales the target's best separation, $d = e\Delta$.
 Under \eqref{eq:dircost}, the direction estimated from $K$ labels has a noise-to-signal ratio $q/K$, and the source direction has the ratio $(1 - e^2)/e^2$.
 Combining two independent estimates with optimal weights adds their sample sizes, so starting from the source and refitting on $K$ labels behaves like training on the target alone with $K + n$ labels per emotion, where
@@ -154,24 +138,10 @@ Combining two independent estimates with optimal weights adds their sample sizes
 \label{eq:value}
 n = q\,\frac{e^2}{1 - e^2}.
 \end{equation}
-Equation~\eqref{eq:value} inverts the classical relation between the cosine of an estimated direction and the sample size~\cite{raudys1998intrinsic,dobriban2018highdimensional}; the inversion turns the source's direction into a count of labels, and $n$ does not depend on $K$.
+Equation~\eqref{eq:value} inverts the classical relation between the cosine of an estimated direction and the sample size~\cite{raudys1998intrinsic,dobriban2018highdimensional}, and $n$ does not depend on $K$.
 
-We measure $n$ by locating the UAR of hypothesis transfer on the target-only learning curve and subtracting $K$ (Fig.~\ref{fig:sourcevalue}).
+We measure $n$ by locating the UAR of hypothesis transfer on the target-only learning curve and subtracting $K$ (Fig.~S3 of the supplementary material).
 For a single audio source, $n$ rises only from \NUM{p1-e32-n1src-audio-lo} to \NUM{p1-e32-n1src-audio-hi} labels per emotion while $K$ grows from $5$ to $25$; for the face it is \NUM{p1-e32-n1src-v-k5}--\NUM{p1-e32-n1src-v-k10}.
 Starting from all sources pooled, $n$ is \NUM{p1-e32-nall-a-k5} and \NUM{p1-e32-nall-a-k10} labels per emotion for WavLM audio at $K=5$ and $K=10$.
 Across audio pairs, the rank correlation between the predicted and the measured $n$ is \NUM{p1-e32-rho-audio-lo}--\NUM{p1-e32-rho-audio-hi}, and the measured values are \NUM{p1-e32-ratio-audio-lo}--\NUM{p1-e32-ratio-audio-hi} times the predicted ones; for all sources pooled the ratio is \NUM{p1-e32-allsrc-ratio-lo}--\NUM{p1-e32-allsrc-ratio-hi} across A, A~(HuBERT), V, and AV.
 
-\begin{figure}[t]
-\centering
-\FIG{sourcevalue}{\columnwidth}
-\caption{What a source is worth. Predicted value $n = q e^2/(1-e^2)$ against the value measured on the target-only learning curve, in labels per emotion, for single sources and for all sources pooled ($K=5$ and $K=10$; pairs without the two pairs of IEMOCAP sessions). The diagonal marks agreement; points beyond the range of the learning curve are shown in the top band and points with $n \le 0$ in the bottom band.}
-\label{fig:sourcevalue}
-\end{figure}
-
-\subsection{Summary of Part~I}
-\label{sec:part1-summary}
-
-For single-modality audio and face features, a few target labels fix the thresholds, and centering removes most of the threshold error without any label.
-The direction is the expensive part: audio needs on the order of $q$ labels per emotion to approach the target's best direction, and a source supplies about ten of them, all sources together two to three times as many.
-Further progress with $K \le 5$ therefore requires more direction information than the labels and the sources provide in this form.
-Part~II derives where that information can come from.

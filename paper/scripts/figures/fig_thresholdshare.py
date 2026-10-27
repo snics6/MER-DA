@@ -74,7 +74,7 @@ def main() -> None:
     T = pd.read_csv(P1.E28T9 / "e28t9_targets.csv")
     q = {k: float(T[T.kind == style.CONFIG[k]["kind"]].q_dir.median()) for k in QKINDS}
 
-    fig = plt.figure(figsize=(style.COL, 3.4))
+    fig = plt.figure(figsize=(style.COL, 3.0))
     gs = fig.add_gridspec(2, 1, hspace=0.5, left=0.16, right=0.78, bottom=0.1, top=0.95)
     ax = fig.add_subplot(gs[0])
     bx = fig.add_subplot(gs[1])

@@ -16,8 +16,12 @@ ledger:
 numbers:
 	@python3 scripts/gen_numbers_tex.py
 
-$(MAIN).pdf: $(MAIN).tex numbers.tex $(wildcard sections/*.tex) references.bib
+$(MAIN).pdf: $(MAIN).tex numbers.tex $(wildcard sections/*.tex) references_ieee.bib
 	$(LATEXMK) $(MAIN).tex
+
+# 組版用の参考文献（会議論文の編者・出版社・叢書を外す．誌名・会議名は正式名のまま）．正本は references.bib．
+references_ieee.bib: references.bib scripts/ieee_bib.py
+	@python3 scripts/ieee_bib.py
 
 watch:
 	$(LATEXMK) -pvc $(MAIN).tex
@@ -36,6 +40,7 @@ check:
 	@echo "--- 台帳と結果ファイル ---"
 	@$(PY) scripts/build_ledger.py --check
 	@python3 scripts/gen_numbers_tex.py
+	@python3 scripts/ieee_bib.py
 	@$(LATEXMK) $(MAIN).tex > /dev/null 2>&1 || true
 	@echo "--- ビルド ---"
 	@echo "main:  errors=$$(grep -cE '^! |:[0-9]+: .*[Ee]rror' main.log) undefined=$$(grep -icE 'undefined (reference|citation)' main.log) overfull=$$(python3 scripts/count_overfull.py main.log) pages=$$(pdfinfo main.pdf 2>/dev/null | awk '/Pages/{print $$2}')"

@@ -62,7 +62,7 @@ def gains() -> list[tuple[str, pd.Series, int]]:
 
 def main() -> None:
     style.setup()
-    fig, (a1, a2) = style.plt.subplots(2, 1, figsize=(style.COL, 3.35), sharex=True, layout="constrained")
+    fig, (a1, a2) = style.plt.subplots(2, 1, figsize=(style.COL, 3.0), sharex=True, layout="constrained")
     xs = list(range(len(KS)))
     L = levels()
     sty = {"target": dict(color=style.INK, ls=":", marker="v", label="Target only"),

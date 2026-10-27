@@ -27,7 +27,7 @@
 From each video we take every $s$-th frame with $s = \lfloor 5f/25 \rfloor$ for a frame rate of $f$ frames per second, which gives five to six frames per second, and at most $400$ frames per utterance, sampled evenly.
 IEMOCAP videos show two speakers side by side; we keep the half that shows the speaker.
 YOLOv8n-face~\cite{yolov8face} detects faces with a confidence threshold of $0.25$, and we keep the largest face of each frame and resize it to $224\times224$ pixels.
-The ResNet-50 of Ryumina et al.~\cite{ryumina2022facial} maps each crop to $512$ dimensions; the second encoder, the image encoder of CLIP ViT-L/14~\cite{radford2021clip}, maps the same crops (stored as boxes) to $1024$ dimensions.
+The ResNet-50 of Ryumina et al.~\cite{ryumina2022facial}, trained on VGGFace2~\cite{cao2018vggface2} and fine-tuned on AffectNet~\cite{mollahosseini2019affectnet}, maps each crop to $512$ dimensions; the second encoder, the image encoder of CLIP ViT-L/14~\cite{radford2021clip}, maps the same crops (stored as boxes) to $1024$ dimensions.
 Frame embeddings are averaged within segments of $20$ face frames shifted by $10$ frames, a final segment shorter than $10$ frames is dropped, and the segment means are averaged.
 We do not use the standard deviation across segments, because utterances with fewer than $20$ face frames have one segment and a zero deviation, so that feature encodes utterance length.
 
@@ -87,6 +87,13 @@ Fig.~\ref{fig:supp-lambda} compares the expression with the measured correction 
 \label{fig:supp-centering}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\FIG{sourcevalue}{\columnwidth}
+\caption{What a source is worth. Predicted $n = q e^2/(1-e^2)$ against $n$ measured on the target-only learning curve, in labels per emotion, for single sources and all sources pooled ($K=5$ and $10$; without the two pairs of IEMOCAP sessions). Points beyond the learning curve are in the top band, and points with $n \le 0$ in the bottom band.}
+\label{fig:supp-sourcevalue}
+\end{figure}
+
 \section{Gain Map with Cross-Validated Penalty}
 \label{sec:supp-cvmap}
 
@@ -99,11 +106,61 @@ Fig.~\ref{fig:supp-lambda} compares the expression with the measured correction 
 
 Selecting $C$ on the target labels lowers the gain at small $K$, partly through ties at $K=1$ that the tie rule resolves toward a weak penalty (Section~3 of the main text).
 
+\section{Additional Results for Part~II}
+\label{sec:supp-part2}
+
+\begin{figure}[t]
+\centering
+\FIG{capture}{\columnwidth}
+\caption{Label-free selection does not find the direction error. Fraction of the start's direction error $E_0$ captured by the span of $K=5$ labels per emotion, relative to random selection, for seven label-free rules and for a teaching rule that knows all candidate labels (upper reference), for A, V, and T. Points are ratios of target means; whiskers show the range of the per-target ratios. Ten iterations.}
+\label{fig:supp-capture}
+\end{figure}
+
+\section{Additional Results for the Comparison}
+\label{sec:supp-compare}
+
+\begin{figure*}[t]
+\centering
+\FIG{compare}{\textwidth}
+\caption{Differences from the five-value start at $K=0$ and $K=5$ for the strongest tuned competitor, ours, and ours-ext, per configuration and student (the data of Table~3 of the main text). Bars are means over targets and ten iterations; whiskers show the range across targets. Labels below the bars name the strongest competitor (GD, generalized distillation; KD, distillation with a temperature; HPL, hard pseudo-labels; RB, output rebalancing; ST, self-training; CoT, co-training; CoR, co-regularization).}
+\label{fig:supp-compare}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\FIG{kcurves}{\columnwidth}
+\caption{Differences from the five-value start against $K$ for the four students of the AVT configuration: ours, ours-ext, and the strongest tuned competitor, which is selected again at each $K$.}
+\label{fig:supp-kcurves}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\FIG{entmin}{\columnwidth}
+\caption{Differences from the five-value start at $K=0$ for the fused students, per target: fixed entropy minimization and ours-ext. Each point is one target in one configuration.}
+\label{fig:supp-entmin}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\FIG{finetune}{\columnwidth}
+\caption{Frozen versus fine-tuned audio encoders. UAR of the frozen five-value start and of our method, and of low-rank adaptation trained on the $K$ labels alone, with the anchor, and with the cross-modal weak labels, with and without centering, at $K=0$ and $K=5$ (four targets, three iterations).}
+\label{fig:supp-finetune}
+\end{figure}
+
+\section{Fine-Tuning Check}
+\label{sec:supp-finetune}
+
+We fine-tuned WavLM with low-rank adapters for the audio student of four targets over three iterations (Fig.~\ref{fig:supp-finetune}).
+Fine-tuning on $K=5$ labels per emotion falls \NUM{cmp-ft-konly-below-frozen-e39-k5} points below the frozen five-value start (\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi} across targets), and anchoring the adapted head to the start adds \NUM{cmp-ft-anchor-vs-konly-k5} points.
+The cross-modal weak labels raise the fine-tuned model by \NUM{cmp-ft-weak-vs-start-k0} points at $K=0$ and \NUM{cmp-ft-weak-vs-anchor-k5} at $K=5$, but the fine-tuned version of our method, with one fixed weak-label configuration, stays \NUM{cmp-ft-ours-below-frozen-ours-k0} and \NUM{cmp-ft-ours-below-frozen-ours-k5} points below the same configuration on frozen features, below it in all \NUM{cmp-ft-pairs-n} target and iteration pairs at each $K$.
+Adding centering raises the fine-tuned start, the model trained on the $K$ labels alone, and the anchored model by \NUM{cmp-ftc-lift-lo}--\NUM{cmp-ftc-lift-hi} points, and the fine-tuned version of our method by \NUM{cmp-ftc-lift-ours-k0}--\NUM{cmp-ftc-lift-ours-k5} points, but it closes only \NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\% of the gap to the frozen pipeline.
+In this check, the frozen encoder with a linear head is the stronger base with a few labels, and the gain from cross-modal weak labels persists on the fine-tuned encoder.
+
 \section{Full Comparison Tables}
 \label{sec:supp-tables}
 
 \input{supp/tables}
 
 \bibliographystyle{IEEEtran}
-\bibliography{references}
+\bibliography{references_ieee}
 \end{document}

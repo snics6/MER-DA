@@ -44,7 +44,7 @@
 発話あたり最大$400$フレームを等間隔に抜き出す．
 IEMOCAPの動画は2人の話者を左右に並べて映しているので，発話の話者を映す半分を残す．
 YOLOv8n-face\cite{yolov8face}が確信度のしきい値$0.25$で顔を検出し，各フレームの最大の顔を残して$224\times224$画素の大きさにそろえる．
-Ryuminaら\cite{ryumina2022facial}のResNet-50が各切り出しを$512$次元に写し，第2のエンコーダであるCLIP ViT-L/14\cite{radford2021clip}の画像エンコーダが同じ切り出し（枠として保存したもの）を$1024$次元に写す．
+VGGFace2\cite{cao2018vggface2}で学習しAffectNet\cite{mollahosseini2019affectnet}で微調整した，Ryuminaら\cite{ryumina2022facial}のResNet-50が各切り出しを$512$次元に写し，第2のエンコーダであるCLIP ViT-L/14\cite{radford2021clip}の画像エンコーダが同じ切り出し（枠として保存したもの）を$1024$次元に写す．
 フレームの埋め込みを，$10$フレームずつずらした$20$顔フレームの区間の中で平均し，$10$フレームより短い最後の区間は捨て，区間の平均をさらに平均する．
 区間の間の標準偏差は使わない．
 顔のフレームが$20$未満の発話は区間が1つで標準偏差が0になり，この特徴が発話の長さを表してしまうからである．
@@ -114,6 +114,13 @@ $K$本のラベルからのターゲットの推定の比は$q/K$であり，効
 \label{fig:supp-centering}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\FIG{sourcevalue}{\columnwidth}
+\caption{ソースの価値．予言した$n = q e^2/(1-e^2)$と，ターゲットのみの学習曲線の上で測った$n$を，感情ごとのラベルの本数で，単一のソースとすべてのソースを合併したものについて比べる（$K=5$と$10$．IEMOCAPの2つのセッションの対を除く）．学習曲線の範囲を超える点は上の帯に，$n \le 0$の点は下の帯に示す．}
+\label{fig:supp-sourcevalue}
+\end{figure}
+
 \section{交差検証で罰則を選んだ利得の地図}
 \label{sec:supp-cvmap}
 
@@ -127,11 +134,62 @@ $K$本のラベルからのターゲットの推定の比は$q/K$であり，効
 ターゲットのラベルで$C$を選ぶと，$K$が小さいときの利得が下がる．
 その一因は$K=1$での同点であり，同点のときの規則が弱い罰則の側を選ぶ（本文の3節）．
 
+\section{第II部の追加の結果}
+\label{sec:supp-part2}
+
+\begin{figure}[t]
+\centering
+\FIG{capture}{\columnwidth}
+\caption{ラベルを使わない選択は向きの誤差を見つけない．感情ごとに$K=5$本のラベルが張る空間が捉える出発点の向きの誤差$E_0$の割合を，ランダムな選択に対する比で，ラベルを使わない7つの規則と，すべての候補のラベルを知る教示の規則（上側の参照）について，A，V，Tで示す．点はターゲットの平均どうしの比であり，ひげはターゲットごとの比の範囲を示す．10回の反復．}
+\label{fig:supp-capture}
+\end{figure}
+
+\section{比較の追加の結果}
+\label{sec:supp-compare}
+
+\begin{figure*}[t]
+\centering
+\FIG{compare}{\textwidth}
+\caption{$K=0$と$K=5$における，調整版の最も強い比較手法，提案法，提案法の拡張版の，5つの値を選んだ出発点からの差を，構成と生徒ごとに示す（本文の表3のデータ）．棒はターゲットと10回の反復にわたる平均，ひげはターゲット間の範囲を示す．棒の下の文字は最も強い比較手法の名前である（GD：一般化蒸留，KD：温度つきの蒸留，HPL：ハードな擬似ラベル，RB：出力の再均衡化，ST：自己訓練，CoT：共訓練，CoR：共正則化）．}
+\label{fig:supp-compare}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\FIG{kcurves}{\columnwidth}
+\caption{AVTの構成の4つの生徒について，提案法，提案法の拡張版，調整版の最も強い比較手法の，5つの値を選んだ出発点からの差を$K$に対して示す．最も強い比較手法は$K$ごとに選び直す．}
+\label{fig:supp-kcurves}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\FIG{entmin}{\columnwidth}
+\caption{融合の生徒における，$K=0$での5つの値を選んだ出発点からの差を，ターゲットごとに示す．既定値版のエントロピー最小化と提案法の拡張版．各点は1つの構成の1つのターゲットである．}
+\label{fig:supp-entmin}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\FIG{finetune}{\columnwidth}
+\caption{凍結した音声エンコーダと微調整した音声エンコーダ．凍結した5つの値を選んだ出発点と提案法のUAR，および低ランクの適応を$K$本のラベルだけで学習したもの，アンカーを加えたもの，別のモダリティからの弱いラベルを加えたもののUARを，中心化の有無について，$K=0$と$K=5$で示す（4つのターゲット，3回の反復）．}
+\label{fig:supp-finetune}
+\end{figure}
+
+\section{微調整の確認}
+\label{sec:supp-finetune}
+
+4つのターゲットの音声の生徒について，3回の反復で，WavLMを低ランクのアダプタで微調整した（図\ref{fig:supp-finetune}）．
+感情ごとに$K=5$本のラベルで微調整すると，凍結した5つの値を選んだ出発点を\NUM{cmp-ft-konly-below-frozen-e39-k5}ポイント下回り（ターゲット間で\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi}），適応したヘッドを出発点にアンカーすると\NUM{cmp-ft-anchor-vs-konly-k5}ポイント上がる．
+別のモダリティからの弱いラベルは，微調整したモデルを$K=0$で\NUM{cmp-ft-weak-vs-start-k0}ポイント，$K=5$で\NUM{cmp-ft-weak-vs-anchor-k5}ポイント上げる．
+しかし，弱いラベルの設定を1つに固定した提案法の微調整版は，凍結した特徴の上の同じ設定を\NUM{cmp-ft-ours-below-frozen-ours-k0}ポイントと\NUM{cmp-ft-ours-below-frozen-ours-k5}ポイント下回り，各$K$で\NUM{cmp-ft-pairs-n}のターゲットと反復の組のすべてで下回る．
+中心化を加えると，微調整した出発点，$K$本のラベルだけで学習したモデル，アンカーを加えたモデルは\NUM{cmp-ftc-lift-lo}--\NUM{cmp-ftc-lift-hi}ポイント，提案法の微調整版は\NUM{cmp-ftc-lift-ours-k0}--\NUM{cmp-ftc-lift-ours-k5}ポイント上がるが，凍結した処理の流れとの差のうち縮まるのは\NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\%だけである．
+この確認では，ラベルが少ないとき，凍結したエンコーダと線形ヘッドのほうが強い土台であり，別のモダリティからの弱いラベルによる利得は微調整したエンコーダの上でも残る．
+
 \section{比較の表の全体}
 \label{sec:supp-tables}
 
 \input{supp/tables}
 
 \bibliographystyle{../IEEEtran}
-\bibliography{../references}
+\bibliography{../references_ieee}
 \end{document}

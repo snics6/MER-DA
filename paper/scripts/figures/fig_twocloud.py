@@ -123,7 +123,7 @@ def bars(ax, loss) -> None:
 def main() -> None:
     style.setup()
     loss = e13_losses()
-    fig = plt.figure(figsize=(style.COL, 3.2))
+    fig = plt.figure(figsize=(style.COL, 2.8))
     gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.0], hspace=0.7, left=0.16, right=0.99, bottom=0.1, top=0.93)
     ax = fig.add_subplot(gs[0])
     bx = fig.add_subplot(gs[1])

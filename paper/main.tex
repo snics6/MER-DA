@@ -20,6 +20,7 @@
 
 
 \begin{document}
+\bstctlcite{IEEEexample:BSTcontrol}
 
 \title{What Few Target Labels Fix First: Threshold-versus-Direction Analysis and Cross-Modal Weak-Label Transfer for Cross-Corpus Multimodal Emotion Recognition}
 
@@ -31,7 +32,7 @@
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-A recognizer moved to a new corpus often has a few labels per emotion plus labeled data from other corpora. We analyze what these labels repair in a linear classifier on frozen audio, face, and text features across all ordered pairs of seven corpus groups. Splitting each pairwise decision into a threshold and a direction, we find that for single-modality audio and face with at most five labels per emotion, a fraction of \NUM{p1-e29-critshare-kle5-single-lo} to \NUM{p1-e29-critshare-kle5-single-hi} of what the labels add to a pooled classifier comes from correcting thresholds, whereas audio directions improve at a rate set by an effective dimension of \NUM{p1-qdir-audio-lo} to \NUM{p1-qdir-audio-hi}, and one source corpus is worth \NUM{p1-e32-n1src-audio-lo} to \NUM{p1-e32-n1src-audio-hi} labels per emotion of direction. Neither few labels nor label-free selection repairs the direction of a strong start. We therefore train an anchored linear student on weak labels that a fused classifier trained on the sources alone, seeing modalities the student lacks, assigns to all unlabeled target utterances. Extended with teachers refit on the target pool, the method beats the strongest of nine identically tuned competitors for all eleven students, including second encoders, at zero and five labels by \NUM{cmp-oursx-vs-best-range-lo} to \NUM{cmp-oursx-vs-best-range-hi} UAR points.
+A recognizer moved to a new corpus often has few labels per emotion besides labeled data from other corpora. We analyze what these labels repair in a linear classifier on frozen audio, face, and text features across pairs of seven corpus groups. Splitting each pairwise decision into a threshold and a direction shows that for single-modality audio and face with up to five labels per emotion, \NUM{p1-e29-critshare-kle5-single-lo} to \NUM{p1-e29-critshare-kle5-single-hi} of what the labels add to a pooled classifier comes from correcting thresholds, whereas audio directions improve at a rate set by an effective dimension of \NUM{p1-qdir-audio-lo} to \NUM{p1-qdir-audio-hi}, and one source corpus supplies \NUM{p1-e32-n1src-audio-lo} to \NUM{p1-e32-n1src-audio-hi} labels per emotion of direction. Neither few labels nor label-free selection repairs a strong start's direction. We therefore train an anchored linear student on weak labels that a source-trained fused classifier, seeing modalities the student lacks, assigns to all unlabeled target utterances. At zero and five labels, this raises every single-modality student above the start and beats the strongest of nine identically tuned competitors in \NUM{cmp-ours-vs-best-pos-n} of \NUM{cmp-ours-vs-best-cells-n} cells; extended with teachers refit on the target pool, it beats them for all eleven students, second encoders included, by \NUM{cmp-oursx-vs-best-range-lo} to \NUM{cmp-oursx-vs-best-range-hi} UAR points.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -53,6 +54,6 @@ Multimodal emotion recognition, cross-corpus, few-shot learning, domain adaptati
 \input{sections/9-conclusion}
 
 \bibliographystyle{IEEEtran}
-\bibliography{references}
+\bibliography{bstctl,references_ieee}
 
 \end{document}

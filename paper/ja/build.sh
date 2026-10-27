@@ -2,7 +2,7 @@
 # 日本語版の論文（main_ja.pdf）と補足資料（supplementary_ja.pdf）を作る．
 #   使い方：bash build.sh            （両方）
 #           bash build.sh main_ja    （片方だけ）
-# 数値は ../numbers.tex，図は ../figures/，文献は ../references.bib と ../IEEEtran.bst を読む．
+# 数値は ../numbers.tex，図は ../figures/，文献は ../references_ieee.bib（本文は ../bstctl.bib も）と ../IEEEtran.bst を読む．
 # 英語版の数値台帳を更新したときは，先に英語版のフォルダで `make numbers` を流しておく．
 set -uo pipefail
 cd "$(dirname "$0")"

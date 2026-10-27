@@ -2,22 +2,12 @@
 \label{sec:discussion}
 
 \emph{Practical guidance.}
-The results translate into four recommendations for a new corpus with a few labels per emotion.
-First, center the source and the target features separately; this uses no label and removes most of the threshold loss that a source-only classifier carries (Section~\ref{sec:part1-fix}).
-Second, start from all sources and spend the $K$ labels on the intercepts with a loose anchor while anchoring the weights strongly, since the labels set the intercepts well and the weights badly (Section~\ref{sec:part2-start}).
-Third, do not expect a label-free choice of which utterances to label to repair the direction of a good start (Section~\ref{sec:part2-limits}).
-Fourth, if other modalities are recorded with the target utterances, even only at labeling time, let a fused teacher trained on the sources with those modalities label the whole pool; the deployed classifier can remain single-modality (Sections~\ref{sec:part2-crossmodal} and~\ref{sec:comparison}).
+For a new corpus with a few labels per emotion, the results suggest four steps: center the source and the target features separately, which removes most of the threshold loss without labels (Section~\ref{sec:part1-fix}); start from all sources with a loose anchor on the intercepts and a strong one on the weights (Section~\ref{sec:part2-start}); do not expect a label-free choice of the utterances to label to repair the direction of a good start (Section~\ref{sec:part2-limits}); and if other modalities are recorded with the target utterances, even only at labeling time, let a fused teacher trained on the sources label the whole pool, while the deployed classifier remains single-modality (Section~\ref{sec:comparison}).
 
 \emph{Why text behaves differently.}
-Text features lose little through the threshold and much through the direction (Table~\ref{tab:part1}), so the few labels that fix thresholds elsewhere have little threshold to fix in text, and for text alone the threshold share of the gain is at most \NUM{p1-e29-critshare-k1-t}.
-The same two-cost account covers this case: the share of the gain that comes from the threshold follows the share of the loss that the threshold causes.
-For the method, text students gain from the fused teacher as much as audio students do, because the fused teacher supplies the direction information that text labels lack.
+Text features lose little through the threshold and much through the direction (Table~\ref{tab:part1}), so the few labels have little threshold to fix and the threshold share of the gain is at most \NUM{p1-e29-critshare-k1-t}: the share of the gain follows the share of the loss. Text students still gain from the fused teacher, which supplies the direction information that text labels lack.
 
 \emph{Entropy minimization and the cluster assumption.}
-Entropy minimization pushes decision boundaries away from dense regions of unlabeled data and helps when the classes form separate clusters.
-In our data it helps on the improvised IEMOCAP sessions in the AVT and AT configurations and fails badly on MELD and CMU-MOSEI and on the same IEMOCAP target in the VT and AV configurations (Section~\ref{sec:comparison-fixed}).
-The cross-modal weak labels rely on a different property, the complementarity between modalities, and their gains vary much less: across the \NUM{st-b-tgt-n} combinations of target and cell at $K=0$ and $K=5$, ours-ext falls below the start in \NUM{st-b-tgtneg-n}, with a worst difference of \NUM{st-b-tgtneg-worst} points.
+Entropy minimization relies on classes that form separate clusters in the unlabeled data, which holds on the improvised IEMOCAP sessions in AVT and AT but not on MELD, CMU-MOSEI, or the same target in VT and AV (Section~\ref{sec:comparison-fixed}).
+The cross-modal weak labels rely on the complementarity between modalities, and their gains vary much less: across the \NUM{st-b-tgt-n} combinations of target and cell at $K=0$ and $K=5$, ours-ext falls below the start in \NUM{st-b-tgtneg-n}, with a worst difference of \NUM{st-b-tgtneg-worst} points.
 
-\emph{What a source is.}
-Part~I gives the value of a source in labels of direction, and Part~II shows that, in the cases we measured, the gain from a teacher stays below its UAR advantage over the start.
-Here $q$, $e$, and $J$ were measured with target labels; whether pseudo-targets estimate them well enough to choose, before deployment, between more labels, another source, and another modality remains to be tested.
