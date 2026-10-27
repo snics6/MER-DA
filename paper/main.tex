@@ -10,9 +10,14 @@
 \usepackage[nocompress]{cite}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
+\newtheorem{proposition}{Proposition}
 
 % 本文の実験由来の数値は \NUM{key} で書く（results/numbers.json → numbers.tex）．
 \input{numbers}
+
+% 図：figures/<name>.pdf が無いうちは枠だけを出す（図の台本は scripts/figures/fig_<name>.py）．
+\newcommand{\FIG}[2]{\IfFileExists{figures/#1.pdf}{\includegraphics[width=#2]{figures/#1.pdf}}{\fbox{\parbox[c][6em][c]{\dimexpr#2-2\fboxsep-2\fboxrule\relax}{\centering\footnotesize figure \texttt{#1} (pending)}}}}
+
 
 \begin{document}
 

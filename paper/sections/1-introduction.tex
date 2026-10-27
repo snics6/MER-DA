@@ -1,3 +1,30 @@
 \section{Introduction}
 \label{sec:introduction}
-% TODO: three research questions, then four numbered contributions (see CLAIM.md~6.2 in docs/paper-claim.md); one number in the contribution sentence.
+
+\IEEEPARstart{A}{n} emotion recognizer deployed on a new corpus meets speakers, recording conditions, elicitation procedures, and annotation conventions that its training data did not contain, and its accuracy drops across corpora~\cite{CITE:schuller2010,CITE:gideon2021addog,CITE:feng2023}.
+Labeling the new corpus is costly, so a practitioner typically labels a few utterances per emotion and adds labeled utterances from other corpora.
+Whether those source corpora help, and by how much, depends on the corpora and on the number of target labels.
+In multimodal emotion recognition, the target utterances often come with several modalities, which offers a second source of information that a cross-corpus learner can use.
+
+Two lines of work address this setting from different sides.
+Theory of learning from several domains shows that pooling a source helps when target labels are scarce and hurts when they are plentiful, and it bounds the target error by the source error, a divergence, and the size of the target sample~\cite{CITE:bendavid2010,CITE:blitzer2007,CITE:desilva2023}.
+Methods for emotion recognition with few target labels adapt speech or speech-and-text models with a few labeled utterances~\cite{CITE:feng2023,CITE:m4ser2025,CITE:mdat2024}, and semi-supervised learning and distillation use unlabeled data or a stronger teacher~\cite{CITE:lee2013,CITE:hinton2015,CITE:lopezpaz2016}.
+Neither line says which part of a classifier the few target labels repair, how much a source supplies in their place, or what a second modality can add when the deployed model sees only one; cross-corpus methods that use several modalities, including the face, remain few~\cite{CITE:ahn2025}.
+
+We answer three questions for a linear head on frozen encoder features, a setting simple enough to analyze and, with a few labels, stronger than fine-tuning in our data.
+(Q1)~What do a few target labels fix in the classifier?
+(Q2)~How much does a source supply in their place?
+(Q3)~Does the answer lead to a method that exceeds standard semi-supervised and distillation methods tuned under the same protocol?
+We study seven groups from six corpora with audio, face, and text features and their fusions.
+We describe each pairwise decision of the four-class classifier by a threshold offset and a separation, derive what $K$ labels per emotion cost for each, and test the predictions against a gain map of all ordered pairs of corpora.
+
+The contributions are the following.
+\begin{enumerate}
+\item A gain map of cross-corpus pooling with three modalities and their fusions, including the face, over all ordered pairs of seven groups and label budgets from one label per emotion to the full pool, with paired intervals over thirty iterations (Section~\ref{sec:part1-map}).
+\item A decomposition of the gain into threshold and direction parts measured as a function of $K$ and compared with label-free centering on the same splits. For single-modality audio and face at $K \le 5$, \NUM{p1-e29-critshare-kle5-single-lo}--\NUM{p1-e29-critshare-kle5-single-hi} of the gain comes from the threshold, while the direction of audio classifiers improves only as $q/K$ with a measured $q$ of \NUM{p1-qdir-audio-lo}--\NUM{p1-qdir-audio-hi} (Section~\ref{sec:part1-fix}).
+\item An expression of the value of a source in target labels, $n = q e^2/(1-e^2)$, measured at \NUM{p1-e32-n1src-audio-lo}--\NUM{p1-e32-n1src-audio-hi} labels per emotion for one audio source and \NUM{p1-e32-nall-audio-lo}--\NUM{p1-e32-nall-audio-hi} for all audio sources pooled (Section~\ref{sec:part1-value}).
+\item A method that labels the whole unlabeled target pool with class-balanced weak labels from a classifier of another modality trained on the sources alone and never refit on target data, and trains an anchored linear student with hyperparameters selected per $K$ on pseudo-targets. It exceeds the strongest competitor tuned under the same protocol for every student at $K=0$ and $K=5$, by \NUM{cmp-oursx-vs-best-range-lo}--\NUM{cmp-oursx-vs-best-range-hi} points, also with second encoders, and the teacher's UAR advantage over the start sets the scale of its gain (Sections~\ref{sec:part2-crossmodal} and~\ref{sec:comparison}).
+\end{enumerate}
+To our knowledge, these four combinations of setting and measurement have not been reported before; Section~\ref{sec:related} places each component and each formula with respect to its precedents.
+
+Section~\ref{sec:related} reviews related work, Section~\ref{sec:setting} defines the protocol, Section~\ref{sec:part1-what-few-labels-fix} presents Part~I, Section~\ref{sec:part2-mechanism-to-method} Part~II, and Section~\ref{sec:comparison} the comparison; Sections~\ref{sec:discussion} and~\ref{sec:limitations-ethics} discuss implications and limitations.

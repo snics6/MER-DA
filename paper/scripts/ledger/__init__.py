@@ -4,4 +4,4 @@
 値は MER-DA の結果ファイル（../../results/）から**その場で計算する**．文書（docs/）の値を写さない．
 どのモジュールを使うかは MODULES で決める．key は全モジュールで重複してはならない．
 """
-MODULES = ["data_map", "part1", "part2", "comparison"]
+MODULES = ["data_map", "part1", "part2", "comparison", "stats_tables", "stats_summary"]

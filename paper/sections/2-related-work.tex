@@ -1,3 +1,45 @@
 \section{Related Work}
-\label{sec:related-work}
-% TODO: seven paragraphs following the seven-paragraph plan in reports/ (deep-reading report, section on the related-work structure) (1 applied few-label cross-corpus ER; 2 linear-head error decomposition; 3 source value as label-equivalents; 4 pooling and multi-source; 5 privileged information and cross-modal distillation; 6 weak labels from fixed teachers, class balancing, anchored probes, selection; 7 theory of weak-label gains and active learning). The word ``first'' appears in none of them.
+\label{sec:related}
+
+\emph{Cross-corpus emotion recognition with few target labels.}
+Cross-corpus evaluation has long shown large drops in speech emotion recognition and has motivated corpus normalization~\cite{CITE:schuller2010}.
+Methods that use a few labeled target utterances include siamese few-shot learning for spontaneous speech~\cite{CITE:feng2023}, adversarial domain generalization evaluated with growing amounts of target labels~\cite{CITE:gideon2021addog}, pre-finetuning on source corpora~\cite{CITE:chen2023}, adaptation between acted and improvised speech and video~\cite{CITE:li2021}, and active learning on frozen speech features with a logistic regression~\cite{CITE:ctial2024}.
+Speech-and-text models have been adapted with five to sixty labels per class~\cite{CITE:m4ser2025} or a few labels per corpus across languages~\cite{CITE:mdat2024}.
+These studies propose or evaluate methods; none measures which part of the classifier the target labels change, and configurations with the face remain unstudied; recent work on cross-corpus speech-and-text recognition also notes that cross-corpus multimodal methods are few~\cite{CITE:ahn2025}.
+Gideon et al.~\cite{CITE:gideon2021addog} list a formalization of when to generalize and when to specialize as future work, and Feng and Chaspari~\cite{CITE:feng2023} list the effect of source properties and of combining sources; the threshold--direction analysis and the label-equivalent value of a source address these questions for linear heads.
+For test-time adaptation of speech emotion recognition without labels, entropy minimization and pseudo-labeling were found to fail in most settings~\cite{CITE:dong2026}, which agrees with our comparison.
+
+\emph{Error of a linear rule estimated from few samples.}
+The asymptotic expansion of the misclassification rate of the sample linear discriminant contains terms of order $1/N$ that do not depend on the dimension and terms proportional to it~\cite{CITE:okamoto1963}, and Raudys expressed the second in terms of an effective dimension~\cite{CITE:raudys1998}; our threshold cost $1/(2K)$ and direction cost $q/K$ follow this split for a penalized logistic regression, with $q$ measured.
+The accuracy formula \eqref{eq:twocloud} is standard for a linear rule on two Gaussian classes~\cite{CITE:desilva2023,CITE:dobriban2018}.
+For frozen features with a linear head, domain-adjusted regression bounds the excess risk through the error of the target mean and a residual~\cite{CITE:dare2022}, linear probing is preferred over fine-tuning under distribution shift~\cite{CITE:kumar2022lpft}, and additive logit corrections lose their effect in the limit of vanishing regularization~\cite{CITE:kini2021}.
+Finite-sample analyses of transfer with few target samples exist for regression~\cite{CITE:hachen2026} and for one-dimensional discriminants~\cite{CITE:desilva2023}; we measure the corresponding quantities for multiclass logistic regression on real corpus pairs.
+
+\emph{Value of a source in target samples.}
+The value of pretraining or of a source has been expressed as an effective amount of target data in characters~\cite{CITE:hernandez2021}, in training examples~\cite{CITE:lescao2021}, as an effective sample size of a prior~\cite{CITE:wiesenfarth2020}, and as a rate exponent~\cite{CITE:hanneke2019}.
+Our expression \eqref{eq:value} inverts the classical relation between the cosine of an estimated direction and the sample size~\cite{CITE:raudys1998,CITE:dobriban2018} to express a source direction as labels per emotion, and we measure it on corpus pairs.
+
+\emph{Pooling and multiple sources.}
+Bounds for learning from several domains let the distance between domains act only as a penalty~\cite{CITE:bendavid2010,CITE:blitzer2007}.
+The bias of pooled linear classifiers has been solved in high-dimensional limits for centered multi-task models with task-specific intercepts~\cite{CITE:tiomoko2021} and for pooled least squares without intercepts~\cite{CITE:yang2025}, and adding domain information explicitly can beat pooling~\cite{CITE:zhu2025}.
+One Newton step approximates the influence of a group of points~\cite{CITE:pregibon1981,CITE:koh2019}.
+Applied to added target points without a target intercept, it yields \eqref{eq:lambda}, which extends the one-dimensional threshold shift of De Silva et al.~\cite{CITE:desilva2023} with a weight path through which the separability of the target from the source corrects the threshold.
+
+\emph{Privileged information and cross-modal distillation.}
+When tasks share labels and differ in input modality, the extra modality is privileged information~\cite{CITE:vapnik2009,CITE:lopezpaz2016}.
+Cross-modal distillation transfers supervision between paired modalities~\cite{CITE:gupta2016}; in emotion recognition, face teachers train speech students on unlabeled video~\cite{CITE:albanie2018}, fused speech-and-text teachers train speech students~\cite{CITE:srinivasan2022}, and audio-visual or video teachers pass soft labels or embeddings to speech students~\cite{CITE:liser2025,CITE:hajavi2024}.
+Unimodal teachers can improve fused students~\cite{CITE:du2021,CITE:xue2021,CITE:g2d2025}, and fused outputs can train unimodal heads~\cite{CITE:xmuda2020}.
+In these studies the teacher is trained on the target corpus or on a third corpus, or the student uses all modalities at inference.
+Our teacher is a linear classifier trained on the source corpora alone, it labels the target pool without being refit, and the student is a single-modality linear head anchored to a source start.
+
+\emph{Weak labels, class balance, anchors, and selection.}
+Fixed teachers have labeled all unlabeled data with soft labels for representation learning across tasks with different classes~\cite{CITE:startup2021} and for transductive few-shot classification with a fixed weight~\cite{CITE:transclip2024}, and modality-specific teachers have been distilled into a single modality across domains~\cite{CITE:mmcdfsl2024}.
+Balancing pseudo-labels across classes is common~\cite{CITE:upl2022,CITE:noisystudent2020,CITE:ptmap2021,CITE:adamatch2022}, but class imbalance in the unlabeled set can make such balancing harmful~\cite{CITE:veilleux2021}.
+Linear probes anchored to a zero-shot classifier with a quadratic penalty~\cite{CITE:clap2024} and hypothesis transfer~\cite{CITE:kuzborskij2017,CITE:li2018l2sp} anchor the weights to a prior solution, and leave-one-domain-out validation selects hyperparameters without target labels~\cite{CITE:gulrajani2021domainbed}.
+Our method combines these components; what is specific to it is a teacher of another modality trained on sources alone, weak labels used to train the classifier itself because sources and target share the emotion set, separate anchors for weights and intercepts, and the selection of the teacher and the weak-label weight for each $K$.
+
+\emph{Theory of weak-label gains and of label-free selection.}
+The gain of a student trained on a weak teacher's labels has been bounded from below by the misfit between them~\cite{CITE:charikar2024} and related to the disagreement between their representations~\cite{CITE:dong2025,CITE:xue2025}; self-training is analyzed under gradual shift~\cite{CITE:kumar2020}.
+In Gaussian linear models the optimal design does not depend on the observed responses~\cite{CITE:chaloner1984,CITE:chaloner1995}, and with small budgets random or typical selection is hard to beat~\cite{CITE:hacohen2022}.
+Proposition~\ref{prop:span} follows from the representer theorem~\cite{CITE:kimeldorf1971,CITE:scholkopf2001}.
+We use these results for a student anchored to a start: the teacher's UAR advantage over the start sets the scale of the gain, and label-free selection cannot align the corrected subspace with the start's direction error.

@@ -1,3 +1,25 @@
 \section{Limitations and Ethics}
 \label{sec:limitations-ethics}
-% TODO: about 300 words; frozen features, linear head, four emotions, seven corpora; extrapolation limits; ethics of secondary use of public corpora.
+
+\emph{Scope of the analysis.}
+All analyses use frozen encoders and a linear head.
+The fine-tuning check covers one audio encoder adapted with low-rank adapters on four targets over three iterations, so it bounds the claim only for that setting.
+The two-cloud model assumes Gaussian score differences with a shared variance within each emotion pair, and \eqref{eq:lambda}, \eqref{eq:value}, and Proposition~\ref{prop:design} rest on first- or second-order approximations; we test their predictions empirically rather than claiming exact results.
+The threshold-first account holds for single-modality audio and face features at $K \le 5$; for fused and text configurations the threshold part is about half of the gain or less at $K=5$.
+
+\emph{Data.}
+We study four emotions in seven groups from six corpora, all in English.
+The corpora define their labels differently; in particular, the neutral class of CMU-MOSEI is defined by the absence of rated emotions.
+Speaker separation in CMU-MOSEI is incomplete because the channel is unknown for most videos, and RAVDESS has no face features in our pipeline.
+Configurations with text have four groups, and the method comparisons use four targets for every configuration with text, so differences between targets are estimated from few targets.
+The second encoders are tested for the method only in the configuration with all three modalities.
+
+\emph{Statistics and selection.}
+Our intervals reflect the draw of target labels and test speakers, not the resampling of speakers or corpora, and the iterations are not independent for IEMOCAP targets.
+Selecting hyperparameters on pseudo-targets loses up to \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0} points against the best value on the test speakers at $K=0$ (Section~\ref{sec:comparison-selection}).
+Column normalization assumes balanced emotions in the unlabeled pool; when the class ratios of the target are skewed, equalizing the totals can hurt~\cite{CITE:veilleux2021}, and we did not test this case.
+
+\emph{Ethics.}
+We used only public corpora under their distribution terms and recorded no new data.
+Faces enter the pipeline only as embeddings of detected face crops, and we release no identifying data.
+Emotion recognition can be misused for surveillance or for decisions about people without their consent; the methods here estimate categorical labels from acted and media recordings and are not validated for decisions about individuals.

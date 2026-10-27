@@ -95,7 +95,17 @@ def entries() -> dict[str, dict]:
         items = _compute()
         CACHE.parent.mkdir(parents=True, exist_ok=True)
         CACHE.write_text(json.dumps({"signature": sig, "items": items}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    return {k: entry(v[0], v[1], v[2], v[3]) for k, v in items.items()}
+    out = {k: entry(v[0], v[1], v[2], v[3]) for k, v in items.items()}
+    # 序論の貢献 4 の範囲（2026-10-27 に足した）：11 の生徒 × K ∈ {0, 5} の oursx − 最も強い相手の調整版の最小と最大
+    cells = {f"{ws}-k{k}": out[f"cmp-oursx-vs-best-{ws}-k{k}"]["value"]
+             for ws in ("avt-a", "avt-v", "avt-t", "avt-f", "av-f", "vt-f", "at-f", "w2-a", "w2-v", "w2-t", "w2-f")
+             for k in (0, 5)}
+    lo, hi = min(cells, key=cells.get), max(cells, key=cells.get)
+    src = ("paper/scripts/ledger/comparison.py の cmp-oursx-vs-best-<世界>-<生徒>-k<K> と同じ計算 | 11 の生徒（AVT の 4 生徒，AV・VT・AT の融合，"
+           "第 2 エンコーダの世界の 4 生徒）× K ∈ {{0, 5}} の 22 セル | 最小（{}）と最大（{}）")
+    out["cmp-oursx-vs-best-range-lo"] = entry(cells[lo], src.format(lo, hi), "%.1f")
+    out["cmp-oursx-vs-best-range-hi"] = entry(cells[hi], src.format(lo, hi), "%.1f")
+    return out
 
 
 # ---------------------------------------------------------------- 読み込み

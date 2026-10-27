@@ -315,6 +315,29 @@ def _e60pre(out: dict) -> None:
             c = f"net_{q}|fused"
             out[f"p2-e60pre-net-{wt}-f-{btok[q]}"] = entry(
                 100 * M.loc[w, c], f"{src} | {JA[w]} の世界，{c} 列（融合の出発点に対する {names[q]} の純相補性．正解率のポイント），{nt[w]} ターゲット {reps} | ターゲット × 反復の平均", "%.1f")
+    # J を UAR の差でそろえる（audit A2 の決着．2026-10-27）：見込みの UAR − 出発点の UAR（候補の上，ポイント）．
+    # 同じモダリティの J（p2-e52-q-minus-p-a）も UAR の差なので，本文はこの 2 つを並べる
+    uarc = {"fused": "uar_fused", "poe": "uar_poe|A", "poolC": "uar_poolC|A", "mlp": "uar_mlp|A",
+            "video": "uar_video", "text_roberta": "uar_text_roberta"}
+    for w in M.index:
+        wt = KTOK[w]
+        for q, c in uarc.items():
+            if c in M and pd.notna(M.loc[w, c]):
+                out[f"p2-e60pre-juar-{wt}-a-{btok[q]}"] = entry(
+                    100 * (M.loc[w, c] - M.loc[w, "uar_audio_wavlm"]),
+                    f"{src} | {JA[w]} の世界，{c} − uar_audio_wavlm（候補の上の UAR の差．音声の出発点に対する {names[q]}．ポイント），{nt[w]} ターゲット {reps} | ターゲット × 反復の平均",
+                    "%.1f")
+        for q in ("poe", "poolC", "mlp"):
+            c = f"uar_{q}|fused"
+            out[f"p2-e60pre-juar-{wt}-f-{btok[q]}"] = entry(
+                100 * (M.loc[w, c] - M.loc[w, "uar_fused"]),
+                f"{src} | {JA[w]} の世界，{c} − uar_fused（候補の上の UAR の差．融合の出発点に対する {names[q]}．ポイント），{nt[w]} ターゲット {reps} | ターゲット × 反復の平均",
+                "%.1f")
+        out[f"p2-e60pre-uar-{wt}-start-a"] = entry(100 * M.loc[w, "uar_audio_wavlm"], f"{src} | {JA[w]} の世界，uar_audio_wavlm（音声の出発点の候補の上の UAR），{nt[w]} ターゲット {reps} | ターゲット × 反復の平均", "%.1f")
+        out[f"p2-e60pre-uar-{wt}-start-f"] = entry(100 * M.loc[w, "uar_fused"], f"{src} | {JA[w]} の世界，uar_fused（融合の出発点の候補の上の UAR），{nt[w]} ターゲット {reps} | ターゲット × 反復の平均", "%.1f")
+    ja = 100 * (M.loc["fuse-audio-video", ["uar_fused", "uar_poe|A", "uar_poolC|A"]] - M.loc["fuse-audio-video", "uar_audio_wavlm"])
+    out["p2-e60pre-juar-av-a-lo"] = entry(ja.min(), f"{src} | AV の世界，音声の出発点に対する別のモダリティの見込み 3 つ（融合の出発点・票の積・E44 型）の UAR の差の最小（{ja.idxmin()}） {reps} | ターゲット × 反復の平均", "%.1f")
+    out["p2-e60pre-juar-av-a-hi"] = entry(ja.max(), f"{src} | AV の世界，同じ 3 つの UAR の差の最大（{ja.idxmax()}） {reps} | ターゲット × 反復の平均", "%.1f")
     # 範囲
     a = 100 * M.loc["fuse-audio-video", ["net_fused|A", "net_poe|A", "net_poolC|A"]]
     out["p2-e60pre-net-av-a-lo"] = entry(a.min(), f"{src} | AV の世界，音声の出発点に対する別のモダリティの見込み 3 つ（融合の出発点・票の積・E44 型）の最小（{a.idxmin()}） {reps} | ターゲット × 反復の平均", "%.1f",

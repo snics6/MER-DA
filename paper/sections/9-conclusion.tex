@@ -1,3 +1,7 @@
 \section{Conclusion}
 \label{sec:conclusion}
-% TODO.
+
+With a few target labels per emotion and a linear head on frozen features, the labels first fix the decision thresholds: for single-modality audio and face at $K \le 5$, \NUM{p1-e29-critshare-kle5-single-lo}--\NUM{p1-e29-critshare-kle5-single-hi} of the improvement that pooling brings comes from the threshold, while the direction of audio classifiers improves only at the rate $q/K$ with $q$ between \NUM{p1-qdir-audio-lo} and \NUM{p1-qdir-audio-hi}.
+A source supplies \NUM{p1-e32-n1src-audio-lo}--\NUM{p1-e32-n1src-audio-hi} labels per emotion of direction for audio, and neither a few labels nor a label-free choice of the utterances to label moves the direction of a good start much.
+Weak labels on the whole unlabeled pool from a teacher of another modality, trained on the sources alone, move it: they raise every single-modality student above the five-value start, and the extended method exceeds the strongest competitor tuned under the same protocol in every configuration and with second encoders.
+The two costs and the teacher's UAR advantage over the start indicate in advance where a few labels, a source, or another modality pays off.

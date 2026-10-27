@@ -1,0 +1,97 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+% 補足資料（TAC の規則：付録は本文に入れず，別ファイルの補足資料として出す）．
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[nocompress]{cite}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\input{numbers}
+\newcommand{\FIG}[2]{\IfFileExists{figures/#1.pdf}{\includegraphics[width=#2]{figures/#1.pdf}}{\fbox{\parbox[c][6em][c]{\dimexpr#2-2\fboxsep-2\fboxrule\relax}{\centering\footnotesize figure \texttt{#1} (pending)}}}}
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\theequation}{S\arabic{equation}}
+
+\begin{document}
+\title{Supplementary Material for ``What Few Target Labels Fix First: Threshold-versus-Direction Analysis and Cross-Modal Weak-Label Transfer for Cross-Corpus Multimodal Emotion Recognition''}
+\author{Author~Names}
+\maketitle
+
+\section{Feature Extraction}
+\label{sec:supp-features}
+
+\emph{Face.}
+From each video we take one frame in $\lfloor 5\,\mathrm{fps}/25 \rfloor$, which gives five to six frames per second, and at most $400$ frames per utterance, sampled evenly.
+IEMOCAP videos show two speakers side by side; we keep the half that shows the speaker.
+YOLOv8n-face~\cite{yolov8face} detects faces with a confidence threshold of $0.25$, and we keep the largest face of each frame and resize it to $224\times224$ pixels.
+The ResNet-50 of Ryumina et al.~\cite{ryumina2022facial} maps each crop to $512$ dimensions; the second encoder, the image encoder of CLIP ViT-L/14~\cite{radford2021clip}, maps the same crops (stored as boxes) to $1024$ dimensions.
+Frame embeddings are averaged within segments of $20$ face frames shifted by $10$ frames, a final segment shorter than $10$ frames is dropped, and the segment means are averaged.
+We do not use the standard deviation across segments, because utterances with fewer than $20$ face frames have one segment and a zero deviation, so that feature encodes utterance length.
+
+\emph{Audio.}
+Waveforms are resampled to $16$~kHz mono, truncated at $60$~s, normalized to zero mean and unit variance, and passed through WavLM-Large~\cite{chen2022wavlm} or HuBERT-Large~\cite{hsu2021hubert}; the final layer is averaged over time without padding ($1024$ dimensions).
+
+\emph{Text.}
+Transcripts are repaired for character-encoding errors, truncated at $256$ tokens, and passed through RoBERTa-base~\cite{liu2019roberta} or DeBERTa-v3-base~\cite{he2023debertav3}; the final layer is averaged over tokens ($768$ dimensions).
+
+\emph{Counts.}
+After filtering, the audio features contain \NUM{data-n-total-wavlm} utterances, the face features \NUM{data-n-total-resnet}, and the text features \NUM{data-n-total-roberta}.
+Fusing audio and face keeps \NUM{data-n-impro-av}, \NUM{data-n-script-av}, \NUM{data-n-mosei-av}, \NUM{data-n-meld-av}, \NUM{data-n-afew-av}, and \NUM{data-n-cremad-av} utterances for the improvised and scripted IEMOCAP sessions, CMU-MOSEI, MELD, AFEW, and CREMA-D, and fusing all three modalities keeps \NUM{data-n-impro-avt}, \NUM{data-n-script-avt}, \NUM{data-n-mosei-avt}, and \NUM{data-n-meld-avt} utterances in the four groups with text.
+
+\section{Derivations}
+\label{sec:supp-derivations}
+
+\emph{Threshold cost.}
+Fix the direction of a pairwise decision and let the score difference $z$ be Gaussian with means $\mu_k$, $\mu_l$ and common standard deviation $\sigma$.
+Balancing the two emotions places the threshold at $(\mu_k + \mu_l)/2$.
+Estimated from $K$ labels per emotion, the two class means have variance $\sigma^2/K$ each, so the midpoint has variance $\sigma^2/(2K)$ and the residual offset satisfies $\mathbb{E}[o^2] = 1/(2K)$.
+Since $\partial a/\partial o = 0$ at $o=0$ and $\partial^2 a/\partial o^2 = -(d/2)\,\phi(d/2)$ there,
+\begin{equation}
+a(d, 0) - a(d, o) \approx \frac{d}{4}\,\phi\!\left(\frac{d}{2}\right) o^2,
+\end{equation}
+and taking the expectation gives the threshold cost of the main text. The factor $(d/4)\phi(d/2)$ is largest at $d=2$, where it equals $\phi(1)/2$.
+
+\emph{Direction cost.}
+For a linear rule estimated from $K$ labels per emotion, the angle $\theta$ between the estimated and the best direction satisfies $\tan^2\theta \approx q/K$ to first order, where $q$ is an effective dimension; for the sample linear discriminant with $p$ features and squared Mahalanobis distance $\Delta^2$, the first-order term of the expansion of the misclassification rate gives $q = 2(p-1)/\Delta^2$~\cite{CITE:okamoto1963,CITE:raudys1998}.
+The separation along the estimated direction is $\Delta\cos\theta = \Delta/\sqrt{1 + \tan^2\theta}$, which gives $d(K) = \Delta/\sqrt{1 + q/K}$.
+With an $\ell_2$ penalty the effective dimension is smaller than $p$, and we fit $q$ to target-only learning curves.
+
+\emph{Value of a source.}
+Write the noise-to-signal ratio of a direction estimate as $\tan^2\theta$.
+The target estimate from $K$ labels has ratio $q/K$, and the source direction, with efficiency $e = \cos\theta_s$, has ratio $(1-e^2)/e^2$.
+Two independent estimates combined with inverse-variance weights have the ratio $\left[K/q + e^2/(1-e^2)\right]^{-1}$, which equals the ratio of a target-only estimate from $K + n$ labels with $n = q e^2/(1-e^2)$.
+
+\emph{Correction of the threshold by pooling.}
+Write the pooled objective as the source-only objective plus the loss of $N_t$ target points, and take one Newton step from the source-only solution.
+With the curvature of the loss approximated by its mean $\kappa$ per domain, the step changes the score at the target mean by $\rho/(1+\rho)$ times the source-only offset, with $\rho$ given by the expression of the main text; the term $1/(N_s\kappa_s)$ comes from the intercept and the term $\boldsymbol{\delta}^\top(A_s + I/C)^{-1}\boldsymbol{\delta}$ from the weights.
+The approximation keeps the loss of the target points to second order in the offset, takes the direction from the source, and omits the scatter of the target points themselves.
+Simulations with $128$-dimensional Gaussian features confirm the expression (Fig.~\ref{fig:supp-lambda} shows the check on real corpus pairs).
+
+\section{Additional Results for Part~I}
+\label{sec:supp-part1}
+
+\begin{figure}[t]
+\centering
+\FIG{lambda}{\columnwidth}
+\caption{Predicted against measured threshold correction $\lambda$ of pooled classifiers, per ordered pair and $K \in \{1, 5, 10\}$.}
+\label{fig:supp-lambda}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\FIG{centering}{\columnwidth}
+\caption{Source-only classifiers with and without centering, refitting only the intercepts on $K=5$ labels per emotion, and pooling with the same labels, for WavLM audio, HuBERT audio, and the face.}
+\label{fig:supp-centering}
+\end{figure}
+
+\section{Full Comparison Tables}
+\label{sec:supp-tables}
+
+\input{supp/tables}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\end{document}

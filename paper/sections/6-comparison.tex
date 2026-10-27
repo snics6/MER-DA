@@ -1,3 +1,110 @@
 \section{Comparison with Standard Methods}
 \label{sec:comparison}
-% TODO: eleven competitors tuned on pseudo-targets; one table (A, V, T, AV, VT, AT, AVT; $K=0$ and $K=5$); paired tests with correction and effect sizes; pseudo-target versus oracle; class-ratio skew versus column normalization; second encoders; fine-tuning check.
+
+This section compares the cross-modal weak labels with standard ways of using unlabeled target data, under one protocol for all methods.
+
+\subsection{Competitors and Protocol}
+\label{sec:comparison-protocol}
+
+The competitors are self-training with confidence-thresholded hard pseudo-labels~\cite{CITE:lee2013}, entropy minimization~\cite{CITE:grandvalet2004}, distillation with a temperature~\cite{CITE:hinton2015}, generalized distillation~\cite{CITE:lopezpaz2016}, co-training~\cite{CITE:blum1998}, co-regularization~\cite{CITE:sindhwani2005}, adjustment of the class priors by expectation maximization~\cite{CITE:saerens2002}, and rebalancing of the start's outputs.
+Every method trains the same anchored linear student \eqref{eq:student} from the same five-value start, on the same $K$ labels and the same unlabeled pool; methods that need a teacher receive the same teacher outputs as ours.
+The \emph{tuned} version of each competitor selects its hyperparameters (thresholds, temperatures, weights of the unlabeled loss) on the same pseudo-targets and for each $K$, as our method does; the \emph{fixed} version uses the values recommended in the original papers.
+Ours denotes the cross-modal weak labels of Section~\ref{sec:part2-crossmodal}, and ours-ext the extended family.
+The AVT configuration evaluates all four students (audio, face, text, and fused) on \NUM{cmp-targets-avt-n} targets; the AV, VT, and AT configurations evaluate the fused student on \NUM{cmp-targets-av-n}, \NUM{cmp-targets-vt-n}, and \NUM{cmp-targets-at-n} targets; and a second AVT configuration replaces every encoder by its second encoder (HuBERT, CLIP, DeBERTa).
+Results average \NUM{cmp-reps-n} iterations per target, and pseudo-targets use \NUM{cmp-pseudo-reps-n}.
+
+\subsection{Results}
+\label{sec:comparison-results}
+
+Ours-ext exceeds the strongest tuned competitor for every student at $K=0$ and $K=5$ (Table~\ref{tab:compare} and Fig.~\ref{fig:compare}).
+In the AVT configuration the margins at $K=0$ and $K=5$ are \NUM{cmp-oursx-vs-best-avt-a-k0} and \NUM{cmp-oursx-vs-best-avt-a-k5} points for the audio student, \NUM{cmp-oursx-vs-best-avt-t-k0} and \NUM{cmp-oursx-vs-best-avt-t-k5} for text, \NUM{cmp-oursx-vs-best-avt-v-k0} and \NUM{cmp-oursx-vs-best-avt-v-k5} for the face, and \NUM{cmp-oursx-vs-best-avt-f-k0} and \NUM{cmp-oursx-vs-best-avt-f-k5} for the fused student.
+For the fused students of AV, VT, and AT, the margins at $K=0$ are \NUM{cmp-oursx-vs-best-av-f-k0}, \NUM{cmp-oursx-vs-best-vt-f-k0}, and \NUM{cmp-oursx-vs-best-at-f-k0} points.
+The strongest competitor is generalized distillation for most single-modality students and output rebalancing or self-training for the fused students; both use the same teacher or start as ours, so the margin measures how the weak labels are formed and weighted, not which information is available.
+Across label budgets (Fig.~\ref{fig:kcurves}), ours-ext keeps its advantage for the audio student at every $K$ (\NUM{cmp-oursx-vs-best-avt-a-lo}--\NUM{cmp-oursx-vs-best-avt-a-hi} points), and generalized distillation overtakes it only for the text student at $K \ge 10$, by \NUM{cmp-gd-vs-oursx-avt-t-kge10-lo}--\NUM{cmp-gd-vs-oursx-avt-t-kge10-hi} points.
+Relative to the five-value start, ours-ext gains \NUM{cmp-oursx-vs-e39-avt-a-lo}--\NUM{cmp-oursx-vs-e39-avt-a-hi} points for the AVT audio student over all budgets, \NUM{cmp-oursx-vs-e39-avt-t-kle5-lo}--\NUM{cmp-oursx-vs-e39-avt-t-kle5-hi} for text at $K \le 5$, and \NUM{cmp-oursx-vs-e39-avt-f-kge1-lo}--\NUM{cmp-oursx-vs-e39-avt-f-kge1-hi} for the fused student at $K \ge 1$, and the losses of the basic method at $K \ge 10$ (Section~\ref{sec:part2-crossmodal}) disappear.
+We test each margin over target and iteration pairs with a two-sided Wilcoxon signed-rank test and correct for multiplicity with the Holm procedure over all students and budgets.
+The margin over the strongest competitor is positive in \NUM{st-a-k0-pos-n} of \NUM{st-a-k0-cells-n} students at $K=0$ and in \NUM{st-a-k5-pos-n} of \NUM{st-a-k5-cells-n} at $K=5$, with effect sizes $d_z$ (mean difference over its standard deviation) of \NUM{st-a-k0-dz-lo}--\NUM{st-a-k0-dz-hi} and \NUM{st-a-k5-dz-lo}--\NUM{st-a-k5-dz-hi}; after correction it is significant at the $5\%$ level for \NUM{st-a-k0-sig-n} and \NUM{st-a-k5-sig-n} students.
+The iterations of a target are not independent, because several of them share a test fold; averaging the iterations that share a fold leaves \NUM{st-a-k0-sigdedup-n} and \NUM{st-a-k5-sigdedup-n} significant students, so the evidence is firm at $K=5$ and weaker at $K=0$, where the face and text students show positive but uncertain margins.
+
+\begin{table*}[t]
+\caption{Comparison under one protocol. UAR of the five-value start and differences from it (percentage points) for the strongest tuned competitor, ours, and ours-ext, at $K=0$ and $K=5$, averaged over targets and ten iterations. Competitors: GD, generalized distillation; KD, distillation with a temperature; HPL, hard pseudo-labels; RB, output rebalancing; ST, self-training; CoT, co-training; CoR, co-regularization.}
+\label{tab:compare}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llrrlrrrrrr@{}}
+\toprule
+ & & \multicolumn{2}{c}{Start (UAR)} & Strongest & \multicolumn{2}{c}{Strongest $-$ start} & \multicolumn{2}{c}{Ours $-$ start} & \multicolumn{2}{c}{Ours-ext $-$ start} \\
+\cmidrule(lr){3-4}\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(l){10-11}
+Config. & Student & $K{=}0$ & $K{=}5$ & ($K{=}0$/$5$) & $K{=}0$ & $K{=}5$ & $K{=}0$ & $K{=}5$ & $K{=}0$ & $K{=}5$ \\
+\midrule
+AVT & A & \NUM{tab-avt-a-k0-e39} & \NUM{tab-avt-a-k5-e39} & GD/GD & \NUM{cmp-best-vs-e39-avt-a-k0} & \NUM{cmp-best-vs-e39-avt-a-k5} & \NUM{cmp-ours-vs-e39-avt-a-k0} & \NUM{cmp-ours-vs-e39-avt-a-k5} & \NUM{cmp-oursx-vs-e39-avt-a-k0} & \NUM{cmp-oursx-vs-e39-avt-a-k5} \\
+ & V & \NUM{tab-avt-v-k0-e39} & \NUM{tab-avt-v-k5-e39} & RB/CoR & \NUM{cmp-best-vs-e39-avt-v-k0} & \NUM{cmp-best-vs-e39-avt-v-k5} & \NUM{cmp-ours-vs-e39-avt-v-k0} & \NUM{cmp-ours-vs-e39-avt-v-k5} & \NUM{cmp-oursx-vs-e39-avt-v-k0} & \NUM{cmp-oursx-vs-e39-avt-v-k5} \\
+ & T & \NUM{tab-avt-t-k0-e39} & \NUM{tab-avt-t-k5-e39} & HPL/GD & \NUM{cmp-best-vs-e39-avt-t-k0} & \NUM{cmp-best-vs-e39-avt-t-k5} & \NUM{cmp-ours-vs-e39-avt-t-k0} & \NUM{cmp-ours-vs-e39-avt-t-k5} & \NUM{cmp-oursx-vs-e39-avt-t-k0} & \NUM{cmp-oursx-vs-e39-avt-t-k5} \\
+ & Fused & \NUM{tab-avt-f-k0-e39} & \NUM{tab-avt-f-k5-e39} & RB/ST & \NUM{cmp-best-vs-e39-avt-f-k0} & \NUM{cmp-best-vs-e39-avt-f-k5} & \NUM{cmp-ours-vs-e39-avt-f-k0} & \NUM{cmp-ours-vs-e39-avt-f-k5} & \NUM{cmp-oursx-vs-e39-avt-f-k0} & \NUM{cmp-oursx-vs-e39-avt-f-k5} \\
+AV & Fused & \NUM{tab-av-f-k0-e39} & \NUM{tab-av-f-k5-e39} & RB/ST & \NUM{cmp-best-vs-e39-av-f-k0} & \NUM{cmp-best-vs-e39-av-f-k5} & \NUM{cmp-ours-vs-e39-av-f-k0} & \NUM{cmp-ours-vs-e39-av-f-k5} & \NUM{cmp-oursx-vs-e39-av-f-k0} & \NUM{cmp-oursx-vs-e39-av-f-k5} \\
+VT & Fused & \NUM{tab-vt-f-k0-e39} & \NUM{tab-vt-f-k5-e39} & RB/ST & \NUM{cmp-best-vs-e39-vt-f-k0} & \NUM{cmp-best-vs-e39-vt-f-k5} & \NUM{cmp-ours-vs-e39-vt-f-k0} & \NUM{cmp-ours-vs-e39-vt-f-k5} & \NUM{cmp-oursx-vs-e39-vt-f-k0} & \NUM{cmp-oursx-vs-e39-vt-f-k5} \\
+AT & Fused & \NUM{tab-at-f-k0-e39} & \NUM{tab-at-f-k5-e39} & RB/CoT & \NUM{cmp-best-vs-e39-at-f-k0} & \NUM{cmp-best-vs-e39-at-f-k5} & \NUM{cmp-ours-vs-e39-at-f-k0} & \NUM{cmp-ours-vs-e39-at-f-k5} & \NUM{cmp-oursx-vs-e39-at-f-k0} & \NUM{cmp-oursx-vs-e39-at-f-k5} \\
+\midrule
+AVT, & A & \NUM{tab-w2-a-k0-e39} & \NUM{tab-w2-a-k5-e39} & CoT/GD & \NUM{cmp-best-vs-e39-w2-a-k0} & \NUM{cmp-best-vs-e39-w2-a-k5} & \NUM{cmp-ours-vs-e39-w2-a-k0} & \NUM{cmp-ours-vs-e39-w2-a-k5} & \NUM{cmp-oursx-vs-e39-w2-a-k0} & \NUM{cmp-oursx-vs-e39-w2-a-k5} \\
+second & V & \NUM{tab-w2-v-k0-e39} & \NUM{tab-w2-v-k5-e39} & CoT/KD & \NUM{cmp-best-vs-e39-w2-v-k0} & \NUM{cmp-best-vs-e39-w2-v-k5} & \NUM{cmp-ours-vs-e39-w2-v-k0} & \NUM{cmp-ours-vs-e39-w2-v-k5} & \NUM{cmp-oursx-vs-e39-w2-v-k0} & \NUM{cmp-oursx-vs-e39-w2-v-k5} \\
+encoders & T & \NUM{tab-w2-t-k0-e39} & \NUM{tab-w2-t-k5-e39} & RB/GD & \NUM{cmp-best-vs-e39-w2-t-k0} & \NUM{cmp-best-vs-e39-w2-t-k5} & \NUM{cmp-ours-vs-e39-w2-t-k0} & \NUM{cmp-ours-vs-e39-w2-t-k5} & \NUM{cmp-oursx-vs-e39-w2-t-k0} & \NUM{cmp-oursx-vs-e39-w2-t-k5} \\
+ & Fused & \NUM{tab-w2-f-k0-e39} & \NUM{tab-w2-f-k5-e39} & RB/CoT & \NUM{cmp-best-vs-e39-w2-f-k0} & \NUM{cmp-best-vs-e39-w2-f-k5} & \NUM{cmp-ours-vs-e39-w2-f-k0} & \NUM{cmp-ours-vs-e39-w2-f-k5} & \NUM{cmp-oursx-vs-e39-w2-f-k0} & \NUM{cmp-oursx-vs-e39-w2-f-k5} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\FIG{compare}{\textwidth}
+\caption{Differences from the five-value start at $K=0$ and $K=5$ for the strongest tuned competitor, ours, and ours-ext, per configuration and student. Error bars show the 95\% interval over target and iteration pairs.}
+\label{fig:compare}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\FIG{kcurves}{\columnwidth}
+\caption{Differences from the five-value start against $K$ for the four students of the AVT configuration: ours, ours-ext, and the strongest tuned competitor.}
+\label{fig:kcurves}
+\end{figure}
+
+\subsection{Fixed Hyperparameters and Entropy Minimization}
+\label{sec:comparison-fixed}
+
+With the hyperparameters of the original papers, several competitors collapse the single-modality students onto one emotion: at $K=0$ in the AVT configuration, entropy minimization, co-regularization, and prior adjustment change the UAR of the start by \NUM{cmp-fixed-collapse-avt-mod-k0-lo} to \NUM{cmp-fixed-collapse-avt-mod-k0-hi} points.
+For the fused students, fixed entropy minimization changes the UAR of the start by \NUM{cmp-entmin-fixed-vs-e39-f-k0-lo} to \NUM{cmp-entmin-fixed-vs-e39-f-k0-hi} points on average across the four configurations, and its effect depends on the target (Fig.~\ref{fig:entmin}).
+On the improvised IEMOCAP sessions it changes the UAR by $+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro} points in AVT but by \NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro} in VT and \NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro} in AV, and on MELD by \NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld} points in AVT.
+In the AVT configuration, pseudo-target selection detects these failures and switches entropy minimization off for the fused student at every $K$.
+
+\begin{figure}[t]
+\centering
+\FIG{entmin}{\columnwidth}
+\caption{Differences from the five-value start at $K=0$ for the fused students, per target: fixed entropy minimization and ours-ext. Each point is one target in one configuration.}
+\label{fig:entmin}
+\end{figure}
+
+\subsection{Second Encoders and Fine-Tuning}
+\label{sec:comparison-robust}
+
+With the second encoders, the cross-modal weak labels raise the start by \NUM{cmp-ours-vs-e39-w2-a-k0} and \NUM{cmp-ours-vs-e39-w2-a-k5} points for audio at $K=0$ and $K=5$, by \NUM{cmp-ours-vs-e39-w2-v-k0} and \NUM{cmp-ours-vs-e39-w2-v-k5} for the face, by \NUM{cmp-ours-vs-e39-w2-t-k0} and \NUM{cmp-ours-vs-e39-w2-t-k5} for text, and by \NUM{cmp-ours-vs-e39-w2-f-k0} and \NUM{cmp-ours-vs-e39-w2-f-k5} for the fused student.
+Ours-ext exceeds the strongest tuned competitor by \NUM{cmp-oursx-vs-best-w2-k0k5-lo}--\NUM{cmp-oursx-vs-best-w2-k0k5-hi} points at $K=0$ and $K=5$ and by \NUM{cmp-oursx-vs-best-w2-k25-lo}--\NUM{cmp-oursx-vs-best-w2-k25-hi} points at $K=25$.
+
+To test whether the frozen setting understates what adaptation can do, we fine-tuned WavLM with low-rank adapters on the audio student of four targets over three iterations (Fig.~\ref{fig:finetune}).
+Fine-tuning on $K=5$ labels per emotion falls \NUM{cmp-ft-konly-below-frozen-e39-k5} points below the frozen five-value start (\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi} across targets), and anchoring the adapted head to the start adds \NUM{cmp-ft-anchor-vs-konly-k5} points.
+The cross-modal weak labels still help the fine-tuned model, by \NUM{cmp-ft-weak-vs-start-k0} points at $K=0$ and \NUM{cmp-ft-weak-vs-anchor-k5} at $K=5$, but the fine-tuned version of our method stays \NUM{cmp-ft-ours-below-frozen-ours-k0} and \NUM{cmp-ft-ours-below-frozen-ours-k5} points below its frozen version, below it in all \NUM{cmp-ft-pairs-n} target and iteration pairs at each $K$.
+Adding centering to the fine-tuned model raises it by \NUM{cmp-ftc-lift-lo}--\NUM{cmp-ftc-lift-hi} points but closes only \NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\% of the gap to the frozen pipeline.
+With this few labels, the frozen encoder with a linear head is the stronger base, and the gain from cross-modal weak labels does not depend on it.
+
+\begin{figure}[t]
+\centering
+\FIG{finetune}{\columnwidth}
+\caption{Frozen versus fine-tuned audio encoders. UAR of the frozen five-value start and of our method, and of low-rank adaptation trained on the $K$ labels alone, with the anchor, and with the cross-modal weak labels, with and without centering, at $K=0$ and $K=5$ (four targets, three iterations).}
+\label{fig:finetune}
+\end{figure}
+
+\subsection{Loss due to Selection}
+\label{sec:comparison-selection}
+
+Pseudo-target selection does not always find the best candidate of our family.
+At $K=0$, the best candidate on the test speakers exceeds the selected one by \NUM{cmp-oursx-oracle-vs-tuned-avt-t-k0} points for the AVT text student and by \NUM{cmp-oursx-oracle-vs-tuned-w2-t-k0} points for the text student with second encoders, and by \NUM{cmp-oursx-oracle-vs-tuned-at-f-k0}--\NUM{cmp-oursx-oracle-vs-tuned-w2-v-k0} points for the other students.
+These gaps bound what a better selection rule could add; the comparison above is not affected because the competitors are selected by the same procedure.

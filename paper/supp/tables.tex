@@ -1,0 +1,70 @@
+% 自動生成（scripts/make_supp_tables.py）．手で編集しない．
+\begin{table*}[t]
+\caption{UAR (\%) of the tuned competitors and of our methods for the single-modality students, averaged over targets and ten iterations. ST: self-training; HPL: hard pseudo-labels; EM: entropy minimization; KD: distillation with a temperature; GD: generalized distillation; CoT: co-training; CoR: co-regularization; PA: prior adjustment by EM; RB: output rebalancing.}
+\label{tab:supp-mod}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrrrrrrrrrrrr@{}}
+\toprule
+Config. & Student, $K$ & Start & ST & HPL & EM & KD & GD & CoT & CoR & PA & RB & Ours & Ours-ext \\
+\midrule
+AVT & A, 0 & \NUM{tab-avt-a-k0-e39} & \NUM{tab-avt-a-k0-self} & \NUM{tab-avt-a-k0-hard} & \NUM{tab-avt-a-k0-entmin} & \NUM{tab-avt-a-k0-kd} & \NUM{tab-avt-a-k0-gd} & \NUM{tab-avt-a-k0-cotrain} & \NUM{tab-avt-a-k0-coreg} & \NUM{tab-avt-a-k0-saerens} & \NUM{tab-avt-a-k0-massbal} & \NUM{tab-avt-a-k0-ours} & \NUM{tab-avt-a-k0-oursx} \\
+ & A, 5 & \NUM{tab-avt-a-k5-e39} & \NUM{tab-avt-a-k5-self} & \NUM{tab-avt-a-k5-hard} & \NUM{tab-avt-a-k5-entmin} & \NUM{tab-avt-a-k5-kd} & \NUM{tab-avt-a-k5-gd} & \NUM{tab-avt-a-k5-cotrain} & \NUM{tab-avt-a-k5-coreg} & \NUM{tab-avt-a-k5-saerens} & \NUM{tab-avt-a-k5-massbal} & \NUM{tab-avt-a-k5-ours} & \NUM{tab-avt-a-k5-oursx} \\
+AVT & V, 0 & \NUM{tab-avt-v-k0-e39} & \NUM{tab-avt-v-k0-self} & \NUM{tab-avt-v-k0-hard} & \NUM{tab-avt-v-k0-entmin} & \NUM{tab-avt-v-k0-kd} & \NUM{tab-avt-v-k0-gd} & \NUM{tab-avt-v-k0-cotrain} & \NUM{tab-avt-v-k0-coreg} & \NUM{tab-avt-v-k0-saerens} & \NUM{tab-avt-v-k0-massbal} & \NUM{tab-avt-v-k0-ours} & \NUM{tab-avt-v-k0-oursx} \\
+ & V, 5 & \NUM{tab-avt-v-k5-e39} & \NUM{tab-avt-v-k5-self} & \NUM{tab-avt-v-k5-hard} & \NUM{tab-avt-v-k5-entmin} & \NUM{tab-avt-v-k5-kd} & \NUM{tab-avt-v-k5-gd} & \NUM{tab-avt-v-k5-cotrain} & \NUM{tab-avt-v-k5-coreg} & \NUM{tab-avt-v-k5-saerens} & \NUM{tab-avt-v-k5-massbal} & \NUM{tab-avt-v-k5-ours} & \NUM{tab-avt-v-k5-oursx} \\
+AVT & T, 0 & \NUM{tab-avt-t-k0-e39} & \NUM{tab-avt-t-k0-self} & \NUM{tab-avt-t-k0-hard} & \NUM{tab-avt-t-k0-entmin} & \NUM{tab-avt-t-k0-kd} & \NUM{tab-avt-t-k0-gd} & \NUM{tab-avt-t-k0-cotrain} & \NUM{tab-avt-t-k0-coreg} & \NUM{tab-avt-t-k0-saerens} & \NUM{tab-avt-t-k0-massbal} & \NUM{tab-avt-t-k0-ours} & \NUM{tab-avt-t-k0-oursx} \\
+ & T, 5 & \NUM{tab-avt-t-k5-e39} & \NUM{tab-avt-t-k5-self} & \NUM{tab-avt-t-k5-hard} & \NUM{tab-avt-t-k5-entmin} & \NUM{tab-avt-t-k5-kd} & \NUM{tab-avt-t-k5-gd} & \NUM{tab-avt-t-k5-cotrain} & \NUM{tab-avt-t-k5-coreg} & \NUM{tab-avt-t-k5-saerens} & \NUM{tab-avt-t-k5-massbal} & \NUM{tab-avt-t-k5-ours} & \NUM{tab-avt-t-k5-oursx} \\
+AVT (2nd) & A, 0 & \NUM{tab-w2-a-k0-e39} & \NUM{tab-w2-a-k0-self} & \NUM{tab-w2-a-k0-hard} & \NUM{tab-w2-a-k0-entmin} & \NUM{tab-w2-a-k0-kd} & \NUM{tab-w2-a-k0-gd} & \NUM{tab-w2-a-k0-cotrain} & \NUM{tab-w2-a-k0-coreg} & \NUM{tab-w2-a-k0-saerens} & \NUM{tab-w2-a-k0-massbal} & \NUM{tab-w2-a-k0-ours} & \NUM{tab-w2-a-k0-oursx} \\
+ & A, 5 & \NUM{tab-w2-a-k5-e39} & \NUM{tab-w2-a-k5-self} & \NUM{tab-w2-a-k5-hard} & \NUM{tab-w2-a-k5-entmin} & \NUM{tab-w2-a-k5-kd} & \NUM{tab-w2-a-k5-gd} & \NUM{tab-w2-a-k5-cotrain} & \NUM{tab-w2-a-k5-coreg} & \NUM{tab-w2-a-k5-saerens} & \NUM{tab-w2-a-k5-massbal} & \NUM{tab-w2-a-k5-ours} & \NUM{tab-w2-a-k5-oursx} \\
+AVT (2nd) & V, 0 & \NUM{tab-w2-v-k0-e39} & \NUM{tab-w2-v-k0-self} & \NUM{tab-w2-v-k0-hard} & \NUM{tab-w2-v-k0-entmin} & \NUM{tab-w2-v-k0-kd} & \NUM{tab-w2-v-k0-gd} & \NUM{tab-w2-v-k0-cotrain} & \NUM{tab-w2-v-k0-coreg} & \NUM{tab-w2-v-k0-saerens} & \NUM{tab-w2-v-k0-massbal} & \NUM{tab-w2-v-k0-ours} & \NUM{tab-w2-v-k0-oursx} \\
+ & V, 5 & \NUM{tab-w2-v-k5-e39} & \NUM{tab-w2-v-k5-self} & \NUM{tab-w2-v-k5-hard} & \NUM{tab-w2-v-k5-entmin} & \NUM{tab-w2-v-k5-kd} & \NUM{tab-w2-v-k5-gd} & \NUM{tab-w2-v-k5-cotrain} & \NUM{tab-w2-v-k5-coreg} & \NUM{tab-w2-v-k5-saerens} & \NUM{tab-w2-v-k5-massbal} & \NUM{tab-w2-v-k5-ours} & \NUM{tab-w2-v-k5-oursx} \\
+AVT (2nd) & T, 0 & \NUM{tab-w2-t-k0-e39} & \NUM{tab-w2-t-k0-self} & \NUM{tab-w2-t-k0-hard} & \NUM{tab-w2-t-k0-entmin} & \NUM{tab-w2-t-k0-kd} & \NUM{tab-w2-t-k0-gd} & \NUM{tab-w2-t-k0-cotrain} & \NUM{tab-w2-t-k0-coreg} & \NUM{tab-w2-t-k0-saerens} & \NUM{tab-w2-t-k0-massbal} & \NUM{tab-w2-t-k0-ours} & \NUM{tab-w2-t-k0-oursx} \\
+ & T, 5 & \NUM{tab-w2-t-k5-e39} & \NUM{tab-w2-t-k5-self} & \NUM{tab-w2-t-k5-hard} & \NUM{tab-w2-t-k5-entmin} & \NUM{tab-w2-t-k5-kd} & \NUM{tab-w2-t-k5-gd} & \NUM{tab-w2-t-k5-cotrain} & \NUM{tab-w2-t-k5-coreg} & \NUM{tab-w2-t-k5-saerens} & \NUM{tab-w2-t-k5-massbal} & \NUM{tab-w2-t-k5-ours} & \NUM{tab-w2-t-k5-oursx} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\caption{UAR (\%) of the tuned competitors and of our methods for the fused students. CoT-F and CoT-P: co-training with the fused or the product view; other abbreviations as in Table~\ref{tab:supp-mod}.}
+\label{tab:supp-fused}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrrrrrrrrrrr@{}}
+\toprule
+Config. & $K$ & Start & ST & EM & KD & CoT-F & CoT-P & CoR & PA & RB & Ours & Ours-ext \\
+\midrule
+AVT & 0 & \NUM{tab-avt-f-k0-e39} & \NUM{tab-avt-f-k0-self} & \NUM{tab-avt-f-k0-entmin} & \NUM{tab-avt-f-k0-kd} & \NUM{tab-avt-f-k0-cotrain-fused} & \NUM{tab-avt-f-k0-cotrain-prod} & \NUM{tab-avt-f-k0-coreg-sum} & \NUM{tab-avt-f-k0-saerens} & \NUM{tab-avt-f-k0-massbal} & \NUM{tab-avt-f-k0-ours} & \NUM{tab-avt-f-k0-oursx} \\
+ & 5 & \NUM{tab-avt-f-k5-e39} & \NUM{tab-avt-f-k5-self} & \NUM{tab-avt-f-k5-entmin} & \NUM{tab-avt-f-k5-kd} & \NUM{tab-avt-f-k5-cotrain-fused} & \NUM{tab-avt-f-k5-cotrain-prod} & \NUM{tab-avt-f-k5-coreg-sum} & \NUM{tab-avt-f-k5-saerens} & \NUM{tab-avt-f-k5-massbal} & \NUM{tab-avt-f-k5-ours} & \NUM{tab-avt-f-k5-oursx} \\
+AV & 0 & \NUM{tab-av-f-k0-e39} & \NUM{tab-av-f-k0-self} & \NUM{tab-av-f-k0-entmin} & \NUM{tab-av-f-k0-kd} & \NUM{tab-av-f-k0-cotrain-fused} & \NUM{tab-av-f-k0-cotrain-prod} & \NUM{tab-av-f-k0-coreg-sum} & \NUM{tab-av-f-k0-saerens} & \NUM{tab-av-f-k0-massbal} & \NUM{tab-av-f-k0-ours} & \NUM{tab-av-f-k0-oursx} \\
+ & 5 & \NUM{tab-av-f-k5-e39} & \NUM{tab-av-f-k5-self} & \NUM{tab-av-f-k5-entmin} & \NUM{tab-av-f-k5-kd} & \NUM{tab-av-f-k5-cotrain-fused} & \NUM{tab-av-f-k5-cotrain-prod} & \NUM{tab-av-f-k5-coreg-sum} & \NUM{tab-av-f-k5-saerens} & \NUM{tab-av-f-k5-massbal} & \NUM{tab-av-f-k5-ours} & \NUM{tab-av-f-k5-oursx} \\
+VT & 0 & \NUM{tab-vt-f-k0-e39} & \NUM{tab-vt-f-k0-self} & \NUM{tab-vt-f-k0-entmin} & \NUM{tab-vt-f-k0-kd} & \NUM{tab-vt-f-k0-cotrain-fused} & \NUM{tab-vt-f-k0-cotrain-prod} & \NUM{tab-vt-f-k0-coreg-sum} & \NUM{tab-vt-f-k0-saerens} & \NUM{tab-vt-f-k0-massbal} & \NUM{tab-vt-f-k0-ours} & \NUM{tab-vt-f-k0-oursx} \\
+ & 5 & \NUM{tab-vt-f-k5-e39} & \NUM{tab-vt-f-k5-self} & \NUM{tab-vt-f-k5-entmin} & \NUM{tab-vt-f-k5-kd} & \NUM{tab-vt-f-k5-cotrain-fused} & \NUM{tab-vt-f-k5-cotrain-prod} & \NUM{tab-vt-f-k5-coreg-sum} & \NUM{tab-vt-f-k5-saerens} & \NUM{tab-vt-f-k5-massbal} & \NUM{tab-vt-f-k5-ours} & \NUM{tab-vt-f-k5-oursx} \\
+AT & 0 & \NUM{tab-at-f-k0-e39} & \NUM{tab-at-f-k0-self} & \NUM{tab-at-f-k0-entmin} & \NUM{tab-at-f-k0-kd} & \NUM{tab-at-f-k0-cotrain-fused} & \NUM{tab-at-f-k0-cotrain-prod} & \NUM{tab-at-f-k0-coreg-sum} & \NUM{tab-at-f-k0-saerens} & \NUM{tab-at-f-k0-massbal} & \NUM{tab-at-f-k0-ours} & \NUM{tab-at-f-k0-oursx} \\
+ & 5 & \NUM{tab-at-f-k5-e39} & \NUM{tab-at-f-k5-self} & \NUM{tab-at-f-k5-entmin} & \NUM{tab-at-f-k5-kd} & \NUM{tab-at-f-k5-cotrain-fused} & \NUM{tab-at-f-k5-cotrain-prod} & \NUM{tab-at-f-k5-coreg-sum} & \NUM{tab-at-f-k5-saerens} & \NUM{tab-at-f-k5-massbal} & \NUM{tab-at-f-k5-ours} & \NUM{tab-at-f-k5-oursx} \\
+AVT (2nd) & 0 & \NUM{tab-w2-f-k0-e39} & \NUM{tab-w2-f-k0-self} & \NUM{tab-w2-f-k0-entmin} & \NUM{tab-w2-f-k0-kd} & \NUM{tab-w2-f-k0-cotrain-fused} & \NUM{tab-w2-f-k0-cotrain-prod} & \NUM{tab-w2-f-k0-coreg-sum} & \NUM{tab-w2-f-k0-saerens} & \NUM{tab-w2-f-k0-massbal} & \NUM{tab-w2-f-k0-ours} & \NUM{tab-w2-f-k0-oursx} \\
+ & 5 & \NUM{tab-w2-f-k5-e39} & \NUM{tab-w2-f-k5-self} & \NUM{tab-w2-f-k5-entmin} & \NUM{tab-w2-f-k5-kd} & \NUM{tab-w2-f-k5-cotrain-fused} & \NUM{tab-w2-f-k5-cotrain-prod} & \NUM{tab-w2-f-k5-coreg-sum} & \NUM{tab-w2-f-k5-saerens} & \NUM{tab-w2-f-k5-massbal} & \NUM{tab-w2-f-k5-ours} & \NUM{tab-w2-f-k5-oursx} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[t]
+\caption{Ours-ext minus the strongest tuned competitor over target and iteration pairs: mean (points), effect size $d_z$, Holm-corrected $p$ of the Wilcoxon signed-rank test, and the number of targets with a positive mean.}
+\label{tab:supp-stats}
+\centering\footnotesize\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}llrrrrrrrr@{}}
+\toprule
+ & & \multicolumn{4}{c}{$K=0$} & \multicolumn{4}{c}{$K=5$} \\ \cmidrule(lr){3-6}\cmidrule(l){7-10}
+Config. & Stud. & Mean & $d_z$ & $p$ & Pos. & Mean & $d_z$ & $p$ & Pos. \\
+\midrule
+AVT & A & \NUM{st-oursx-best-avt-a-k0-mean} & \NUM{st-oursx-best-avt-a-k0-dz} & $<$0.001 & \NUM{st-oursx-best-avt-a-k0-tgtpos} & \NUM{st-oursx-best-avt-a-k5-mean} & \NUM{st-oursx-best-avt-a-k5-dz} & $<$0.001 & \NUM{st-oursx-best-avt-a-k5-tgtpos} \\
+AVT & V & \NUM{st-oursx-best-avt-v-k0-mean} & \NUM{st-oursx-best-avt-v-k0-dz} & \NUM{st-oursx-best-avt-v-k0-pholm} & \NUM{st-oursx-best-avt-v-k0-tgtpos} & \NUM{st-oursx-best-avt-v-k5-mean} & \NUM{st-oursx-best-avt-v-k5-dz} & \NUM{st-oursx-best-avt-v-k5-pholm} & \NUM{st-oursx-best-avt-v-k5-tgtpos} \\
+AVT & T & \NUM{st-oursx-best-avt-t-k0-mean} & \NUM{st-oursx-best-avt-t-k0-dz} & \NUM{st-oursx-best-avt-t-k0-pholm} & \NUM{st-oursx-best-avt-t-k0-tgtpos} & \NUM{st-oursx-best-avt-t-k5-mean} & \NUM{st-oursx-best-avt-t-k5-dz} & \NUM{st-oursx-best-avt-t-k5-pholm} & \NUM{st-oursx-best-avt-t-k5-tgtpos} \\
+AVT & Fused & \NUM{st-oursx-best-avt-f-k0-mean} & \NUM{st-oursx-best-avt-f-k0-dz} & \NUM{st-oursx-best-avt-f-k0-pholm} & \NUM{st-oursx-best-avt-f-k0-tgtpos} & \NUM{st-oursx-best-avt-f-k5-mean} & \NUM{st-oursx-best-avt-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-avt-f-k5-tgtpos} \\
+AV & Fused & \NUM{st-oursx-best-av-f-k0-mean} & \NUM{st-oursx-best-av-f-k0-dz} & \NUM{st-oursx-best-av-f-k0-pholm} & \NUM{st-oursx-best-av-f-k0-tgtpos} & \NUM{st-oursx-best-av-f-k5-mean} & \NUM{st-oursx-best-av-f-k5-dz} & \NUM{st-oursx-best-av-f-k5-pholm} & \NUM{st-oursx-best-av-f-k5-tgtpos} \\
+VT & Fused & \NUM{st-oursx-best-vt-f-k0-mean} & \NUM{st-oursx-best-vt-f-k0-dz} & $<$0.001 & \NUM{st-oursx-best-vt-f-k0-tgtpos} & \NUM{st-oursx-best-vt-f-k5-mean} & \NUM{st-oursx-best-vt-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-vt-f-k5-tgtpos} \\
+AT & Fused & \NUM{st-oursx-best-at-f-k0-mean} & \NUM{st-oursx-best-at-f-k0-dz} & $<$0.001 & \NUM{st-oursx-best-at-f-k0-tgtpos} & \NUM{st-oursx-best-at-f-k5-mean} & \NUM{st-oursx-best-at-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-at-f-k5-tgtpos} \\
+AVT (2nd) & A & \NUM{st-oursx-best-w2-a-k0-mean} & \NUM{st-oursx-best-w2-a-k0-dz} & \NUM{st-oursx-best-w2-a-k0-pholm} & \NUM{st-oursx-best-w2-a-k0-tgtpos} & \NUM{st-oursx-best-w2-a-k5-mean} & \NUM{st-oursx-best-w2-a-k5-dz} & $<$0.001 & \NUM{st-oursx-best-w2-a-k5-tgtpos} \\
+AVT (2nd) & V & \NUM{st-oursx-best-w2-v-k0-mean} & \NUM{st-oursx-best-w2-v-k0-dz} & \NUM{st-oursx-best-w2-v-k0-pholm} & \NUM{st-oursx-best-w2-v-k0-tgtpos} & \NUM{st-oursx-best-w2-v-k5-mean} & \NUM{st-oursx-best-w2-v-k5-dz} & \NUM{st-oursx-best-w2-v-k5-pholm} & \NUM{st-oursx-best-w2-v-k5-tgtpos} \\
+AVT (2nd) & T & \NUM{st-oursx-best-w2-t-k0-mean} & \NUM{st-oursx-best-w2-t-k0-dz} & \NUM{st-oursx-best-w2-t-k0-pholm} & \NUM{st-oursx-best-w2-t-k0-tgtpos} & \NUM{st-oursx-best-w2-t-k5-mean} & \NUM{st-oursx-best-w2-t-k5-dz} & $<$0.001 & \NUM{st-oursx-best-w2-t-k5-tgtpos} \\
+AVT (2nd) & Fused & \NUM{st-oursx-best-w2-f-k0-mean} & \NUM{st-oursx-best-w2-f-k0-dz} & \NUM{st-oursx-best-w2-f-k0-pholm} & \NUM{st-oursx-best-w2-f-k0-tgtpos} & \NUM{st-oursx-best-w2-f-k5-mean} & \NUM{st-oursx-best-w2-f-k5-dz} & $<$0.001 & \NUM{st-oursx-best-w2-f-k5-tgtpos} \\
+\bottomrule
+\end{tabular}
+\end{table}
