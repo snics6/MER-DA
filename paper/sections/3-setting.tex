@@ -71,21 +71,21 @@ The \emph{gain map} reports UAR for $K \in \{1, 5, 10, 25, 50\}$ and the full po
 
 Three-fold speaker cross-validation selects $C \in \{0.01, 0.1, 1, 10\}$ for the target-only and the source-only classifiers ($C=1$ when a fold lacks an emotion), and the pooled classifier takes the $C$ of the source-only classifier of the same iteration, which uses no target label.
 Validating $C$ on the target labels fails for small $K$, because with one label per emotion the validation scores tie in most iterations and the tie rule weakens the penalty; earlier cross-corpus work also fixes hyperparameters in this case~\cite{gideon2021addog}.
-With the full pool, this rule overstates the loss of pooling; the supplementary material reports the map with cross-validated $C$.
+With the full pool, this rule overstates the loss of pooling for audio and changes it little for the other configurations; the supplementary material reports the map with cross-validated $C$.
 
 \subsection{Threshold and Direction of a Pairwise Decision}
 \label{sec:setting-model}
 
 We analyze a four-class classifier through its six pairwise decisions.
 For emotions $k$ and $l$, let $z = (\mathbf{w}_k - \mathbf{w}_l)^{\top}\mathbf{x} + (b_k - b_l)$ be the difference of their scores, and on the target utterances of $k$ and $l$ let $\mu_k$, $\mu_l$ be the class means of $z$ and $\sigma$ its pooled within-class standard deviation.
-The \emph{separation} $d = (\mu_k - \mu_l)/\sigma$ depends only on the direction $\mathbf{w}_k - \mathbf{w}_l$, and the \emph{threshold offset} $o = (\mu_k + \mu_l)/(2\sigma)$ can be set to zero by the intercepts alone.
+The \emph{separation} $d = (\mu_k - \mu_l)/\sigma$ depends only on the direction $\mathbf{w}_k - \mathbf{w}_l$, and the \emph{threshold offset} $o = -(\mu_k + \mu_l)/(2\sigma)$, the position of the boundary $z=0$ relative to the midpoint, can be set to zero by the intercepts alone.
 If $z$ is Gaussian within each class, the pairwise accuracy (the mean of the two recalls) is
 \begin{equation}
 \label{eq:twocloud}
 a(d, o) = \tfrac{1}{2}\left[\Phi\!\left(\tfrac{d}{2} + o\right) + \Phi\!\left(\tfrac{d}{2} - o\right)\right],
 \end{equation}
 where $\Phi$ is the standard normal distribution function.
-Let $\Delta$ be the separation along the target's best direction, found by linear discriminant analysis on all labeled target utterances; this reference serves only the analysis.
+Let $\Delta$ be the separation along the target's best direction, estimated by a shrinkage linear discriminant on one half of the target speakers and measured on the other half, averaged over the two halves; this reference serves only the analysis.
 Against it, the loss of a classifier splits into a \emph{threshold loss} $a(d, 0) - a(d, o)$, which moving the threshold to the midpoint recovers, and a \emph{direction loss} $a(\Delta, 0) - a(d, 0)$, which remains; we average both over the six pairs, in points of pairwise accuracy.
 
 \subsection{Hyperparameter Selection and Reporting}

@@ -55,11 +55,12 @@
 % ------------------------------------------------------------------ teacher
 \node[box, draw=tea, text width=3.95cm] (teach) at (6.85,6.3)
   {\textbf{Teacher}\\[3pt]
-   \textcolor{tea}{basic, sources only: source}\\
-   \textcolor{tea}{committee or fused start}\\[2pt]
-   \textcolor{ink2}{extended, also the target pool:}\\
-   \textcolor{ink2}{fused student refit on $K$ labels;}\\
-   \textcolor{ink2}{unimodal-student product (\emph{ref})}};
+   \textcolor{tea}{basic, sources only: fused start,}\\
+   \textcolor{tea}{start product, or agreement}\\
+   \textcolor{tea}{(fused students: also \emph{ref})}\\[2pt]
+   \textcolor{ink2}{extended, instead: fused student}\\
+   \textcolor{ink2}{refit on $K$ labels; product of}\\
+   \textcolor{ink2}{the students it teaches}};
 \draw[flow] (start.east |- 0,5.15) -- (teach.west |- 0,5.15);
 
 % ------------------------------------------------------------------ the target pool after centering

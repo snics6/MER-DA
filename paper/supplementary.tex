@@ -109,6 +109,10 @@ Selecting $C$ on the target labels lowers the gain at small $K$, partly through 
 \section{Additional Results for Part~II}
 \label{sec:supp-part2}
 
+\emph{Values of the start.}
+The five values of Section~5.1 of the main text take three candidates each: $\gamma \in \{-0.5, 0, 0.5\}$, $\rho_s \in \{0.3, 0.5, 0.7\}$, $C_b \in \{2, 8, \infty\}$ ($\infty$: no penalty on the intercepts), $C' \in \{0.01, 0.03, 0.1\}$, and $\rho_M \in \{1, 0.97, 0.9\}$.
+For the experiments with weak labels and the comparison, the A, A~(HuBERT), V, and AV students keep the selected $\gamma$ and $\rho_s$ and reselect $(\rho_M, C', C_b)$ on the same pseudo-targets from $45$ combinations, $\rho_M \in \{1, 0.97, 0.9\}$, $C' \in \{0.003, 0.01, 0.03, 0.1, 0.3\}$, and $C_b \in \{0.5, 2, 8\}$; no label of the target beyond its $K$ draws enters this selection.
+
 \begin{figure}[t]
 \centering
 \FIG{capture}{\columnwidth}
@@ -152,7 +156,7 @@ Selecting $C$ on the target labels lowers the gain at small $K$, partly through 
 
 We fine-tuned WavLM with low-rank adapters for the audio student of four targets over three iterations (Fig.~\ref{fig:supp-finetune}).
 Fine-tuning on $K=5$ labels per emotion falls \NUM{cmp-ft-konly-below-frozen-e39-k5} points below the frozen five-value start (\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi} across targets), and anchoring the adapted head to the start adds \NUM{cmp-ft-anchor-vs-konly-k5} points.
-The cross-modal weak labels raise the fine-tuned model by \NUM{cmp-ft-weak-vs-start-k0} points at $K=0$ and \NUM{cmp-ft-weak-vs-anchor-k5} at $K=5$, but the fine-tuned version of our method, with one fixed weak-label configuration, stays \NUM{cmp-ft-ours-below-frozen-ours-k0} and \NUM{cmp-ft-ours-below-frozen-ours-k5} points below the same configuration on frozen features, below it in all \NUM{cmp-ft-pairs-n} target and iteration pairs at each $K$.
+The cross-modal weak labels raise the fine-tuned model by \NUM{cmp-ft-weak-vs-start-k0} points at $K=0$ and \NUM{cmp-ft-weak-vs-anchor-k5} at $K=5$, but the fine-tuned version of our method, with the weak labels of ours-ext fixed to the form selected for the AVT audio student, stays \NUM{cmp-ft-ours-below-frozen-ours-k0} and \NUM{cmp-ft-ours-below-frozen-ours-k5} points below the same configuration on frozen features, below it in all \NUM{cmp-ft-pairs-n} target and iteration pairs at each $K$.
 Adding centering raises the fine-tuned start, the model trained on the $K$ labels alone, and the anchored model by \NUM{cmp-ftc-lift-lo}--\NUM{cmp-ftc-lift-hi} points, and the fine-tuned version of our method by \NUM{cmp-ftc-lift-ours-k0}--\NUM{cmp-ftc-lift-ours-k5} points, but it closes only \NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\% of the gap to the frozen pipeline.
 In this check, the frozen encoder with a linear head is the stronger base with a few labels, and the gain from cross-modal weak labels persists on the fine-tuned encoder.
 

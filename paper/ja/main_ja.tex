@@ -52,9 +52,9 @@
 感情の対ごとの判定を判断基準（threshold）と向き（direction）に分けると，単一モダリティの音声と顔で感情ごとのラベルが5本以下のとき，ラベルが合併（pooled）の分類器に加える改善のうち\NUM{p1-e29-critshare-kle5-single-lo}から\NUM{p1-e29-critshare-kle5-single-hi}が判断基準の修正から生じる．
 一方，音声の向きは\NUM{p1-qdir-audio-lo}から\NUM{p1-qdir-audio-hi}の実効次元（effective dimension）で決まる速さで改善し，1つのソースコーパスは向きについて感情ごとに\NUM{p1-e32-n1src-audio-lo}から\NUM{p1-e32-n1src-audio-hi}本のラベル分を補う．
 少数のラベルも，ラベルを使わない選択も，強い出発点（start）の向きを直さない．
-そこで本論文は，ソースだけで学習し，生徒（student）がもたないモダリティを見る融合の分類器が，ラベルのないターゲットの発話すべてに付ける弱いラベル（weak labels）で，出発点にアンカーした線形の生徒を学習する．
+そこで本論文は，ソースだけで学習し，生徒（student）がもたないモダリティを見る分類器が，ラベルのないターゲットの発話すべてに付ける弱いラベル（weak labels）で，出発点にアンカーした線形の生徒を学習する．
 感情ごとのラベルが0本と5本のとき，この手法は単一モダリティの生徒すべてを出発点より上に上げ，同じ方法で調整した9つの比較手法のうち最も強いものを\NUM{cmp-ours-vs-best-cells-n}のセルのうち\NUM{cmp-ours-vs-best-pos-n}で上回る．
-ターゲットのプールで学び直した先生を加えて拡張すると，この手法は，第2のエンコーダの生徒を含む11の生徒すべてについて，最も強い比較手法をUARで\NUM{cmp-oursx-vs-best-range-lo}から\NUM{cmp-oursx-vs-best-range-hi}ポイント上回る．
+先生をラベルで学び直したものに替えた拡張版は，第2のエンコーダの生徒を含む11の生徒すべてについて，最も強い比較手法をUARで\NUM{cmp-oursx-vs-best-range-lo}から\NUM{cmp-oursx-vs-best-range-hi}ポイント上回る．
 
 \medskip
 \noindent{\sffamily\gtfamily\bfseries 索引語}\quad

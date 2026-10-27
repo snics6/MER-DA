@@ -137,6 +137,10 @@ $K$本のラベルからのターゲットの推定の比は$q/K$であり，効
 \section{第II部の追加の結果}
 \label{sec:supp-part2}
 
+\emph{出発点の値．}
+本文5.1節の5つの値は，それぞれ3つの候補から選ぶ：$\gamma \in \{-0.5, 0, 0.5\}$，$\rho_s \in \{0.3, 0.5, 0.7\}$，$C_b \in \{2, 8, \infty\}$（$\infty$は切片に罰則を課さない），$C' \in \{0.01, 0.03, 0.1\}$，$\rho_M \in \{1, 0.97, 0.9\}$．
+弱いラベルの実験と比較では，A，A（HuBERT），V，AVの生徒は選んだ$\gamma$と$\rho_s$をそのままにし，$(\rho_M, C', C_b)$を同じ仮のターゲットで$45$通り（$\rho_M \in \{1, 0.97, 0.9\}$，$C' \in \{0.003, 0.01, 0.03, 0.1, 0.3\}$，$C_b \in \{0.5, 2, 8\}$）から選び直す．この選択には，ターゲットの$K$本のほかのラベルを使わない．
+
 \begin{figure}[t]
 \centering
 \FIG{capture}{\columnwidth}
@@ -181,7 +185,7 @@ $K$本のラベルからのターゲットの推定の比は$q/K$であり，効
 4つのターゲットの音声の生徒について，3回の反復で，WavLMを低ランクのアダプタで微調整した（図\ref{fig:supp-finetune}）．
 感情ごとに$K=5$本のラベルで微調整すると，凍結した5つの値を選んだ出発点を\NUM{cmp-ft-konly-below-frozen-e39-k5}ポイント下回り（ターゲット間で\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi}），適応したヘッドを出発点にアンカーすると\NUM{cmp-ft-anchor-vs-konly-k5}ポイント上がる．
 別のモダリティからの弱いラベルは，微調整したモデルを$K=0$で\NUM{cmp-ft-weak-vs-start-k0}ポイント，$K=5$で\NUM{cmp-ft-weak-vs-anchor-k5}ポイント上げる．
-しかし，弱いラベルの設定を1つに固定した提案法の微調整版は，凍結した特徴の上の同じ設定を\NUM{cmp-ft-ours-below-frozen-ours-k0}ポイントと\NUM{cmp-ft-ours-below-frozen-ours-k5}ポイント下回り，各$K$で\NUM{cmp-ft-pairs-n}のターゲットと反復の組のすべてで下回る．
+しかし，弱いラベルをAVTの音声の生徒で選ばれた拡張版の形に固定した提案法の微調整版は，凍結した特徴の上の同じ設定を\NUM{cmp-ft-ours-below-frozen-ours-k0}ポイントと\NUM{cmp-ft-ours-below-frozen-ours-k5}ポイント下回り，各$K$で\NUM{cmp-ft-pairs-n}のターゲットと反復の組のすべてで下回る．
 中心化を加えると，微調整した出発点，$K$本のラベルだけで学習したモデル，アンカーを加えたモデルは\NUM{cmp-ftc-lift-lo}--\NUM{cmp-ftc-lift-hi}ポイント，提案法の微調整版は\NUM{cmp-ftc-lift-ours-k0}--\NUM{cmp-ftc-lift-ours-k5}ポイント上がるが，凍結した処理の流れとの差のうち縮まるのは\NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\%だけである．
 この確認では，ラベルが少ないとき，凍結したエンコーダと線形ヘッドのほうが強い土台であり，別のモダリティからの弱いラベルによる利得は微調整したエンコーダの上でも残る．
 

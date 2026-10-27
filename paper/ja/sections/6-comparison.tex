@@ -8,7 +8,7 @@
 分類器を学習し直す手法はどれも，同じ5つの値を選んだ出発点から，同じ$K$本のラベルと同じラベルのないプールで，同じアンカーつきの線形の生徒（式\eqref{eq:student}）を学習する．
 事前確率の調整と再均衡化は，出発点の出力を補正する．
 先生を必要とする比較手法には，融合の出発点（単一モダリティの生徒に対する温度つきの蒸留とハードな擬似ラベル），$K$本のラベルで学び直した融合の生徒（一般化蒸留），単一モダリティの出発点の積（融合の生徒に対する蒸留）のいずれかを先生として与える．
-提案法の拡張版の2段階の先生はどの比較手法にも与えないので，差には先生の選び方の違いも含まれる．
+2段階の参照はどの比較手法にも与えないので，差には先生の選び方の違いも含まれる．
 融合の生徒に対しては一般化蒸留とハードな擬似ラベルは定義されず，共訓練は2つの変種で加わる．
 各比較手法の\emph{調整版}（tuned）は，提案法と同じく，そのハイパーパラメータ（しきい値，温度，ラベルのない損失の重み）を同じ仮のターゲットで$K$ごとに選ぶ．
 \emph{既定値版}（fixed）は元の論文の値を使う．
@@ -21,7 +21,7 @@ AVTの構成では音声，顔，テキスト，融合の生徒を\NUM{cmp-targe
 
 提案法の拡張版は，$K=0$と$K=5$のすべての生徒で，調整版の比較手法のうち最も強いものを\NUM{cmp-oursx-vs-best-range-lo}--\NUM{cmp-oursx-vs-best-range-hi}ポイント上回る（表\ref{tab:compare}．ターゲット間の範囲は補足資料の図S6に示す）．
 どこでも最も強い比較手法は1つも無い．
-弱いラベルがすべてソースで学習した融合の出発点から導かれる基本の手法は，生徒と$K \in \{0, 5\}$の\NUM{cmp-ours-vs-best-cells-n}の組み合わせのうち\NUM{cmp-ours-vs-best-pos-n}で最も強い比較手法を上回る．
+先生の候補に$K$本のラベルで学び直した融合の生徒を含まない基本の手法は，生徒と$K \in \{0, 5\}$の\NUM{cmp-ours-vs-best-cells-n}の組み合わせのうち\NUM{cmp-ours-vs-best-pos-n}で最も強い比較手法を上回る．
 $K=5$では，AVTの音声とテキストの生徒で一般化蒸留を下回り，ATの融合の生徒で共訓練と並ぶ．
 ラベルの本数にわたって見ると（図S7），提案法の拡張版は音声の生徒ではすべての$K$で優位を保つ（\NUM{cmp-oursx-vs-best-avt-a-lo}--\NUM{cmp-oursx-vs-best-avt-a-hi}ポイント）．
 一般化蒸留が提案法の拡張版を上回るのは$K \ge 10$のテキストの生徒だけで，その差は\NUM{cmp-gd-vs-oursx-avt-t-kge10-lo}--\NUM{cmp-gd-vs-oursx-avt-t-kge10-hi}ポイントである．
@@ -65,7 +65,7 @@ AVT， & A & \NUM{tab-w2-a-k0-e39} & \NUM{tab-w2-a-k5-e39} & CoT/GD & \NUM{cmp-b
 \subsection{既定値のハイパーパラメータとエントロピー最小化}
 \label{sec:comparison-fixed}
 
-元の論文のハイパーパラメータを使うと，エントロピー最小化，共正則化，事前確率の調整は，$K=0$でAVTの単一モダリティの生徒の予測を1つの感情に崩壊させ，出発点のUARを\NUM{cmp-fixed-collapse-avt-mod-k0-lo}から\NUM{cmp-fixed-collapse-avt-mod-k0-hi}ポイント変える．
+元の論文のハイパーパラメータを使うと，エントロピー最小化，共正則化，事前確率の調整は，$K=0$でAVTの単一モダリティの生徒のUARを\NUM{cmp-fixed-collapse-avt-mod-k0-lo}から\NUM{cmp-fixed-collapse-avt-mod-k0-hi}ポイント変え，共正則化と，音声の生徒に対するエントロピー最小化は，UARを偶然の水準まで下げる．
 融合の生徒では，既定値版のエントロピー最小化は，4つの構成にわたる平均で出発点のUARを\NUM{cmp-entmin-fixed-vs-e39-f-k0-lo}から\NUM{cmp-entmin-fixed-vs-e39-f-k0-hi}ポイント変え，その効果はターゲットによって異なる（図S8）．
 IEMOCAPの即興のセッションでは，UARを$+$\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-impro}（AVT）と$+$\NUM{cmp-entmin-fixed-vs-e39-at-f-k0-impro}ポイント（AT）変えるが，同じターゲットでも\NUM{cmp-entmin-fixed-vs-e39-vt-f-k0-impro}（VT）と\NUM{cmp-entmin-fixed-vs-e39-av-f-k0-impro}ポイント（AV）変え，AVTのMELDでは\NUM{cmp-entmin-fixed-vs-e39-avt-f-k0-meld}ポイント変える．
 仮のターゲットによる選択はこれらの失敗を検出し，すべての$K$でAVTの融合の生徒のエントロピー最小化を止める．
@@ -77,7 +77,7 @@ IEMOCAPの即興のセッションでは，UARを$+$\NUM{cmp-entmin-fixed-vs-e39
 
 凍結した設定が適応の能力を過小に示していないかを確かめるために，4つのターゲットの音声の生徒について，3回の反復で，WavLMを低ランクのアダプタで微調整した（補足資料の図S9とS7節）．
 感情ごとに$K=5$本のラベルで微調整すると，凍結した5つの値を選んだ出発点を\NUM{cmp-ft-konly-below-frozen-e39-k5}ポイント下回る（ターゲット間で\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-lo}--\NUM{cmp-ft-konly-below-frozen-e39-k5-tgt-hi}）．
-別のモダリティからの弱いラベルは，微調整したモデルでも$K=0$で\NUM{cmp-ft-weak-vs-start-k0}ポイント，$K=5$で\NUM{cmp-ft-weak-vs-anchor-k5}ポイント役立つが，提案法の微調整版は，凍結した特徴の上の同じ設定を\NUM{cmp-ft-ours-below-frozen-ours-k0}ポイントと\NUM{cmp-ft-ours-below-frozen-ours-k5}ポイント下回り，中心化はその差の\NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\%しか縮めない．
+AVTの音声の生徒で選ばれた形に固定した提案法の拡張版の弱いラベルは，微調整したモデルでも$K=0$で\NUM{cmp-ft-weak-vs-start-k0}ポイント，$K=5$で\NUM{cmp-ft-weak-vs-anchor-k5}ポイント役立つが，提案法の微調整版は，凍結した特徴の上の同じ設定を\NUM{cmp-ft-ours-below-frozen-ours-k0}ポイントと\NUM{cmp-ft-ours-below-frozen-ours-k5}ポイント下回り，中心化はその差の\NUM{cmp-ftc-gap-closed-start-k0}--\NUM{cmp-ftc-gap-closed-konly-k5}\%しか縮めない．
 
 \emph{選択による損失．}
 \label{sec:comparison-selection}
