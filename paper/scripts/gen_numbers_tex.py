@@ -15,6 +15,7 @@ key の実体は results/numbers.json（出所つき）に置く．
 from __future__ import annotations
 
 import json
+import re
 import pathlib
 import sys
 
@@ -42,9 +43,14 @@ FOOTER = "\\makeatother\n"
 def fmt(entry: dict) -> str:
     v = entry["value"]
     f = entry.get("format")
-    if f:
-        return f % v if "%" in f else f.format(v)
-    return str(v)
+    out = (f % v if "%" in f else f.format(v)) if f else str(v)
+    # 負の数の先頭のハイフンは，組版で minus（−）にする．\ensuremath なので地の文でも数式の中でも使える
+    # 丸めて 0 になった負の数（-0.0 など）は符号を落とす
+    if re.fullmatch(r"-0(\.0+)?", out):
+        out = out[1:]
+    if out.startswith("-"):
+        out = "\\ensuremath{-}" + out[1:]
+    return out
 
 
 def main() -> int:

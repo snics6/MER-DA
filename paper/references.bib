@@ -3,3 +3,266 @@
 % 書誌は原典（出版社の頁・会議の予稿集・arXiv の表紙）で確かめてから入れる．
 % 全著者名・誌名の正式名・巻・号・月・年・頁を書く（TAC の規則）．
 % 候補の一覧と確かめた水準は ../research_notes/ と ../docs/related-work.md 1.13・1.14 節にある．
+
+% ---- 3 節（設定）で引く文献（2026-10-27 に書誌を確かめた） ----
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1007/s10579-008-9076-6．要確認: なし（Springer の頁は取得できず，抄録は見ていない）
+@article{busso2008iemocap,
+  author    = {Carlos Busso and Murtaza Bulut and Chi-Chun Lee and Abe Kazemzadeh and Emily Mower and Samuel Kim and Jeannette N. Chang and Sungbok Lee and Shrikanth S. Narayanan},
+  title     = {{IEMOCAP}: interactive emotional dyadic motion capture database},
+  journal   = {Language Resources and Evaluation},
+  volume    = {42},
+  number    = {4},
+  pages     = {335--359},
+  month     = dec,
+  year      = {2008},
+  doi       = {10.1007/s10579-008-9076-6}
+}
+
+% 水準: ○ 出版社の頁（ACL Anthology の書誌）．確かめた出所: https://aclanthology.org/P18-1208/ と https://api.crossref.org/works/10.18653/v1/P18-1208．要確認: なし
+@inproceedings{zadeh2018mosei,
+  author    = {AmirAli {Bagher Zadeh} and Paul Pu Liang and Soujanya Poria and Erik Cambria and Louis-Philippe Morency},
+  title     = {Multimodal Language Analysis in the Wild: {CMU-MOSEI} Dataset and Interpretable Dynamic Fusion Graph},
+  booktitle = {Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  editor    = {Iryna Gurevych and Yusuke Miyao},
+  publisher = {Association for Computational Linguistics},
+  address   = {Melbourne, Australia},
+  pages     = {2236--2246},
+  month     = jul,
+  year      = {2018},
+  doi       = {10.18653/v1/P18-1208}
+}
+
+% 水準: ○ 出版社の頁（ACL Anthology の書誌）．確かめた出所: https://aclanthology.org/P19-1050/ と https://api.crossref.org/works/10.18653/v1/P19-1050．要確認: なし
+@inproceedings{poria2019meld,
+  author    = {Soujanya Poria and Devamanyu Hazarika and Navonil Majumder and Gautam Naik and Erik Cambria and Rada Mihalcea},
+  title     = {{MELD}: A Multimodal Multi-Party Dataset for Emotion Recognition in Conversations},
+  booktitle = {Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics},
+  editor    = {Anna Korhonen and David Traum and Llu{\'i}s M{\`a}rquez},
+  publisher = {Association for Computational Linguistics},
+  address   = {Florence, Italy},
+  pages     = {527--536},
+  month     = jul,
+  year      = {2019},
+  doi       = {10.18653/v1/P19-1050}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1109/MMUL.2012.26．要確認: 号の月の幅（IEEE Xplore の表記は未見．Crossref の印刷日は 2012-07）
+@article{dhall2012afew,
+  author    = {Abhinav Dhall and Roland Goecke and Simon Lucey and Tom Gedeon},
+  title     = {Collecting Large, Richly Annotated Facial-Expression Databases from Movies},
+  journal   = {IEEE MultiMedia},
+  volume    = {19},
+  number    = {3},
+  pages     = {34--41},
+  month     = jul,
+  year      = {2012},
+  doi       = {10.1109/MMUL.2012.26}
+}
+
+% 水準: ○ 出版社の頁（PLOS ONE の記事頁の書誌と抄録）．確かめた出所: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0196391．要確認: なし
+@article{livingstone2018ravdess,
+  author    = {Steven R. Livingstone and Frank A. Russo},
+  title     = {The {R}yerson Audio-Visual Database of Emotional Speech and Song ({RAVDESS}): A dynamic, multimodal set of facial and vocal expressions in {N}orth {A}merican {E}nglish},
+  journal   = {PLOS ONE},
+  volume    = {13},
+  number    = {5},
+  pages     = {e0196391},
+  month     = may,
+  year      = {2018},
+  doi       = {10.1371/journal.pone.0196391}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1109/TAFFC.2014.2336244．要確認: 号の月の幅（IEEE Xplore の表記は未見．Crossref の印刷日は 2014-10-01）
+@article{cao2014cremad,
+  author    = {Houwei Cao and David G. Cooper and Michael K. Keutmann and Ruben C. Gur and Ani Nenkova and Ragini Verma},
+  title     = {{CREMA-D}: Crowd-Sourced Emotional Multimodal Actors Dataset},
+  journal   = {IEEE Transactions on Affective Computing},
+  volume    = {5},
+  number    = {4},
+  pages     = {377--390},
+  month     = oct,
+  year      = {2014},
+  doi       = {10.1109/TAFFC.2014.2336244}
+}
+
+% 水準: △ 書誌のみ（Crossref．著者の並びは arXiv:2110.13900v5 の表紙とも照合）．確かめた出所: https://api.crossref.org/works/10.1109/JSTSP.2022.3188113 と https://arxiv.org/abs/2110.13900．要確認: なし（著者に Jian Wu が 2 人いるのは Crossref と arXiv の両方で同じ）
+@article{chen2022wavlm,
+  author    = {Sanyuan Chen and Chengyi Wang and Zhengyang Chen and Yu Wu and Shujie Liu and Zhuo Chen and Jinyu Li and Naoyuki Kanda and Takuya Yoshioka and Xiong Xiao and Jian Wu and Long Zhou and Shuo Ren and Yanmin Qian and Yao Qian and Jian Wu and Michael Zeng and Xiangzhan Yu and Furu Wei},
+  title     = {{WavLM}: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing},
+  journal   = {IEEE Journal of Selected Topics in Signal Processing},
+  volume    = {16},
+  number    = {6},
+  pages     = {1505--1518},
+  month     = oct,
+  year      = {2022},
+  doi       = {10.1109/JSTSP.2022.3188113}
+}
+
+% 水準: △ 書誌のみ（Crossref．著者の並びは arXiv:2106.07447 の表紙とも照合）．確かめた出所: https://api.crossref.org/works/10.1109/TASLP.2021.3122291 と https://arxiv.org/abs/2106.07447．要確認: 月（Crossref の記録に無い．IEEE Xplore は未見）
+@article{hsu2021hubert,
+  author    = {Wei-Ning Hsu and Benjamin Bolte and Yao-Hung Hubert Tsai and Kushal Lakhotia and Ruslan Salakhutdinov and Abdelrahman Mohamed},
+  title     = {{HuBERT}: Self-Supervised Speech Representation Learning by Masked Prediction of Hidden Units},
+  journal   = {IEEE/ACM Transactions on Audio, Speech, and Language Processing},
+  volume    = {29},
+  pages     = {3451--3460},
+  year      = {2021},
+  doi       = {10.1109/TASLP.2021.3122291}
+}
+
+% 水準: ○ arXiv の表紙（arXiv API の記録．査読つきの版は無い）．確かめた出所: https://arxiv.org/abs/1907.11692 と https://api.datacite.org/dois/10.48550/arXiv.1907.11692．要確認: なし
+@misc{liu2019roberta,
+  author        = {Yinhan Liu and Myle Ott and Naman Goyal and Jingfei Du and Mandar Joshi and Danqi Chen and Omer Levy and Mike Lewis and Luke Zettlemoyer and Veselin Stoyanov},
+  title         = {{RoBERTa}: A Robustly Optimized {BERT} Pretraining Approach},
+  howpublished  = {arXiv:1907.11692},
+  month         = jul,
+  year          = {2019},
+  eprint        = {1907.11692},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  doi           = {10.48550/arXiv.1907.11692}
+}
+
+% 水準: ○ 会議の頁（ICLR 2023 の公式サイトの論文一覧．採否は Accept: poster）と arXiv の表紙（v4 の注記に ICLR 2023 とある）．確かめた出所: https://iclr.cc/virtual/2023/poster/11295 と https://arxiv.org/abs/2111.09543．要確認: OpenReview の頁そのもの（取得時に機械判定で拒まれた）
+@inproceedings{he2023debertav3,
+  author    = {Pengcheng He and Jianfeng Gao and Weizhu Chen},
+  title     = {{DeBERTaV3}: Improving {DeBERTa} using {ELECTRA}-Style Pre-Training with Gradient-Disentangled Embedding Sharing},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  month     = may,
+  year      = {2023},
+  url       = {https://openreview.net/forum?id=sE7-XhLxHA}
+}
+
+% 水準: ○ 出版社の頁（PMLR の論文頁と，そこに載る BibTeX）．確かめた出所: https://proceedings.mlr.press/v139/radford21a.html．要確認: なし
+@inproceedings{radford2021clip,
+  author    = {Alec Radford and Jong Wook Kim and Chris Hallacy and Aditya Ramesh and Gabriel Goh and Sandhini Agarwal and Girish Sastry and Amanda Askell and Pamela Mishkin and Jack Clark and Gretchen Krueger and Ilya Sutskever},
+  title     = {Learning Transferable Visual Models From Natural Language Supervision},
+  booktitle = {Proceedings of the 38th International Conference on Machine Learning},
+  editor    = {Marina Meila and Tong Zhang},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {139},
+  publisher = {PMLR},
+  pages     = {8748--8763},
+  month     = jul,
+  year      = {2021},
+  url       = {https://proceedings.mlr.press/v139/radford21a.html}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1016/j.neucom.2022.10.013．要確認: なし（ScienceDirect の頁は未見）
+@article{ryumina2022facial,
+  author    = {Elena Ryumina and Denis Dresvyanskiy and Alexey Karpov},
+  title     = {In search of a robust facial expressions recognition model: A large-scale visual cross-corpus study},
+  journal   = {Neurocomputing},
+  volume    = {514},
+  pages     = {435--450},
+  month     = dec,
+  year      = {2022},
+  doi       = {10.1016/j.neucom.2022.10.013}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1109/TAFFC.2017.2740923．要確認: 号の月の幅（IEEE Xplore の表記は未見．Crossref の印刷日は 2019-01-01）
+@article{mollahosseini2019affectnet,
+  author    = {Ali Mollahosseini and Behzad Hasani and Mohammad H. Mahoor},
+  title     = {{AffectNet}: A Database for Facial Expression, Valence, and Arousal Computing in the Wild},
+  journal   = {IEEE Transactions on Affective Computing},
+  volume    = {10},
+  number    = {1},
+  pages     = {18--31},
+  month     = jan,
+  year      = {2019},
+  doi       = {10.1109/TAFFC.2017.2740923}
+}
+
+% 水準: △ 書誌のみ（Crossref．会議の場所 Xi'an と会期 2018-05-15〜19 も Crossref の記録による）．確かめた出所: https://api.crossref.org/works/10.1109/FG.2018.00020．要確認: なし（IEEE Xplore は未見）
+@inproceedings{cao2018vggface2,
+  author    = {Qiong Cao and Li Shen and Weidi Xie and Omkar M. Parkhi and Andrew Zisserman},
+  title     = {{VGGFace2}: A Dataset for Recognising Faces across Pose and Age},
+  booktitle = {2018 13th IEEE International Conference on Automatic Face \& Gesture Recognition (FG 2018)},
+  address   = {Xi'an, China},
+  pages     = {67--74},
+  month     = may,
+  year      = {2018},
+  doi       = {10.1109/FG.2018.00020}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1109/TAFFC.2019.2916092．要確認: 号の月の幅（Crossref の印刷日は 2021-10-01）．第 3 著者の姓の区切り（Crossref は姓 Provost・名 Emily Mower と記録するが，ここでは本人の表記 Mower Provost を姓にした）
+@article{gideon2021addog,
+  author    = {John Gideon and Melvin G. McInnis and Emily {Mower Provost}},
+  title     = {Improving Cross-Corpus Speech Emotion Recognition with Adversarial Discriminative Domain Generalization ({ADDoG})},
+  journal   = {IEEE Transactions on Affective Computing},
+  volume    = {12},
+  number    = {4},
+  pages     = {1055--1068},
+  month     = oct,
+  year      = {2021},
+  doi       = {10.1109/TAFFC.2019.2916092}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1109/TAFFC.2021.3109485．要確認: 号の月の幅（Crossref の印刷日は 2023-04-01）
+@article{feng2023fewshot,
+  author    = {Kexin Feng and Theodora Chaspari},
+  title     = {Few-Shot Learning in Emotion Recognition of Spontaneous Speech Using a {S}iamese Neural Network With Adaptive Sample Pair Formation},
+  journal   = {IEEE Transactions on Affective Computing},
+  volume    = {14},
+  number    = {2},
+  pages     = {1627--1633},
+  month     = apr,
+  year      = {2023},
+  doi       = {10.1109/TAFFC.2021.3109485}
+}
+
+% 水準: △ 書誌のみ（Crossref）．確かめた出所: https://api.crossref.org/works/10.1007/BF01589116．要確認: なし（Springer の頁は取得できず未見）
+@article{liu1989lbfgs,
+  author    = {Dong C. Liu and Jorge Nocedal},
+  title     = {On the limited memory {BFGS} method for large scale optimization},
+  journal   = {Mathematical Programming},
+  volume    = {45},
+  number    = {1--3},
+  pages     = {503--528},
+  month     = aug,
+  year      = {1989},
+  doi       = {10.1007/BF01589116}
+}
+
+% 水準: ○ 会議の頁（ICLR 2022 の公式サイトの論文一覧．採否は Accept (Oral)）と arXiv の表紙．確かめた出所: https://iclr.cc/virtual/2022/oral/5946 と https://arxiv.org/abs/2202.10054．要確認: OpenReview の頁そのもの（取得時に機械判定で拒まれた）
+@inproceedings{kumar2022lpft,
+  author    = {Ananya Kumar and Aditi Raghunathan and Robbie Jones and Tengyu Ma and Percy Liang},
+  title     = {Fine-Tuning can Distort Pretrained Features and Underperform Out-of-Distribution},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  month     = apr,
+  year      = {2022},
+  url       = {https://openreview.net/forum?id=UYneFzXSJWh}
+}
+
+% 水準: ○ 会議の頁（ICLR 2021 の公式サイトの論文一覧．採否は Poster）と arXiv の表紙．確かめた出所: https://iclr.cc/virtual/2021/poster/2998 と https://arxiv.org/abs/2007.01434．要確認: OpenReview の頁そのもの（取得時に機械判定で拒まれた）
+@inproceedings{gulrajani2021domainbed,
+  author    = {Ishaan Gulrajani and David Lopez-Paz},
+  title     = {In Search of Lost Domain Generalization},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  month     = may,
+  year      = {2021},
+  url       = {https://openreview.net/forum?id=lQdXeXDoWtI}
+}
+
+% 水準: ○ 出版版の PDF の 1 頁目（書誌・抄録．リポジトリ直下の A theory of learning from different domains.pdf）と Crossref．確かめた出所: https://doi.org/10.1007/s10994-009-5152-4 と https://api.crossref.org/works/10.1007/s10994-009-5152-4．要確認: なし（月は Crossref の印刷日 2010-05．オンライン公開は 2009-10-23）
+@article{bendavid2010theory,
+  author    = {Shai Ben-David and John Blitzer and Koby Crammer and Alex Kulesza and Fernando Pereira and Jennifer Wortman Vaughan},
+  title     = {A theory of learning from different domains},
+  journal   = {Machine Learning},
+  volume    = {79},
+  number    = {1--2},
+  pages     = {151--175},
+  month     = may,
+  year      = {2010},
+  doi       = {10.1007/s10994-009-5152-4}
+}
+
+% 水準: ○ 配布元の頁（GitHub のリポジトリの README と API の記録．論文は無い）．確かめた出所: https://github.com/derronqi/yolov8-face．要確認: なし（手元の weights/yolov8n-face.pt の sha256 は README の Google Drive の yolov8n の重みと一致した）
+@misc{yolov8face,
+  author       = {{derronqi}},
+  title        = {yolov8-face: {YOLOv8} face detection with landmark},
+  howpublished = {GitHub repository},
+  year         = {2023},
+  note         = {Software},
+  url          = {https://github.com/derronqi/yolov8-face}
+}

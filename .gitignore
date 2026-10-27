@@ -31,3 +31,5 @@ paper/*.synctex.gz
 paper/*.toc
 paper/main.pdf
 paper/sections/*.aux
+paper/scripts/ledger/.cache/
+paper/scripts/ledger/__pycache__/

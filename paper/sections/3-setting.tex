@@ -1,3 +1,114 @@
 \section{Setting and Measurement Protocol}
 \label{sec:setting}
-TODO: seven corpora, four emotions, speaker-disjoint splits; frozen encoders and a linear head; the three training recipes of the map; definition of $K$ (per class); the two-cloud model and $d$, $o$; pseudo-target selection; why $C$ is fixed to the source-only value; practical versus oracle values.
+
+This section defines the data, the learner, the splits, and the quantities that Parts~I and~II measure.
+All experiments share the test speakers and the target labels of each iteration, so differences between methods are paired within an iteration.
+
+\subsection{Corpora and Labels}
+\label{sec:setting-data}
+
+We use seven groups from six corpora (Table~\ref{tab:data}): the improvised and the scripted sessions of IEMOCAP~\cite{busso2008iemocap}, CMU-MOSEI~\cite{zadeh2018mosei}, MELD~\cite{poria2019meld}, AFEW~\cite{dhall2012afew}, RAVDESS~\cite{livingstone2018ravdess}, and CREMA-D~\cite{cao2014cremad}.
+The two IEMOCAP session types form separate groups because all ten speakers read the same lines in the scripted sessions, which lets a text classifier recognize the script instead of the emotion.
+Each utterance carries one of four labels: neutral, happy, sad, or angry.
+We merge happy and excited in IEMOCAP and exclude frustrated (IEMOCAP) and calm (RAVDESS).
+A CMU-MOSEI utterance receives an emotion when exactly one of its six intensity ratings is at least $0.5$ and neutral when none is; so the neutral class of CMU-MOSEI is defined by the absence of rated emotions, whereas annotators assigned the neutral class of IEMOCAP and MELD.
+
+Audio exists in all seven groups, face video in six, and transcripts in four: AFEW has no transcripts, RAVDESS and CREMA-D read fixed sentences, and we did not extract face features for RAVDESS.
+We call A (audio), V (face), and T (text) the single-modality configurations and AV, VT, AT, and AVT the fused configurations, which use only the utterances where all their modalities exist.
+Speaker identity defines every split.
+CMU-MOSEI has no speaker annotation; its channel identity is known for \NUM{data-mosei-chan-pct}\% of the videos, and the video identifier stands in for the speaker elsewhere, so its speaker separation is incomplete (Section~\ref{sec:limitations-ethics}).
+
+\begin{table}[t]
+\caption{Groups, available modalities (A: audio, V: face, T: text), speaker groups, and utterances per emotion after filtering (counts for the audio features).}
+\label{tab:data}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrrrrrr@{}}
+\toprule
+Group & Mod. & Spk. & Utt. & Neu. & Hap. & Sad & Ang. \\
+\midrule
+IEMOCAP impro. & AVT & \NUM{data-spk-impro} & \NUM{data-n-impro-wavlm} & \NUM{data-impro-neu} & \NUM{data-impro-hap} & \NUM{data-impro-sad} & \NUM{data-impro-ang} \\
+IEMOCAP script. & AVT & \NUM{data-spk-script} & \NUM{data-n-script-wavlm} & \NUM{data-script-neu} & \NUM{data-script-hap} & \NUM{data-script-sad} & \NUM{data-script-ang} \\
+CMU-MOSEI & AVT & \NUM{data-spk-mosei}\textsuperscript{a} & \NUM{data-n-mosei-wavlm} & \NUM{data-mosei-neu} & \NUM{data-mosei-hap} & \NUM{data-mosei-sad} & \NUM{data-mosei-ang} \\
+MELD & AVT & \NUM{data-spk-meld} & \NUM{data-n-meld-wavlm} & \NUM{data-meld-neu} & \NUM{data-meld-hap} & \NUM{data-meld-sad} & \NUM{data-meld-ang} \\
+AFEW & AV & \NUM{data-spk-afew} & \NUM{data-n-afew-wavlm} & \NUM{data-afew-neu} & \NUM{data-afew-hap} & \NUM{data-afew-sad} & \NUM{data-afew-ang} \\
+RAVDESS & A & \NUM{data-spk-ravdess} & \NUM{data-n-ravdess-wavlm} & \NUM{data-ravdess-neu} & \NUM{data-ravdess-hap} & \NUM{data-ravdess-sad} & \NUM{data-ravdess-ang} \\
+CREMA-D & AV & \NUM{data-spk-cremad} & \NUM{data-n-cremad-wavlm} & \NUM{data-cremad-neu} & \NUM{data-cremad-hap} & \NUM{data-cremad-sad} & \NUM{data-cremad-ang} \\
+\midrule
+Total & & & \NUM{data-n-total-wavlm} & & & & \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+\raggedright\textsuperscript{a}Channels where known, otherwise video identifiers.
+\end{table}
+
+\subsection{Frozen Features and the Linear Classifier}
+\label{sec:setting-features}
+
+No encoder is fine-tuned on the seven groups.
+The first encoder of each modality carries the analysis, and a second encoder tests whether the conclusions persist (Section~\ref{sec:comparison}).
+Audio features average the final layer of WavLM-Large~\cite{chen2022wavlm} (second: HuBERT-Large~\cite{hsu2021hubert}) over time, and text features average the final layer of RoBERTa-base~\cite{liu2019roberta} (second: DeBERTa-v3-base~\cite{he2023debertav3}) over tokens.
+Face features embed the largest face that YOLOv8n-face~\cite{yolov8face} detects in each sampled frame with the ResNet-50 of Ryumina et al.~\cite{ryumina2022facial}, trained on VGGFace2~\cite{cao2018vggface2} and fine-tuned on AffectNet~\cite{mollahosseini2019affectnet} (second: the image encoder of CLIP ViT-L/14~\cite{radford2021clip} on the same crops), and average the embeddings over the utterance.
+A fused configuration concatenates the single-modality features after standardizing each dimension.
+The supplementary material gives the extraction details.
+
+The learner is multinomial logistic regression on features standardized with the training rows, with the penalty $\|W\|_F^2/(2C)$ on the weights and none on the intercepts.
+Class weights inversely proportional to class frequency make the learner target the unweighted average recall (UAR), our main metric, whose chance level is 25\%.
+We solve it with L-BFGS~\cite{liu1989lbfgs} in double precision until the largest absolute gradient falls below $10^{-6}$.
+A frozen encoder with a linear head keeps the decision rule open to analysis; with a few labels per emotion, fine-tuning can also distort the pretrained features~\cite{kumar2022lpft}, and Section~\ref{sec:comparison} shows that a fine-tuned audio encoder falls below the frozen pipeline in our data.
+
+\subsection{Splits and Label Budget}
+\label{sec:setting-splits}
+
+For each target group, we split the speakers into five folds, and iteration $r$ tests on fold $r \bmod 5$, which holds \NUM{data-test-pct-mean}\% of the utterances on average (range \NUM{data-test-pct-lo}--\NUM{data-test-pct-hi}\%).
+The remaining utterances form the pool.
+The label budget $K$ counts labeled target utterances per emotion ($K=25$ means $100$ labels), drawn at random from the pool.
+The draws are nested across $K$ and identical for every source, because the seed depends only on the target and the iteration.
+The rest of the pool is available without labels, and no method uses test utterances for training or selection.
+We remove the test speakers from the source as well, which matters only between the two IEMOCAP groups.
+$K=0$ denotes no target labels.
+
+\subsection{Three Recipes and the Gain Map}
+\label{sec:setting-map}
+
+For every ordered pair of a target and a source group, each iteration trains three classifiers: \emph{target-only} on the $4K$ target labels, \emph{source-only} on all labeled source utterances, and \emph{pooled} on both.
+The \emph{gain} of a source is the pooled UAR minus the target-only UAR in the same iteration, a paired difference that shares the test speakers and the labels.
+The \emph{gain map} reports UAR for $K \in \{1, 5, 10, 25, 50\}$ and the full pool over \NUM{map-reps-a} iterations, for \NUM{map-pairs-a} ordered pairs in A, \NUM{map-pairs-v} in V and AV, and \NUM{map-pairs-t} in each configuration with text.
+
+Three-fold speaker cross-validation selects $C \in \{0.01, 0.1, 1, 10\}$ for the target-only and the source-only classifiers ($C=1$ when a fold lacks an emotion).
+The pooled classifier takes the $C$ of the source-only classifier of the same iteration, which uses no target label.
+Validating $C$ on the target labels fails for small $K$: with one label per emotion the validation scores tie in most iterations, and the tie rule weakens the penalty and changes the direction of the pooled classifier.
+Earlier cross-corpus work also fixes hyperparameters when the target lacks labels to validate them~\cite{gideon2021addog}.
+With the full pool, this rule constrains the pooled classifier more than necessary and overstates the loss of pooling; the supplementary material reports the map with cross-validated $C$.
+
+\subsection{Threshold and Direction of a Pairwise Decision}
+\label{sec:setting-model}
+
+We analyze a four-class classifier through its six pairwise decisions.
+For emotions $k$ and $l$, let $z = (\mathbf{w}_k - \mathbf{w}_l)^{\top}\mathbf{x} + (b_k - b_l)$ be the difference of their scores, and on the target utterances of $k$ and $l$ let $\mu_k$, $\mu_l$ be the class means of $z$ and $\sigma$ its pooled within-class standard deviation.
+The \emph{separation} $d = (\mu_k - \mu_l)/\sigma$ depends only on the direction $\mathbf{w}_k - \mathbf{w}_l$, and the \emph{threshold offset} $o = (\mu_k + \mu_l)/(2\sigma)$ can be set to zero by the intercepts alone.
+If $z$ is Gaussian within each class, the pairwise accuracy (the mean of the two recalls) is the standard expression for a linear rule on two Gaussian classes,
+\begin{equation}
+\label{eq:twocloud}
+a(d, o) = \tfrac{1}{2}\left[\Phi\!\left(\tfrac{d}{2} + o\right) + \Phi\!\left(\tfrac{d}{2} - o\right)\right],
+\end{equation}
+where $\Phi$ is the standard normal distribution function.
+Let $\Delta$ be the separation along the target's best direction, found by linear discriminant analysis on all labeled target utterances; this reference serves only the analysis.
+Against it, the loss of a classifier splits into a \emph{threshold loss} $a(d, 0) - a(d, o)$, which moving the threshold to the midpoint recovers, and a \emph{direction loss} $a(\Delta, 0) - a(d, 0)$, which remains; we average both over the six pairs, in points of pairwise accuracy.
+Section~\ref{sec:part1-what-few-labels-fix} checks how closely \eqref{eq:twocloud} reproduces measured accuracies.
+
+\subsection{Hyperparameter Selection and Reporting}
+\label{sec:setting-selection}
+
+The methods of Part~II and their competitors (Section~\ref{sec:comparison}) have hyperparameters that $K$ target labels cannot select.
+We select them with pseudo-targets, as in leave-one-domain-out selection~\cite{gulrajani2021domainbed}: for a target $T$, each source group $c$ from another corpus serves in turn as the target of the method built from the groups outside the corpora of $T$ and $c$, with $K$ labels per emotion drawn from $c$.
+The selected value maximizes the UAR on the test speakers of $c$, averaged over $c$, the first five iterations, and the label budgets each method specifies (Section~\ref{sec:part2-mechanism-to-method}).
+No label of $T$ beyond its $K$ draws enters the selection, and the competitors are tuned the same way.
+The \emph{oracle}, the best value on the test speakers of $T$, serves only to measure the loss due to selection.
+
+We report UAR differences in percentage points, averaged over iterations within a pair (Part~I) or a target (Part~II and Section~\ref{sec:comparison}) and then over pairs or targets.
+Intervals are 95\% $t$ intervals of the paired differences over iterations; they reflect the draw of labels and test speakers, not the resampling of speakers or corpora.
+Because the ten IEMOCAP speakers yield only five (improvised) or seven (scripted) distinct test folds, intervals for IEMOCAP targets average the iterations that share a fold first.
+% TODO(R2): 手法の比較の検定（ターゲット × 反復の対応のある検定，Holm の補正，効果量）の書き方は，comparison の台帳の結果を見てから足す．
