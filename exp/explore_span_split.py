@@ -182,7 +182,7 @@ def analyze(results=None) -> int:
     tests = pd.DataFrame(tests)
     write(tests, "e68_tests.csv", meta)
     print("\n== 判定（pF・m=2000）\n" + tests.to_string(index=False))
-    print("\n== 得（start との差，ポイント．仮のターゲットの平均）と r_in")
+    print("\n== 得（start との差，UAR の割合．0.01 = 1 ポイント．仮のターゲットの平均）と r_in")
     print(G.pivot_table(index=["student", "meff", "variant"], columns="K", values="gain").round(2).to_string())
     print(G[G.variant == "full"].pivot_table(index=["student", "meff"], columns="K", values="r_in").round(2).to_string())
     return 0
