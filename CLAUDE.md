@@ -19,7 +19,7 @@
 | 対象 | 正本 |
 |---|---|
 | 研究の目的・分析の軸・論文の計画・決定事項・未決事項・更新記録・事前登録した仮説 | **`docs/researchvision.md`** |
-| 実験の手順（地図，学び直し，ずれの指標，操作，統計，理論からの予言の導出，実験の検査の関門と不備の目録） | **`docs/methods.md`** |
+| 実験の手順（地図，学び直し，ずれの指標，操作，統計，理論からの予言の導出，実験の検査の関門と不備の目録，新しい定理を探す手順） | **`docs/methods.md`** |
 | データの扱い・発話一覧・特徴の作り方・重み・作り直し方 | **`data/README.md`** |
 | 各主張の最新の状態，解析の本筋と端，結果の場所と作り方（執筆・発表の入口） | **`docs/results.md`**（進み具合は `results/status.md`） |
 | 探索的な解析の方法・数値・経緯（日付順の記録） | `docs/exploratory-analyses.md` |
@@ -59,7 +59,7 @@
 | 場所 | 中身 | git |
 |---|---|---|
 | `docs/` | 文書 6 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究，見たデータの台帳 `seen-data.md`）と論文の主張契約の下書き `paper-claim.md`．データの文書は `data/README.md` | ○ |
-| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`，関門 2 の `gate-claim`．2026-10-28〜）．手順は `docs/methods.md` 9 節 | ○ |
+| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節）と，新しい定理を探す担当の定義（`thm-unexplained`・`thm-open-problems`・`thm-claim`・`thm-screen`・`thm-deep`・`thm-check`．手順は同 10 節）．2026-10-28〜 | ○ |
 | `checks/` | 検査役の報告（`checks/<E 番号>/<役>.md`） | ○ |
 | `A theory of learning from different domains.pdf` | 中核の理論の論文（Ben-David 2010） | ○ |
 | `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本） | ○ |
