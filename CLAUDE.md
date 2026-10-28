@@ -14,15 +14,16 @@
 
 ## 正本と優先順位
 
-文書は役割ごとに 7 本ある（2026-10-08 に統合．`CLAUDE.md` と `data/README.md` 以外は `docs/` の下）．
+文書は役割ごとに 8 本ある（2026-10-08 に統合，2026-10-28 に台帳を足した．`CLAUDE.md` と `data/README.md` 以外は `docs/` の下）．
 
 | 対象 | 正本 |
 |---|---|
 | 研究の目的・分析の軸・論文の計画・決定事項・未決事項・更新記録・事前登録した仮説 | **`docs/researchvision.md`** |
-| 実験の手順（地図，学び直し，ずれの指標，操作，統計，理論からの予言の導出） | **`docs/methods.md`** |
+| 実験の手順（地図，学び直し，ずれの指標，操作，統計，理論からの予言の導出，実験の検査の関門と不備の目録） | **`docs/methods.md`** |
 | データの扱い・発話一覧・特徴の作り方・重み・作り直し方 | **`data/README.md`** |
 | 各主張の最新の状態，解析の本筋と端，結果の場所と作り方（執筆・発表の入口） | **`docs/results.md`**（進み具合は `results/status.md`） |
 | 探索的な解析の方法・数値・経緯（日付順の記録） | `docs/exploratory-analyses.md` |
+| 設計の判断のために見たデータの記録と，確認に使えるデータ | `docs/seen-data.md` |
 | 先行研究と論文の位置づけ（**論文と発表資料の新しさ・関連研究・限界の書き方はここに合わせる**） | `docs/related-work.md` |
 
 **食い違ったら，データの扱いは `data/README.md`，それ以外は `docs/researchvision.md` が勝つ．**
@@ -57,7 +58,9 @@
 
 | 場所 | 中身 | git |
 |---|---|---|
-| `docs/` | 文書 5 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究）と論文の主張契約の下書き `paper-claim.md`．データの文書は `data/README.md` | ○ |
+| `docs/` | 文書 6 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究，見たデータの台帳 `seen-data.md`）と論文の主張契約の下書き `paper-claim.md`．データの文書は `data/README.md` | ○ |
+| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`，関門 2 の `gate-claim`．2026-10-28〜）．手順は `docs/methods.md` 9 節 | ○ |
+| `checks/` | 検査役の報告（`checks/<E 番号>/<役>.md`） | ○ |
 | `A theory of learning from different domains.pdf` | 中核の理論の論文（Ben-David 2010） | ○ |
 | `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本） | ○ |
 | `data/cache/*.npz` | 特徴 28 本（1.1 GB）．消えたら `run/build_data.sh` で作り直す | × |
@@ -82,6 +85,7 @@
 
 - **研究の流れは 6 つの問い（2026-10-19 の面談の資料の 5 つの問いに問い 6 を足したもの．`docs/researchvision.md` 3.0 節）で書き，語はスライドの語に合わせる**（対応表は `docs/results.md` 3.6 節末）．研究者への報告もこの流れと語で行う
 - **実験コードを書く前に `docs/methods.md` を読む**
+- **実験は関門を通してから計算し，結果を書く**（`docs/methods.md` 9 節．2026-10-28〜）．設計を書いたら `docs/seen-data.md` に 1 行足し，本番は関門 1 の 4 体，下調べは `gate-probe` の 1 体に検査させる．結果を文書に書く前に `gate-claim` に照合させる．検査役には設計と台本と台帳だけを渡し，期待する結論は渡さない
 - **ずれの指標は `measure/shift.py`，ずれを消す操作は `measure/ablate.py` を必ず通す．**実験コードで書き直さない．例外は学び直し（E12）の `exp/mech.py`（`docs/methods.md` 3.4）．変えたら `measure/test_shift.py` を流し，`docs/methods.md` も直す
 - **長時間の処理（特徴抽出・学習・評価）は勝手に起動しない．**
   まずコマンド・所要見込み・上書きするファイルを示して確認を取る
