@@ -705,7 +705,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
-            rec.conv = conv
+            rec.conv, rec.diag = conv, diag
             rec_ctx = (ctxc, r)
             unit(c, pool_c, pool, te, info_c, evc, rec, True, {})
             prows += rec.rows
@@ -724,7 +724,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
-        rec.conv = conv
+        rec.conv, rec.diag = conv, diag
         rec_ctx = (ctx, r)
         unit(T, S, pool, te, info, ev, rec, False, tau_fix)
         rec.save(out, T, r, te)
@@ -746,7 +746,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
     C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
     meths = [m for m in methods if m in ("dann", "mme", "mapctl", "coral")]
     chosen = {}
-    conv = []
+    conv, diag = [], []
     E77.save_settings(out, T, {kind: (gamma, rho_s, rho_m, cb, cp, None)}, {"c_fit_pseudo": C_FIT, "c_eval": C_T, "sources": S})
 
     def unit(ev, pool_s, pool, te, ctxo, r, src, lin, n_of, C, rec):
@@ -781,7 +781,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
-            rec.conv = conv
+            rec.conv, rec.diag = conv, diag
             unit(evc, pool_c, pool, te, ctxc, r, src_c, lin_c, n_c, C_FIT, rec)
             prows += rec.rows
             del rec
@@ -797,12 +797,13 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
-        rec.conv = conv
+        rec.conv, rec.diag = conv, diag
         unit(ev, S, pool, te, ctx, r, src_pc, lin, n_of, C_T, rec)
         rec.save(out, T, r, te)
         rows += rec.rows
         del rec
         torch.cuda.empty_cache()
+    pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
     pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
 
