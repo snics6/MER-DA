@@ -1,3 +1,0 @@
-run,target,corpus,n_speakers_corpus,n_keys,boot,frac_empty_rep_draws,frac_missing_class_draws,n_nan_uar_reps,sec
-audio_wavlm,RAVDESS,RAVDESS,5,122,1000,0.0,0.0,15000,0.3
-fuse-audio-video,AFEW,AFEW,55,0,1000,0.0,0.0,0,0.0

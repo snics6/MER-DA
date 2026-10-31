@@ -1,8 +1,0 @@
-/home/snics/MER-DA/exp/compare_dai.py:309: UserWarning: Sparse invariant checks are implicitly disabled. Memory errors (e.g. SEGFAULT) will occur when operating on a sparse tensor which violates the invariants, but checks incur performance overhead. To silence this warning, explicitly opt in or out. See `torch.sparse.check_sparse_tensor_invariants.__doc__` for guidance.  (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:760.)
-  Wm = torch.sparse_coo_tensor(torch.stack([torch.cat([ri, ci]), torch.cat([ci, ri])]), torch.cat([vs, vs]), (n, n)).coalesce()
-fuse-audio-video AFEW：389 秒　GPU 最大 2.5 GB
-
-real	6m33.851s
-user	6m21.885s
-sys	0m13.118s
-exit=0

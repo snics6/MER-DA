@@ -1,9 +1,0 @@
-pseudo,rep,student,what,rel_diff,sec,target,commit
-AFEW,0,audio_wavlm,coral_lin_check,0.0,,,9dd145f62930a3e8df293434c1aefd3d124e1f55
-AFEW,0,audio_wavlm,coralctl,,25.769078938057646,,9dd145f62930a3e8df293434c1aefd3d124e1f55
-AFEW,0,audio_wavlm,coral_r64,,17.883121530059725,,9dd145f62930a3e8df293434c1aefd3d124e1f55
-AFEW,0,audio_wavlm,map,,6.306636532070115,,9dd145f62930a3e8df293434c1aefd3d124e1f55
-,0,audio_wavlm,coral_lin_check,0.0,,RAVDESS,9dd145f62930a3e8df293434c1aefd3d124e1f55
-,0,audio_wavlm,coralctl,,23.18255501706153,RAVDESS,9dd145f62930a3e8df293434c1aefd3d124e1f55
-,0,audio_wavlm,coral_r64,,28.216701762052253,RAVDESS,9dd145f62930a3e8df293434c1aefd3d124e1f55
-,0,audio_wavlm,map,,15.216886534821242,RAVDESS,9dd145f62930a3e8df293434c1aefd3d124e1f55

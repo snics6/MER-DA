@@ -54,3 +54,4 @@ paper/ja/supp/*.aux
 slides/*/build/
 slides/*/*.pdf
 slides/*/*.pptx
+checks/*/code_run/

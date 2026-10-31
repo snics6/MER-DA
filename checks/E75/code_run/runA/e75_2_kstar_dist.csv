@@ -1,9 +1,0 @@
-kind,short,subset,interval,n_pairs,K*=1,K*=5,K*=10,K*=25,K*=50,K*=all,K*=none
-text_roberta,T,all_targets,main,10,3,3,2,1,0,0,1
-text_roberta,T,excl_script_target,main,8,3,2,1,1,0,0,1
-fuse-audio-text,AT,all_targets,main,10,5,2,3,0,0,0,0
-fuse-audio-text,AT,excl_script_target,main,8,4,1,3,0,0,0,0
-fuse-video-text,VT,all_targets,main,10,4,4,2,0,0,0,0
-fuse-video-text,VT,excl_script_target,main,8,4,3,1,0,0,0,0
-fuse-audio-video-text,AVT,all_targets,main,10,4,1,3,2,0,0,0
-fuse-audio-video-text,AVT,excl_script_target,main,8,3,1,2,2,0,0,0

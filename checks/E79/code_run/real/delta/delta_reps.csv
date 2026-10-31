@@ -1,6 +1,0 @@
-run,student,role,target,pseudo,rep,K,uar,a_d0,uar_csv_found
-audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,0,0,51.80555555555556,73.01493070276254,True
-audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,0,1,50.104617604617594,72.70276463011128,True
-audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,0,10,53.17821067821068,73.1798672183388,True
-audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,0,25,55.032467532467535,74.98568273029599,True
-audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,0,5,49.516594516594516,72.9869773685047,True

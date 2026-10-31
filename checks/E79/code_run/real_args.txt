@@ -1,1 +1,0 @@
---runs audio_wavlm fuse-audio-video --e77 audio_wavlm=checks/E77/code_run/kind_audio_dc6 fuse-audio-video=checks/E77/code_run/av_dc6 --e78 audio_wavlm=checks/E78/code_run/r2/kind256 fuse-audio-video=checks/E78/code_run/r2/av_cot --targets RAVDESS AFEW --reps 0 --pseudo-reps 0 --out checks/E79/code_run/real --allow-incomplete --skip-commit-check
