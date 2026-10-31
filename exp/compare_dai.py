@@ -24,8 +24,10 @@
 m_eff ∈ {100, 500, 2000, n}（全部の世界と種類．n は候補 1 本あたり重み 1）
 
 保存（評価のターゲットだけ）：`<T>.csv`（target, rep, row_id, student, method, param, meff, K, uar），
-`<T>_r<rep>_probs.npy`（行 × テストの発話 × 4 の float16．行の並びは `<T>_r<rep>_rowids.npy`），`<T>_r<rep>_te.npy`（テストの発話の行番号），
-`<T>_r<rep>_W_<生徒>.npy`・`_b_<生徒>.npy`・`_wrows_<生徒>.npy`（線形の分類器の W・b の float16 と行の番号），`<T>_samples.csv`（行番号 → sample_id・話者）．
+`<T>_r<rep>_logp.npy`（行 × テストの発話 × 4 の float32 の対数の確率．行の並びは `<T>_r<rep>_rowids.npy`），`<T>_r<rep>_pred.npy`（予測した感情．uint8），
+`<T>_r<rep>_te.npy`（テストの発話の行番号），`<T>_r<rep>_W_<生徒>.npy`・`_b_<生徒>.npy`・`_wrows_<生徒>.npy`（線形の分類器の生の特徴の上の W・b の float32 と行の番号），
+`<T>_r<rep>_teachers.npz`（候補の上の教師の確率），`<T>_samples.csv`（行番号 → sample_id・話者），`<T>_settings.json`，`<T>_conv.csv`（所要と収束），`<T>_diag.csv`（疑似ラベルの記録），
+`<T>_ps_<仮のターゲット>_r<rep>_none.npz`（仮のターゲットの none の対数の確率．δ の材料）．
 仮のターゲット：`<T>_pseudo.csv`（pseudo, rep, student, method, param, meff, K, uar）．`provenance.json`・`provenance_log.jsonl`
 
     ./.venv/bin/python exp/compare_dai.py --kind audio_wavlm [--target …] [--reps …] [--pseudo-reps …] [--pseudo-targets …] [--out-dir …]
