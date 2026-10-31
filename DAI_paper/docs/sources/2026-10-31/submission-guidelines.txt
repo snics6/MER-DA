@@ -1,0 +1,249 @@
+Discover Artificial Intelligence — Submission guidelines
+Source: https://link.springer.com/journal/44163/submission-guidelines
+Retrieved: 2026-10-31, pasted by the researcher from a browser (page navigation, footer, IP address and institution lines removed).
+
+Introduction
+
+By following the guidelines below, your submission is more likely to pass through all of the quality checks we perform. You will avoid the most common reasons that manuscripts are sent back to authors for amendments.
+Submission of a manuscript implies that:
+- the work described has not been published before
+- it is not under consideration for publication anywhere else
+- its publication has been approved by all co-authors, and the responsible authorities at the institute where the work has been carried out.
+
+Important information before you start:
+- Submissions to this journal are made using Snapp, our manuscript tracking system.
+- For all article types, you will need to upload:
+  - the manuscript file
+  - an abstract of less than 250 words
+  - a cover letter outlining your research. This should briefly discuss the context and importance of the submitted work and why it is appropriate for the journal.
+  - Optional - figure files, tables, supplementary material and related files.
+- All articles in this journal are published open access. This means they are made freely and permanently accessible online immediately upon publication, without subscription charges or registration barriers.
+- If you are submitting to a collection, the process is the same as submitting to a journal; the only difference is that in Snapp on the 'Details' tab, you will need to choose the relevant collection from the drop-down menu.
+
+Step 1 - Check that this journal accepts your article type
+
+When you first submit in Snapp you will need to choose the correct article type.
+This journal accepts the following article types:
+
+Research
+Research articles present new scientific results within the scope of the journal that have not been published previously and are not being considered for publication elsewhere.
+
+Brief Report
+Brief Reports are short papers that present significant new observations of wide potential interest to readers and will likely stimulate further research in the field. They may present results that are not sufficiently elaborated to justify a full Research article, but provide compelling evidence for their potential significance.
+
+Case Study
+Case Studies report specific instances of interesting phenomena, providing relevant material to support both research and education through the transferability of experiences, events and experiments.
+
+Comment
+Comment articles can focus on policy, science and society, or purely scientific issues. They should be of immediate interest to a broad readership and should be written in an accessible, non-technical style. Comments are usually commissioned by editors.
+
+Data Note
+Data Notes concisely describe sound research data with the aim of increasing visibility and transparency, supporting the reuse of research data and helping authors to comply with funder mandates on data sharing.
+Authors must use the Data Note template. Please follow the instructions in the template, ensure that your data have been deposited in an appropriate data repository, and complete table 1 including information on data file formats and data identifiers. Multiple related datasets can be described in a single Data Note if those datasets link to a common research project or share samples or study subjects.
+
+Matters Arising
+Matters Arising articles are interesting and timely scientific or academic comments and clarifications on original research papers published in the journal. These comments should reflect the knowledge available at the time the original paper was written, rather than later scientific developments.
+
+Methodology
+Methodologies should present a new experimental or computational method, test or procedure. The method described may either be completely new, or may offer a better version of an existing method. The article must describe a demonstrable advance on what is currently available. The method needs to have been well tested and ideally, but not necessarily, used in a way that proves its value.
+
+Perspective
+A Perspective is a scholarly review and discussion of the primary research literature that does not meet the criteria for a review article because:
+- the scope is too narrow OR
+- a primary purpose of the piece is to advocate a controversial position or a speculative hypothesis, or to discuss work primarily from one or a few research groups.
+Perspectives tend to be more forward-looking and/or speculative than reviews and may take a narrower field of view.
+They may be opinionated but should remain balanced, and are intended to stimulate discussion and consideration of new approaches to investigation and understanding of a field.
+
+Registered Report
+Registered Reports are a publication format in which the research question and the quality of methodology are peer reviewed before the data are collected and analysed.
+
+Review
+Review articles provide critical accounts and comprehensive surveys of topics of major current interest within the scope of the journal. Please note that we accept Review articles of any length under the 'Review' article type.
+
+Step 2 - Meet editorial policy requirements
+
+First, check that your research is in line with the editorial policies of the Discover Series.
+You will need to include some policy statements in your manuscript and agree to others in Snapp, our manuscript tracking system.
+
+Policy statements to include in your manuscript
+
+Funding statement - mandatory
+You need to include a statement which declares whether this work received funding or not. If you did receive funding, you must declare it and give details of the grant number or funding body. Details of what to include in your statement should be informed by your specific funder. Your paper may be sent back to you if no funding statement is found.
+
+Ethics statement - if required
+You will need to include an ethics declaration if your work reports research involving human or animal subjects, their data and/or biological materials. Details of what to include can be found in the Research ethics section of our editorial policies.
+There may also be national or international standards of reporting which you should adhere to and ensure that you have referenced in your paper. These ethical declarations are not only for biological or biomedical research; any research - especially interdisciplinary work - can include human data (surveys, online polls, smart health or smart cities data are just some examples).
+
+Policies to agree to in Snapp
+
+Author contributions statement
+All authors should be credited for their contributions, and be accountable for them. You will need to specify how authors contributed to the manuscript.
+
+Competing interests policy
+Authors are required to declare any competing financial and/or non-financial interests in relation to the work described. The corresponding author is responsible for submitting a competing interests statement on behalf of all authors of the paper.
+
+Dual publication
+If the results/data/figures in your submission have been previously published, or are under consideration for publication elsewhere, you will need to declare this.
+
+Authorship
+The corresponding author needs to confirm they have read the journal policies and is submitting their manuscript in accordance with those policies.
+
+Permission to use third-party material
+Not having the correct permissions to use figures, tables or text passages often causes delays in the peer review and publishing process.
+- If you created the images or figures and they have never been published, you can use them in your submission.
+- If you created them but they have been previously published, or your submission contains elements that have been previously published, you will need to contact the copyright holder for the necessary permissions.
+- If you didn't create them, you will need permission from the copyright holder. Use our template to obtain permission for the use of source material.
+
+Data availability
+All authors must include a data availability statement in their submission. A data availability statement lets a reader know where and how to access data that support the results and analysis. It may include links to publicly accessible datasets that were analysed or generated during the study, descriptions of what data are available and/or information on how to access data that is not publicly available.
+
+Acknowledgements (optional)
+If there are people who contributed to the article but do not meet the criteria for authorship - including anyone who gave professional writing services or materials - you should acknowledge their contribution. Make sure you get permission from them before you enter their details.
+
+Step 3 - Understand the peer review policy
+
+This journal follows a single-anonymous peer review procedure, where the reviewers are aware of the names and affiliations of the authors, but the reviewer reports provided to authors are anonymous.
+
+Peer review process
+- All manuscripts undergo technical checks upon submission. Manuscripts that pass technical checks undergo suitability checks by our in-house editorial team.
+- Eligible manuscripts are sent out for peer review. Reviewers are invited by our external editorial board or in-house editorial team (further referred to as the 'editors').
+- After peer review, if revisions are requested:
+  - major revisions are usually re-evaluated by the original reviewers
+  - minor revisions are often only re-evaluated by an editor.
+- The editors then make a decision:
+  - further revisions are requested
+  - manuscript is accepted
+  - manuscript is rejected.
+- All final decisions undergo quality checks by the in-house editorial team.
+
+Overall editorial responsibility is with the editor-in-chief, the in-house editor, or the section editors collectively, depending on the journal's structure. In all cases, editorial board members act as handling editors.
+
+All eligible manuscripts are thoroughly reviewed by at least two reviewers from the relevant research community. When selecting reviewers, we seek to avoid competing interests and close associates of the authors, such as frequent collaborators or former advisors. We do not ask reviewers to assess the significance of the research; we ask them to focus on ensuring the results are accurately reported and to reject the paper if the study is fundamentally flawed. In cases where the journal cannot find sufficient peer reviewers, Springer Nature may choose to use publishing partners to identify suitable reviewers and provide reports within an agreed timeline to avoid further delays for authors. The journal may also withdraw submissions if sufficient reviewers cannot be secured within a reasonable timeframe. This is intended to ensure that authors receive prompt and fair decisions regarding their manuscripts.
+
+Discover journals accept submissions from their editors. However, the submitting editor will not be involved in the handling or decision-making of their own submission. The submission will be handled by an editor who has no competing interest with the author. Papers submitted by editors must meet the same quality standards as all other accepted submissions; there is absolutely no special preference or consideration given to such submissions.
+
+Discover journals also publish topical collections. The peer review process of any submission associated with a collection is handled by guest editors, who can be either the journal's own editorial board or external experts. Similar to journal editors, guest editors handle manuscripts, can invite reviewers and make decisions; all final decisions will undergo quality checks by the in-house editorial team. If a guest editor has authored a manuscript or has other competing interests, another editor or co-guest editor will oversee peer review. Manuscripts from guest editors are subject to the same review process as any other submission.
+
+Step 4 - Understand your copyright
+
+If your submission is accepted for publication, you will need to sign a licence agreement with Springer Nature to allow us to publish your article. According to this agreement:
+- authors of articles published in this journal retain the copyright of their articles.
+- authors grant Springer Nature a licence to publish the article and identify itself as the original publisher.
+- authors retain full re-use rights to their article content for their future publications.
+- when Springer Nature publishes the article we will apply a Creative Commons licence allowing re-use of the article by third parties for particular purposes.
+
+Step 5 - Language editing
+
+Presenting your work in well-written English gives the best chance for editors and reviewers to understand it and evaluate it fairly.
+(Options listed: English language tutorial; a native-speaker colleague; a professional language editing service. Springer Nature Author Services offers a 15% discount for first use. Using these services is not a requirement and does not guarantee acceptance or selection for peer review.)
+
+Step 6 - Prepare your files and formatting
+
+You will need to submit your manuscript in an accepted file format:
+- Word document with figures and tables placed in the body of the text where they are referenced. For equations use the equation editor or MathType. If submitting a Data note, you must use the Data note template.
+- LaTeX document with figures and tables compressed into a ZIP format. We will compile these into a PDF for peer review. We recommend using Springer Nature's LaTeX template.
+
+Use an accessible font
+Please use a consistent font throughout your submission, sized at minimum 12 pt. We recommend Helvetica or Arial.
+
+Using headings
+Please use no more than three levels of headings.
+
+Consistent use of abbreviations
+Abbreviations should be defined at first mention e.g. Supplementary Information (SI), and used consistently after that.
+
+Footnotes
+Footnotes can be used to give additional information, which may include the citation of a reference included in the reference list.
+- Always use footnotes (placed at the bottom of the page) and not endnotes (listed at the end of the paper).
+- They should not consist solely of a reference citation.
+- They should never include the bibliographic details of a reference.
+- They should not contain any figures or tables.
+- Footnotes to the text should be numbered consecutively.
+
+Citations
+Reference citations in the text should be identified by numbers in square brackets e.g.
+This effect has been widely studied [1-3, 7]
+
+Reference list
+The list of references should only include works cited in the text that have been published or accepted for publication. Personal communications and unpublished works should only be mentioned in the text.
+The entries in the list should be numbered consecutively.
+To format your references, use one standard reference style consistently in your reference list. Please make sure that the full bibliographic details are included for each reference. If available, always include DOIs as full DOI links in your reference list (e.g. "https://doi.org/abc").
+If your manuscript is accepted, we may adjust your reference list to match the journal's style.
+We recommend formatting references according to the description and samples available at the NLM's Sample References webpage.
+
+Tables
+- All tables should be numbered using Arabic numerals - 1, 2, 3, 4, etc., and cited in text in consecutive numerical order.
+- Please provide a table caption (title) explaining what the table is about.
+- Identify any previously published material by giving the original source in a reference at the end of the table caption.
+- Footnotes to tables should be indicated by superscript lower-case letters (or asterisks for significance values and other statistical data) and included beneath the table body.
+
+Artwork and illustrations guidelines
+The main reason submissions are returned before reaching peer review is due to problems with artwork and illustrations. If peer reviewers can't clearly see the figures in your submission, they cannot fairly judge your work.
+
+Figures
+- Figures should be placed within the body of the text.
+- For vector graphics, the preferred format is EPS; for halftones, please use TIFF format. MS Office files are also acceptable.
+- Vector graphics containing fonts must have the fonts embedded in the files.
+- Name your figure files with "Fig" and the figure number, e.g. Fig1.eps.
+
+Figure lettering
+- To add lettering, use Helvetica or Arial 8-12pt (sans serif fonts).
+- Variance of type size within an illustration should be minimal, e.g. do not use 8-pt type on an axis and 20-pt type for the axis label.
+- Avoid effects such as shading, outline letters etc.
+- Do not include titles or captions within your illustrations.
+
+Figure numbering
+- All figures should be numbered using Arabic numerals - 1, 2, 3, 4, etc.
+- Figures should always be cited in text in consecutive numerical order.
+- Figure parts should be denoted by lowercase letters (a, b, c, etc.).
+- If you have an appendix that contains one or more figures, continue the consecutive numbering of the main text. Do not number the appendix figures, "A1", "A2", "A3", etc. Figures in online appendices [Supplementary Information (SI)] should, however, be numbered separately.
+
+Figure captions
+- Each figure should have a concise caption describing accurately what the figure depicts. Include the captions in the text file of the manuscript, not in the figure file.
+- Figure captions begin with the term Fig. followed by the figure number e.g. "Fig. 1".
+- No punctuation is to be included after the number, nor is any punctuation to be placed at the end of the caption.
+- Identify all elements found in the figure in the figure caption; and use boxes, circles, etc., as coordinate points in graphs.
+- Identify previously published material by giving the original source as a reference citation at the end of the figure caption.
+
+Line art
+- Definition: Black and white graphic with no shading.
+- Do not use faint lines and/or lettering and check that all lines and lettering within the figures are legible at final size.
+- All lines should be at least 0.1 mm (0.3 pt) wide.
+- Scanned line drawings and line drawings in bitmap format should have a minimum resolution of 1200 DPI.
+
+Halftone art
+- Definition: Photographs, drawings, or paintings with fine shading, etc.
+- If any magnification is used in the photographs, indicate this by using scale bars within the figures themselves.
+- Halftones should have a minimum resolution of 300 DPI.
+
+Combination art
+- Definition: a combination of halftone and line art, e.g., halftones containing line drawing, extensive lettering, colour diagrams, etc.
+- Combination artwork should have a minimum resolution of 600 DPI.
+
+Audio, video, and animation (as supplementary material only)
+- Aspect ratio: 16:9 or 4:3. Maximum file size: 2 GB. Minimum video duration: 1 second.
+
+Accessibility
+In order to make the content of your figures accessible to users with a visual impairment, please make sure that:
+- All figures have descriptive captions (blind users or users with a visual impairment could then use a text-to-speech software or a text-to-Braille hardware to access the information).
+- Patterns are used instead of or in addition to colours for conveying information (colour-blind users would then be able to distinguish the visual elements).
+- Any figure lettering has a contrast ratio of at least 4.5:1
+For supplementary files, please make sure that:
+- The manuscript contains a descriptive caption for each supplementary material.
+- Video files do not contain anything that flashes more than three times per second (so that users prone to seizures caused by such effects are not put at risk).
+
+Supplementary material
+Supplementary material is peer-reviewed material directly relevant to the conclusion of a paper. Supplementary material is published alongside the paper as "Supplementary Information".
+- It should be submitted in commonly accepted file types, to be easily accessible to all reviewers and readers.
+- It will be published online without any conversion, editing, or reformatting.
+Naming, numbering and citing supplementary material:
+- Name supplementary material clearly and number similar types of material. For example, you might name your supplementary files: Dataset_1.pdf, Dataset_2.xls, Map.pdf, ESM_1.doc, ESM_2.eps
+- When referring to supplementary material, clearly differentiate between in-text figures/tables and supplementary material by citing according to file name. E.g. "...as shown in the animation (Online Resource 1)", "...additional data are given in ESM 2".
+- You must reference any supplementary material in a citation.
+
+Proofreading
+If your article is accepted for publication, the corresponding author will be sent a proof. They can then check for typesetting or conversion errors, and the completeness and accuracy of the text, tables and figures. Substantial changes in content e.g. new results, corrected values, title and authorship, are not allowed without the approval of the Editor.
+After online publication, further changes can only be made in the form of an Erratum, which will be hyperlinked to the article. To do this, the corresponding author should send a request to the editorial office using the 'Contact the journal' link on the journal homepage.
+
+Open access publishing
+To find out more about publishing your work Open Access in Discover Artificial Intelligence, including information on fees, funding and licences, visit our Open access publishing page.

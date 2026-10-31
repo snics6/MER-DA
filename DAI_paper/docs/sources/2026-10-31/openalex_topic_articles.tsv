@@ -1,0 +1,91 @@
+doi	date	type	cited_by	title_search	title
+10.1007/s44163-026-02634-w	2026-10-29	article	0	transfer learning	Automated Parkinson’s disease identification from MRI images using InceptionV3 transfer learning and ensemble stacking
+10.1007/s44163-026-02625-x	2026-10-27	article	0	multimodal	Recent advances in multimodal deep learning for breast cancer diagnosis using data fusion vision language models and foundation models
+10.1007/s44163-026-02002-8	2026-10-26	article	0	domain adaptation	Mitigating domain shift in cross-domain student performance prediction using a CORAL-based adaptation framework
+10.1007/s44163-026-02496-2	2026-10-26	article	0	multimodal	A comprehensive review of attention-based multimodal deep learning techniques for lung cancer diagnosis
+10.1007/s44163-026-02511-6	2026-10-25	article	0	multimodal	Research on algorithm optimization for immersive football match broadcasting user experience assessment based on VR multimodal data fusion
+10.1007/s44163-026-02138-7	2026-10-24	article	0	distillation	Adaptive temperature distillation with curriculum learning for lightweight multilingual language teaching models
+10.1007/s44163-026-01880-2	2026-10-24	article	0	multimodal	A study on a visualization teaching system for regional music based on the multimodal MusicFormer
+10.1007/s44163-026-02548-7	2026-10-23	article	0	multimodal	ResNet50-U-Net integrated deep residual framework for brain tumor subregion segmentation using multimodal MRI
+10.1007/s44163-026-02512-5	2026-10-23	article	0	multimodal	A closed loop multimodal auditing framework for enhancing artificial intelligence reliability in medical emergency response
+10.1007/s44163-026-02260-6	2026-10-22	article	0	emotion	Emotion recognition-based framework for supporting English learning environments using BBMO-CNN
+10.1007/s44163-026-02546-9	2026-10-17	article	0	emotion	SymbolFusion uses relation constraints in neurosymbolic graph learning to model literary structure and emotion trajectories
+10.1007/s44163-026-02395-6	2026-10-14	article	0	multimodal	Federated multimodal home school collaborative dance intervention for inclusive preschool education with privacy preserving and explainable AI framework
+10.1007/s44163-026-02522-3	2026-10-13	article	0	multimodal	Enhancing clinical gait abnormality analysis with multimodal deep learning
+10.1007/s44163-026-02364-z	2026-10-13	article	0	multimodal	Fingering optimization method of an intelligent piano sparring system based on multimodal hidden Markov model and reinforcement learning
+10.1007/s44163-026-02239-3	2026-10-10	article	0	distillation	Adaptive architecture-aware CT-guided knowledge distillation for low-data lung disease classification from chest X-rays
+10.1007/s44163-026-02114-1	2026-10-10	article	0	multimodal	Multimodal feature importance ranking improves classroom teaching quality evaluation in human and artificial intelligence collaborative education
+10.1007/s44163-026-02444-0	2026-10-09	article	0	multimodal	Scoping review of multimodal AI incorporating raw images for heterogeneous data fusion in mental and cognitive healthcare
+10.1007/s44163-026-02268-y	2026-10-08	article	0	affective	Author metadata affects Large Language Model scores in scientific peer review
+10.1007/s44163-026-02325-6	2026-10-07	article	0	multimodal	A multimodal deep learning framework for automated oral English fluency assessment
+10.1007/s44163-026-02075-5	2026-10-06	article	0	multimodal	Quality gate framework for auditing narrative rendering of evacuation simulation logs by multimodal retrieval augmented generation
+10.1007/s44163-026-02348-z	2026-10-05	article	0	multimodal	Region-adaptive multimodal learning with morphology-guided feature modulation for brain tumor segmentation
+10.1007/s44163-026-02409-3	2026-10-05	article	0	multimodal	Conflict-aware uncertainty alignment for tool-augmented document-centric multimodal intelligence
+10.1007/s44163-026-02285-x	2026-09-24	article	0	affective	Task conditioned fusion of heterogeneous representation sources for fine grained affective state recognition
+10.1007/s44163-026-02267-z	2026-09-23	article	0	transfer learning	Transfer learning guided by cultural distance enables effective cross cultural content adaptation
+10.1007/s44163-026-02225-9	2026-09-22	article	0	multimodal	A multimodal risk stratification model using deep learning and tabular data
+10.1007/s44163-026-02276-y	2026-09-22	article	0	transfer learning	Precision pesticide application in solanaceous crops using transfer learning explainable artificial intelligence and drone based spatial zone mapping
+10.1007/s44163-026-02199-8	2026-09-18	article	0	emotion	Emotion analysis and management improvement of hotel user online reviews based on BERT-RF and PLS-SEM integration
+10.1007/s44163-026-02112-3	2026-09-18	article	0	multimodal	Adaptive learning behavior recognition using multimodal transformer based dynamic modality regulation
+10.1007/s44163-026-02108-z	2026-09-18	article	0	multimodal	Multimodal content generation and enhancement for smart imaging
+10.1007/s44163-026-02246-4	2026-09-17	article	0	multimodal	Adaptive optimization and interaction method for immersive exhibition space experiences integrating multimodal physiological sensing
+10.1007/s44163-026-02205-z	2026-09-17	article	0	multimodal	Multimodal user behavior analysis supports closed loop optimization of smart home interaction flows
+10.1007/s44163-026-02189-w	2026-09-10	article	0	multimodal	Multimodal sensor data fusion and event recognition in IoT
+10.1007/s44163-026-02157-4	2026-09-09	review	0	multimodal	A systematic review of AI powered adaptive smart home security using multimodal sensor fusion edge intelligence and privacy preserving architectures
+10.1007/s44163-026-02093-3	2026-09-09	article	0	multimodal	Multimodal deep learning framework for soccer video event detection and summarization
+10.1007/s44163-026-02172-5	2026-09-07	article	0	multimodal	Development of a multimodal english cross-language translation model based on transformer architecture
+10.1007/s44163-026-02107-0	2026-09-07	article	0	multimodal	A real-time multimodal digital human interaction system via cross-attention fusion of LLaMA and CLIP models
+10.1007/s44163-026-02123-0	2026-09-02	article	0	emotion	A contrastive learning framework with HuBERT for violin music emotion recognition
+10.1007/s44163-026-02067-5	2026-08-29	article	0	domain adaptation	A trustworthy cross-domain AI framework for fundus disease classification using hybrid CNN fusion and supervised domain adaptation
+10.1007/s44163-026-01858-0	2026-08-16	article	0	affective	An affective computing framework for preschool music education using MoE architecture and neural radiance fields
+10.1007/s44163-026-01968-9	2026-08-12	article	0	emotion	Cross-modal and cross-emotion generalization of gender brainprints decoded from emotional EEG
+10.1007/s44163-026-01833-9	2026-08-11	article	0	transfer learning	Enhanced multiclass classification of AML-related cells using YOLOv12, Inception-ResNet-v2, and ResNet50 transfer learning models
+10.1007/s44163-026-01835-7	2026-08-09	article	0	transfer learning	An ensemble transfer learning approach for automated tuberculosis diagnosis from chest x-rays using optimized feature selection and XGBoost classification
+10.1007/s44163-026-01879-9	2026-08-08	article	0	distillation	Hierarchical adversarial learning with culture-aware attention and LLM knowledge distillation for cross-cultural sentiment analysis
+10.1007/s44163-026-01765-4	2026-08-05	article	0	transfer learning	Deep learning-based painting style transfer and generative models
+10.1007/s44163-026-01881-1	2026-08-03	article	0	emotion;transfer learning	A transfer learning with data augmentation approach to emotion classification of Indonesian tweets
+10.1007/s44163-026-01818-8	2026-07-21	article	0	emotion	Efficient emotion recognition from thermal faces using histogram and Hu features
+10.1007/s44163-026-01646-w	2026-07-20	article	0	domain adaptation	A vision transformer framework for power equipment hazard identification based on conditional diffusion modality enhancement and adversarial domain adaptation
+10.1007/s44163-026-01734-x	2026-07-16	article	0	transfer learning	Drawnet an optimizer aware transfer learning framework for Parkinson’s disease detection from hand drawn spirals and waves
+10.1007/s44163-026-01736-9	2026-07-10	article	0	transfer learning	Efficient hybrid deep transfer learning framework for wrist X-ray abnormality classification using the MURA dataset
+10.1007/s44163-026-01697-z	2026-07-08	article	0	emotion	A music therapy emotion recognition model based on multimodal deep learning
+10.1007/s44163-026-01708-z	2026-07-01	article	0	distillation	Predicting corporate bankruptcy through a scalable and interpretable knowledge distillation framework
+10.1007/s44163-026-01642-0	2026-06-28	article	0	transfer learning	A multi-agent reinforcement learning algorithm for collaborative skill transfer in physical education
+10.1007/s44163-026-01573-w	2026-06-18	article	0	affective	Algorithmic affective blunting quantifies the collapse curve of interpretative failure in large language models
+10.1007/s44163-026-01461-3	2026-06-11	article	0	emotion	Computational paradigm for women and children safety using emotion recognition using hybrid convolution neural network
+10.1007/s44163-026-01583-8	2026-06-11	article	0	emotion	EEG emotion recognition method integrating improved dynamic graph convolutional neural networks and bidirectional simple recurrent units
+10.1007/s44163-026-01545-0	2026-06-07	article	0	transfer learning	Optimized multiclass classification of skin lesions using a modified EfficientNetV2B0 with transfer learning
+10.1007/s44163-026-01516-5	2026-06-02	article	0	transfer learning	Full-coverage audit risk analysis using transfer learning: a multi-regional evaluation
+10.1007/s44163-026-01232-0	2026-05-25	article	0	transfer learning	Cross-cultural transfer learning framework for ideological education in global AI ethics governance
+10.1007/s44163-026-01270-8	2026-05-11	article	0	emotion	Music emotion classification based on deep neural network and its application in context aware recommendation system
+10.1007/s44163-026-01314-z	2026-05-02	article	3	emotion	Hybrid CNN–LSTM network for cross-subject EEG emotion recognition
+10.1007/s44163-026-01238-8	2026-04-29	article	0	emotion	A model for music emotion recognition and aesthetic education effect evaluation based on deep learning and multimodal data
+10.1007/s44163-026-01193-4	2026-04-22	article	0	emotion	Computer vision enhanced emotion recognition system for real time participation analysis in virtual english classroom
+10.1007/s44163-026-00865-5	2026-03-31	article	6	transfer learning	Explainable artificial intelligence for brain tumor classification via fine-tuned transfer learning
+10.1007/s44163-026-01153-y	2026-03-30	article	0	transfer learning	Transfer learning for aspect based sentiment analysis
+10.1007/s44163-026-01156-9	2026-03-24	article	1	transfer learning	Decision analysis based on reinforcement learning and transfer learning
+10.1007/s44163-026-00955-4	2026-03-24	article	3	transfer learning	A federated and transfer learning framework for high-accuracy, explainable intrusion detection in next-generation data centers
+10.1007/s44163-026-01081-x	2026-03-16	article	2	distillation	A knowledge distillation framework integrating Grad-CAM in ResNet for imbalanced gastrointestinal abnormality classification in capsule endoscopy
+10.1007/s44163-026-01080-y	2026-03-15	article	3	transfer learning	A deep transfer learning and ensemble learning framework for brain tumor detection and classification in MRI images
+10.1007/s44163-026-00968-z	2026-03-08	article	1	emotion	Deep reinforcement learning for adaptive music emotion recognition and generation
+10.1007/s44163-026-01057-x	2026-03-03	article	2	transfer learning	Enhanced cervical cancer classification using convolutional tsetlin machines with transfer learning
+10.1007/s44163-026-01061-1	2026-03-02	article	0	transfer learning	A deep learning-driven clothing style generation and style transfer system
+10.1007/s44163-026-01004-w	2026-02-19	article	0	semi-supervised	A semi supervised fake news detection model using the grasshopper optimization algorithm
+10.1007/s44163-026-00848-6	2026-02-18	article	1	transfer learning	Application of adversarial transfer learning in domain adaptive English machine translation
+10.1007/s44163-026-01000-0	2026-02-17	article	5	affective;emotion	Formal and computational foundations for implementing Affective Sovereignty in emotion AI systems
+10.1007/s44163-026-00929-6	2026-02-15	article	1	transfer learning	Transfer learning based approach for reliable handwritten signature verification with SignaLearn
+10.1007/s44163-026-00871-7	2026-02-05	article	1	transfer learning	Real-time traffic obstacle detection using hybrid FCL for R-CNN and EfficientDet with transfer learning
+10.1007/s44163-025-00806-8	2026-01-31	article	8	affective	The influence of affective AI literacy on student satisfaction in higher education
+10.1007/s44163-025-00769-w	2026-01-27	article	1	transfer learning	Api based automated plant disease analysis using transfer learning on pre-trained vision transformer model
+10.1007/s44163-026-00851-x	2026-01-19	article	4	transfer learning	Deep transfer learning and contour-based morphological analysis for detection of eye-hypertensive diseases from fundus images
+10.1007/s44163-026-00831-1	2026-01-18	article	2	emotion	Emotion recognition intelligent system based on machine learning and clustering algorithm
+10.1007/s44163-025-00689-9	2025-12-26	book-chapter	1	emotion	Impact of artificial intelligence painting technology on traditional easel art through emotion and semantic based creative modelling
+10.1007/s44163-025-00606-0	2025-12-23	article	1	distillation	Federated deep reinforcement learning with knowledge distillation for QoE-aware task offloading in containerized MEC
+10.1007/s44163-025-00553-w	2025-12-17	article	7	emotion	Revolutionizing facial emotion recognition: in-depth analysis of cutting-edge models, methodologies, and datasets
+10.1007/s44163-025-00671-5	2025-12-17	article	9	emotion	Design and implementation of an intelligent educational interaction system with integrated multimodal emotion recognition and adaptive content delivery
+10.1007/s44163-025-00710-1	2025-12-13	article	1	distillation	Multiple teacher-student model guided knowledge distillation for malpositioned catheters and lines detection on chest x-rays
+10.1007/s44163-025-00400-y	2025-07-18	article	7	emotion	A CNN-transformer framework for emotion recognition in code-mixed English–Hindi data
+10.1007/s44163-025-00377-8	2025-06-23	review	0	affective	Machine learning for classifying affective valence from fMRI: a systematic review and meta-analysis
+10.1007/s44163-025-00271-3	2025-05-16	article	3	emotion	Systematic mapping study of tools to identify emotions and personality traits
+10.1007/s44163-025-00280-2	2025-05-09	article	8	emotion	Optimizing the interaction of service robots in elderly care institutions using multi-modal emotion recognition system based on transfer learning
+10.1007/s44163-024-00131-6	2024-05-15	article	11	emotion	FER-BHARAT: a lightweight deep learning network for efficient unimodal facial emotion recognition in Indian context

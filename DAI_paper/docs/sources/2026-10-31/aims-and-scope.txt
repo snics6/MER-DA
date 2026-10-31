@@ -1,0 +1,21 @@
+Discover Artificial Intelligence — Aims and scope
+Source: https://link.springer.com/journal/44163/aims-and-scope
+Retrieved: 2026-10-31, pasted by the researcher from a browser (page navigation, footer, IP address and institution lines removed).
+
+Discover Artificial Intelligence is a transdisciplinary journal that publishes papers on all aspects of the theory, methodology and applications of artificial intelligence (AI).
+
+Discover Artificial Intelligence covers both the theory and the applications of AI in areas such as industry, healthcare and medical diagnostics, transport, agriculture, education, and economics. It also covers AI as it relates to machine and deep learning, data analytics, knowledge reasoning and discovery, natural language processing, computer vision, robotics, as well as social sciences, ethics, legal issues and regulation. We welcome research that proposes new ways of looking at AI problems and applications and demonstrates the value and the effectiveness of their implementation in modern society.
+
+It is expected that the applications of AI will transform our world in the future and impact all facets of society, economy, living, working, healthcare and technology. Discover Artificial Intelligence will be a key forum for the publication of this crucial research. It is also intended that articles published in Discover Artificial Intelligence may help to support and accelerate United Nations Sustainable Development Goal 9 'Industry, Innovation and Infrastructure' by helping to build resilient infrastructure, promote inclusive and sustainable industrialization and foster innovation.
+
+Topics
+
+Discover Artificial Intelligence covers topics including (but not limited to) the following:
+
+Theory and Methodologies: Automated reasoning and inference, autonomous agents and multi-agent systems, artificial consciousness, case-based reasoning, data analytics, machine learning and deep learning, knowledge reasoning, representation and discovery, natural language processing, neuro-inspired computing, process improvement and planning, robotic process automation, symbolic reasoning and regulation and ethics.
+
+Applications: AI augmented immersive (VR, AR, MR & XR) reality, AI enabled customized manufacturing, AI enabled data-driven techniques, AI in cyber-physical systems, AI in image analysis and video processing, AI in perception and multimedia sensing, AI supported sensors, IoT and smart cities, AI in education, autonomous vehicles, business and legal applications of AI, cognitive automation, hyperautomation, digital twins, healthcare, medical diagnosis and rehabilitation, robotics and robot learning, human-robot/machine interaction, industrial AI and optimization, symbiotic autonomous systems, as well as many others relating to AI.
+
+Content Types
+
+Discover Artificial Intelligence welcomes a variety of article types – please see our submission guidelines for details. The journal also publishes guest-edited Topical Collections of relevance to all aspects of artificial intelligence. For more information, please follow up with our journal publishing contact.

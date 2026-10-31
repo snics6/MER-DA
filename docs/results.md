@@ -3,10 +3,10 @@
 ## 0. この文書の使い方
 
 この文書は，MER-DA の結果を論文とスライドに使うときの入口であり，各主張の最新の状態（3 節）と結果ファイルの場所・作り方（4 節）を持つ．
-論文は MER-DA の直下の `paper/`（2026-10-27 研究者の決定．正本は `paper/CLAIM.md` と `paper/CLAUDE.md`），スライドは `~/slides/decks/MER-DA/<用途>/` で作る．
+論文は MER-DA の直下の `DAI_paper/`（投稿先は Discover Artificial Intelligence．2026-10-31 研究者の決定．規則は `DAI_paper/CLAUDE.md`），スライドは MER-DA の直下の `slides/` で作る．TAC 向けの旧版の `paper/` の内容には従わない．
 結果そのもの（`results/`）は git の外にあるので，入口を git の中のこの文書に置く．
 
-- **執筆（`paper/`）は MER-DA の結果と文書を読むだけで，`exp/`・`results/`・`docs/` を書き換えない．**足りない結果や解析は `paper/requests.md` に起票し，MER-DA 側の実験として作る
+- 執筆に足りない結果や解析は，MER-DA 側の実験として関門（`docs/methods.md` 9 節）を通して作る
 - **進み具合**（何回終わったか，いま動いているか）は **`results/status.md`**（機械が読むなら `results/status.json`）にある．`./.venv/bin/python exp/results_status.py` で作り直す．この表は UAR などの値を含まない
 - **数値は結果ファイルから取り，出典を添える．**3 節の数値はすべて保存した CSV から取り直した（md からは写していない）．出典は 5 節にある
 - MER-DA 側では，新しい結果が出たら `docs/exploratory-analyses.md` に記録し，同じ日にこの文書の 3 節と 4 節も直す
