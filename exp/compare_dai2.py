@@ -273,6 +273,7 @@ def run_xmuda(prs, mods, rec, lab, problems):
                 mu = torch.tensor([c[1] for c in chunk], dtype=F32, device=DEV)
                 wl = torch.stack([wK[c[2]] for c in chunk])
                 opt = torch.optim.Adam([P[m][k] for m in mods for k in ("A", "W", "b", "V", "c")], lr=lr)
+                klrec = {}
                 for step in range(iters):
                     it = torch.randint(0, n, (BATCH,), generator=g, device=DEV)
                     opt.zero_grad()
@@ -294,6 +295,8 @@ def run_xmuda(prs, mods, rec, lab, problems):
                         tgt = torch.log_softmax(sum(main_lp[o].detach() for o in mods if o != m), 2)
                         kl = (tgt.exp() * (tgt - mim_lp[m])).sum(2).mean(1)
                         loss = loss + kap * n * kl
+                        if step in (0, iters - 1):                               # 模倣の項が働いたかを測る量（最初と最後の KL）
+                            klrec.setdefault(m, {})[step] = kl.detach()
                     loss.sum().backward()
                     opt.step()
                     if not torch.isfinite(loss).all():
@@ -301,9 +304,12 @@ def run_xmuda(prs, mods, rec, lab, problems):
                 with torch.no_grad():
                     for m in mods:
                         Weff = torch.einsum("bke,bed->bkd", P[m]["W"], P[m]["A"])
+                        an = ((P[m]["A"] - P[m]["I"]) ** 2).sum((1, 2)).sqrt()
                         for j, (k_, mu_, K) in enumerate(chunk):
-                            rec.add(m, "xmuda", f"lr{lr}it{iters}kap{k_}mu{mu_}s{seed}", "-", K, Wb=(Weff[j].to(DT), P[m]["b"][j].to(DT)),
-                                    Zte=Zte_[m].to(DT))
+                            par = f"lr{lr}it{iters}kap{k_}mu{mu_}s{seed}"
+                            rec.add(m, "xmuda", par, "-", K, Wb=(Weff[j].to(DT), P[m]["b"][j].to(DT)), Zte=Zte_[m].to(DT))
+                            rec.diag.append({**rec.tag, "student": m, "method": "xmuda", "param": par, "K": K, "anorm": float(an[j]),
+                                             "kl_first": float(klrec[m][0][j]), "kl_last": float(klrec[m][iters - 1][j])})
                 del P, opt
                 torch.cuda.empty_cache()
 
