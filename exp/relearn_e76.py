@@ -748,6 +748,7 @@ def main() -> None:
                              str(ROOT / "results" / "fixc_text" / "merged_scores_{kind}")],
                     help="照合する前の点数（C を固定した地図の合併とソースのみ）．先に見つかった方を使う")
     ap.add_argument("--ref-tgt-scores", nargs="+", default=[str(ROOT / "results" / "tgt_scores_{kind}")])
+    ap.add_argument("--gpu-fraction", type=float, default=MEM_FRACTION, help="GPU のメモリの上限（ほかの計算と並べるときに小さくする）")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="読み込むコードにコミットしていない変更があっても流す（試しだけ．本番では使わない）")
     args = ap.parse_args()
@@ -763,7 +764,7 @@ def main() -> None:
         raise SystemExit("読み込むコードにコミットしていない変更がある（--allow-dirty は試しだけ）:\n"
                          + "\n".join(state["code_status"]))
     if torch.cuda.is_available():
-        torch.cuda.set_per_process_memory_fraction(MEM_FRACTION)
+        torch.cuda.set_per_process_memory_fraction(args.gpu_fraction)
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     settings = {"reps": args.reps, "K": list(Ks), "hands": list(hands), "merged_all_c": args.merged_all_c,
@@ -869,7 +870,7 @@ def main() -> None:
                 pd.DataFrame(rec.old_diff).to_csv(kdir / f"{t}_old_scores.csv", index=False)
             (kdir / f"{t}.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
             size = (kdir / f"{t}.npz").stat().st_size / 2**20
-            print(f"{kind} {t}：{elapsed:.0f} 秒，GPU の最大 {peak:.2f} GiB，npz {size:.1f} MiB", flush=True)
+            print(f"{kind} {t}：{elapsed:.0f} 秒，GPU の最大 {(peak if peak is not None else float('nan')):.2f} GiB，npz {size:.1f} MiB", flush=True)
             for m, e in summ.items():
                 print(f"    照合 {m}: {e}", flush=True)
             print(f"    係数から作り直した点数との差 最大 {cc['max_abs']:.2e}，argmax の一致 最小 {cc['agree_min']:.4f}",
