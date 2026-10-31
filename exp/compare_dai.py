@@ -86,34 +86,53 @@ GRID = {"KS": KS, "meffs": MEFFS, "taus": TAUS, "wgts": WGTS, "kd_temps": KD_TEM
 # ---------------------------------------------------------------- 記録
 
 class Rec:
-    """行（UAR）を集め，評価のターゲットならテストの発話ごとの確率（float16）と線形の分類器の W・b を持つ。"""
+    """行（UAR）を集め，評価のターゲットならテストの発話ごとの対数の確率（float32）・予測した感情（uint8）と線形の分類器の W・b を持つ．
+    仮のターゲット（keep=False）では none の行の対数の確率だけを持つ（判定の基準 δ の材料）。"""
 
     def __init__(self, tag, yte, keep):
         self.tag, self.yte, self.keep = tag, np.asarray(yte), keep
-        self.rows, self.P, self.W, self.conv = [], [], {}, []
+        self.rows, self.P, self.A, self.W, self.conv, self.none_lp = [], [], [], {}, [], {}
 
-    def add(self, student, method, param, meff, K, probs=None, Wb=None, Zte=None):
+    def add(self, student, method, param, meff, K, probs=None, Wb=None, Zte=None, logits=None):
         if Wb is not None:
-            probs = torch.softmax(Zte @ Wb[0].T + Wb[1], 1)
-        if not torch.is_tensor(probs):
-            probs = torch.as_tensor(np.asarray(probs), dtype=DT, device=DEV)
-        if not torch.isfinite(probs).all():
+            logits = Zte @ Wb[0].T + Wb[1]
+        if logits is not None:
+            lp = torch.log_softmax(torch.as_tensor(logits, dtype=DT, device=DEV), 1)
+        else:
+            if not torch.is_tensor(probs):
+                probs = torch.as_tensor(np.asarray(probs), dtype=DT, device=DEV)
+            lp = torch.log(probs.to(DT).clamp(min=1e-300))
+            lp = lp - torch.logsumexp(lp, 1, keepdim=True)
+        if not torch.isfinite(lp).all():
             raise FloatingPointError(f"NaN/Inf：{self.tag} {student} {method} {param} {meff} K={K}")
-        u = CB.uar(self.yte, probs.argmax(1).cpu().numpy())
+        pred = lp.argmax(1)
+        u = CB.uar(self.yte, pred.cpu().numpy())
         rid = len(self.rows)
         self.rows.append({**self.tag, "row_id": rid, "student": student, "method": method, "param": str(param), "meff": str(meff),
                           "K": K, "uar": float(u)})
         if self.keep:
-            self.P.append(probs.to(torch.float16).cpu().numpy())
+            self.P.append(lp.to(torch.float32).cpu().numpy())
+            self.A.append(pred.to(torch.uint8).cpu().numpy())
             if Wb is not None:
-                self.W.setdefault(student, []).append((rid, Wb[0].to(torch.float16).cpu().numpy(), Wb[1].to(torch.float16).cpu().numpy()))
+                self.W.setdefault(student, []).append((rid, Wb[0].to(torch.float32).cpu().numpy(), Wb[1].to(torch.float32).cpu().numpy()))
+        elif method == "none":
+            self.none_lp[(student, K)] = lp.to(torch.float32).cpu().numpy()
 
     def save(self, out, T, r, te):
         if not self.keep:
             return
-        np.save(out / f"{T}_r{r}_probs.npy", np.stack(self.P))
+        np.save(out / f"{T}_r{r}_logp.npy", np.stack(self.P))
+        np.save(out / f"{T}_r{r}_pred.npy", np.stack(self.A))
         np.save(out / f"{T}_r{r}_rowids.npy", np.arange(len(self.rows)))
         np.save(out / f"{T}_r{r}_te.npy", np.asarray(te))
+        if getattr(self, "teachers", None):
+            np.savez(out / f"{T}_r{r}_teachers.npz", **self.teachers)
+
+    def save_pseudo(self, out, T, c, r, te):
+        """仮のターゲットの none の対数の確率（生徒 × K）とテストの行番号・ラベル。"""
+        keys = sorted(self.none_lp)
+        np.savez(out / f"{T}_ps_{c}_r{r}_none.npz", te=np.asarray(te), y=self.yte, keys=np.array([f"{a}|{b}" for a, b in keys]),
+                 **{f"lp{i}": self.none_lp[k] for i, k in enumerate(keys)})
         for st, lst in self.W.items():
             np.save(out / f"{T}_r{r}_W_{st}.npy", np.stack([w for _, w, _ in lst]))
             np.save(out / f"{T}_r{r}_b_{st}.npy", np.stack([b for _, _, b in lst]))
@@ -157,13 +176,18 @@ def massbal_p(Pp, Pt, iters=500):
 
 # ---------------------------------------------------------------- 情報最大化（IM・TIM）
 
+def im_mass(meff, K, n):
+    """TIM の既定値（α = λ = 0.1）の固定版は，K 本の交差エントロピーの和（重み 4K）に対して λ = 0.1 なので m = 4K/λ = 40K。"""
+    return 40.0 * int(K) if meff == "tim" else mass(meff, n)
+
+
 def im_solve(pr, none, combos):
     """combos = [(α, m_eff, K)]．目的に m·(α·条件のエントロピーの平均 − 予測の平均のエントロピー) を足し，none の解から始める。"""
     s, cp, n = pr.s, pr.s["cp"], pr.n
     if not combos:
         return {}
     alphas = torch.tensor([a for a, _, _ in combos], dtype=DT, device=DEV)
-    ms = torch.tensor([mass(m, n) for _, m, _ in combos], dtype=DT, device=DEV)
+    ms = torch.tensor([im_mass(m, K, n) for _, m, K in combos], dtype=DT, device=DEV)
 
     def fn(L, ix):
         lp = torch.log_softmax(L[:n], 2)
@@ -184,9 +208,9 @@ def im_solve(pr, none, combos):
 
 def t3a_probs(pr, Wb, lab_pos, lab_y, Ms):
     """Iwasawa & Matsuo 2021 の 3.1 節の形を候補の上で：支えの初期値は W の行を正規化したもの，候補は Wb の予測の感情に入れて
-    エントロピーの小さい M 本を残す（K 本は真のラベルで足し，落とさない）．戻りは {M: (主の確率, 切片を残した補助の確率)}。"""
+    エントロピーの小さい M 本を残す（K 本は真のラベルで足し，落とさない）．戻りは {M: (主の点数, 切片を残した補助の点数)}。"""
     Z, Zte = pr.s["Z"], pr.s["Zte"]
-    zc, zt = F.normalize(Z, dim=1), F.normalize(Zte, dim=1)
+    zc = F.normalize(Z, dim=1)
     W, b = Wb
     L = Z @ W.T + b
     p = torch.softmax(L, 1)
@@ -197,7 +221,7 @@ def t3a_probs(pr, Wb, lab_pos, lab_y, Ms):
         unl[torch.as_tensor(lab_pos, device=Z.device)] = False
     init = F.normalize(W, dim=1)
     out = {}
-    for Mv in Ms:
+    for Mv in Ms:                                                                # 公式の実装（matsuolab/T3A）：正規化した支えの和を正規化し，正規化しない特徴との内積
         protos = []
         for k in range(4):
             cand = torch.nonzero(unl & (lab == k)).squeeze(1)
@@ -208,10 +232,10 @@ def t3a_probs(pr, Wb, lab_pos, lab_y, Ms):
                 lk = [int(i) for i, y_ in zip(lab_pos, lab_y) if int(y_) == k]
                 if lk:
                     parts.append(zc[torch.as_tensor(lk, device=Z.device)])
-            protos.append(torch.cat(parts).mean(0))
+            protos.append(F.normalize(torch.cat(parts).sum(0), dim=0))
         Pm = torch.stack(protos)
-        Lt = zt @ Pm.T
-        out[Mv] = (torch.softmax(Lt, 1), torch.softmax(Lt + b, 1))
+        Lt = Zte @ Pm.T
+        out[Mv] = (Lt, Lt + b)
     return out
 
 
@@ -299,12 +323,13 @@ def run_ab(pr, rec, student, lab):
     sol = pr.solve([(key, None, key[1]) for key in keys], u=[mass(meff, n) / n for meff, K in keys], inits=[none[K] for meff, K in keys])
     for (meff, K), Wb in sol.items():
         rec.add(student, "entmin", "-", meff, K, Wb=Wb, Zte=Zte)
-    for (a, meff, K), Wb in im_solve(pr, none, [(a, meff, K) for a in IM_ALPHAS for meff in MEFFS for K in KS]).items():
+    for (a, meff, K), Wb in im_solve(pr, none, [(a, meff, K) for a in IM_ALPHAS for meff in MEFFS for K in KS]
+                                     + [(0.1, "tim", K) for K in KS_LAB]).items():
         rec.add(student, "im", f"a{a}", meff, K, Wb=Wb, Zte=Zte)
     for K in KS:
-        for Mv, (pm, pb) in t3a_probs(pr, none[K], *lab[K], T3A_MS).items():
-            rec.add(student, "t3a", f"M{Mv}", "0", K, probs=pm)
-            rec.add(student, "t3a_b", f"M{Mv}", "0", K, probs=pb)
+        for Mv, (lm, lb) in t3a_probs(pr, none[K], *lab[K], T3A_MS).items():
+            rec.add(student, "t3a", f"M{Mv}", "0", K, logits=lm)
+            rec.add(student, "t3a_b", f"M{Mv}", "0", K, logits=lb)
     items = []
     for K in KS_LAB:
         for k in LP_KS:
@@ -320,11 +345,34 @@ def run_ab(pr, rec, student, lab):
 
 # ---------------------------------------------------------------- 群 C（参照を使う手法．1 つの生徒）
 
+def kdh_solve(pr, items):
+    """Hinton ほか 2015 の形の蒸留：生徒の出力にも温度 T をかけ，T² を掛けた教師との交差エントロピーを足す．
+    items = [(key, 教師の確率 (n×4), T, m_eff, K)]．項は m_eff/n × T² × Σ_i Σ_k t_ik(T)·(−log s_ik(T))．出発点から解く。"""
+    s, cp, n = pr.s, pr.s["cp"], pr.n
+    if not items:
+        return {}
+    Tv = torch.tensor([float(T) for _, _, T, _, _ in items], dtype=DT, device=DEV)
+    ms = torch.tensor([mass(m, n) for _, _, _, m, _ in items], dtype=DT, device=DEV)
+    teach = torch.stack([torch.softmax(torch.log(tens(P).clamp(min=1e-12)) / float(T), 1) for _, P, T, _, _ in items], 1)   # n × 問 × 4
+
+    def fn(L, ix):
+        T_, m_, t_ = (Tv, ms, teach) if ix is None else (Tv[ix], ms[ix], teach[:, ix])
+        ls = torch.log_softmax(L[:n] / T_[None, :, None], 2)
+        return m_ / n * T_ ** 2 * (-(t_ * ls).sum(2).sum(0))
+    fits = logreg.fit_batch(pr.X, pr.y, [np.ones(len(pr.y), bool)] * len(items), (cp,), anchor=s["st"].anchor(s["rho_m"]),
+                            anchor_c=s["st"].C, stats=(pr.zero, pr.one), Cb=[s["cb"]] * len(items),
+                            weights=[pr.wt[K] for _, _, _, _, K in items], extra=(fn, [float(x) for x in ms]))
+    return {key: (f.W[cp], f.b[cp]) for (key, _, _, _, _), f in zip(items, fits)}
+
+
 def run_c(pr, rec, student, kd_teachers, dist_teachers, own):
     s, n, Zte = pr.s, pr.n, pr.s["Zte"]
     items = [((name, T, meff, K), temp_rows(tk(P, K), T, meff), K) for name, P in kd_teachers.items() for T in KD_TEMPS for meff in MEFFS for K in KS]
     for (name, T, meff, K), Wb in pr.solve(items).items():
         rec.add(student, "kd", f"{name}T{T}", meff, K, Wb=Wb, Zte=Zte)
+    items = [((name, T, meff, K), tk(P, K), T, meff, K) for name, P in kd_teachers.items() for T in KD_TEMPS for meff in MEFFS for K in KS]
+    for (name, T, meff, K), Wb in kdh_solve(pr, items).items():
+        rec.add(student, "kdh", f"{name}T{T}", meff, K, Wb=Wb, Zte=Zte)
 
     def rows_of(P, wgt, meff):
         if wgt == "bal":
@@ -437,21 +485,37 @@ def world_unit(world, stu, yq, yte, label_sets, rec):
     mods = WORLDS[world]
     prs = {k: Prob(stu[k], yq, label_sets) for k in mods + [world]}
     lab = lab_of(label_sets, yq)
-    _, P0_f = run_ab(prs[world], rec, world, lab)
+    none_f, P0_f = run_ab(prs[world], rec, world, lab)
     pF = tens(stu[world]["P"])
     poe0 = tens(beliefs1(stu, world)["poe"])
     lg, lg0 = {K: 0 for K in KS}, {K: 0 for K in KS}
+    lt, lt0, lpoe_t = {K: 0 for K in KS}, {K: 0 for K in KS}, 0
     for m in mods:                                                               # 2 段目の参照：ref は pFK，ref0 は pF に教わった積
         sol = prs[m].solve([(("ref", K), weak_rows(P0_f[K], REF_MIN), K) for K in KS] + [(("ref0", K), weak_rows(pF, REF_MIN), K) for K in KS])
+        Zt_m = prs[m].s["Zte"]
+        lpoe_t = lpoe_t + torch.log_softmax(Zt_m @ prs[m].W0.T + prs[m].b0, 1)
         for K in KS:
             lg[K] = lg[K] + prs[m].probs(sol[("ref", K)], prs[m].s["Z"]).clamp(min=1e-12).log()
             lg0[K] = lg0[K] + prs[m].probs(sol[("ref0", K)], prs[m].s["Z"]).clamp(min=1e-12).log()
+            lt[K] = lt[K] + torch.log_softmax(Zt_m @ sol[("ref", K)][0].T + sol[("ref", K)][1], 1)
+            lt0[K] = lt0[K] + torch.log_softmax(Zt_m @ sol[("ref0", K)][0].T + sol[("ref0", K)][1], 1)
     ref = {K: torch.softmax(lg[K], 1) for K in KS}
     ref0 = {K: torch.softmax(lg0[K], 1) for K in KS}
+    Zt_f = prs[world].s["Zte"]                                                   # 教師モデルそのもののテストの行（ref・ref0 はテストでも作れる）
+    for K in KS:
+        rec.add(world, "teacher", "pF", "0", K, logits=Zt_f @ prs[world].W0.T + prs[world].b0)
+        rec.add(world, "teacher", "pFK", "0", K, Wb=none_f[K], Zte=Zt_f)
+        rec.add(world, "teacher", "poe0", "0", K, logits=lpoe_t)
+        rec.add(world, "teacher", "ref", "0", K, logits=lt[K])
+        rec.add(world, "teacher", "ref0", "0", K, logits=lt0[K])
+    if rec.keep:                                                                 # 候補の上の教師の確率（第 2 波と同じ教師かを確かめる）
+        rec.teachers = {"pF": pF.cpu().numpy(), "poe0": poe0.cpu().numpy(),
+                        **{f"pFK_{K}": P0_f[K].cpu().numpy() for K in KS}, **{f"ref_{K}": ref[K].cpu().numpy() for K in KS},
+                        **{f"ref0_{K}": ref0[K].cpu().numpy() for K in KS}}
     for m in mods:
-        run_ab(prs[m], rec, m, lab)
-        run_c(prs[m], rec, m, {"pF": pF, "pFK": P0_f, "ref": ref}, {"pFK": P0_f, "ref": ref, "pF": pF}, tens(stu[m]["P"]))
-    run_c(prs[world], rec, world, {"poe0": poe0, "ref": ref}, {"ref": ref, "ref0": ref0, "poe0": poe0}, pF)
+        _, P0_m = run_ab(prs[m], rec, m, lab)
+        run_c(prs[m], rec, m, {"pF": pF, "pFK": P0_f, "ref": ref}, {"pFK": P0_f, "ref": ref, "pF": pF, "ownK": P0_m}, tens(stu[m]["P"]))
+    run_c(prs[world], rec, world, {"poe0": poe0, "ref": ref}, {"ref": ref, "ref0": ref0, "poe0": poe0, "ownK": P0_f}, pF)
     cotrain_rec({m: prs[m] for m in mods}, prs[world], rec, world)
     coreg_rec({m: prs[m] for m in mods}, rec, world)
 
@@ -479,9 +543,16 @@ def samples_table(name, T):
     return df[["sample_id", "speaker_id", "speaker_group"]].reset_index(drop=True)
 
 
+def save_settings(out, T, sets, extra=None):
+    names = ("gamma", "rho_s", "rho_m", "cb", "cp", "step_c")
+    (out / f"{T}_settings.json").write_text(json.dumps({"E39": {k: dict(zip(names, [None if v is None else float(v) for v in vals]))
+                                                                 for k, vals in sets.items()}, **(extra or {})}, ensure_ascii=False, indent=1))
+
+
 def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, pseudo_targets=None):
     S = [s for s in data_f if CM.corp(s) != CM.corp(T)]
     sets = {k: settings(k, T) for k in WORLDS[world] + [world]}
+    save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S})
     prows, conv = [], []
     for c in S:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
@@ -496,6 +567,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
             rec.conv = conv
             world_unit(world, stu, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec)
+            rec.save_pseudo(out, T, c, r, te)
             prows += rec.rows
             del stu, rec
             torch.cuda.empty_cache()
@@ -523,6 +595,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
     S = [s for s in data if CM.corp(s) != CM.corp(T)]
     gamma, rho_s, rho_m, cb, cp, _ = settings(kind, T)
     C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
+    save_settings(out, T, {kind: (gamma, rho_s, rho_m, cb, cp, None)}, {"c_fit_pseudo": C_FIT, "c_eval": C_T, "sources": S})
 
     def student_of(ev, Xc, src, lin, n_of, pool_s, C, te, ct):
         st = Student(ev, Xc, src, lin, n_of, pool_s, C, gamma, rho_s, [rho_m])
@@ -541,6 +614,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
             s = student_of(evc, M.rows(evc.X, pool) - ctxc.ct[r], src_c, lin_c, n_c, pool_c, C_FIT, te, ctxc.ct[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
             kind_unit(kind, s, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec)
+            rec.save_pseudo(out, T, c, r, te)
             prows += rec.rows
             del s, rec
             torch.cuda.empty_cache()
