@@ -67,11 +67,12 @@ SEEDS = (0, 1, 2)
 MAP_LRS, MAP_ITERS, MAP_LAMS, MAP_MUS, MME_SRCW = (1e-3, 1e-2), (200, 1000), (0.01, 0.1, 1.0), (1.0, 10.0), (0.0, 0.1)
 XM_KAPPAS = (0.1, 1.0, 10.0)
 CT_TAUS, CT_LRS, CT_MEFFS, CT_EPOCHS, CT_TK, CT_BATCH, CT_PERTURB = (0.0, 0.2, 0.4, 0.6), (1e-3, 1e-2), ("500", "n"), 50, 10, 128, 0.1
+CT_STEPS = 2000                              # 更新の回数をターゲットに依らずそろえる（エポック数 = max(⌈2000/M⌉, T_k)．候補の少ないターゲットで収束しない件と計算量）
 CORAL_R, CORAL_RHO, CORAL_CP, CORAL_CB, CORAL_MIN_RATIO = (32, 64, 128), (1.0, 0.97, 0.9), (0.01, 0.03, 0.1), (2.0, 8.0, None), 5
 BATCH, DISC_H, SRC_BATCH = 128, 256, 128
 GRID = {"seeds": SEEDS, "map_lrs": MAP_LRS, "map_iters": MAP_ITERS, "map_lams": MAP_LAMS, "map_mus": MAP_MUS, "mme_srcw": MME_SRCW,
         "xm_kappas": XM_KAPPAS, "ct_taus": CT_TAUS, "ct_lrs": CT_LRS, "ct_meffs": CT_MEFFS, "ct_epochs": CT_EPOCHS, "ct_tk": CT_TK,
-        "ct_batch": CT_BATCH, "ct_perturb": CT_PERTURB, "tf32": True, "coral_r": CORAL_R, "coral_rho": CORAL_RHO, "coral_cp": CORAL_CP,
+        "ct_batch": CT_BATCH, "ct_perturb": CT_PERTURB, "ct_steps": CT_STEPS, "tf32": True, "coral_r": CORAL_R, "coral_rho": CORAL_RHO, "coral_cp": CORAL_CP,
         "coral_cb": [c if c is not None else "free" for c in CORAL_CB], "coral_min_ratio": CORAL_MIN_RATIO, "batch": BATCH,
         "disc_h": DISC_H, "src_batch": SRC_BATCH, "c_fit": C_FIT}
 ALL_METHODS = ("dann", "mme", "mapctl", "xmuda", "cot", "coral")
@@ -176,9 +177,9 @@ def _train_map(Z, Zl, ylab, wK, Zs, ys, W0, b0, cp, cb, chunk, lr, iters, seed, 
     A = I.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True)
     W = W0.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True)
     b = b0.unsqueeze(0).repeat(B, 1).clone().requires_grad_(True)
-    D1 = (torch.randn(B, d, DISC_H, generator=g, device=DEV, dtype=F32) / math.sqrt(d)).requires_grad_(True)
+    D1 = (torch.randn(1, d, DISC_H, generator=g, device=DEV, dtype=F32) / math.sqrt(d)).repeat(B, 1, 1).requires_grad_(True)   # 束の組み方に依らない初期値
     c1 = torch.zeros(B, 1, DISC_H, device=DEV, dtype=F32, requires_grad=True)
-    D2 = (torch.randn(B, DISC_H, 1, generator=g, device=DEV, dtype=F32) / math.sqrt(DISC_H)).requires_grad_(True)
+    D2 = (torch.randn(1, DISC_H, 1, generator=g, device=DEV, dtype=F32) / math.sqrt(DISC_H)).repeat(B, 1, 1).requires_grad_(True)
     c2 = torch.zeros(B, 1, 1, device=DEV, dtype=F32, requires_grad=True)
     meth = [c[0] for c in chunk]
     lam = torch.tensor([c[1] for c in chunk], dtype=F32, device=DEV)
@@ -330,6 +331,8 @@ def run_cot(pr, rec, student, lab, teachers, tau_fix=None, ytrue=None, diag=None
              for K in KS for lr in CT_LRS for seed in SEEDS]
     if tau_fix is not None:
         chunk += [(name, float(tau_fix[name][K]), "n", K, 1e-3, seed, "fix") for name in teachers for K in KS for seed in SEEDS]
+    name0 = next(iter(teachers))                                                 # 候補の項の重み 0（K 本と罰則だけ）．none との差で確率的な勾配法の届かなさを測る
+    chunk += [(name0, 0.0, "0", K, lr, seed, "zero") for K in KS for lr in CT_LRS for seed in SEEDS]
     B = len(chunk)
     hl = torch.stack([E77.tk(teachers[c[0]], c[3]).to(F32).argmax(1) for c in chunk])            # 問 × n の硬いラベル
     lmask = torch.zeros(B, n, dtype=torch.bool, device=DEV)                                     # 問の K 本（選ぶ対象から外す）
@@ -349,17 +352,18 @@ def run_cot(pr, rec, student, lab, teachers, tau_fix=None, ytrue=None, diag=None
     m_ = [torch.zeros_like(p) for p in params]
     v_ = [torch.zeros_like(p) for p in params]
     tau = torch.tensor([c[1] for c in chunk], dtype=F32, device=DEV)
-    mw = torch.tensor([mass(c[2], n) / n for c in chunk], dtype=F32, device=DEV)
+    mw = torch.tensor([0.0 if c[2] == "0" else mass(c[2], n) / n for c in chunk], dtype=F32, device=DEV)
     wl = torch.stack([wK[c[3]] for c in chunk])
     ov_sum, ov_cnt = torch.zeros(B, device=DEV), torch.zeros(B, device=DEV)
     agree = torch.zeros(B, 4, device=DEV)                                                       # 選んだ一致・選んだ数・落ちた一致・落ちた数（最後のエポック）
     prec = torch.zeros(B, 4, device=DEV)                                                        # 選んだ正しさ・選んだ数・全体の正しさ・全体の数
     yt_all = torch.as_tensor(np.asarray(ytrue), device=DEV) if ytrue is not None else None
     t = 0
-    for ep in range(CT_EPOCHS):
+    n_ep = max(math.ceil(CT_STEPS / Mb), CT_TK)
+    for ep in range(n_ep):
         R = 1.0 - torch.minimum(tau * (ep + 1) / CT_TK, tau)
         perms = torch.stack([torch.randperm(n, generator=gg, device=DEV) for gg in gens])          # 種 × n
-        last = ep == CT_EPOCHS - 1
+        last = ep == n_ep - 1
         for mb in range(Mb):
             idx = perms[:, mb * CT_BATCH:(mb + 1) * CT_BATCH][seed_of]                              # 問 × 本数（同じ種の問は同じミニバッチ）
             valid = ~lmask.gather(1, idx)
@@ -409,7 +413,7 @@ def run_cot(pr, rec, student, lab, teachers, tau_fix=None, ytrue=None, diag=None
     with torch.no_grad():
         v = ov_sum / ov_cnt.clamp(min=1)
         for j, (name, tau_j, meff, K, lr, seed, kind) in enumerate(chunk):
-            meth = {"sel": "cot", "ctl": "cotctl", "fix": "cotfix"}[kind]
+            meth = {"sel": "cot", "ctl": "cotctl", "fix": "cotfix", "zero": "cotzero"}[kind]
             param = f"{name}:tau{tau_j:.4f}lr{lr}s{seed}" if kind == "fix" else f"{name}:tau{tau_j}lr{lr}s{seed}"
             rec.add(student, meth, param, meff, K, Wb=(Wf[j].to(DT), bf[j].to(DT)), Zte=Zte.to(DT))
             rec.add(student, meth + "_g", param, meff, K, Wb=(Wg[j].to(DT), bg[j].to(DT)), Zte=Zte.to(DT))
@@ -438,7 +442,7 @@ def msqrt(S, inv=False):
     return (V * (lam.rsqrt() if inv else lam.sqrt())) @ V.T
 
 
-def coral_lin(srcs, Xu, rho_s, r):
+def coral_lin(srcs, Xu, rho_s, r, svd=None):
     """ソースごとに候補 Xu（中心化済み）の共分散へ上位 r 次元の部分空間の中でそろえ，`meta5.pool_info` と同じ形の閉じた形の向き lin を作り直す。"""
     Xs_c = {s: X - X.mean(0) for s, (X, y) in srcs.items()}
     Xp = torch.cat([X for X, _ in srcs.values()])                               # `meta5.pool_info` と同じく，中心化しない合併の平均と標準偏差で標準化する
@@ -451,9 +455,7 @@ def coral_lin(srcs, Xu, rho_s, r):
         if r is None:                                                            # そろえない（`pool_info` の lin と一致することの検算に使う）
             X2 = X
         else:
-            both = torch.cat([Xc, Xu])
-            _, _, Vt = torch.linalg.svd(both - both.mean(0), full_matrices=False)
-            U = Vt[:r].T
+            U = svd[s][:r].T                                                     # ソースと候補を合わせた特徴の主成分（r に依らないので 1 回だけ作る）
             Ps, Pt = Xc @ U, Xu @ U
             Cs, Ct = lw_cov(Ps - Ps.mean(0)), lw_cov(Pt - Pt.mean(0))
             Pn = (Ps - Ps.mean(0)) @ msqrt(Cs, inv=True) @ msqrt(Ct) + Ps.mean(0)
@@ -471,9 +473,17 @@ def coral_lin(srcs, Xu, rho_s, r):
     return lin
 
 
-def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, student, lin0, c_raw):
+def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, student, lin0, c_raw, cp39, cb39):
     """CORAL ＋ none．Xu：候補（中心化済み），te_X：テスト（同じ中心で中心化済み），srcs：{ソース: (特徴, ラベル)}。"""
     n_min = min(len(Xu), min(len(X) for X, _ in srcs.values()))
+    svd = {}
+    for s_, (X, _) in srcs.items():                                              # 主成分は r に依らないので，ソースごとに上位 max(r) 本を 1 回だけ作る
+        both = torch.cat([X - X.mean(0), Xu])
+        _, _, Vt = torch.linalg.svd(both - both.mean(0), full_matrices=False)
+        svd[s_] = Vt[:max(CORAL_R)]
+        del both, Vt
+    cps = tuple(sorted(set(CORAL_CP) | {float(cp39)}))                           # E39 の C′・C_b を格子に入れる（固定版は r = 64 と E39 の値）
+    cbs_grid = tuple(sorted(set(c for c in CORAL_CB if c is not None) | ({float(cb39)} if cb39 is not None else set()))) + (None,)
     lab_w = {}
     yt = M.labels(yq)
     for K in KS:
@@ -487,7 +497,7 @@ def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_s
         if r is not None and n_min < CORAL_MIN_RATIO * r:
             continue
         t0 = time.perf_counter()
-        lin = coral_lin(srcs, Xu, rho_s, r)
+        lin = coral_lin(srcs, Xu, rho_s, r, svd)
         if r is None:                                                            # そろえない版は元の下書きの lin と一致するはず（I7）
             dmax = max(float((lin[k_][0] - lin0[k_][0]).abs().max() / lin0[k_][0].abs().max().clamp(min=1e-30)) for k_ in lin)
             rec.conv.append({**rec.tag, "student": student, "what": "coral_lin_check", "rel_diff": dmax})
@@ -501,18 +511,18 @@ def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_s
             Am = st.mats[rho_m][0]
             Zc = Xstd @ Am
             Zt = Xte_std @ Am
-            groups = [(K, cbv) for K in KS for cbv in CORAL_CB]
+            groups = [(K, cbv) for K in KS for cbv in cbs_grid]
             masks, ws, cbs = [], [], []
             for K, cbv in groups:
                 idx, w = lab_w[K]
                 masks.append(np.ones(len(Zc), bool))
                 ws.append(w)
                 cbs.append(cbv)
-            fits = logreg.fit_batch(Zc, yt, masks, CORAL_CP, anchor=st.anchor(rho_m), anchor_c=st.C, stats=(st.zero, st.one), Cb=cbs, weights=ws)
+            fits = logreg.fit_batch(Zc, yt, masks, cps, anchor=st.anchor(rho_m), anchor_c=st.C, stats=(st.zero, st.one), Cb=cbs, weights=ws)
             # fit_batch の問 p = g·len(Cs) + i．重みが全部 0 の問（K=0）は罰則だけなので出発点そのものになる
             for gi, (K, cbv) in enumerate(groups):
                 f = fits[gi]
-                for cpv in CORAL_CP:
+                for cpv in cps:
                     W, b = f.W[cpv], f.b[cpv]
                     if K == "0":
                         W, b = st.W_std @ st.mats[rho_m][1], st.b_std
@@ -601,7 +611,8 @@ def world_unit2(world, stu, yq, label_sets, rec, methods, srcs_of, raw_of, coral
     if "coral" in methods:                                                       # Student を作り直すので Prob（Xstd を消す）より先に
         for k in mods + [world]:
             Xu, te_X, src_pc, n_of, pool_s, C, gamma, rho_s, mu, lin0 = raw_of(k)
-            run_coral(coral_ctx[k], Xu, te_X, src_pc, srcs[k], n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, k, lin0, mu)
+            run_coral(coral_ctx[k], Xu, te_X, src_pc, srcs[k], n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, k, lin0, mu,
+                      stu[k]["cp"], stu[k]["cb"])
     prs = {k: Prob(stu[k], yq, label_sets) for k in mods + [world]}
     for k in mods + [world]:
         none = prs[k].solve([(K, None, K) for K in KS])
@@ -746,7 +757,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         yq = ev.y[pool]
         label_sets = BD.label_sets_of(ctxo, r, pool)
         if "coral" in meths:
-            run_coral(ev, Xu, te_X, src, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, kind, lin, ct)
+            run_coral(ev, Xu, te_X, src, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, kind, lin, ct, cp, cb)
         st = Student(ev, Xu, src, lin, n_of, pool_s, C, gamma, rho_s, [rho_m])
         Am = st.mats[rho_m][0]
         rec.xform[kind] = (Am, st.src.sd, ct + st.src.mu)
