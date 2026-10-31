@@ -59,7 +59,7 @@
 | 場所 | 中身 | git |
 |---|---|---|
 | `docs/` | 文書 6 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究，見たデータの台帳 `seen-data.md`）と論文の主張契約の下書き `paper-claim.md`．データの文書は `data/README.md` | ○ |
-| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節）と，新しい定理を探す担当の定義（`thm-unexplained`・`thm-open-problems`・`thm-claim`・`thm-screen`・`thm-deep`・`thm-check`．手順は同 10 節）．2026-10-28〜 | ○ |
+| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`・`gate-code`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節）と，新しい定理を探す担当の定義（`thm-unexplained`・`thm-open-problems`・`thm-claim`・`thm-screen`・`thm-deep`・`thm-check`．手順は同 10 節）．2026-10-28〜 | ○ |
 | `checks/` | 検査役の報告（`checks/<E 番号>/<役>.md`） | ○ |
 | `A theory of learning from different domains.pdf` | 中核の理論の論文（Ben-David 2010） | ○ |
 | `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本） | ○ |
@@ -86,7 +86,7 @@
 
 - **研究の流れは 6 つの問い（2026-10-19 の面談の資料の 5 つの問いに問い 6 を足したもの．`docs/researchvision.md` 3.0 節）で書き，語はスライドの語に合わせる**（対応表は `docs/results.md` 3.6 節末）．研究者への報告もこの流れと語で行う
 - **実験コードを書く前に `docs/methods.md` を読む**
-- **実験は関門を通してから計算し，結果を書く**（`docs/methods.md` 9 節．2026-10-28〜）．設計を書いたら `docs/seen-data.md` に 1 行足し，本番は関門 1 の 4 体，下調べは `gate-probe` の 1 体に検査させる．結果を文書に書く前に `gate-claim` に照合させる．検査役には設計と台本と台帳だけを渡し，期待する結論は渡さない
+- **実験は関門を通してから計算し，結果を書く**（`docs/methods.md` 9 節．2026-10-28〜）．設計を書いたら `docs/seen-data.md` に 1 行足し，本番は関門 1 の 4 体，下調べは `gate-probe` の 1 体に検査させる．**本番でも下調べでも，台本を書いたら計算の前に必ず `gate-code` に台本を検査させる**（2026-11-01〜．目的は計算の後の指摘で計算をやり直さないこと．台本が設計どおりに計算するかに加え，後から求められそうな解析を保存した出力から出せるかを確かめさせる．台本を直したら差分を再検査させ，計算の後には結果ファイルの欠けと重複を点検させる）．結果を文書に書く前に `gate-claim` に照合させる．検査役には設計と台本と台帳だけを渡し，期待する結論は渡さない
 - **ずれの指標は `measure/shift.py`，ずれを消す操作は `measure/ablate.py` を必ず通す．**実験コードで書き直さない．例外は学び直し（E12）の `exp/mech.py`（`docs/methods.md` 3.4）．変えたら `measure/test_shift.py` を流し，`docs/methods.md` も直す
 - **長時間の処理（特徴抽出・学習・評価）は勝手に起動しない．**
   まずコマンド・所要見込み・上書きするファイルを示して確認を取る
