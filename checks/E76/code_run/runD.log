@@ -1,0 +1,21 @@
+audio_hubert：読み込み 1 秒
+  audio_hubert IEMOCAP-impro ← IEMOCAP-script：版 1（累計 ①12 ②4 ③2 手7 秒）
+  audio_hubert IEMOCAP-impro ← MOSEI：版 1（累計 ①12 ②29 ③6 手24 秒）
+audio_hubert IEMOCAP-impro：71 秒，GPU の最大 1.34 GiB，npz 2.0 MiB
+    照合 h2: {'n': 2, 'n_ref': 2, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0, 'n_not_converged': 0}
+    照合 h3: {'n': 6, 'n_ref': 6, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0, 'n_not_converged': 0}
+    照合 h4: {'n': 6, 'n_ref': 6, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0}
+    照合 h5: {'n': 6, 'n_ref': 6, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0}
+    照合 h6: {'n': 6, 'n_ref': 6, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 4.773959005888173e-15, 'n_not_converged': 0}
+    照合 h7: {'n': 6, 'n_ref': 6, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 4.773959005888173e-15, 'n_not_converged': 0}
+    照合 h8: {'n': 6, 'n_ref': 6, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 4.773959005888173e-15, 'n_not_converged': 0}
+    照合 merged: {'n': 12, 'n_ref': 12, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0, 'C_mismatch': 0, 'n_not_converged': 0}
+    照合 src_only: {'n': 2, 'n_ref': 2, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0, 'C_mismatch': 0, 'rule_mismatch': 0, 'max_abs_diff_allC': 5.551115123125783e-17, 'n_allC_over_exact': 0, 'max_allC_over_tol': 4.773959005888173e-15, 'n_not_converged': 0}
+    照合 tgt_only: {'n': 6, 'n_ref': 6, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 4.773959005888173e-15, 'C_mismatch': 0, 'rule_mismatch': 0, 'max_abs_diff_allC': 5.551115123125783e-17, 'n_allC_over_exact': 0, 'max_allC_over_tol': 4.773959005888173e-15, 'n_not_converged': 0}
+    照合 old_scores: {'merged': {'n': 6, 'max_abs': 0.0004203319549560547, 'agree_min': 1.0}, 'src_only': {'n': 2, 'max_abs': 0.00010865926742553711, 'agree_min': 1.0}, 'tgt_only': {'n': 3, 'max_abs': 4.76837158203125e-07, 'agree_min': 1.0}}
+    係数から作り直した点数との差 最大 2.55e-06，argmax の一致 最小 1.0000
+終わり：/home/snics/MER-DA/checks/E76/code_run/runD（72 秒）
+
+real	1m14.789s
+user	1m13.220s
+sys	0m3.312s

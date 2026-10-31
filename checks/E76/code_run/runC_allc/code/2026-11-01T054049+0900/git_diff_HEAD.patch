@@ -1,0 +1,114 @@
+diff --git a/exp/compare_dai.py b/exp/compare_dai.py
+index dc01e5a..7c32249 100644
+--- a/exp/compare_dai.py
++++ b/exp/compare_dai.py
+@@ -91,7 +91,7 @@ class Rec:
+ 
+     def __init__(self, tag, yte, keep):
+         self.tag, self.yte, self.keep = tag, np.asarray(yte), keep
+-        self.rows, self.P, self.A, self.W, self.conv, self.none_lp = [], [], [], {}, [], {}
++        self.rows, self.P, self.A, self.W, self.conv, self.none_lp, self.diag, self.xform = [], [], [], {}, [], {}, [], {}
+ 
+     def add(self, student, method, param, meff, K, probs=None, Wb=None, Zte=None, logits=None):
+         if Wb is not None:
+@@ -113,8 +113,11 @@ class Rec:
+         if self.keep:
+             self.P.append(lp.to(torch.float32).cpu().numpy())
+             self.A.append(pred.to(torch.uint8).cpu().numpy())
+-            if Wb is not None:
+-                self.W.setdefault(student, []).append((rid, Wb[0].to(torch.float32).cpu().numpy(), Wb[1].to(torch.float32).cpu().numpy()))
++            if Wb is not None and student in self.xform:                         # 生徒の座標 Z = ((X − c)/sd) @ Am の係数を生の特徴の上へ写す
++                Am, sd, c = self.xform[student]
++                Wr = (Wb[0] @ Am) / sd
++                br = Wb[1] - Wr @ c
++                self.W.setdefault(student, []).append((rid, Wr.to(torch.float32).cpu().numpy(), br.to(torch.float32).cpu().numpy()))
+         elif method == "none":
+             self.none_lp[(student, K)] = lp.to(torch.float32).cpu().numpy()
+ 
+@@ -127,22 +130,65 @@ class Rec:
+         np.save(out / f"{T}_r{r}_te.npy", np.asarray(te))
+         if getattr(self, "teachers", None):
+             np.savez(out / f"{T}_r{r}_teachers.npz", **self.teachers)
++        for st, lst in self.W.items():                                          # 生の特徴の上の係数（logits = X_raw @ Wᵀ + b）
++            np.save(out / f"{T}_r{r}_W_{st}.npy", np.stack([w for _, w, _ in lst]))
++            np.save(out / f"{T}_r{r}_b_{st}.npy", np.stack([b for _, _, b in lst]))
++            np.save(out / f"{T}_r{r}_wrows_{st}.npy", np.array([i for i, _, _ in lst]))
+ 
+     def save_pseudo(self, out, T, c, r, te):
+         """仮のターゲットの none の対数の確率（生徒 × K）とテストの行番号・ラベル。"""
+         keys = sorted(self.none_lp)
+         np.savez(out / f"{T}_ps_{c}_r{r}_none.npz", te=np.asarray(te), y=self.yte, keys=np.array([f"{a}|{b}" for a, b in keys]),
+                  **{f"lp{i}": self.none_lp[k] for i, k in enumerate(keys)})
+-        for st, lst in self.W.items():
+-            np.save(out / f"{T}_r{r}_W_{st}.npy", np.stack([w for _, w, _ in lst]))
+-            np.save(out / f"{T}_r{r}_b_{st}.npy", np.stack([b for _, _, b in lst]))
+-            np.save(out / f"{T}_r{r}_wrows_{st}.npy", np.array([i for i, _, _ in lst]))
+ 
+ 
+ def tk(P, K):
+     return P[K] if isinstance(P, dict) else P
+ 
+ 
++class Prob2(Prob):
++    """`baselines_distill.Prob` と同じ問を同じ手順で解き，束ねた解きごとに L-BFGS の反復の回数と止まったときの勾配の最大を記録する。"""
++
++    def __init__(self, s, yq, label_sets):
++        super().__init__(s, yq, label_sets)
++        self.stats = []
++
++    def solve(self, items, u=None, inits=None, what="-"):
++        s, cp = self.s, self.s["cp"]
++        keys, weights, us, ini, out = [], [], [], [], {}
++        for j, (key, w4, K) in enumerate(items):
++            w = self.wt[K] if w4 is None else self.wt[K] + w4
++            uj = 0.0 if u is None else float(u[j])
++            if float(w.sum()) == 0.0 and uj == 0.0:
++                out[key] = (self.W0, self.b0)
++                continue
++            keys.append(key)
++            weights.append(w)
++            us.append(uj)
++            wb = None if inits is None else inits[j]
++            ini.append(None if wb is None else logreg.Fitted(self.zero, self.one, {cp: wb[0]}, {cp: wb[1]}, {cp: 0}, {cp: 0.0}))
++        if not keys:
++            return out
++        extra = None
++        if any(us):
++            uv = torch.tensor(us, dtype=DT, device=DEV)
++            n1 = self.n
++
++            def fn(L, ix):
++                lp = torch.log_softmax(L[:n1], 2)
++                return -(lp.exp() * lp).sum(2).sum(0) * (uv if ix is None else uv[ix])
++            extra = (fn, [x * self.n for x in us])
++        t0 = time.perf_counter()
++        fits = logreg.fit_batch(self.X, self.y, [np.ones(len(self.y), bool)] * len(keys), (cp,), anchor=s["st"].anchor(s["rho_m"]),
++                                anchor_c=s["st"].C, stats=(self.zero, self.one), Cb=[s["cb"]] * len(keys), weights=weights, extra=extra,
++                                inits=ini if any(i is not None for i in ini) else None)
++        self.stats.append({"what": what, "n_prob": len(keys), "sec": time.perf_counter() - t0,
++                           "n_iter_max": max(int(f.n_iter[cp]) for f in fits), "grad_max": max(float(f.grad[cp]) for f in fits)})
++        for key, f in zip(keys, fits):
++            out[key] = (f.W[cp], f.b[cp])
++        return out
++
++
+ # ---------------------------------------------------------------- 学習しない補正（確率を返す）
+ 
+ def saerens_p(Pp, Pt, iters=200):
+diff --git a/exp/explore_view_fusion.py b/exp/explore_view_fusion.py
+index 88bcb1d..5350673 100644
+--- a/exp/explore_view_fusion.py
++++ b/exp/explore_view_fusion.py
+@@ -279,10 +279,10 @@ def analyze(results=None) -> int:
+     for g in range(NB):
+         es = Ek[f"E_{g}"].reindex(pd.MultiIndex.from_frame(P[KEY + ["s"]])).values
+         et = Ek[f"E_{g}"].reindex(pd.MultiIndex.from_frame(P[KEY + ["t"]])).values
+-        rows.append(P.assign(bin=g, corr=P[f"C_{g}"] / np.sqrt(es * et)).groupby(["student", "s", "t", "bin"]).corr.median().reset_index())
++        rows.append(P.assign(bin=g, rho=P[f"C_{g}"] / np.sqrt(es * et)).groupby(["student", "s", "t", "bin"])["rho"].median().reset_index())
+     Ct = pd.concat(rows, ignore_index=True)
+     write(Ct, "e71_corr.csv", meta)
+-    print("\n== 見方どうしの誤差の相関（中央値）\n" + Ct.pivot_table(index=["student", "s", "t"], columns="bin", values="corr").round(2).to_string())
++    print("\n== 見方どうしの誤差の相関（中央値）\n" + Ct.pivot_table(index=["student", "s", "t"], columns="bin", values="rho").round(2).to_string())
+     return 0
+ 
+ 

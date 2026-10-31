@@ -1,0 +1,455 @@
+diff --git a/exp/compare_dai.py b/exp/compare_dai.py
+index dc01e5a..cecd7ab 100644
+--- a/exp/compare_dai.py
++++ b/exp/compare_dai.py
+@@ -60,6 +60,7 @@ from data import groups_for, load_any  # noqa: E402
+ from distill_belief import weak_rows  # noqa: E402
+ from geom_e0 import settings  # noqa: E402
+ from multimodal_distill import WORLDS, beliefs1, blocks, make_students, sub_group  # noqa: E402
++from select_labelfree import present_weights  # noqa: E402
+ from teach_student39 import Student  # noqa: E402
+ 
+ KS = BD.KS                                  # ("0", "1", "5", "10", "25")
+@@ -91,7 +92,7 @@ class Rec:
+ 
+     def __init__(self, tag, yte, keep):
+         self.tag, self.yte, self.keep = tag, np.asarray(yte), keep
+-        self.rows, self.P, self.A, self.W, self.conv, self.none_lp = [], [], [], {}, [], {}
++        self.rows, self.P, self.A, self.W, self.conv, self.none_lp, self.diag, self.xform = [], [], [], {}, [], {}, [], {}
+ 
+     def add(self, student, method, param, meff, K, probs=None, Wb=None, Zte=None, logits=None):
+         if Wb is not None:
+@@ -113,8 +114,11 @@ class Rec:
+         if self.keep:
+             self.P.append(lp.to(torch.float32).cpu().numpy())
+             self.A.append(pred.to(torch.uint8).cpu().numpy())
+-            if Wb is not None:
+-                self.W.setdefault(student, []).append((rid, Wb[0].to(torch.float32).cpu().numpy(), Wb[1].to(torch.float32).cpu().numpy()))
++            if Wb is not None and student in self.xform:                         # 生徒の座標 Z = ((X − c)/sd) @ Am の係数を生の特徴の上へ写す
++                Am, sd, c = self.xform[student]
++                Wr = (Wb[0] @ Am) / sd
++                br = Wb[1] - Wr @ c
++                self.W.setdefault(student, []).append((rid, Wr.to(torch.float32).cpu().numpy(), br.to(torch.float32).cpu().numpy()))
+         elif method == "none":
+             self.none_lp[(student, K)] = lp.to(torch.float32).cpu().numpy()
+ 
+@@ -127,22 +131,65 @@ class Rec:
+         np.save(out / f"{T}_r{r}_te.npy", np.asarray(te))
+         if getattr(self, "teachers", None):
+             np.savez(out / f"{T}_r{r}_teachers.npz", **self.teachers)
++        for st, lst in self.W.items():                                          # 生の特徴の上の係数（logits = X_raw @ Wᵀ + b）
++            np.save(out / f"{T}_r{r}_W_{st}.npy", np.stack([w for _, w, _ in lst]))
++            np.save(out / f"{T}_r{r}_b_{st}.npy", np.stack([b for _, _, b in lst]))
++            np.save(out / f"{T}_r{r}_wrows_{st}.npy", np.array([i for i, _, _ in lst]))
+ 
+     def save_pseudo(self, out, T, c, r, te):
+         """仮のターゲットの none の対数の確率（生徒 × K）とテストの行番号・ラベル。"""
+         keys = sorted(self.none_lp)
+         np.savez(out / f"{T}_ps_{c}_r{r}_none.npz", te=np.asarray(te), y=self.yte, keys=np.array([f"{a}|{b}" for a, b in keys]),
+                  **{f"lp{i}": self.none_lp[k] for i, k in enumerate(keys)})
+-        for st, lst in self.W.items():
+-            np.save(out / f"{T}_r{r}_W_{st}.npy", np.stack([w for _, w, _ in lst]))
+-            np.save(out / f"{T}_r{r}_b_{st}.npy", np.stack([b for _, _, b in lst]))
+-            np.save(out / f"{T}_r{r}_wrows_{st}.npy", np.array([i for i, _, _ in lst]))
+ 
+ 
+ def tk(P, K):
+     return P[K] if isinstance(P, dict) else P
+ 
+ 
++class Prob2(Prob):
++    """`baselines_distill.Prob` と同じ問を同じ手順で解き，束ねた解きごとに L-BFGS の反復の回数と止まったときの勾配の最大を記録する。"""
++
++    def __init__(self, s, yq, label_sets):
++        super().__init__(s, yq, label_sets)
++        self.stats = []
++
++    def solve(self, items, u=None, inits=None, what="-"):
++        s, cp = self.s, self.s["cp"]
++        keys, weights, us, ini, out = [], [], [], [], {}
++        for j, (key, w4, K) in enumerate(items):
++            w = self.wt[K] if w4 is None else self.wt[K] + w4
++            uj = 0.0 if u is None else float(u[j])
++            if float(w.sum()) == 0.0 and uj == 0.0:
++                out[key] = (self.W0, self.b0)
++                continue
++            keys.append(key)
++            weights.append(w)
++            us.append(uj)
++            wb = None if inits is None else inits[j]
++            ini.append(None if wb is None else logreg.Fitted(self.zero, self.one, {cp: wb[0]}, {cp: wb[1]}, {cp: 0}, {cp: 0.0}))
++        if not keys:
++            return out
++        extra = None
++        if any(us):
++            uv = torch.tensor(us, dtype=DT, device=DEV)
++            n1 = self.n
++
++            def fn(L, ix):
++                lp = torch.log_softmax(L[:n1], 2)
++                return -(lp.exp() * lp).sum(2).sum(0) * (uv if ix is None else uv[ix])
++            extra = (fn, [x * self.n for x in us])
++        t0 = time.perf_counter()
++        fits = logreg.fit_batch(self.X, self.y, [np.ones(len(self.y), bool)] * len(keys), (cp,), anchor=s["st"].anchor(s["rho_m"]),
++                                anchor_c=s["st"].C, stats=(self.zero, self.one), Cb=[s["cb"]] * len(keys), weights=weights, extra=extra,
++                                inits=ini if any(i is not None for i in ini) else None)
++        self.stats.append({"what": what, "n_prob": len(keys), "sec": time.perf_counter() - t0,
++                           "n_iter_max": max(int(f.n_iter[cp]) for f in fits), "grad_max": max(float(f.grad[cp]) for f in fits)})
++        for key, f in zip(keys, fits):
++            out[key] = (f.W[cp], f.b[cp])
++        return out
++
++
+ # ---------------------------------------------------------------- 学習しない補正（確率を返す）
+ 
+ def saerens_p(Pp, Pt, iters=200):
+@@ -305,7 +352,7 @@ def run_ab(pr, rec, student, lab):
+     """none・saerens・massbal・self・entmin・im・t3a・lp．戻りは none の解と候補の上の確率（K ごと）。lab[K] = (候補の中の位置, 真のラベル)。"""
+     s, n = pr.s, pr.n
+     Zte = s["Zte"]
+-    none = pr.solve([(K, None, K) for K in KS])
++    none = pr.solve([(K, None, K) for K in KS], what="none")
+     P0 = {K: pr.probs(none[K], s["Z"]) for K in KS}
+     for K in KS:
+         rec.add(student, "none", "-", "0", K, Wb=none[K], Zte=Zte)
+@@ -314,13 +361,21 @@ def run_ab(pr, rec, student, lab):
+         rec.add(student, "massbal", "-", "0", K, probs=massbal_p(Pp, Pt))
+     keys = [(tau, meff, K) for tau in TAUS for meff in MEFFS for K in KS]
+     cur = {key: P0[key[2]] for key in keys}
+-    for _ in range(BD.ROUNDS_SELF):
+-        sol = pr.solve([(key, hard_rows(cur[key], key[0], key[1]), key[2]) for key in keys])
++    for rnd in range(BD.ROUNDS_SELF):
++        hr = {key: hard_rows(cur[key], key[0], key[1]) for key in keys}
++        sol = pr.solve([(key, hr[key], key[2]) for key in keys], what="self")
++        for key in keys:                                                         # 巡ごとの疑似ラベルの本数と正しさ（候補のラベルは測定だけに使う），テストの UAR
++            on = hr[key].view(4, n).sum(0) > 0
++            lab_ = hr[key].view(4, n).argmax(0)
++            rec.diag.append({**rec.tag, "student": student, "method": "self", "param": key[0], "meff": key[1], "K": key[2], "round": rnd + 1,
++                             "n_pseudo": int(on.sum()), "acc_pseudo": float((lab_[on] == pr.yt[on]).float().mean()) if on.any() else float("nan"),
++                             "uar_test": float(CB.uar(rec.yte, (Zte @ sol[key][0].T + sol[key][1]).argmax(1).cpu().numpy()))})
+         cur = {key: pr.probs(sol[key], s["Z"]) for key in keys}
+     for (tau, meff, K), Wb in sol.items():
+         rec.add(student, "self", tau, meff, K, Wb=Wb, Zte=Zte)
+     keys = [(meff, K) for meff in MEFFS for K in KS]
+-    sol = pr.solve([(key, None, key[1]) for key in keys], u=[mass(meff, n) / n for meff, K in keys], inits=[none[K] for meff, K in keys])
++    sol = pr.solve([(key, None, key[1]) for key in keys], u=[mass(meff, n) / n for meff, K in keys], inits=[none[K] for meff, K in keys],
++                   what="entmin")
+     for (meff, K), Wb in sol.items():
+         rec.add(student, "entmin", "-", meff, K, Wb=Wb, Zte=Zte)
+     for (a, meff, K), Wb in im_solve(pr, none, [(a, meff, K) for a in IM_ALPHAS for meff in MEFFS for K in KS]
+@@ -335,10 +390,17 @@ def run_ab(pr, rec, student, lab):
+         for k in LP_KS:
+             for al in LP_ALPHAS:
+                 Fs = lp_scores(s["Z"], *lab[K], k, al)
++                on = Fs.sum(1) > 0
++                if len(lab[K][0]):
++                    on[torch.as_tensor(lab[K][0], device=on.device)] = False
++                rec.diag.append({**rec.tag, "student": student, "method": "lp", "param": f"k{k}a{al}", "meff": "-", "K": K, "round": 0,
++                                 "n_pseudo": int(on.sum()),
++                                 "acc_pseudo": float((Fs[on].argmax(1) == pr.yt[on]).float().mean()) if on.any() else float("nan"),
++                                 "uar_test": float("nan")})
+                 for form in LP_FORMS:
+                     for meff in MEFFS:
+                         items.append(((f"k{k}a{al}{form}", meff, K), lp_rows(Fs, lab[K][0], form, meff, n), K))
+-    for (param, meff, K), Wb in pr.solve(items).items():
++    for (param, meff, K), Wb in pr.solve(items, what="lp").items():
+         rec.add(student, "lp", param, meff, K, Wb=Wb, Zte=Zte)
+     return none, P0
+ 
+@@ -368,7 +430,7 @@ def kdh_solve(pr, items):
+ def run_c(pr, rec, student, kd_teachers, dist_teachers, own):
+     s, n, Zte = pr.s, pr.n, pr.s["Zte"]
+     items = [((name, T, meff, K), temp_rows(tk(P, K), T, meff), K) for name, P in kd_teachers.items() for T in KD_TEMPS for meff in MEFFS for K in KS]
+-    for (name, T, meff, K), Wb in pr.solve(items).items():
++    for (name, T, meff, K), Wb in pr.solve(items, what="kd").items():
+         rec.add(student, "kd", f"{name}T{T}", meff, K, Wb=Wb, Zte=Zte)
+     items = [((name, T, meff, K), tk(P, K), T, meff, K) for name, P in kd_teachers.items() for T in KD_TEMPS for meff in MEFFS for K in KS]
+     for (name, T, meff, K), Wb in kdh_solve(pr, items).items():
+@@ -382,10 +444,10 @@ def run_c(pr, rec, student, kd_teachers, dist_teachers, own):
+         return hard_rows(P, wgt[4:], meff)
+     items = [((name, wgt, meff, K), rows_of(tk(P, K), wgt, meff), K)
+              for name, P in dist_teachers.items() for wgt in WGTS for meff in MEFFS for K in KS]
+-    for (name, wgt, meff, K), Wb in pr.solve(items).items():
++    for (name, wgt, meff, K), Wb in pr.solve(items, what="dist").items():
+         rec.add(student, "dist", f"{name}:{wgt}", meff, K, Wb=Wb, Zte=Zte)
+     items = [((meff, K), weak_rows(own, mass(meff, n)), K) for meff in MEFFS for K in KS]
+-    for (meff, K), Wb in pr.solve(items).items():
++    for (meff, K), Wb in pr.solve(items, what="own").items():
+         rec.add(student, "own", "bal", meff, K, Wb=Wb, Zte=Zte)
+ 
+ 
+@@ -413,10 +475,15 @@ def cotrain_rec(prs, fused, rec, world):
+                     top = torch.topk(ck, min(key[0], n))
+                     picks[key] += [(int(i), k) for i, c_ in zip(top.indices.tolist(), top.values.tolist()) if c_ >= 0]
+         for key in keys:
+-            for i, k in picks[key]:
+-                if i not in taken[key]:
+-                    pl[key][k, i] = 1.0
+-                    taken[key].add(i)
++            new = [(i, k) for i, k in picks[key] if i not in taken[key]]
++            for i, k in new:
++                pl[key][k, i] = 1.0
++                taken[key].add(i)
++            on = pl[key].sum(0) > 0
++            yt0 = prs[views[0]].yt
++            rec.diag.append({**rec.tag, "student": "*", "method": "cotrain", "param": f"c{key[0]}", "meff": "n", "K": key[1], "round": t + 1,
++                             "n_pseudo": int(on.sum()), "acc_pseudo": float((pl[key].argmax(0)[on] == yt0[on]).float().mean()) if on.any() else float("nan"),
++                             "uar_test": float("nan")})
+     prod = {key: torch.zeros(len(rec.yte), 4, dtype=DT, device=DEV) for key in keys}
+     for v in views:
+         for key, Wb in sols[v].items():
+@@ -474,6 +541,41 @@ def coreg_rec(prs, rec, world):
+                 rec.add(world, "coreg_sum", "-", meff, K, probs=torch.softmax(Lsum[:, j], 1))
+ 
+ 
++# ---------------------------------------------------------------- 参照の行（ソースのみ・合併・ターゲットのみ・候補の全ラベルの上限）
++
++def ref_rows(rec, student, pr, raw, label_sets):
++    """raw = (候補の中心化した生の特徴, テストの中心化した生の特徴, [(ソースの生の特徴, ラベル)], 合併の C)．
++    ref_srconly：E39 の下書きの尺度に使う合併のソースの分類器（ソースを合わせて中心化，C は合併の C）．
++    ref_merged：ソース（各ソースを自分の平均で中心化）と K 本を合わせて学んだ分類器（同じ C）．ref_tgtonly：K 本だけで学んだ分類器（C = 1）．
++    ref_wstar：候補の全ラベルで E39 の学習器を学び直した分類器（上限の参照．候補のラベルは参照にだけ使う）。"""
++    Xu, Xte, srcs, C = raw
++    st = pr.s["st"]
++    t0 = time.perf_counter()
++    for K in KS:
++        rec.add(student, "ref_srconly", "-", "0", K, logits=st.src.logits(Xte, st.C))
++    Xs = torch.cat([X - X.mean(0) for X, _ in srcs])
++    ys = np.concatenate([np.asarray(y) for _, y in srcs])
++    yq = pr.yt
++    for K in KS_LAB:
++        idx = torch.as_tensor(np.asarray(label_sets[K], int), device=DEV)
++        f = logreg.fit(torch.cat([Xs, Xu[idx]]), M.labels(np.concatenate([ys, yq[idx].cpu().numpy()])), (C,))
++        rec.add(student, "ref_merged", "-", "0", K, logits=f.logits(Xte, C))
++        g = logreg.fit(Xu[idx], yq[idx], (1.0,))
++        rec.add(student, "ref_tgtonly", "-", "0", K, logits=g.logits(Xte, 1.0))
++    w = torch.zeros(4 * pr.n, dtype=DT, device=DEV)
++    w[yq * pr.n + torch.arange(pr.n, device=DEV)] = present_weights(yq)
++    Wb = pr.solve([("w", w, "0")], what="wstar")["w"]
++    for K in KS:
++        rec.add(student, "ref_wstar", "-", "0", K, Wb=Wb, Zte=pr.s["Zte"])
++    pr.stats.append({"what": "ref", "n_prob": 0, "sec": time.perf_counter() - t0, "n_iter_max": -1, "grad_max": float("nan")})
++
++
++def flush_stats(rec, prs):
++    for k, pr in prs.items():
++        for st_ in pr.stats:
++            rec.conv.append({**rec.tag, "student": k, **st_})
++
++
+ # ---------------------------------------------------------------- 世界と種類の 1 反復
+ 
+ def lab_of(label_sets, yq):
+@@ -481,9 +583,14 @@ def lab_of(label_sets, yq):
+     return {K: (np.asarray(label_sets[K], int), yq[np.asarray(label_sets[K], int)] if len(label_sets[K]) else np.array([], int)) for K in KS}
+ 
+ 
+-def world_unit(world, stu, yq, yte, label_sets, rec):
++def world_unit(world, stu, yq, yte, label_sets, rec, raw):
+     mods = WORLDS[world]
+-    prs = {k: Prob(stu[k], yq, label_sets) for k in mods + [world]}
++    for k in mods + [world]:
++        st = stu[k]["st"]
++        rec.xform[k] = (st.mats[stu[k]["rho_m"]][0], st.src.sd, raw[k][4] + st.src.mu)
++    prs = {k: Prob2(stu[k], yq, label_sets) for k in mods + [world]}
++    for k in mods + [world]:
++        ref_rows(rec, k, prs[k], raw[k][:4], label_sets)
+     lab = lab_of(label_sets, yq)
+     none_f, P0_f = run_ab(prs[world], rec, world, lab)
+     pF = tens(stu[world]["P"])
+@@ -516,13 +623,22 @@ def world_unit(world, stu, yq, yte, label_sets, rec):
+         _, P0_m = run_ab(prs[m], rec, m, lab)
+         run_c(prs[m], rec, m, {"pF": pF, "pFK": P0_f, "ref": ref}, {"pFK": P0_f, "ref": ref, "pF": pF, "ownK": P0_m}, tens(stu[m]["P"]))
+     run_c(prs[world], rec, world, {"poe0": poe0, "ref": ref}, {"ref": ref, "ref0": ref0, "poe0": poe0, "ownK": P0_f}, pF)
++    t0 = time.perf_counter()
+     cotrain_rec({m: prs[m] for m in mods}, prs[world], rec, world)
++    t1 = time.perf_counter()
+     coreg_rec({m: prs[m] for m in mods}, rec, world)
++    rec.conv.append({**rec.tag, "student": "*", "what": "cotrain_total", "sec": t1 - t0})
++    rec.conv.append({**rec.tag, "student": "*", "what": "coreg_total", "sec": time.perf_counter() - t1})
++    flush_stats(rec, prs)
+ 
+ 
+-def kind_unit(kind, s, yq, yte, label_sets, rec):
+-    pr = Prob(s, yq, label_sets)
++def kind_unit(kind, s, yq, yte, label_sets, rec, raw):
++    st = s["st"]
++    rec.xform[kind] = (st.mats[s["rho_m"]][0], st.src.sd, raw[4] + st.src.mu)
++    pr = Prob2(s, yq, label_sets)
++    ref_rows(rec, kind, pr, raw[:4], label_sets)
+     run_ab(pr, rec, kind, lab_of(label_sets, yq))
++    flush_stats(rec, {kind: pr})
+ 
+ 
+ # ---------------------------------------------------------------- ターゲットごと
+@@ -553,7 +669,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
+     S = [s for s in data_f if CM.corp(s) != CM.corp(T)]
+     sets = {k: settings(k, T) for k in WORLDS[world] + [world]}
+     save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S})
+-    prows, conv = [], []
++    prows, conv, diag = [], [], []
+     for c in S:
+         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
+         if not pool_c or (pseudo_targets and c not in pseudo_targets):
+@@ -565,8 +681,8 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
+             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
+             stu = make_students(world, c, data_f, data_m, pool_c, pool, te, sets, info_c)
+             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
+-            rec.conv = conv
+-            world_unit(world, stu, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec)
++            rec.conv, rec.diag = conv, diag
++            world_unit(world, stu, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec, raw_world(world, data_f, data_m, c, pool_c, pool, te))
+             rec.save_pseudo(out, T, c, r, te)
+             prows += rec.rows
+             del stu, rec
+@@ -580,16 +696,28 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
+         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
+         stu = make_students(world, T, data_f, data_m, S, pool, te, sets, info)
+         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
+-        rec.conv = conv
+-        world_unit(world, stu, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec)
++        rec.conv, rec.diag = conv, diag
++        world_unit(world, stu, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec, raw_world(world, data_f, data_m, T, S, pool, te))
+         rec.save(out, T, r, te)
+         rows += rec.rows
+         del stu, rec
+         torch.cuda.empty_cache()
+     pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
++    pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
+     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
+ 
+ 
++def raw_world(world, data_f, data_m, T, S, pool, te):
++    """世界の各生徒の (候補の中心化した生の特徴, テストの中心化した生の特徴, ソース, 合併の C, 中心)．中心は `make_students` と同じ候補の平均。"""
++    out = {}
++    for k in WORLDS[world] + [world]:
++        dat_of = (lambda g: data_m[k][g]) if k != world else (lambda g: data_f[g])
++        dat = dat_of(T)
++        mu = M.rows(dat.X, pool).mean(0)
++        out[k] = (M.rows(dat.X, pool) - mu, M.rows(dat.X, te) - mu, [(dat_of(s_).X, dat_of(s_).y) for s_ in S], C_FIT, mu)
++    return out
++
++
+ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_targets=None):
+     """`baselines_distill.run_kind` と同じ生徒（仮のターゲットは合併の C = 0.01，評価は E25 の合併の C）。"""
+     S = [s for s in data if CM.corp(s) != CM.corp(T)]
+@@ -601,7 +729,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
+         st = Student(ev, Xc, src, lin, n_of, pool_s, C, gamma, rho_s, [rho_m])
+         Am = st.mats[rho_m][0]
+         return {"st": st, "rho_m": rho_m, "cb": cb, "cp": cp, "Z": st.Xstd @ Am, "Zte": ((M.rows(ev.X, te) - ct - st.src.mu) / st.src.sd) @ Am}
+-    prows = []
++    prows, conv, diag = [], [], []
+     for c in S:
+         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
+         if not pool_c or (pseudo_targets and c not in pseudo_targets):
+@@ -613,7 +741,9 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
+             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
+             s = student_of(evc, M.rows(evc.X, pool) - ctxc.ct[r], src_c, lin_c, n_c, pool_c, C_FIT, te, ctxc.ct[r])
+             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
+-            kind_unit(kind, s, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec)
++            rec.conv, rec.diag = conv, diag
++            kind_unit(kind, s, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec,
++                      (M.rows(evc.X, pool) - ctxc.ct[r], M.rows(evc.X, te) - ctxc.ct[r], [(data[s_].X, data[s_].y) for s_ in pool_c], C_FIT, ctxc.ct[r]))
+             rec.save_pseudo(out, T, c, r, te)
+             prows += rec.rows
+             del s, rec
+@@ -627,11 +757,15 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
+         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
+         s = student_of(ev, M.rows(ev.X, pool) - ctx.ct[r], src_pc, lin, n_of, S, C_T, te, ctx.ct[r])
+         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
+-        kind_unit(kind, s, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec)
++        rec.conv, rec.diag = conv, diag
++        kind_unit(kind, s, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec,
++                  (M.rows(ev.X, pool) - ctx.ct[r], M.rows(ev.X, te) - ctx.ct[r], [(data[s_].X, data[s_].y) for s_ in S], C_T, ctx.ct[r]))
+         rec.save(out, T, r, te)
+         rows += rec.rows
+         del s, rec
+         torch.cuda.empty_cache()
++    pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
++    pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
+     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
+ 
+ 
+@@ -663,7 +797,7 @@ def main() -> int:
+         print(f"{name}：全ターゲット済み", flush=True)
+         return 0
+     ptg = ["__none__"] if args.pseudo_targets == ["none"] else args.pseudo_targets   # 'none'：仮のターゲットを回さない（試走用）
+-    prov = {"script": "exp/compare_dai.py", "experiment": "E77", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain")),
++    prov = {"script": "exp/compare_dai.py", "experiment": "E77", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
+             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo, "reps": args.reps, "pseudo_reps": args.pseudo_reps,
+             "pseudo_targets": args.pseudo_targets, "gpu_fraction": args.gpu_fraction, **GRID,
+             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
+diff --git a/exp/explore_view_fusion.py b/exp/explore_view_fusion.py
+index 88bcb1d..5350673 100644
+--- a/exp/explore_view_fusion.py
++++ b/exp/explore_view_fusion.py
+@@ -279,10 +279,10 @@ def analyze(results=None) -> int:
+     for g in range(NB):
+         es = Ek[f"E_{g}"].reindex(pd.MultiIndex.from_frame(P[KEY + ["s"]])).values
+         et = Ek[f"E_{g}"].reindex(pd.MultiIndex.from_frame(P[KEY + ["t"]])).values
+-        rows.append(P.assign(bin=g, corr=P[f"C_{g}"] / np.sqrt(es * et)).groupby(["student", "s", "t", "bin"]).corr.median().reset_index())
++        rows.append(P.assign(bin=g, rho=P[f"C_{g}"] / np.sqrt(es * et)).groupby(["student", "s", "t", "bin"])["rho"].median().reset_index())
+     Ct = pd.concat(rows, ignore_index=True)
+     write(Ct, "e71_corr.csv", meta)
+-    print("\n== 見方どうしの誤差の相関（中央値）\n" + Ct.pivot_table(index=["student", "s", "t"], columns="bin", values="corr").round(2).to_string())
++    print("\n== 見方どうしの誤差の相関（中央値）\n" + Ct.pivot_table(index=["student", "s", "t"], columns="bin", values="rho").round(2).to_string())
+     return 0
+ 
+ 
+diff --git a/run/e77.sh b/run/e77.sh
+index bf759c5..f0a0877 100755
+--- a/run/e77.sh
++++ b/run/e77.sh
+@@ -1,17 +1,17 @@
+ #!/bin/bash
+-# E77（DAI 論文の比較実験の第 1 波）．2 本の流れを GPU に並べて回す（各 GPU メモリの 45%）．
++# E77（DAI 論文の比較実験の第 1 波）．2 本の流れを GPU に並べて回す（各 GPU メモリの 40%）．
+ # 設計：docs/exploratory-analyses.md E77．終わると logs/e77.done を書く．
+ set -u
+ cd /home/snics/MER-DA
+ PY=./.venv/bin/python
+ stream1() {
+-  $PY exp/compare_dai.py --world fuse-audio-video-text --gpu-fraction 0.45 >> logs/e77_avt.log 2>&1 || echo "失敗 AVT $?" >> logs/e77_fail.log
+-  $PY exp/compare_dai.py --kind text_roberta --gpu-fraction 0.45 >> logs/e77_text.log 2>&1 || echo "失敗 text $?" >> logs/e77_fail.log
+-  $PY exp/compare_dai.py --kind video --gpu-fraction 0.45 >> logs/e77_video.log 2>&1 || echo "失敗 video $?" >> logs/e77_fail.log
++  $PY exp/compare_dai.py --world fuse-audio-video-text --gpu-fraction 0.4 >> logs/e77_avt.log 2>&1 || echo "失敗 AVT $?" >> logs/e77_fail.log
++  $PY exp/compare_dai.py --kind text_roberta --gpu-fraction 0.4 >> logs/e77_text.log 2>&1 || echo "失敗 text $?" >> logs/e77_fail.log
++  $PY exp/compare_dai.py --kind video --gpu-fraction 0.4 >> logs/e77_video.log 2>&1 || echo "失敗 video $?" >> logs/e77_fail.log
+ }
+ stream2() {
+-  $PY exp/compare_dai.py --world fuse-audio-video --gpu-fraction 0.45 >> logs/e77_av.log 2>&1 || echo "失敗 AV $?" >> logs/e77_fail.log
+-  $PY exp/compare_dai.py --kind audio_wavlm --gpu-fraction 0.45 >> logs/e77_audio.log 2>&1 || echo "失敗 audio $?" >> logs/e77_fail.log
++  $PY exp/compare_dai.py --world fuse-audio-video --gpu-fraction 0.4 >> logs/e77_av.log 2>&1 || echo "失敗 AV $?" >> logs/e77_fail.log
++  $PY exp/compare_dai.py --kind audio_wavlm --gpu-fraction 0.4 >> logs/e77_audio.log 2>&1 || echo "失敗 audio $?" >> logs/e77_fail.log
+ }
+ date "+開始 %F %T" > logs/e77.started
+ stream1 &
+diff --git a/run/e78.sh b/run/e78.sh
+index 8f64935..9818f67 100755
+--- a/run/e78.sh
++++ b/run/e78.sh
+@@ -1,18 +1,18 @@
+ #!/bin/bash
+-# E78（DAI 論文の比較実験の第 2 波）．logs/e77.done ができてから，2 本の流れを GPU に並べて回す（各 GPU メモリの 45%）．
++# E78（DAI 論文の比較実験の第 2 波）．logs/e77.done ができてから，2 本の流れを GPU に並べて回す（各 GPU メモリの 40%）．
+ # 設計：docs/exploratory-analyses.md E78．終わると logs/e78.done を書く．
+ set -u
+ cd /home/snics/MER-DA
+ PY=./.venv/bin/python
+ until [ -f logs/e77.done ]; do sleep 120; done
+ stream1() {
+-  $PY exp/compare_dai2.py --world fuse-audio-video-text --gpu-fraction 0.45 >> logs/e78_avt.log 2>&1 || echo "失敗 AVT $?" >> logs/e78_fail.log
+-  $PY exp/compare_dai2.py --kind text_roberta --gpu-fraction 0.45 >> logs/e78_text.log 2>&1 || echo "失敗 text $?" >> logs/e78_fail.log
+-  $PY exp/compare_dai2.py --kind video --gpu-fraction 0.45 >> logs/e78_video.log 2>&1 || echo "失敗 video $?" >> logs/e78_fail.log
++  $PY exp/compare_dai2.py --world fuse-audio-video-text --gpu-fraction 0.4 >> logs/e78_avt.log 2>&1 || echo "失敗 AVT $?" >> logs/e78_fail.log
++  $PY exp/compare_dai2.py --kind text_roberta --gpu-fraction 0.4 >> logs/e78_text.log 2>&1 || echo "失敗 text $?" >> logs/e78_fail.log
++  $PY exp/compare_dai2.py --kind video --gpu-fraction 0.4 >> logs/e78_video.log 2>&1 || echo "失敗 video $?" >> logs/e78_fail.log
+ }
+ stream2() {
+-  $PY exp/compare_dai2.py --world fuse-audio-video --gpu-fraction 0.45 >> logs/e78_av.log 2>&1 || echo "失敗 AV $?" >> logs/e78_fail.log
+-  $PY exp/compare_dai2.py --kind audio_wavlm --gpu-fraction 0.45 >> logs/e78_audio.log 2>&1 || echo "失敗 audio $?" >> logs/e78_fail.log
++  $PY exp/compare_dai2.py --world fuse-audio-video --gpu-fraction 0.4 >> logs/e78_av.log 2>&1 || echo "失敗 AV $?" >> logs/e78_fail.log
++  $PY exp/compare_dai2.py --kind audio_wavlm --gpu-fraction 0.4 >> logs/e78_audio.log 2>&1 || echo "失敗 audio $?" >> logs/e78_fail.log
+ }
+ date "+開始 %F %T" > logs/e78.started
+ stream1 &

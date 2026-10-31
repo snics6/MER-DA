@@ -1,0 +1,9 @@
+候補 636 テスト 159 準備 35 秒
+生徒 36 秒
+run_ab fuse-audio-video：18 秒（累計 54）　GPU 最大 2.3 GB
+run_ab audio_wavlm：24 秒（累計 80）　GPU 最大 2.3 GB
+run_c audio_wavlm：16 秒（累計 96）　GPU 最大 2.3 GB
+run_ab video：10 秒（累計 106）　GPU 最大 2.3 GB
+run_c video：4 秒（累計 110）　GPU 最大 2.3 GB
+run_c fuse-audio-video：9 秒（累計 119）　GPU 最大 2.3 GB
+exit=143

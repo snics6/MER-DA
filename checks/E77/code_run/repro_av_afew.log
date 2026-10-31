@@ -1,0 +1,5 @@
+行 3218 171 秒
+E61 の反復 0 の行 375 突き合わせた行 295 差の最大 0.0
+突き合わせた (生徒, 手法) の行数 {('audio_wavlm', 'cotrain'): 15, ('fuse-audio-video', 'cotrain_fused'): 15, ('fuse-audio-video', 'cotrain_prod'): 15, ('fuse-audio-video', 'dist'): 100, ('fuse-audio-video', 'entmin'): 20, ('fuse-audio-video', 'kd'): 40, ('fuse-audio-video', 'massbal'): 5, ('fuse-audio-video', 'none'): 5, ('fuse-audio-video', 'saerens'): 5, ('fuse-audio-video', 'self'): 60, ('video', 'cotrain'): 15}
+突き合わない E61 の行の手法 {('audio_wavlm', 'coreg'): 20, ('fuse-audio-video', 'coreg_sum'): 20, ('fuse-audio-video', 'kd'): 20, ('video', 'coreg'): 20}
+exit=0

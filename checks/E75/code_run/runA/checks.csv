@@ -1,0 +1,113 @@
+item,kind,what,value,tol,ok,detail
+1,audio_wavlm,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.71445146547012e-17,1e-09,True,252 行
+1,audio_hubert,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.974659986866641e-17,1e-09,True,252 行
+1,video,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.80118763926896e-17,1e-09,True,180 行
+1,fuse-audio-video,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.71445146547012e-17,1e-09,True,180 行
+1,text_roberta,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.974659986866641e-17,1e-09,True,72 行
+1,fuse-audio-text,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.71445146547012e-17,1e-09,True,72 行
+1,fuse-video-text,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.8879238130678e-17,1e-09,True,72 行
+1,fuse-audio-video-text,素朴な t 区間の下端・上端・平均と summary/pairs.csv の差の最大,9.8879238130678e-17,1e-09,True,72 行
+1,audio_hubert,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,audio_hubert,テストの組を単位にした K* が kstar_cluster.csv（results）と食い違う組の数,0.0,0.0,True,12 組
+1,audio_wavlm,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,audio_wavlm,テストの組を単位にした K* が kstar_cluster.csv（results）と食い違う組の数,0.0,0.0,True,12 組
+1,fuse-audio-text,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,fuse-audio-text,テストの組を単位にした K* が kstar_cluster.csv（text30）と食い違う組の数,0.0,0.0,True,6 組
+1,fuse-audio-video,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,fuse-audio-video,テストの組を単位にした K* が kstar_cluster.csv（results）と食い違う組の数,0.0,0.0,True,10 組
+1,fuse-audio-video-text,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,fuse-audio-video-text,テストの組を単位にした K* が kstar_cluster.csv（text30）と食い違う組の数,0.0,0.0,True,6 組
+1,fuse-video-text,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,fuse-video-text,テストの組を単位にした K* が kstar_cluster.csv（text30）と食い違う組の数,0.0,0.0,True,6 組
+1,text_roberta,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,text_roberta,テストの組を単位にした K* が kstar_cluster.csv（text30）と食い違う組の数,0.0,0.0,True,6 組
+1,video,素朴な K* が summary/kstar.csv と食い違う組の数,0.0,0.0,True,
+1,video,テストの組を単位にした K* が kstar_cluster.csv（results）と食い違う組の数,0.0,0.0,True,10 組
+3,"audio_wavlm,video,fuse-audio-video",gain_K1 の R²（全組）と fixc_analysis/decomp_share.csv の差の最大,1.6653345369377348e-16,1e-06,True,
+3,"audio_wavlm,video,fuse-audio-video",gain_K5 の R²（全組）と fixc_analysis/decomp_share.csv の差の最大,2.220446049250313e-16,1e-06,True,
+3,"audio_wavlm,video,fuse-audio-video",kstar_naive_nonIEMOCAP の R²（全組）と fixc_analysis/decomp_share.csv の差の最大,5.551115123125783e-17,1e-06,True,
+3,"audio_wavlm,video,fuse-audio-video,text_roberta,fuse-audio-text,fuse-video-text,fuse-audio-video-text",gain_K1 の R²（全組）と text30/decomp_share.csv の差の最大,2.220446049250313e-16,1e-06,True,
+3,"audio_wavlm,video,fuse-audio-video,text_roberta,fuse-audio-text,fuse-video-text,fuse-audio-video-text",gain_K5 の R²（全組）と text30/decomp_share.csv の差の最大,4.440892098500626e-16,1e-06,True,
+3,"audio_wavlm,video,fuse-audio-video",kstar_naive_nonIEMOCAP の R²（全組）と text30/decomp_share.csv の差の最大,5.551115123125783e-17,1e-06,True,
+5,all,今の順序の位置の分・向きの分と e29_pairs.csv の差の最大,3.552713678800501e-15,1e-06,True,528 行
+8,audio_wavlm,Δ（own_d）の作り直しと保存済みの差 RAVDESS,1.6209256159527285e-14,1e-06,True,
+8,audio_wavlm,縮小の強さと LedoitWolf.fit の shrinkage_ の差 RAVDESS,0.0,1e-12,True,
+8,audio_hubert,Δ（own_d）の作り直しと保存済みの差 RAVDESS,2.220446049250313e-16,1e-06,True,
+8,audio_hubert,縮小の強さと LedoitWolf.fit の shrinkage_ の差 RAVDESS,0.0,1e-12,True,
+8,video,Δ（own_d）の作り直しと保存済みの差 AFEW,4.440892098500626e-15,1e-06,True,
+8,video,縮小の強さと LedoitWolf.fit の shrinkage_ の差 AFEW,0.0,1e-12,True,
+8,fuse-audio-video,Δ（own_d）の作り直しと保存済みの差 AFEW,4.440892098500626e-15,1e-06,True,
+8,fuse-audio-video,縮小の強さと LedoitWolf.fit の shrinkage_ の差 AFEW,0.0,1e-12,True,
+8,text_roberta,Δ（own_d）の作り直しと保存済みの差 IEMOCAP-script,8.881784197001252e-16,1e-06,True,
+8,text_roberta,縮小の強さと LedoitWolf.fit の shrinkage_ の差 IEMOCAP-script,0.0,1e-12,True,
+8,fuse-audio-text,Δ（own_d）の作り直しと保存済みの差 IEMOCAP-script,7.105427357601002e-15,1e-06,True,
+8,fuse-audio-text,縮小の強さと LedoitWolf.fit の shrinkage_ の差 IEMOCAP-script,0.0,1e-12,True,
+8,fuse-video-text,Δ（own_d）の作り直しと保存済みの差 IEMOCAP-script,2.220446049250313e-15,1e-06,True,
+8,fuse-video-text,縮小の強さと LedoitWolf.fit の shrinkage_ の差 IEMOCAP-script,0.0,1e-12,True,
+8,fuse-audio-video-text,Δ（own_d）の作り直しと保存済みの差 IEMOCAP-script,7.327471962526033e-15,1e-06,True,
+8,fuse-audio-video-text,縮小の強さと LedoitWolf.fit の shrinkage_ の差 IEMOCAP-script,0.0,1e-12,True,
+10,audio_wavlm,E12 の gain_wt・gain_nat（K=25．e12_state.json の反復）と e12_wt.csv の差の最大,2.7755575615628914e-17,1e-09,True,42 組，126 行
+10,audio_wavlm,E12 の gain_wt・gain_nat（K=5．e12_state.json の反復）と e12_wt.csv の差の最大,9.71445146547012e-17,1e-09,True,42 組，126 行
+10,audio_wavlm,E12 の gain_wt・gain_nat（K=all．e12_state.json の反復）と e12_wt.csv の差の最大,4.85722573273506e-17,1e-09,True,42 組，126 行
+10,audio_hubert,E12 の gain_wt・gain_nat（K=25．e12_state.json の反復）と e12_wt.csv の差の最大,5.551115123125783e-17,1e-09,True,42 組，90 行
+10,audio_hubert,E12 の gain_wt・gain_nat（K=5．e12_state.json の反復）と e12_wt.csv の差の最大,7.632783294297951e-17,1e-09,True,42 組，90 行
+10,audio_hubert,E12 の gain_wt・gain_nat（K=all．e12_state.json の反復）と e12_wt.csv の差の最大,6.678685382510707e-17,1e-09,True,42 組，90 行
+10,video,E12 の gain_wt・gain_nat（K=25．e12_state.json の反復）と e12_wt.csv の差の最大,9.194034422677078e-17,1e-09,True,30 組，90 行
+10,video,E12 の gain_wt・gain_nat（K=5．e12_state.json の反復）と e12_wt.csv の差の最大,9.367506770274758e-17,1e-09,True,30 組，90 行
+10,video,E12 の gain_wt・gain_nat（K=all．e12_state.json の反復）と e12_wt.csv の差の最大,8.673617379884035e-17,1e-09,True,30 組，90 行
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 AFEW,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 AFEW,0.0,1e-09,True,
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 CREMA-D,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 CREMA-D,3.552713678800501e-15,1e-09,True,
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-impro,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 IEMOCAP-impro,0.0,1e-09,True,
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-script,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 IEMOCAP-script,0.0,1e-09,True,
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 MELD,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 MELD,0.0,1e-09,True,
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 MOSEI,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 MOSEI,0.0,1e-09,True,
+11,audio_wavlm,格子の当てはめ（まとめて解く版）と q_fit の差 RAVDESS,0.0,0.0,True,
+11,audio_wavlm,q_dir と e28t9_targets.csv の差 RAVDESS,0.0,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 AFEW,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 AFEW,0.0,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 CREMA-D,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 CREMA-D,0.0,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-impro,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 IEMOCAP-impro,0.0,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-script,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 IEMOCAP-script,3.552713678800501e-15,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 MELD,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 MELD,0.0,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 MOSEI,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 MOSEI,0.0,1e-09,True,
+11,audio_hubert,格子の当てはめ（まとめて解く版）と q_fit の差 RAVDESS,0.0,0.0,True,
+11,audio_hubert,q_dir と e28t9_targets.csv の差 RAVDESS,1.7763568394002505e-15,1e-09,True,
+11,video,格子の当てはめ（まとめて解く版）と q_fit の差 AFEW,0.0,0.0,True,
+11,video,q_dir と e28t9_targets.csv の差 AFEW,0.0,1e-09,True,
+11,video,格子の当てはめ（まとめて解く版）と q_fit の差 CREMA-D,0.0,0.0,True,
+11,video,q_dir と e28t9_targets.csv の差 CREMA-D,0.0,1e-09,True,
+11,video,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-impro,0.0,0.0,True,
+11,video,q_dir と e28t9_targets.csv の差 IEMOCAP-impro,0.0,1e-09,True,
+11,video,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-script,0.0,0.0,True,
+11,video,q_dir と e28t9_targets.csv の差 IEMOCAP-script,2.220446049250313e-16,1e-09,True,
+11,video,格子の当てはめ（まとめて解く版）と q_fit の差 MELD,0.0,0.0,True,
+11,video,q_dir と e28t9_targets.csv の差 MELD,0.0,1e-09,True,
+11,video,格子の当てはめ（まとめて解く版）と q_fit の差 MOSEI,0.0,0.0,True,
+11,video,q_dir と e28t9_targets.csv の差 MOSEI,0.0,1e-09,True,
+11,fuse-audio-video,格子の当てはめ（まとめて解く版）と q_fit の差 AFEW,0.0,0.0,True,
+11,fuse-audio-video,q_dir と e28t9_targets.csv の差 AFEW,0.0,1e-09,True,
+11,fuse-audio-video,格子の当てはめ（まとめて解く版）と q_fit の差 CREMA-D,0.0,0.0,True,
+11,fuse-audio-video,q_dir と e28t9_targets.csv の差 CREMA-D,0.0,1e-09,True,
+11,fuse-audio-video,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-impro,0.0,0.0,True,
+11,fuse-audio-video,q_dir と e28t9_targets.csv の差 IEMOCAP-impro,4.440892098500626e-16,1e-09,True,
+11,fuse-audio-video,格子の当てはめ（まとめて解く版）と q_fit の差 IEMOCAP-script,0.0,0.0,True,
+11,fuse-audio-video,q_dir と e28t9_targets.csv の差 IEMOCAP-script,0.0,1e-09,True,
+11,fuse-audio-video,格子の当てはめ（まとめて解く版）と q_fit の差 MELD,0.0,0.0,True,
+11,fuse-audio-video,q_dir と e28t9_targets.csv の差 MELD,0.0,1e-09,True,
+11,fuse-audio-video,格子の当てはめ（まとめて解く版）と q_fit の差 MOSEI,0.0,0.0,True,
+11,fuse-audio-video,q_dir と e28t9_targets.csv の差 MOSEI,0.0,1e-09,True,
+12,audio_wavlm,K をまとめた順位相関と e15b_tests.csv の差,0.0,1e-09,True,
+12,audio_hubert,K をまとめた順位相関と e15b_tests.csv の差,0.0,1e-09,True,
+12,video,K をまとめた順位相関と e15b_tests.csv の差,0.0,1e-09,True,
+12,fuse-audio-video,K をまとめた順位相関と e15b_tests.csv の差,0.0,1e-09,True,

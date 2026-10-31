@@ -1,0 +1,21 @@
+fuse-audio-video-text：読み込み 3 秒
+  fuse-audio-video-text MOSEI ← MELD：版 1（累計 ①4 ②75 ③9 手48 秒）
+fuse-audio-video-text MOSEI：138 秒，GPU の最大 2.63 GiB，npz 4.0 MiB
+    照合 h2: {'n': 1, 'n_ref': 1, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14, 'n_not_converged': 0}
+    照合 h3: {'n': 3, 'n_ref': 3, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14, 'n_not_converged': 0}
+    照合 h4: {'n': 3, 'n_ref': 3, 'max_abs_diff': 0.0001421262080727459, 'n_over_exact': 1, 'n_over_tol': 0, 'max_diff_over_tol': 0.07106310403637295}
+    照合 h5: {'n': 3, 'n_ref': 3, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14}
+    照合 h6: {'n': 3, 'n_ref': 3, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14, 'n_not_converged': 0}
+    照合 h7: {'n': 3, 'n_ref': 3, 'max_abs_diff': 0.0, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 0.0, 'n_not_converged': 0}
+    照合 h8: {'n': 3, 'n_ref': 3, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14, 'n_not_converged': 0}
+    照合 merged: {'n': 3, 'n_ref': 3, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14, 'C_mismatch': 0, 'n_not_converged': 0}
+    照合 src_only: {'n': 1, 'n_ref': 1, 'max_abs_diff': 0.0001421262080728014, 'n_over_exact': 1, 'n_over_tol': 0, 'max_diff_over_tol': 0.0710631040364007, 'C_mismatch': 0, 'rule_mismatch': 0, 'max_abs_diff_allC': 0.0001421262080728014, 'n_allC_over_exact': 1, 'max_allC_over_tol': 0.0710631040364007, 'n_not_converged': 0}
+    照合 tgt_only: {'n': 3, 'n_ref': 3, 'max_abs_diff': 5.551115123125783e-17, 'n_over_exact': 0, 'n_over_tol': 0, 'max_diff_over_tol': 2.7755575615628914e-14, 'C_mismatch': 0, 'rule_mismatch': 0, 'max_abs_diff_allC': 5.551115123125783e-17, 'n_allC_over_exact': 0, 'max_allC_over_tol': 2.7755575615628914e-14, 'n_not_converged': 0}
+    照合 old_scores: {'merged': {'n': 3, 'max_abs': 0.0005286335945129395, 'agree_min': 1.0}, 'src_only': {'n': 1, 'max_abs': 0.00021409988403320312, 'agree_min': 1.0}}
+    係数から作り直した点数との差 最大 4.92e-07，argmax の一致 最小 1.0000
+再現の検算が基準を満たさない．止める：
+src_only：地図と一致しない {'n': 1, 'n_ref': 1, 'max_abs_diff': 0.0001421262080728014, 'n_over_exact': 1, 'n_over_tol': 0, 'max_diff_over_tol': 0.0710631040364007, 'C_mismatch': 0, 'rule_mismatch': 0, 'max_abs_diff_allC': 0.0001421262080728014, 'n_allC_over_exact': 1, 'max_allC_over_tol': 0.0710631040364007, 'n_not_converged': 0}
+
+real	2m23.869s
+user	2m23.128s
+sys	0m2.973s
