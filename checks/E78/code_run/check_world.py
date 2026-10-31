@@ -125,7 +125,7 @@ if "time" in modes:
     E.CT_MEFFS, E.CT_TAUS, E.CT_LRS = ("500", "n"), (0.0, 0.2, 0.4, 0.6), (1e-3, 1e-2)
     k = "audio_wavlm"
     Zs, ys = E.src_feats_from(stu[k], {s: (data_m[k][s].X, data_m[k][s].y) for s in S})
-    for meths in (("dann",),):
+    for meths in ():
         rec = E.Rec({"target": T, "rep": r}, yte, keep=False)
         torch.cuda.synchronize(); t1 = time.perf_counter()
         E.run_map(prs[k], Zs, ys, rec, k, lab, E.map_problems(meths, (0,)))
