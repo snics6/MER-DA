@@ -1,0 +1,52 @@
+{
+ "script": "exp/analyze_e79.py",
+ "experiment": "E79",
+ "stage": "measure",
+ "argv": [
+  "--stage",
+  "measure",
+  "--boot",
+  "200",
+  "--runs",
+  "audio_wavlm",
+  "fuse-audio-video",
+  "--e77",
+  "audio_wavlm=/tmp/claude-1000/-home-snics-MER-DA/4cd03bf4-8db6-4e9a-a1e4-1871eadc639a/scratchpad/e79_fx/e77_audio_wavlm",
+  "fuse-audio-video=/tmp/claude-1000/-home-snics-MER-DA/4cd03bf4-8db6-4e9a-a1e4-1871eadc639a/scratchpad/e79_fx/e77_fuse-audio-video",
+  "--e78",
+  "audio_wavlm=/tmp/claude-1000/-home-snics-MER-DA/4cd03bf4-8db6-4e9a-a1e4-1871eadc639a/scratchpad/e79_fx/e78_audio_wavlm",
+  "fuse-audio-video=/tmp/claude-1000/-home-snics-MER-DA/4cd03bf4-8db6-4e9a-a1e4-1871eadc639a/scratchpad/e79_fx/e78_fuse-audio-video",
+  "--targets",
+  "RAVDESS",
+  "AFEW",
+  "IEMOCAP-impro",
+  "IEMOCAP-script",
+  "--reps",
+  "0",
+  "1",
+  "--pseudo-reps",
+  "0",
+  "1",
+  "--out",
+  "checks/E79/code_run/fx",
+  "--allow-incomplete",
+  "--skip-commit-check"
+ ],
+ "commit": "9dd145f62930a3e8df293434c1aefd3d124e1f55",
+ "dirty": true,
+ "dirty_files": [
+  "M exp/explore_view_fusion.py"
+ ],
+ "script_sha256": "9089b1b925c79127d007dad494176e4e379efa34723a592f89a953e238c82e10",
+ "started": "2026-11-01T07:48:47+0900",
+ "seconds": 114.8,
+ "delta": {
+  "sha16": "ca83c71de5db3dc9",
+  "committed": false,
+  "skipped": true
+ },
+ "boot": 200,
+ "seed": 0,
+ "n_issues": 24,
+ "select_chosen_sha256": "f0089bb3c3b0c87ed91bddb1c8a5a3b0d40ea9322560a655577728ecbae38fa6"
+}

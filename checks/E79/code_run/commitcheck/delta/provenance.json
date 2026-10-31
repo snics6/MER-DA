@@ -1,0 +1,45 @@
+{
+ "script": "exp/analyze_e79.py",
+ "experiment": "E79",
+ "stage": "delta",
+ "argv": [
+  "--stage",
+  "delta",
+  "--runs",
+  "audio_wavlm",
+  "fuse-audio-video",
+  "--e77",
+  "audio_wavlm=checks/E77/code_run/kind_audio_dc6",
+  "fuse-audio-video=checks/E77/code_run/av_dc6",
+  "--e78",
+  "audio_wavlm=checks/E78/code_run/r2/kind256",
+  "fuse-audio-video=checks/E78/code_run/r2/av_cot",
+  "--targets",
+  "RAVDESS",
+  "AFEW",
+  "--reps",
+  "0",
+  "--pseudo-reps",
+  "0",
+  "--out",
+  "checks/E79/code_run/real",
+  "--allow-incomplete",
+  "--skip-commit-check"
+ ],
+ "commit": "e44573390d4aa55a62898cdac3d611a8902d963d",
+ "dirty": true,
+ "dirty_files": [
+  "M exp/explore_view_fusion.py"
+ ],
+ "script_sha256": "9089b1b925c79127d007dad494176e4e379efa34723a592f89a953e238c82e10",
+ "started": "2026-11-01T07:55:42+0900",
+ "seconds": 0.0,
+ "inputs_sha256": {
+  "checks/E77/code_run/kind_audio_dc6/RAVDESS_pseudo.csv": "75280767a7343b8dc8c180e7120bdad6acb5be758d8f4ab6fa59b590e1524926",
+  "checks/E77/code_run/kind_audio_dc6/RAVDESS_ps_AFEW_r0_none.npz": "2e69e6eef8dd0e3d0b900dfe9d300285dfc180765de119e934ca88eb78ea4f2c",
+  "checks/E77/code_run/av_dc6/AFEW_pseudo.csv": "50836eee574ecff79dea3b4fd40673d7d000f7a5f177d8a6a3000b59c78383b8"
+ },
+ "n_issues": 16,
+ "delta_csv_sha256": "3b51841464564caa1eb52eeac90f5883d33d96d005b1ae85a4997f982e73410a",
+ "rule": "s = 反復 0〜4 の標準偏差（ddof=1）/ √10．δ = 2 × (run, student, K) ごとの (評価のターゲット, 仮のターゲット) の中央値．単位はポイント"
+}

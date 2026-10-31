@@ -1,0 +1,30 @@
+ファイル ['AFEW.csv', 'AFEW_chosen.csv', 'AFEW_conv.csv', 'AFEW_diag.csv', 'AFEW_noise.csv', 'AFEW_pseudo.csv', 'AFEW_r0_W_audio_wavlm.npy', 'AFEW_r0_W_fuse-audio-video.npy', 'AFEW_r0_W_video.npy', 'AFEW_r0_b_audio_wavlm.npy', 'AFEW_r0_b_fuse-audio-video.npy', 'AFEW_r0_b_video.npy', 'AFEW_r0_logp.npy', 'AFEW_r0_pred.npy', 'AFEW_r0_rowids.npy', 'AFEW_r0_te.npy', 'AFEW_r0_wrows_audio_wavlm.npy', 'AFEW_r0_wrows_fuse-audio-video.npy', 'AFEW_r0_wrows_video.npy', 'AFEW_samples.csv', 'AFEW_settings.json', 'provenance.json', 'provenance_log.jsonl']
+行 1055 鍵の重複 0 UAR の NaN 0 コミット ['9dd145f62930a3e8df293434c1aefd3d124e1f55']
+student  audio_wavlm  fuse-audio-video  video
+method                                       
+dann             120                 0    120
+mapctl            40                 0     40
+mme              240                 0    240
+none               5                 5      5
+xmuda            120                 0    120
+logp (1055, 159, 4) float32 非有限 0 pred と argmax の食い違い 0
+W audio_wavlm：(525, 4, 1024) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 3.0e-05，argmax の食い違い 0，手法 {'mme': 240, 'dann': 120, 'xmuda': 120, 'mapctl': 40, 'none': 5}
+W fuse-audio-video：(5, 4, 1536) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 5.6e-07，argmax の食い違い 0，手法 {'none': 5}
+W video：(525, 4, 512) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 4.2e-06，argmax の食い違い 0，手法 {'mme': 240, 'dann': 120, 'xmuda': 120, 'mapctl': 40, 'none': 5}
+W を持つ行 1055 / 1055 ／W を持たない手法 []
+conv 3 列 ['target', 'rep', 'student', 'what', 'sec', 'commit']
+                   n   sec
+student     what          
+*           xmuda  1   3.8
+audio_wavlm map    1  11.2
+video       map    1   7.1
+diag 1040 列 ['target', 'rep', 'student', 'method', 'param', 'K', 'anorm', 'dom_first', 'dom_last', 'ent_first', 'ent_last', 'kl_first', 'kl_last', 'commit']
+diag の方法ごとの行 {'mme': 480, 'dann': 240, 'xmuda': 240, 'mapctl': 80}
+  anorm: 値のある行 1040，非有限 0
+  dom_first: 値のある行 240，非有限 0
+  dom_last: 値のある行 240，非有限 0
+  ent_first: 値のある行 480，非有限 0
+  ent_last: 値のある行 480，非有限 0
+  kl_first: 値のある行 240，非有限 0
+  kl_last: 値のある行 240，非有限 0
+settings.json True

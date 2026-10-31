@@ -1,0 +1,6 @@
+run,student,role,target,pseudo,K,n_reps,sd_u,sd_a,s_u,s_d
+audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,0,1,,,,
+audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,1,1,,,,
+audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,10,1,,,,
+audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,25,1,,,,
+audio_wavlm,audio_wavlm,kind,RAVDESS,AFEW,5,1,,,,

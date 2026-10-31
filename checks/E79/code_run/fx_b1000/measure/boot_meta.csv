@@ -1,0 +1,6 @@
+run,target,corpus,n_speakers_corpus,n_keys,boot,frac_empty_rep_draws,frac_missing_class_draws,n_nan_uar_reps,sec
+audio_wavlm,RAVDESS,RAVDESS,9,124,1000,0.001,0.0,124,0.6
+audio_wavlm,AFEW,AFEW,103,120,1000,0.0,0.0,0,0.5
+fuse-audio-video,AFEW,AFEW,103,636,1000,0.0,0.0,0,3.0
+fuse-audio-video,IEMOCAP-impro,IEMOCAP,7,630,1000,0.109,0.0,40950,2.9
+fuse-audio-video,IEMOCAP-script,IEMOCAP,7,621,1000,0.1175,0.0,42849,2.9

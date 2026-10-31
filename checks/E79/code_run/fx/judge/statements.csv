@@ -1,0 +1,357 @@
+tag,family,rule,n_combos,combos,statement_key
+delta_double,P4,(2'),1,none-mme|audio_wavlm|K5,〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+delta_double,P4,chance,16,,単位 78，偶然の「減らした」の見込み 1.95，実際の「減らした」1
+delta_double,P4',(2),1,none-self|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．選択との一致を見る（r2_selection_agrees）
+delta_double,P4',chance,12,,単位 58，偶然の「減らした」の見込み 1.45，実際の「減らした」1
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_double,P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_double,P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_double,P5-3,none-oursx,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_double,P5-4,oursx-cot,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K0,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K25,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K5,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K0,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K25,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K5,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|video|K0,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|video|K25,（③ だけは oursx と同じ水準ではない）
+delta_double,ablation,oursx-abl_hard,1,fuse-audio-video|video|K5,（③ だけは oursx と同じ水準ではない）
+delta_double,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K0,上回っていない
+delta_double,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K25,上回っていない
+delta_double,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K5,上回っていない
+delta_double,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K0,上回っていない
+delta_double,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K25,上回っていない
+delta_double,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K5,上回っていない
+delta_double,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K0,上回っていない
+delta_double,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K25,上回っていない
+delta_double,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K5,上回っていない
+delta_double,sec5.3,7 生徒の過半,3,fuse-audio-video|audio_wavlm:False;fuse-audio-video|fuse-audio-video:False;fuse-audio-video|video:False,その部分を外す（教師の作り方の寄与を 2 段目の参照に限る）
+delta_half,P4,(2'),2,none-mme|audio_wavlm|K5;none-t3a|audio_wavlm|K0,〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+delta_half,P4,chance,16,,単位 78，偶然の「減らした」の見込み 1.95，実際の「減らした」2
+delta_half,P4',(2),4,none-lp|fuse-audio-video|K5;none-self|fuse-audio-video|K0;none-self|fuse-audio-video|K5;none-t3a|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．選択との一致を見る（r2_selection_agrees）
+delta_half,P4',chance,12,,単位 58，偶然の「減らした」の見込み 1.45，実際の「減らした」4
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_half,P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_half,P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_half,P5-3,none-oursx,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+delta_half,P5-4,oursx-cot,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K0,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K25,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K5,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K0,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K25,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K5,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|video|K0,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|video|K25,（③ だけは oursx と同じ水準ではない）
+delta_half,ablation,oursx-abl_hard,1,fuse-audio-video|video|K5,（③ だけは oursx と同じ水準ではない）
+delta_half,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K0,上回っていない
+delta_half,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K25,上回っていない
+delta_half,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K5,上回っていない
+delta_half,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K0,上回っていない
+delta_half,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K25,上回っていない
+delta_half,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K5,上回っていない
+delta_half,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K0,上回っていない
+delta_half,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K25,上回っていない
+delta_half,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K5,上回っていない
+delta_half,sec5.3,7 生徒の過半,3,fuse-audio-video|audio_wavlm:False;fuse-audio-video|fuse-audio-video:False;fuse-audio-video|video:False,その部分を外す（教師の作り方の寄与を 2 段目の参照に限る）
+main,P4,(2'),2,none-mme|audio_wavlm|K5;none-t3a|audio_wavlm|K0,〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+main,P4,chance,16,,単位 78，偶然の「減らした」の見込み 1.95，実際の「減らした」2
+main,P4',(2),3,none-lp|fuse-audio-video|K5;none-self|fuse-audio-video|K0;none-t3a|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．選択との一致を見る（r2_selection_agrees）
+main,P4',chance,12,,単位 58，偶然の「減らした」の見込み 1.45，実際の「減らした」4
+main,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main,P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main,P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main,P5-3,none-oursx,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main,P5-4,oursx-cot,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K0,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K25,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K5,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K0,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K25,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K5,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|video|K0,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|video|K25,（③ だけは oursx と同じ水準ではない）
+main,ablation,oursx-abl_hard,1,fuse-audio-video|video|K5,（③ だけは oursx と同じ水準ではない）
+main,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K0,上回っていない
+main,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K25,上回っていない
+main,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K5,上回っていない
+main,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K0,上回っていない
+main,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K25,上回っていない
+main,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K5,上回っていない
+main,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K0,上回っていない
+main,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K25,上回っていない
+main,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K5,上回っていない
+main,sec5.3,7 生徒の過半,3,fuse-audio-video|audio_wavlm:False;fuse-audio-video|fuse-audio-video:False;fuse-audio-video|video:False,その部分を外す（教師の作り方の寄与を 2 段目の参照に限る）
+main+excl_mosei_afew,P4,(4),16,none-coral|audio_wavlm|K0;none-coral|audio_wavlm|K5;none-dann|audio_wavlm|K0;none-dann|audio_wavlm|K5;none-entmin|audio_wavlm|K0;none-entmin|audio_wavlm|K5;none-im|audio_wavlm|K0;none-im|audio_wavlm|K5;none-lp|audio_wavlm|K0;none-lp|audio_wavlm|K5;none-mme|audio_wavlm|K0;none-mme|audio_wavlm|K5;none-self|audio_wavlm|K0;none-self|audio_wavlm|K5;none-t3a|audio_wavlm|K0;none-t3a|audio_wavlm|K5,ラベル無しの手法が向きの損を減らした証拠は無かった（区間の幅と判定できない数を添える）
+main+excl_mosei_afew,P4,chance,16,,単位 47，偶然の「減らした」の見込み 1.18，実際の「減らした」0
+main+excl_mosei_afew,P4',(2'),4,none-lp|fuse-audio-video|K5;none-self|fuse-audio-video|K0;none-self|fuse-audio-video|K5;none-t3a|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+main+excl_mosei_afew,P4',chance,12,,単位 35，偶然の「減らした」の見込み 0.88，実際の「減らした」4
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-3,none-oursx,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+main+excl_mosei_afew,P5-4,oursx-cot,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K0,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K25,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|audio_wavlm|K5,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K0,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K25,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|fuse-audio-video|K5,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|video|K0,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|video|K25,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,ablation,oursx-abl_hard,1,fuse-audio-video|video|K5,（③ だけは oursx と同じ水準ではない）
+main+excl_mosei_afew,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K0,上回っていない
+main+excl_mosei_afew,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K25,上回っていない
+main+excl_mosei_afew,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|audio_wavlm|K5,上回っていない
+main+excl_mosei_afew,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K0,上回っていない
+main+excl_mosei_afew,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K25,上回っていない
+main+excl_mosei_afew,sec5.3,abl_refa-abl_pF,1,fuse-audio-video|video|K5,上回っていない
+main+excl_mosei_afew,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K0,上回っていない
+main+excl_mosei_afew,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K25,上回っていない
+main+excl_mosei_afew,sec5.3,oursx-abl_ref0,1,fuse-audio-video|fuse-audio-video|K5,上回っていない
+main+excl_mosei_afew,sec5.3,7 生徒の過半,3,fuse-audio-video|audio_wavlm:False;fuse-audio-video|fuse-audio-video:False;fuse-audio-video|video:False,その部分を外す（教師の作り方の寄与を 2 段目の参照に限る）
+noscript_reselect,P4,(2'),2,none-mme|audio_wavlm|K5;none-t3a|audio_wavlm|K0,〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+noscript_reselect,P4,chance,16,,単位 78，偶然の「減らした」の見込み 1.95，実際の「減らした」2
+noscript_reselect,P4',(2),3,none-lp|fuse-audio-video|K5;none-self|fuse-audio-video|K0;none-t3a|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．選択との一致を見る（r2_selection_agrees）
+noscript_reselect,P4',chance,12,,単位 58，偶然の「減らした」の見込み 1.45，実際の「減らした」4
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+noscript_reselect,P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+noscript_reselect,P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P4,(2'),1,none-mme|audio_wavlm|K5,〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+"noscript_reselect,delta_double",P4,chance,16,,単位 78，偶然の「減らした」の見込み 1.95，実際の「減らした」1
+"noscript_reselect,delta_double",P4',(2),1,none-self|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．選択との一致を見る（r2_selection_agrees）
+"noscript_reselect,delta_double",P4',chance,12,,単位 58，偶然の「減らした」の見込み 1.45，実際の「減らした」1
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P4,(2'),2,none-mme|audio_wavlm|K5;none-t3a|audio_wavlm|K0,〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方）
+"noscript_reselect,delta_half",P4,chance,16,,単位 78，偶然の「減らした」の見込み 1.95，実際の「減らした」2
+"noscript_reselect,delta_half",P4',(2),4,none-lp|fuse-audio-video|K5;none-self|fuse-audio-video|K0;none-self|fuse-audio-video|K5;none-t3a|fuse-audio-video|K0,(5) 筋の 4 を「単モダリティの特徴の空間では」と限る．選択との一致を見る（r2_selection_agrees）
+"noscript_reselect,delta_half",P4',chance,12,,単位 58，偶然の「減らした」の見込み 1.45，実際の「減らした」4
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"noscript_reselect,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+oursx_small,P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+oursx_small,P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"oursx_small,delta_double",P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-1,oursx-kd,1,fuse-audio-video|video|K5,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K0,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K25,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|audio_wavlm|K5,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K0,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K25,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|fuse-audio-video|K5,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|video|K0,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|video|K25,判定できない（受け皿の行）
+"oursx_small,delta_half",P5-2,oursx-groupB,1,fuse-audio-video|video|K5,判定できない（受け皿の行）

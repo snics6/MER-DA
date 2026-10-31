@@ -1,0 +1,734 @@
+run,target,student,role,K,fixname,wave,method,param,meff,seedmode,note
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,massbal,e77,massbal,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,saerens,e77,saerens,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,mapctl_match_dann,e78,mapctl,lr0.001it200mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,massbal,e77,massbal,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,saerens,e77,saerens,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,mapctl_match_dann,e78,mapctl,lr0.001it200mu10.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,mapctl_match_mme,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,massbal,e77,massbal,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,saerens,e77,saerens,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,mapctl_match_dann,e78,mapctl,lr0.001it1000mu10.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,massbal,e77,massbal,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,saerens,e77,saerens,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,mapctl_match_dann,e78,mapctl,lr0.01it200mu10.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,mapctl_match_mme,e78,mapctl,lr0.001it200mu10.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,massbal,e77,massbal,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,saerens,e77,saerens,-,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,mapctl_match_dann,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,mapctl_match_mme,e78,mapctl,lr0.001it200mu1.0,-,s0,
+audio_wavlm,RAVDESS,audio_wavlm,kind,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,AFEW,audio_wavlm,kind,0,massbal,e77,massbal,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,0,saerens,e77,saerens,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,0,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,0,mapctl_match_dann,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,0,mapctl_match_mme,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,0,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,AFEW,audio_wavlm,kind,1,massbal,e77,massbal,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,1,saerens,e77,saerens,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,1,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,1,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,AFEW,audio_wavlm,kind,1,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,AFEW,audio_wavlm,kind,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,1,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,1,mapctl_match_mme,e78,mapctl,lr0.001it200mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,1,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,AFEW,audio_wavlm,kind,5,massbal,e77,massbal,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,5,saerens,e77,saerens,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,5,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,5,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,AFEW,audio_wavlm,kind,5,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,AFEW,audio_wavlm,kind,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,5,mapctl_match_dann,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,5,mapctl_match_mme,e78,mapctl,lr0.001it200mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,5,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,AFEW,audio_wavlm,kind,10,massbal,e77,massbal,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,10,saerens,e77,saerens,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,10,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,10,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,AFEW,audio_wavlm,kind,10,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,AFEW,audio_wavlm,kind,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,10,mapctl_match_dann,e78,mapctl,lr0.001it200mu10.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,10,mapctl_match_mme,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,10,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+audio_wavlm,AFEW,audio_wavlm,kind,25,massbal,e77,massbal,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,25,saerens,e77,saerens,-,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,25,t3a_fix,e77,t3a,Mall,0,,
+audio_wavlm,AFEW,audio_wavlm,kind,25,im_fix,e77,im,a0.1,tim,,
+audio_wavlm,AFEW,audio_wavlm,kind,25,lp_fix,e77,lp,k50a0.99hard,n,,
+audio_wavlm,AFEW,audio_wavlm,kind,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,25,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,25,mapctl_match_mme,e78,mapctl,lr0.001it200mu1.0,-,s0,
+audio_wavlm,AFEW,audio_wavlm,kind,25,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,audio_wavlm,uni,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,audio_wavlm,uni,0,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.4717 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,audio_wavlm,uni,0,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,cot_g_match,e78,cot_g,pF:tau0.4lr0.01,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,0,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,audio_wavlm,uni,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,mapctl_match_dann,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,mapctl_match_mme,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,audio_wavlm,uni,1,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.3205 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,audio_wavlm,uni,1,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,cot_g_match,e78,cot_g,ref:tau0.2lr0.01,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,1,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,audio_wavlm,uni,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,mapctl_match_dann,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,mapctl_match_mme,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,audio_wavlm,uni,5,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4445 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,audio_wavlm,uni,5,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,cot_g_match,e78,cot_g,pF:tau0.2lr0.01,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,5,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,audio_wavlm,uni,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,mapctl_match_mme,e78,mapctl,lr0.001it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,audio_wavlm,uni,10,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3400 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,audio_wavlm,uni,10,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,cot_g_match,e78,cot_g,ref:tau0.2lr0.001,500,,
+fuse-audio-video,AFEW,audio_wavlm,uni,10,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,audio_wavlm,uni,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,mapctl_match_dann,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,audio_wavlm,uni,25,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.5069 に最も近い格子の点 τ = 0.6 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,audio_wavlm,uni,25,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,cot_g_match,e78,cot_g,pFK:tau0.2lr0.001,500,,
+fuse-audio-video,AFEW,audio_wavlm,uni,25,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.2758 に最も近い格子の点 τ = 0.2 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,cot_g_match,e78,cot_g,poe0:tau0.4lr0.01,500,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,0,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.3323 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,cot_g_match,e78,cot_g,poe0:tau0.2lr0.01,500,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,1,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.3288 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,cot_g_match,e78,cot_g,poe0:tau0.2lr0.001,500,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,5,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.3519 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,cot_g_match,e78,cot_g,poe0:tau0.4lr0.001,n,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,10,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.4583 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,cot_g_match,e78,cot_g,poe0:tau0.2lr0.001,500,,
+fuse-audio-video,AFEW,fuse-audio-video,fused,25,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,video,uni,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,video,uni,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,video,uni,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,video,uni,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,video,uni,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,0,mapctl_match_dann,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,0,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,0,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,video,uni,0,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4663 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,video,uni,0,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,video,uni,0,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,video,uni,0,cot_g_match,e78,cot_g,pF:tau0.6lr0.001,n,,
+fuse-audio-video,AFEW,video,uni,0,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,video,uni,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,video,uni,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,video,uni,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,video,uni,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,video,uni,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,video,uni,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,video,uni,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,1,mapctl_match_dann,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,1,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,1,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,video,uni,1,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3686 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,video,uni,1,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,video,uni,1,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,video,uni,1,cot_g_match,e78,cot_g,pF:tau0.2lr0.001,500,,
+fuse-audio-video,AFEW,video,uni,1,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,video,uni,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,video,uni,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,video,uni,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,video,uni,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,video,uni,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,video,uni,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,video,uni,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,5,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,5,mapctl_match_mme,e78,mapctl,lr0.001it200mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,5,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,video,uni,5,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.3708 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,video,uni,5,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,video,uni,5,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,video,uni,5,cot_g_match,e78,cot_g,pFK:tau0.4lr0.001,n,,
+fuse-audio-video,AFEW,video,uni,5,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,video,uni,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,video,uni,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,video,uni,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,video,uni,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,video,uni,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,video,uni,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,video,uni,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,10,mapctl_match_dann,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,10,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,10,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,video,uni,10,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.4424 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,video,uni,10,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,video,uni,10,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,video,uni,10,cot_g_match,e78,cot_g,pF:tau0.2lr0.001,n,,
+fuse-audio-video,AFEW,video,uni,10,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,AFEW,video,uni,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,AFEW,video,uni,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,AFEW,video,uni,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,AFEW,video,uni,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,AFEW,video,uni,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,AFEW,video,uni,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,AFEW,video,uni,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,AFEW,video,uni,25,mapctl_match_dann,e78,mapctl,lr0.001it1000mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,25,mapctl_match_mme,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,AFEW,video,uni,25,coral_fix,e78,coral,r64rho0.97cp0.003cb0.5,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,AFEW,video,uni,25,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4419 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,AFEW,video,uni,25,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,AFEW,video,uni,25,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,AFEW,video,uni,25,cot_g_match,e78,cot_g,pFK:tau0.4lr0.01,500,,
+fuse-audio-video,AFEW,video,uni,25,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4381 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,cot_g_match,e78,cot_g,pFK:tau0.2lr0.01,500,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,0,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,mapctl_match_dann,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,mapctl_match_mme,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4667 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,cot_g_match,e78,cot_g,pFK:tau0.2lr0.001,500,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,1,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,mapctl_match_dann,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,mapctl_match_mme,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3428 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,cot_g_match,e78,cot_g,pF:tau0.4lr0.001,n,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,5,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,mapctl_match_dann,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,mapctl_match_mme,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3161 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,cot_g_match,e78,cot_g,pF:tau0.6lr0.001,500,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,10,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,mapctl_match_mme,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.3775 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,cot_g_match,e78,cot_g,ref:tau0.4lr0.01,n,,
+fuse-audio-video,IEMOCAP-impro,audio_wavlm,uni,25,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4142 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,cot_g_match,e78,cot_g,poe0:tau0.6lr0.01,500,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,0,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.4245 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,cot_g_match,e78,cot_g,poe0:tau0.6lr0.01,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,1,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.3024 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,cot_g_match,e78,cot_g,poe0:tau0.4lr0.01,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,5,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.4148 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,cot_g_match,e78,cot_g,poe0:tau0.6lr0.001,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,10,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.2902 に最も近い格子の点 τ = 0.2 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,cot_g_match,e78,cot_g,poe0:tau0.4lr0.001,n,,
+fuse-audio-video,IEMOCAP-impro,fuse-audio-video,fused,25,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,video,uni,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,mapctl_match_dann,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,mapctl_match_mme,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,video,uni,0,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.4380 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,video,uni,0,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,cot_g_match,e78,cot_g,ref:tau0.2lr0.001,500,,
+fuse-audio-video,IEMOCAP-impro,video,uni,0,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,video,uni,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,mapctl_match_dann,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,video,uni,1,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.4509 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,video,uni,1,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,cot_g_match,e78,cot_g,ref:tau0.4lr0.001,500,,
+fuse-audio-video,IEMOCAP-impro,video,uni,1,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,video,uni,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,mapctl_match_dann,e78,mapctl,lr0.001it1000mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,mapctl_match_mme,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,video,uni,5,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3687 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,video,uni,5,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,cot_g_match,e78,cot_g,pF:tau0.6lr0.001,500,,
+fuse-audio-video,IEMOCAP-impro,video,uni,5,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,video,uni,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,mapctl_match_dann,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,mapctl_match_mme,e78,mapctl,lr0.001it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,video,uni,10,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4692 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,video,uni,10,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,cot_g_match,e78,cot_g,pFK:tau0.2lr0.01,500,,
+fuse-audio-video,IEMOCAP-impro,video,uni,10,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-impro,video,uni,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,mapctl_match_dann,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,mapctl_match_mme,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-impro,video,uni,25,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.4525 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-impro,video,uni,25,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,cot_g_match,e78,cot_g,ref:tau0.2lr0.001,500,,
+fuse-audio-video,IEMOCAP-impro,video,uni,25,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,mapctl_match_mme,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3914 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,cot_g_match,e78,cot_g,pFK:tau0.2lr0.001,n,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,0,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,mapctl_match_dann,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,mapctl_match_mme,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.4295 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,cot_g_match,e78,cot_g,pFK:tau0.4lr0.01,500,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,1,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,mapctl_match_dann,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,mapctl_match_mme,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.3840 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,cot_g_match,e78,cot_g,ref:tau0.2lr0.01,500,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,5,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,mapctl_match_dann,e78,mapctl,lr0.001it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,mapctl_match_mme,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.2964 に最も近い格子の点 τ = 0.2 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,cot_g_match,e78,cot_g,pF:tau0.2lr0.01,500,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,10,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,mapctl_match_dann,e78,mapctl,lr0.001it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,mapctl_match_mme,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3623 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,cot_g_match,e78,cot_g,pF:tau0.6lr0.001,n,,
+fuse-audio-video,IEMOCAP-script,audio_wavlm,uni,25,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.3515 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,cot_g_match,e78,cot_g,ref:tau0.2lr0.001,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,0,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.4172 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,cot_g_match,e78,cot_g,ref:tau0.4lr0.01,500,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,1,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.3318 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,cot_g_match,e78,cot_g,poe0:tau0.4lr0.01,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,5,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,cotfix,e78,cotfix,poe0:*,n,,参照 poe0（固定版の τ 0.5306 に最も近い格子の点 τ = 0.6 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,cot_g_match,e78,cot_g,ref:tau0.6lr0.001,500,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,10,cotzero_match,e78,cotzero,poe0:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,cotfix,e78,cotfix,ref:*,n,,参照 ref（固定版の τ 0.5124 に最も近い格子の点 τ = 0.6 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,cotzero_lr0.001,e78,cotzero,poe0:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,cotzero_lr0.01,e78,cotzero,poe0:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,cot_g_match,e78,cot_g,ref:tau0.4lr0.01,n,,
+fuse-audio-video,IEMOCAP-script,fuse-audio-video,fused,25,cotzero_match,e78,cotzero,poe0:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,video,uni,0,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,0,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,0,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,0,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,0,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,0,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,0,mapctl_match_dann,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,0,mapctl_match_mme,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,0,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,video,uni,0,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.3398 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,video,uni,0,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,0,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,0,cot_g_match,e78,cot_g,pF:tau0.2lr0.01,500,,
+fuse-audio-video,IEMOCAP-script,video,uni,0,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,video,uni,1,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,1,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,1,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,1,mapctl_match_dann,e78,mapctl,lr0.01it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,1,mapctl_match_mme,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,1,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,video,uni,1,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.4394 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,video,uni,1,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,cot_g_match,e78,cot_g,pF:tau0.2lr0.01,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,1,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,video,uni,5,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,5,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,5,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,5,mapctl_match_dann,e78,mapctl,lr0.01it1000mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,5,mapctl_match_mme,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,5,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,video,uni,5,cotfix,e78,cotfix,pFK:*,n,,参照 pFK（固定版の τ 0.5135 に最も近い格子の点 τ = 0.6 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,video,uni,5,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,cot_g_match,e78,cot_g,pF:tau0.4lr0.01,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,5,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,video,uni,10,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,10,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,10,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,10,mapctl_match_dann,e78,mapctl,lr0.001it200mu10.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,10,mapctl_match_mme,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,10,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,video,uni,10,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.3726 に最も近い格子の点 τ = 0.4 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,video,uni,10,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,cot_g_match,e78,cot_g,ref:tau0.2lr0.001,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,10,cotzero_match,e78,cotzero,pF:tau0.0lr0.001,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）
+fuse-audio-video,IEMOCAP-script,video,uni,25,massbal,e77,massbal,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,saerens,e77,saerens,-,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,t3a_fix,e77,t3a,Mall,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,im_fix,e77,im,a0.1,tim,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,lp_fix,e77,lp,k50a0.99hard,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,dann_fix,e78,dann,lr0.001it1000lam0.1mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,25,mme_fix,e78,mme,lr0.001it1000lam0.1mu1.0sw0.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,25,mapctl_fix,e78,mapctl,lr0.001it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,25,mapctl_match_dann,e78,mapctl,lr0.01it1000mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,25,mapctl_match_mme,e78,mapctl,lr0.01it200mu1.0,-,s0,
+fuse-audio-video,IEMOCAP-script,video,uni,25,coral_fix,e78,coral,r64rho0.97cp0.01cb2.0,-,,"E39 の (ρ_M, C′, C_b) が CORAL の格子に無ければ測れない"
+fuse-audio-video,IEMOCAP-script,video,uni,25,cotfix,e78,cotfix,pF:*,n,,参照 pF（固定版の τ 0.2575 に最も近い格子の点 τ = 0.2 の仮のターゲットの値で選んだ）
+fuse-audio-video,IEMOCAP-script,video,uni,25,cotzero_lr0.001,e78,cotzero,pF:tau0.0lr0.001,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,cotzero_lr0.01,e78,cotzero,pF:tau0.0lr0.01,0,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,cot_g_match,e78,cot_g,ref:tau0.2lr0.01,n,,
+fuse-audio-video,IEMOCAP-script,video,uni,25,cotzero_match,e78,cotzero,pF:tau0.0lr0.01,0,,選んだ Co-teaching と同じ学習率で，候補の項の重みを 0 にした行（確率的な勾配法の届かなさ）

@@ -1,0 +1,41 @@
+ファイル ['AFEW.csv', 'AFEW_chosen.csv', 'AFEW_conv.csv', 'AFEW_diag.csv', 'AFEW_noise.csv', 'AFEW_pseudo.csv', 'AFEW_r0_W_audio_wavlm.npy', 'AFEW_r0_W_fuse-audio-video.npy', 'AFEW_r0_W_video.npy', 'AFEW_r0_b_audio_wavlm.npy', 'AFEW_r0_b_fuse-audio-video.npy', 'AFEW_r0_b_video.npy', 'AFEW_r0_logp.npy', 'AFEW_r0_pred.npy', 'AFEW_r0_rowids.npy', 'AFEW_r0_te.npy', 'AFEW_r0_teachers.npz', 'AFEW_r0_wrows_audio_wavlm.npy', 'AFEW_r0_wrows_fuse-audio-video.npy', 'AFEW_r0_wrows_video.npy', 'AFEW_samples.csv', 'AFEW_settings.json', 'provenance.json', 'provenance_log.jsonl']
+行 675 鍵の重複 0 UAR の NaN 0 コミット ['957fa35988a5329bd095b7199a4b9339ced0225b']
+student    audio_wavlm  fuse-audio-video  video
+method                                         
+cotctl              90                60     90
+cotctl_g            90                60     90
+cotzero             30                30     30
+cotzero_g           30                30     30
+none                 5                 5      5
+logp (675, 159, 4) float32 非有限 0 pred と argmax の食い違い 0
+W audio_wavlm：(245, 4, 1024) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 7.1e-07，argmax の食い違い 0，手法 {'cotctl': 90, 'cotctl_g': 90, 'cotzero': 30, 'cotzero_g': 30, 'none': 5}
+W fuse-audio-video：(185, 4, 1536) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 1.0e-06，argmax の食い違い 0，手法 {'cotctl': 60, 'cotctl_g': 60, 'cotzero': 30, 'cotzero_g': 30, 'none': 5}
+W video：(245, 4, 512) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 6.1e-07，argmax の食い違い 0，手法 {'cotctl': 90, 'cotctl_g': 90, 'cotzero': 30, 'cotzero_g': 30, 'none': 5}
+W を持つ行 675 / 675 ／W を持たない手法 []
+cotzero audio_wavlm K=0：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0, 0), '0.01': (0.0, 0)} / 159
+cotzero audio_wavlm K=1：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.105, 0), '0.01': (0.5737, 2)} / 159
+cotzero audio_wavlm K=5：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0082, 0), '0.01': (0.5058, 9)} / 159
+cotzero audio_wavlm K=10：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0725, 2), '0.01': (0.7704, 5)} / 159
+cotzero audio_wavlm K=25：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.013, 0), '0.01': (0.7047, 7)} / 159
+cotzero fuse-audio-video K=0：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0, 0), '0.01': (0.0, 0)} / 159
+cotzero fuse-audio-video K=1：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0132, 0), '0.01': (0.1669, 0)} / 159
+cotzero fuse-audio-video K=5：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.002, 0), '0.01': (0.2384, 2)} / 159
+cotzero fuse-audio-video K=10：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0033, 0), '0.01': (0.1696, 4)} / 159
+cotzero fuse-audio-video K=25：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0035, 0), '0.01': (0.2089, 1)} / 159
+cotzero video K=0：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0, 0), '0.01': (0.0, 0)} / 159
+cotzero video K=1：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0003, 0), '0.01': (0.0062, 0)} / 159
+cotzero video K=5：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0072, 0), '0.01': (0.1719, 0)} / 159
+cotzero video K=10：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0005, 0), '0.01': (0.0431, 0)} / 159
+cotzero video K=25：none との対数の確率の差の最大と予測の食い違いの最大（学習率ごと）{'0.001': (0.0006, 0), '0.01': (0.0218, 1)} / 159
+conv 5 列 ['target', 'rep', 'student', 'what', 'sec', 'commit']
+                       n   sec
+student          what         
+audio_wavlm      cot   1  25.3
+                 map   1   0.0
+fuse-audio-video cot   1  21.6
+video            cot   1  18.4
+                 map   1   0.0
+diag 330 列 ['target', 'rep', 'student', 'method', 'param', 'meff', 'K', 'v', 'v_norm', 'agree_sel', 'agree_drop', 'n_sel', 'n_drop', 'prec_sel', 'prec_all', 'commit']
+diag の方法ごとの行 {'cotctl': 240, 'cotzero': 90}
+settings.json True
+teachers.npz の鍵 ['pF', 'pFK_0', 'pFK_1', 'pFK_10', 'pFK_25', 'pFK_5', 'poe0', 'ref_0', 'ref_1', 'ref_10', 'ref_25', 'ref_5']

@@ -1,0 +1,9 @@
+check,run,target,wave,commits,provenance_commit,student,rep,absdiff_max
+eval_missing,audio_wavlm,AFEW,,,,,,
+commit_of_eval_csv,audio_wavlm,RAVDESS,e77,['dc600b856e0edf4738dc2b73d7fff54550f2963d'],dc600b856e0edf4738dc2b73d7fff54550f2963d,,,
+commit_of_eval_csv,audio_wavlm,RAVDESS,e78,['9dd145f62930a3e8df293434c1aefd3d124e1f55'],9dd145f62930a3e8df293434c1aefd3d124e1f55,,,
+lda_vs_own_separation,audio_wavlm,RAVDESS,,,,audio_wavlm,0.0,1.865174681370263e-14
+boot_identity,audio_wavlm,RAVDESS,,,,,0.0,1.9628743075372768e-13
+commit_of_eval_csv,fuse-audio-video,AFEW,e77,['6f3d2727d849cc98fcde9cb3ed088124cda010ad'],6f3d2727d849cc98fcde9cb3ed088124cda010ad,,,
+commit_of_eval_csv,fuse-audio-video,AFEW,e78,['957fa35988a5329bd095b7199a4b9339ced0225b'],957fa35988a5329bd095b7199a4b9339ced0225b,,,
+lda_vs_own_separation,fuse-audio-video,AFEW,,,,audio_wavlm,0.0,6.994405055138486e-15

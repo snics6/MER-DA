@@ -1,0 +1,26 @@
+ファイル ['RAVDESS.csv', 'RAVDESS_chosen.csv', 'RAVDESS_conv.csv', 'RAVDESS_pseudo.csv', 'RAVDESS_r0_W_audio_wavlm.npy', 'RAVDESS_r0_W_audio_wavlm@coral.npy', 'RAVDESS_r0_b_audio_wavlm.npy', 'RAVDESS_r0_b_audio_wavlm@coral.npy', 'RAVDESS_r0_logp.npy', 'RAVDESS_r0_pred.npy', 'RAVDESS_r0_rowids.npy', 'RAVDESS_r0_te.npy', 'RAVDESS_r0_wrows_audio_wavlm.npy', 'RAVDESS_r0_wrows_audio_wavlm@coral.npy', 'RAVDESS_samples.csv', 'RAVDESS_settings.json', 'provenance.json', 'provenance_log.jsonl']
+行 975 鍵の重複 0 UAR の NaN 0 コミット ['957fa35988a5329bd095b7199a4b9339ced0225b']
+student   audio_wavlm
+method               
+coral             360
+coralctl          180
+dann              130
+mapctl             50
+mme               250
+none                5
+logp (975, 140, 4) float32 非有限 0 pred と argmax の食い違い 0
+W audio_wavlm：(435, 4, 1024) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 4.8e-06，argmax の食い違い 0，手法 {'mme': 250, 'dann': 130, 'mapctl': 50, 'none': 5}
+W audio_wavlm@coral：(540, 4, 1024) float32，行の生徒が一致 True，作り直した対数の確率との差の最大 6.1e-07，argmax の食い違い 0，手法 {'coral': 360, 'coralctl': 180}
+W を持つ行 975 / 975 ／W を持たない手法 []
+coralctl audio_wavlm K=0：none の K=0 との対数の確率の差の最大 0.00e+00
+CORAL の候補の数（生徒 × r）: {('audio_wavlm', 'ctl'): 36, ('audio_wavlm', 'r32'): 36, ('audio_wavlm', 'r64'): 36}
+conv 10 列 ['pseudo', 'rep', 'student', 'what', 'rel_diff', 'sec', 'target', 'commit']
+                             n   sec
+student     what                    
+audio_wavlm coral_lin_check  2   0.0
+            coral_r32        2  47.4
+            coral_r64        2  73.0
+            coralctl         2  54.0
+            map              2  44.8
+coral_lin_check の rel_diff: [0.0, 0.0]
+settings.json True

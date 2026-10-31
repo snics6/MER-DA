@@ -1,0 +1,17 @@
+check,run,target,pseudo,rep
+ps_missing,audio_wavlm,RAVDESS,IEMOCAP-impro,0
+ps_missing,audio_wavlm,RAVDESS,IEMOCAP-script,0
+ps_missing,audio_wavlm,RAVDESS,MOSEI,0
+ps_missing,audio_wavlm,RAVDESS,MELD,0
+ps_missing,audio_wavlm,RAVDESS,CREMA-D,0
+ps_missing,audio_wavlm,AFEW,IEMOCAP-impro,0
+ps_missing,audio_wavlm,AFEW,IEMOCAP-script,0
+ps_missing,audio_wavlm,AFEW,MOSEI,0
+ps_missing,audio_wavlm,AFEW,MELD,0
+ps_missing,audio_wavlm,AFEW,RAVDESS,0
+ps_missing,audio_wavlm,AFEW,CREMA-D,0
+ps_missing,fuse-audio-video,AFEW,IEMOCAP-impro,0
+ps_missing,fuse-audio-video,AFEW,IEMOCAP-script,0
+ps_missing,fuse-audio-video,AFEW,MOSEI,0
+ps_missing,fuse-audio-video,AFEW,MELD,0
+ps_missing,fuse-audio-video,AFEW,CREMA-D,0

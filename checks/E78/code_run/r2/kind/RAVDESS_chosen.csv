@@ -1,0 +1,16 @@
+student,method,K,param
+audio_wavlm,dann,0,lr0.01it10lam0.01mu10.0
+audio_wavlm,mme,0,lr0.001it10lam0.01mu10.0sw0.0
+audio_wavlm,mapctl,0,lr0.001it10mu1.0
+audio_wavlm,dann,1,lr0.001it10lam0.1mu10.0
+audio_wavlm,mme,1,lr0.001it10lam0.01mu10.0sw0.1
+audio_wavlm,mapctl,1,lr0.001it10mu10.0
+audio_wavlm,dann,10,lr0.001it10lam0.01mu10.0
+audio_wavlm,mme,10,lr0.001it10lam0.01mu10.0sw0.0
+audio_wavlm,mapctl,10,lr0.001it10mu10.0
+audio_wavlm,dann,25,lr0.001it5lam0.01mu10.0
+audio_wavlm,mme,25,lr0.001it10lam0.1mu10.0sw0.1
+audio_wavlm,mapctl,25,lr0.01it10mu1.0
+audio_wavlm,dann,5,lr0.001it10lam0.1mu10.0
+audio_wavlm,mme,5,lr0.01it10lam1.0mu1.0sw0.1
+audio_wavlm,mapctl,5,lr0.001it10mu10.0

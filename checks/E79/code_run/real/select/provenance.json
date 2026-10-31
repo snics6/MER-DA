@@ -1,0 +1,45 @@
+{
+ "script": "exp/analyze_e79.py",
+ "experiment": "E79",
+ "stage": "select",
+ "argv": [
+  "--stage",
+  "select",
+  "--runs",
+  "audio_wavlm",
+  "fuse-audio-video",
+  "--e77",
+  "audio_wavlm=checks/E77/code_run/kind_audio_dc6",
+  "fuse-audio-video=checks/E77/code_run/av_dc6",
+  "--e78",
+  "audio_wavlm=checks/E78/code_run/r2/kind256",
+  "fuse-audio-video=checks/E78/code_run/r2/av_cot",
+  "--targets",
+  "RAVDESS",
+  "AFEW",
+  "--reps",
+  "0",
+  "--pseudo-reps",
+  "0",
+  "--out",
+  "checks/E79/code_run/real",
+  "--allow-incomplete",
+  "--skip-commit-check"
+ ],
+ "commit": "e44573390d4aa55a62898cdac3d611a8902d963d",
+ "dirty": true,
+ "dirty_files": [
+  "M exp/explore_view_fusion.py"
+ ],
+ "script_sha256": "9089b1b925c79127d007dad494176e4e379efa34723a592f89a953e238c82e10",
+ "started": "2026-11-01T07:56:03+0900",
+ "seconds": 1.0,
+ "delta": {
+  "sha16": "3b51841464564caa",
+  "committed": false,
+  "skipped": true
+ },
+ "n_issues": 18,
+ "rule": "仮のターゲット × 反復（× 種）の全行の UAR の単純平均の最大．同点は 'method|pnorm|meff' の文字列の順で先頭．none を含む版は none と同点なら none",
+ "chosen_csv_sha256": "45c20e07313980baebe5446e05f4152ab57cb33420f83fcfb6de4b238b3b30c9"
+}
