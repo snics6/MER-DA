@@ -170,7 +170,8 @@ def run_map(pr, Zs, ys, rec, student, lab, problems):
 def _train_map(Z, Zl, ylab, wK, Zs, ys, W0, b0, cp, cb, chunk, lr, iters, seed, I):
     B = len(chunk)
     n, d = Z.shape
-    g = torch.Generator(device=DEV).manual_seed(1000 + seed)
+    g = torch.Generator(device=DEV).manual_seed(1000 + seed)                    # 判別器の初期値
+    gb = torch.Generator(device=DEV).manual_seed(5000 + seed)                   # ミニバッチ（同じ種の DANN・MME・対照で同じ列）
     A = I.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True)
     W = W0.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True)
     b = b0.unsqueeze(0).repeat(B, 1).clone().requires_grad_(True)
@@ -189,8 +190,8 @@ def _train_map(Z, Zl, ylab, wK, Zs, ys, W0, b0, cp, cb, chunk, lr, iters, seed, 
     for step in range(iters):
         p = step / max(iters - 1, 1)
         sched = 2.0 / (1.0 + math.exp(-10.0 * p)) - 1.0
-        it = torch.randint(0, n, (BATCH,), generator=g, device=DEV)
-        is_ = torch.randint(0, len(Zs), (SRC_BATCH,), generator=g, device=DEV)
+        it = torch.randint(0, n, (BATCH,), generator=gb, device=DEV)
+        is_ = torch.randint(0, len(Zs), (SRC_BATCH,), generator=gb, device=DEV)
         opt.zero_grad()
         loss = torch.zeros(B, dtype=F32, device=DEV)
         if len(Zl):
@@ -447,7 +448,7 @@ def coral_lin(srcs, Xu, rho_s, r):
     return lin
 
 
-def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, student):
+def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, student, lin0, c_raw):
     """CORAL ＋ none．Xu：候補（中心化済み），te_X：テスト（同じ中心で中心化済み），srcs：{ソース: (特徴, ラベル)}。"""
     n_min = min(len(Xu), min(len(X) for X, _ in srcs.values()))
     lab_w = {}
@@ -459,10 +460,11 @@ def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_s
             it = torch.as_tensor(idx, device=DEV)
             w[it] = present_weights(yt[it])
         lab_w[K] = (idx, w)
-    for r in CORAL_R:
-        if n_min < CORAL_MIN_RATIO * r:
+    for r in (None,) + CORAL_R:                                                  # r = None は対照（そろえずに同じ (ρ_M, C′, C_b) を選び直す）
+        if r is not None and n_min < CORAL_MIN_RATIO * r:
             continue
-        lin = coral_lin(srcs, Xu, rho_s, r)
+        t0 = time.perf_counter()
+        lin = lin0 if r is None else coral_lin(srcs, Xu, rho_s, r)
         st = Student(ev, Xu, src_pc, lin, n_of, pool_s, C, gamma, rho_s, list(CORAL_RHO))
         Xstd = st.Xstd
         Xte_std = (te_X - st.src.mu) / st.src.sd
@@ -487,11 +489,15 @@ def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_s
                     if K == "0":
                         W, b = st.W_std @ st.mats[rho_m][1], st.b_std
                     cbs_ = "free" if cbv is None else cbv
-                    rec.add(student, "coral", f"r{r}rho{rho_m}cp{cpv}cb{cbs_}", "-", K, probs=torch.softmax(Zt @ W.T + b, 1))
-                    if rec.keep:
-                        rec.W.setdefault(student + "@std", []).append((len(rec.rows) - 1, (W @ Am).to(torch.float16).cpu().numpy(),
-                                                                       b.to(torch.float16).cpu().numpy()))
+                    meth, par = ("coralctl", f"rho{rho_m}cp{cpv}cb{cbs_}") if r is None else ("coral", f"r{r}rho{rho_m}cp{cpv}cb{cbs_}")
+                    rec.add(student, meth, par, "-", K, logits=Zt @ W.T + b)
+                    if rec.keep:                                                 # 生の特徴の上の係数（logits = X_raw Wᵀ + b）
+                        Wr = (W @ Am) / st.src.sd
+                        br = b - Wr @ (c_raw + st.src.mu)
+                        rec.W.setdefault(student + "@coral", []).append((len(rec.rows) - 1, Wr.to(torch.float32).cpu().numpy(),
+                                                                         br.to(torch.float32).cpu().numpy()))
             del Zc, Zt, fits
+        rec.conv.append({**rec.tag, "student": student, "what": "coralctl" if r is None else f"coral_r{r}", "sec": time.perf_counter() - t0})
         del st, Xstd, Xte_std
         torch.cuda.empty_cache()
 
@@ -561,21 +567,28 @@ def world_unit2(world, stu, yq, label_sets, rec, methods, srcs_of, raw_of, coral
     mods = WORLDS[world]
     lab = lab_of(label_sets, yq)
     srcs = {k: srcs_of(k) for k in mods + [world]}
+    for k in mods + [world]:                                                     # W・b を生の特徴の上へ写すための座標（E77 と同じ）
+        st = stu[k]["st"]
+        rec.xform[k] = (st.mats[stu[k]["rho_m"]][0], st.src.sd, raw_of(k)[8] + st.src.mu)
     if "coral" in methods:                                                       # Student を作り直すので Prob（Xstd を消す）より先に
         for k in mods + [world]:
-            Xu, te_X, src_pc, n_of, pool_s, C, gamma, rho_s = raw_of(k)
-            run_coral(coral_ctx[k], Xu, te_X, src_pc, srcs[k], n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, k)
+            Xu, te_X, src_pc, n_of, pool_s, C, gamma, rho_s, mu, lin0 = raw_of(k)
+            run_coral(coral_ctx[k], Xu, te_X, src_pc, srcs[k], n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, k, lin0, mu)
     prs = {k: Prob(stu[k], yq, label_sets) for k in mods + [world]}
     for k in mods + [world]:
         none = prs[k].solve([(K, None, K) for K in KS])
         for K in KS:
             rec.add(k, "none", "-", "0", K, Wb=none[K], Zte=prs[k].s["Zte"])
     for k in mods:                                                               # 融合の生徒では DANN・MME を回さない（計算量．E78 の節）
+        t0 = time.perf_counter()
         Zs, ys = src_feats_from(stu[k], srcs[k])
         run_map(prs[k], Zs, ys, rec, k, lab, problems_for(k, "map", methods, pseudo, chosen))
         del Zs
+        rec.conv.append({**rec.tag, "student": k, "what": "map", "sec": time.perf_counter() - t0})
     if "xmuda" in methods:
+        t0 = time.perf_counter()
         run_xmuda(prs, mods, rec, lab, problems_for("*", "xmuda", methods, pseudo, chosen))
+        rec.conv.append({**rec.tag, "student": "*", "what": "xmuda", "sec": time.perf_counter() - t0})
     if "cot" in methods:
         none_f = prs[world].solve([(K, None, K) for K in KS])
         pFK = {K: prs[world].probs(none_f[K], prs[world].s["Z"]) for K in KS}
@@ -587,12 +600,17 @@ def world_unit2(world, stu, yq, label_sets, rec, methods, srcs_of, raw_of, coral
             for K in KS:
                 lg[K] = lg[K] + prs[m].probs(sol[K], prs[m].s["Z"]).clamp(min=1e-12).log()
         ref = {K: torch.softmax(lg[K], 1) for K in KS}
+        if rec.keep:                                                             # 候補の上の教師の確率（E77 の teachers.npz と照合する）
+            rec.teachers = {"pF": pF.cpu().numpy(), "poe0": poe0.cpu().numpy(), **{f"pFK_{K}": pFK[K].cpu().numpy() for K in KS},
+                            **{f"ref_{K}": ref[K].cpu().numpy() for K in KS}}
         for k in mods + [world]:
+            t0 = time.perf_counter()
             teachers = {"pF": pF, "pFK": pFK, "ref": ref} if k != world else {"poe0": poe0, "ref": ref}
             if pseudo:
                 noise_rates(teachers, yq, k, rec.tag, noise)
             tf = None if pseudo else tau_fix.get(k)
             run_cot(prs[k], rec, k, lab, teachers, tau_fix=tf, ytrue=yq if pseudo else None, diag=diag)
+            rec.conv.append({**rec.tag, "student": k, "what": "cot", "sec": time.perf_counter() - t0})
 
 
 def src_feats_from(s, srcs):
@@ -617,7 +635,8 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
     S = [s for s in data_f if CM.corp(s) != CM.corp(T)]
     sets = {k: settings(k, T) for k in WORLDS[world] + [world]}
     dat_of = lambda k, g: data_m[k][g] if k != world else data_f[g]  # noqa: E731
-    prows, diag, noise = [], [], []
+    prows, diag, noise, conv = [], [], [], []
+    E77.save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S})
 
     chosen = {}
 
@@ -632,7 +651,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
             mu = M.rows(dat.X, pool).mean(0)
             gamma, rho_s, rho_m, cb, cp, _ = sets[k]
             src, lin, n_of = info[k]
-            return M.rows(dat.X, pool) - mu, M.rows(dat.X, te) - mu, src, n_of, pool_s, C_FIT, gamma, rho_s
+            return M.rows(dat.X, pool) - mu, M.rows(dat.X, te) - mu, src, n_of, pool_s, C_FIT, gamma, rho_s, mu, lin
         coral_ctx = {k: dat_of(k, Tn) for k in stu}
         world_unit2(world, stu, ev.y[pool], BD.label_sets_of(rec_ctx[0], rec_ctx[1], pool), rec, methods, srcs_of, raw_of, coral_ctx,
                     tau_fix, diag, noise, pseudo, chosen)
@@ -646,6 +665,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
+            rec.conv = conv
             rec_ctx = (ctxc, r)
             unit(c, pool_c, pool, te, info_c, evc, rec, True, {})
             prows += rec.rows
@@ -664,6 +684,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
+        rec.conv = conv
         rec_ctx = (ctx, r)
         unit(T, S, pool, te, info, ev, rec, False, tau_fix)
         rec.save(out, T, r, te)
@@ -671,6 +692,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
         del rec
         torch.cuda.empty_cache()
     pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
+    pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
 
 
@@ -684,6 +706,8 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
     C_T = float(pd.read_csv(ROOT / "results" / f"multisource_scores_{kind}" / f"{T}.csv", dtype={"K": str}).C.iloc[0])
     meths = [m for m in methods if m in ("dann", "mme", "mapctl", "coral")]
     chosen = {}
+    conv = []
+    E77.save_settings(out, T, {kind: (gamma, rho_s, rho_m, cb, cp, None)}, {"c_fit_pseudo": C_FIT, "c_eval": C_T, "sources": S})
 
     def unit(ev, pool_s, pool, te, ctxo, r, src, lin, n_of, C, rec):
         ct = ctxo.ct[r]
@@ -693,16 +717,19 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         yq = ev.y[pool]
         label_sets = BD.label_sets_of(ctxo, r, pool)
         if "coral" in meths:
-            run_coral(ev, Xu, te_X, src, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, kind)
+            run_coral(ev, Xu, te_X, src, srcs, n_of, pool_s, C, gamma, rho_s, label_sets, yq, rec, kind, lin, ct)
         st = Student(ev, Xu, src, lin, n_of, pool_s, C, gamma, rho_s, [rho_m])
         Am = st.mats[rho_m][0]
+        rec.xform[kind] = (Am, st.src.sd, ct + st.src.mu)
         s = {"st": st, "rho_m": rho_m, "cb": cb, "cp": cp, "Z": st.Xstd @ Am, "Zte": ((te_X - st.src.mu) / st.src.sd) @ Am}
         Zs, ys = src_feats(st, rho_m, srcs)
         pr = Prob(s, yq, label_sets)
         none = pr.solve([(K, None, K) for K in KS])
         for K in KS:
             rec.add(kind, "none", "-", "0", K, Wb=none[K], Zte=s["Zte"])
+        t0 = time.perf_counter()
         run_map(pr, Zs, ys, rec, kind, lab_of(label_sets, yq), problems_for(kind, "map", meths, rec.keep is False, chosen))
+        rec.conv.append({**rec.tag, "student": kind, "what": "map", "sec": time.perf_counter() - t0})
     prows = []
     for c in S:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
@@ -714,6 +741,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
+            rec.conv = conv
             unit(evc, pool_c, pool, te, ctxc, r, src_c, lin_c, n_c, C_FIT, rec)
             prows += rec.rows
             del rec
@@ -729,11 +757,13 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
+        rec.conv = conv
         unit(ev, S, pool, te, ctx, r, src_pc, lin, n_of, C_T, rec)
         rec.save(out, T, r, te)
         rows += rec.rows
         del rec
         torch.cuda.empty_cache()
+    pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
 
 
@@ -765,7 +795,7 @@ def main() -> int:
         print(f"{name}：全ターゲット済み", flush=True)
         return 0
     ptg = ["__none__"] if args.pseudo_targets == ["none"] else args.pseudo_targets
-    prov = {"script": "exp/compare_dai2.py", "experiment": "E78", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain")),
+    prov = {"script": "exp/compare_dai2.py", "experiment": "E78", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo, "reps": args.reps, "pseudo_reps": args.pseudo_reps,
             "pseudo_targets": args.pseudo_targets, "methods": args.methods, "gpu_fraction": args.gpu_fraction, **GRID,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
