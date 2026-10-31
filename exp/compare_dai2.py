@@ -161,8 +161,9 @@ def run_map(pr, Zs, ys, rec, student, lab, problems):
         for a in range(0, len(probs), step):
             chunk = probs[a:a + step]
             out = _train_map(Z, Zl, ylab, wK, Zs, ys_t, W0, b0, cp, cb, [(c[0], c[3], c[4], c[5], c[7]) for c in chunk], lr, iters, seed, I)
-            for c, (Weff, bb) in zip(chunk, out):
+            for c, (Weff, bb, dg) in zip(chunk, out):
                 rec.add(student, c[0], map_param(c), "-", c[7], Wb=(Weff.to(DT), bb.to(DT)), Zte=Zte.to(DT))
+                rec.diag.append({**rec.tag, "student": student, "method": c[0], "param": map_param(c), "K": c[7], **dg})
             del out
             torch.cuda.empty_cache()
 
@@ -187,6 +188,7 @@ def _train_map(Z, Zl, ylab, wK, Zs, ys, W0, b0, cp, cb, chunk, lr, iters, seed, 
     is_dann = torch.tensor([m_ == "dann" for m_ in meth], device=DEV)
     is_mme = torch.tensor([m_ == "mme" for m_ in meth], device=DEV)
     opt = torch.optim.Adam([A, W, b, D1, c1, D2, c2], lr=lr)
+    first = {}
     for step in range(iters):
         p = step / max(iters - 1, 1)
         sched = 2.0 / (1.0 + math.exp(-10.0 * p)) - 1.0
@@ -221,9 +223,21 @@ def _train_map(Z, Zl, ylab, wK, Zs, ys, W0, b0, cp, cb, chunk, lr, iters, seed, 
         opt.step()
         if not torch.isfinite(loss).all():
             raise FloatingPointError("dann/mme の損失が NaN/Inf")
+        if step in (0, iters - 1):                                               # DA の項が働いたかを測る量（最初と最後）
+            with torch.no_grad():
+                rec_ = {"ld": ld.detach() if is_dann.any() else None, "H": H.detach() if is_mme.any() else None}
+                first.setdefault(step, rec_)
+                first[step] = rec_
     with torch.no_grad():
         Weff = torch.einsum("bke,bed->bkd", W, A)
-        return [(Weff[j].clone(), b[j].clone()) for j in range(B)]
+        an = ((A - I) ** 2).sum((1, 2)).sqrt()
+        st0, st1 = first.get(0, {}), first.get(iters - 1, {})
+        diag = [{"anorm": float(an[j]),
+                 "dom_first": float(st0["ld"][j]) if st0.get("ld") is not None else float("nan"),
+                 "dom_last": float(st1["ld"][j]) if st1.get("ld") is not None else float("nan"),
+                 "ent_first": float(st0["H"][j]) if st0.get("H") is not None else float("nan"),
+                 "ent_last": float(st1["H"][j]) if st1.get("H") is not None else float("nan")} for j in range(B)]
+        return [(Weff[j].clone(), b[j].clone(), diag[j]) for j in range(B)]
 
 
 # ---------------------------------------------------------------- xMUDA 型（世界のモダリティの生徒）
@@ -309,7 +323,7 @@ def run_cot(pr, rec, student, lab, teachers, tau_fix=None, ytrue=None, diag=None
     chunk = [(name, tau, meff, K, lr, seed, "ctl" if tau == 0 else "sel") for name in teachers for tau in CT_TAUS for meff in CT_MEFFS
              for K in KS for lr in CT_LRS for seed in SEEDS]
     if tau_fix is not None:
-        chunk += [(name, float(tau_fix[name]), "n", K, 1e-3, seed, "fix") for name in teachers for K in KS for seed in SEEDS]
+        chunk += [(name, float(tau_fix[name][K]), "n", K, 1e-3, seed, "fix") for name in teachers for K in KS for seed in SEEDS]
     B = len(chunk)
     hl = torch.stack([E77.tk(teachers[c[0]], c[3]).to(F32).argmax(1) for c in chunk])            # 問 × n の硬いラベル
     lmask = torch.zeros(B, n, dtype=torch.bool, device=DEV)                                     # 問の K 本（選ぶ対象から外す）
@@ -355,7 +369,7 @@ def run_cot(pr, rec, student, lab, teachers, tau_fix=None, ytrue=None, diag=None
             rank_g = torch.where(valid, lg_.detach(), inf).argsort(1).argsort(1)
             sel_f = (rank_f < kk[:, None]) & valid
             sel_g = (rank_g < kk[:, None]) & valid
-            loss = mw * ((lf * sel_g).sum(1) + (lg_ * sel_f).sum(1))                             # f は g が選んだ候補で，g は f が選んだ候補で
+            loss = (mw / R) * ((lf * sel_g).sum(1) + (lg_ * sel_f).sum(1))                     # 選んだ 1 本の重みは m_eff/(R(t)·n)．総重みを τ に依らず m_eff にそろえる
             if len(pos):
                 for Wx, bx in ((Wf, bf), (Wg, bg)):
                     Ll = torch.einsum("nd,bkd->bnk", Z[pos], Wx) + bx[:, None]
@@ -397,7 +411,7 @@ def run_cot(pr, rec, student, lab, teachers, tau_fix=None, ytrue=None, diag=None
                 vt = float(v[j])
                 diag.append({**rec.tag, "student": student, "method": meth, "param": param, "meff": meff, "K": K, "v": vt,
                              "v_norm": (vt - (1 - tau_j)) / tau_j if tau_j > 0 else float("nan"),
-                             "agree_sel": float(agree[j, 0] / agree[j, 1].clamp(min=1)), "agree_drop": float(agree[j, 2] / agree[j, 3].clamp(min=1)),
+                             "agree_sel": float(agree[j, 0] / agree[j, 1].clamp(min=1)), "agree_drop": float(agree[j, 2] / agree[j, 3]) if float(agree[j, 3]) > 0 else float("nan"),
                              "n_sel": float(agree[j, 1]), "n_drop": float(agree[j, 3]),
                              "prec_sel": float(prec[j, 0] / prec[j, 1].clamp(min=1)) if ytrue is not None else float("nan"),
                              "prec_all": float(prec[j, 2] / prec[j, 3].clamp(min=1)) if ytrue is not None else float("nan")})
@@ -421,20 +435,23 @@ def msqrt(S, inv=False):
 def coral_lin(srcs, Xu, rho_s, r):
     """ソースごとに候補 Xu（中心化済み）の共分散へ上位 r 次元の部分空間の中でそろえ，`meta5.pool_info` と同じ形の閉じた形の向き lin を作り直す。"""
     Xs_c = {s: X - X.mean(0) for s, (X, y) in srcs.items()}
-    Xp = torch.cat([Xs_c[s] for s in srcs])
+    Xp = torch.cat([X for X, _ in srcs.values()])                               # `meta5.pool_info` と同じく，中心化しない合併の平均と標準偏差で標準化する
     mu_p, sd_p = Xp.mean(0), Xp.std(0, unbiased=False)
     sd_p = torch.where(sd_p > 1e-12, sd_p, torch.ones_like(sd_p))
     del Xp
     lin = {}
     for s, (X, y) in srcs.items():
         Xc = Xs_c[s]
-        both = torch.cat([Xc, Xu])
-        _, _, Vt = torch.linalg.svd(both - both.mean(0), full_matrices=False)
-        U = Vt[:r].T
-        Ps, Pt = Xc @ U, Xu @ U
-        Cs, Ct = lw_cov(Ps - Ps.mean(0)), lw_cov(Pt - Pt.mean(0))
-        Pn = (Ps - Ps.mean(0)) @ msqrt(Cs, inv=True) @ msqrt(Ct) + Ps.mean(0)
-        X2 = Xc + (Pn - Ps) @ U.T
+        if r is None:                                                            # そろえない（`pool_info` の lin と一致することの検算に使う）
+            X2 = X
+        else:
+            both = torch.cat([Xc, Xu])
+            _, _, Vt = torch.linalg.svd(both - both.mean(0), full_matrices=False)
+            U = Vt[:r].T
+            Ps, Pt = Xc @ U, Xu @ U
+            Cs, Ct = lw_cov(Ps - Ps.mean(0)), lw_cov(Pt - Pt.mean(0))
+            Pn = (Ps - Ps.mean(0)) @ msqrt(Cs, inv=True) @ msqrt(Ct) + Ps.mean(0)
+            X2 = X + (Pn - Ps) @ U.T
         Z = (X2 - mu_p) / sd_p
         yt = torch.as_tensor(np.array(y), device=Z.device)
         m = torch.stack([Z[yt == k].mean(0) for k in range(4)])
@@ -464,7 +481,12 @@ def run_coral(ev, Xu, te_X, src_pc, srcs, n_of, pool_s, C, gamma, rho_s, label_s
         if r is not None and n_min < CORAL_MIN_RATIO * r:
             continue
         t0 = time.perf_counter()
-        lin = lin0 if r is None else coral_lin(srcs, Xu, rho_s, r)
+        lin = coral_lin(srcs, Xu, rho_s, r)
+        if r is None:                                                            # そろえない版は元の下書きの lin と一致するはず（I7）
+            dmax = max(float((lin[k_][0] - lin0[k_][0]).abs().max() / lin0[k_][0].abs().max().clamp(min=1e-30)) for k_ in lin)
+            rec.conv.append({**rec.tag, "student": student, "what": "coral_lin_check", "rel_diff": dmax})
+            if dmax > 1e-6:
+                raise AssertionError(f"CORAL の下書きの尺度が元と違う（相対差 {dmax:.2e}）")
         st = Student(ev, Xu, src_pc, lin, n_of, pool_s, C, gamma, rho_s, list(CORAL_RHO))
         Xstd = st.Xstd
         Xte_std = (te_X - st.src.mu) / st.src.sd
@@ -620,14 +642,15 @@ def src_feats_from(s, srcs):
 # ---------------------------------------------------------------- ターゲットごと
 
 def tau_fix_of(noise_rows):
-    """仮のターゲットの候補で測った参照の誤りの割合の中央値（生徒 × 参照ごと）。"""
+    """仮のターゲットの候補で測った参照の誤りの割合の中央値（生徒 × 参照 × K ごと．pFK と ref は K 本で学び直すので K で変わる）。"""
     if not noise_rows:
         return {}
     d = pd.DataFrame(noise_rows)
-    med = d.groupby(["student", "teacher"]).err.median()
+    d["K"] = d["K"].astype(str)
+    med = d.groupby(["student", "teacher", "K"]).err.median()
     out = {}
-    for (st, te), v in med.items():
-        out.setdefault(st, {})[te] = float(v)
+    for (st, te, K), v in med.items():
+        out.setdefault(st, {}).setdefault(te, {})[K] = float(v)
     return out
 
 

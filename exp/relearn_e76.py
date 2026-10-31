@@ -12,6 +12,8 @@ TAC 版の模擬査読の指摘のうち，保存済みの結果からは出せ�
     src_only   ② ソースだけ．`map.train`（交差検証で C を選ぶ）．**ターゲットの全発話**の点数を C 4 つで残す
     merged     ③ 合併．C ＝ 同じ反復のソースのみの C（C を固定した地図の規則）．ソースのみの解から温め直す（地図と同じ）
     h2〜h8     E25 の手（`exp/interventions.py`）．K は 1・5・10．h4・h5 は K 本で解いた切片のずらしを残す
+    h9         AUGMENT（Daumé 2007．E31 の O2 と同じ）．h10 WEIGHTED（E31 の O1 と同じ．α 5 つをすべて残す）．
+    h11        中心合わせ＋仮説転移（h2 の解を罰則の中心にする）．h9〜h11 は関門 1 の compare の指摘で足した
 
 反復は既定で 0〜9，K は 1・5・10・25・50・全件（手は 1・5・10）。
 
@@ -24,10 +26,10 @@ TAC 版の模擬査読の指摘のうち，保存済みの結果からは出せ�
     <kind>/<ターゲット>.json             その npz を作った設定，コミット番号，所要時間，照合のまとめ
 
 再現の検算（毎回）：地図（C を固定した地図）の同じ（ターゲット，ソース，K，反復）の UAR と C，
-E25 の手の UAR，前の点数（`merged_scores_*`，`tgt_scores_*`）との差を条件ごとに `<ターゲット>.csv` に書き，
+E25 の手の UAR，E31 の O1・O2 の UAR（手 10・9），前の点数（`merged_scores_*`，`tgt_scores_*`）との差を条件ごとに `<ターゲット>.csv` に書き，
 まとめを `<ターゲット>.json` と画面に出す。保存した係数から点数を作り直した差も測る。
 
-途中から再開するとき：`<ターゲット>.npz` があれば，その json のコミット番号と設定が今と同じなら飛ばし，
+途中から再開するとき：`<ターゲット>.npz` があれば，その json の読み込むコードの中身のハッシュと設定が今と同じなら飛ばし，
 違えば止まる（混ぜない）。
 
     # 小さく流す（ターゲット 1 つ，反復 1 つ）
@@ -40,6 +42,7 @@ E25 の手の UAR，前の点数（`merged_scores_*`，`tgt_scores_*`）との�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -65,12 +68,32 @@ KINDS_MAIN = ("audio_wavlm", "video", "text_roberta", "fuse-audio-video", "fuse-
               "fuse-video-text", "fuse-audio-video-text", "audio_hubert")   # A(HuBERT) は筋 2・3 の表に行があるので足した（2026-11-01）
 K_ALL = M.K_GRID                      # ("1", "5", "10", "25", "50", "all")
 K_HANDS = IV.KS                       # ("1", "5", "10")．E25 と同じ
-HANDS_ALL = (2, 3, 4, 5, 6, 7, 8)
+HANDS_ALL = (2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+ALPHAS = (0.1, 0.25, 0.5, 0.75, 0.9)       # 手 10（WEIGHTED）の α．E31 の O1 と同じ格子（`exp/compare_b1.py` の ALPHAS）
+ABLATE_L2 = 1e-2                          # 手 4・5 の切片のずらしの罰則（`measure/ablate.fit_class_bias` に明示して渡す）
 C_GRID = M.C_GRID
 MEM_FRACTION = 0.6
 E25_NAMES = {2: "2 中心合わせ＋ソースのみ", 3: "3 中心合わせ＋合併", 4: "4 ソースのみ＋切片直し",
              5: "5 中心合わせ＋ソースのみ＋切片直し", 6: "6 ターゲット専用の切片つき合併", 7: "7 仮説転移",
-             8: "8 CORAL＋合併"}
+             8: "8 CORAL＋合併", 9: "9 AUGMENT", 10: "10 WEIGHTED", 11: "11 中心合わせ＋仮説転移"}
+# 手ごとの設定（結果ファイルの settings に書く．`docs/methods.md` 9.3 節 C6．関門 1 の compare の指摘）
+HAND_SPEC = {
+    "common": "C ＝ 同じ反復の ② の C．学習データで標準化（手 9 はソースの統計），感情を均等にする重み（手 10 は下）．"
+              "中心合わせはターゲットの全発話（テストを含む．ラベルは使わない）の平均と，使うソースの行の平均を引く",
+    "h2": "中心合わせしたソースのみ．logreg.fit（E25 と同じ）．冷えた出発点",
+    "h3": "中心合わせ＋合併．fit_batch．冷えた出発点（E25 と同じ）",
+    "h4": "② の点数 ＋ K 本で解いた切片のずらし（fit_class_bias，l2 = ABLATE_L2，ずらしの和は 0）",
+    "h5": "h2 の点数 ＋ K 本で解いた切片のずらし（同上）",
+    "h6": "特徴の末尾に「ターゲットか」の列（ターゲット 1，ソース 0）を足した合併．その列も C の罰則を受ける．冷えた出発点",
+    "h7": "仮説転移：K 本だけ．罰則 ‖W − W_②‖²/(2CS)（C′ ＝ C），切片は罰則なし（Cb なし），出発点 ＝ ② の解．中心合わせなし",
+    "h8": "CORAL＋合併：ソースの標準化した空間で，共分散に単位行列を足してターゲットの全発話の共分散に合わせる．平均は動かさない．冷えた出発点",
+    "h9": "AUGMENT（Daumé 2007．E31 の O2 と同じ）：② の統計で標準化した z から，ソースは [z, z, 0]，ターゲットは [z, 0, z]．"
+          "切片は共通で罰則なし．C ＝ ② の C．冷えた出発点．保存する係数はターゲット側（共通 ＋ ターゲット用）",
+    "h10": "WEIGHTED（E31 の O1 と同じ）：K 本の重みの和を α S，ソースの重みの和を (1 − α) S（どちらも中で感情を均等．S は使う行の数）．"
+           "α ∈ ALPHAS をすべて解いて残す（α は計算の後に仮のターゲットで選ぶ）．② の解から温め直す．中心合わせなし",
+    "h11": "中心合わせ＋仮説転移：中心合わせした K 本だけ．罰則の中心 ＝ h2 の解，C′ ＝ C，切片は罰則なし，出発点 ＝ h2 の解．"
+           "E31 の P3 とは中心（P3 は候補の平均）と C′・C_b が違う",
+}
 TOL_EXACT = 1e-6                      # 同じ計算の道筋（tgt_only・src_only）で UAR が一致したとみなす幅
 TOL_REPRO = 2e-3                      # 温め方や束ね方が違う学習で一致したとみなす幅の下限（0.2 点．summarize の tol）
 
@@ -90,8 +113,10 @@ KEYS_DOC = """npz の鍵（r は反復，K は K の文字列，s はソース�
   mean_t                                     ターゲットの全発話の平均（中心合わせ）
   h2_{s}__v{j}_logit, _A, _a0, mean_s        手 2：中心合わせしたソースのみ．全発話の点数 = (X − mean_t) A^T + a0
   h4_{s}_r{r}_b, h5_{s}_r{r}_b               手 4・5：K 本で解いた切片のずらし (len(K_HANDS), 4)．点数 = ソースのみ（手 5 は手 2）+ b
-  h{3,6,7,8}_{s}_r{r}_logit, _A, _a0         手 3・6・7・8：テストの点数 (len(K_HANDS), テストの数, 4) と係数
-                                             （手 3 は中心合わせした特徴，手 6 は特徴の末尾に「ターゲットか」の 1 列を足した特徴の上）
+  h{3,6,7,8,9,11}_{s}_r{r}_logit, _A, _a0   手 3・6・7・8・9・11：テストの点数 (len(K_HANDS), テストの数, 4) と係数
+                                             （手 3・11 は中心合わせした特徴の上，手 6 は特徴の末尾に「ターゲットか」の 1 列を足した特徴の上，
+                                             手 9 はターゲット側の係数（生の特徴の上．点数 = X A^T + a0））
+  h10_{s}_r{r}_logit, _A, _a0                手 10：(len(ALPHAS), len(K_HANDS), テストの数, 4) と係数（α の並びは ALPHAS）
   coef_check                                 係数から作り直した点数と保存した点数の差の最大（ターゲットのテストで）
 """
 
@@ -113,10 +138,19 @@ def code_files() -> list[str]:
     return sorted(set(out))
 
 
+def code_hash(files: list[str]) -> str:
+    """読み込むコードの中身のハッシュ（sha256．パスと中身を順に足す）。再開の照合に使う（関門 1 の gate-code [I12]）。"""
+    h = hashlib.sha256()
+    for f in files:
+        h.update(f.encode() + b"\0" + (ROOT / f).read_bytes() + b"\0")
+    return h.hexdigest()
+
+
 def code_state() -> dict:
+    """HEAD の番号は記録として残す．再開の照合は code_hash（読み込むコードの中身）で行う。"""
     files = code_files()
     status = git("status", "--porcelain", "--", *files)
-    return {"commit": git("rev-parse", "HEAD"), "code_files": files,
+    return {"commit": git("rev-parse", "HEAD"), "code_hash": code_hash(files), "code_files": files,
             "code_dirty": bool(status), "code_status": status.splitlines(),
             "tree_dirty": bool(git("status", "--porcelain"))}
 
@@ -175,6 +209,22 @@ def read_e25(path: Path) -> dict:
     d = pd.read_csv(path, comment="#", dtype={"K": str, "source": str})
     d["K"] = d.K.fillna("")
     return {(r["method"], r["source"], r["K"], int(r["rep"])): float(r["uar"]) for r in d.to_dict("records")}
+
+
+def read_e31(main: Path, o2: Path) -> dict:
+    """E31 の O1（WEIGHTED，α ごと）と O2（AUGMENT，C ＝ ソースのみの C）の UAR。手 9・10 の再現の検算に使う。"""
+    out = {}
+    if main.exists():
+        d = pd.read_csv(main, comment="#", dtype={"K": str, "source": str})
+        d = d[d.method == "O1"]
+        for x in d.to_dict("records"):
+            out[(f"10 WEIGHTED a={float(x['alpha']):g}", x["source"], x["K"], int(x["rep"]))] = float(x["uar"])
+    if o2.exists():
+        d = pd.read_csv(o2, comment="#", dtype={"K": str, "source": str})
+        d = d[(d.method == "O2") & (d.variant == "Cs")]
+        for x in d.to_dict("records"):
+            out[("9 AUGMENT", x["source"], x["K"], int(x["rep"]))] = float(x["uar"])
+    return out
 
 
 def read_old_scores(paths: list[Path]) -> dict:
@@ -255,6 +305,7 @@ def run_target(kind: str, tname: str, data: dict, ids: pd.DataFrame, sources: li
             test = {c: uar_of(L[j], yte) for j, c in enumerate(C_GRID)}
             ref = ref_map.get(("tgt_only", "", K, r))
             rec.row(source="", method="tgt_only", K=K, rep=r, version=-1, C=t.C, C_rule=t.rule,
+                    n_src=0, n_tgt=len(i), n_test=int(te.sum()),
                     uar=test[t.C], ref_C=None if ref is None else ref["C"],
                     ref_rule=None if ref is None else ref["C_rule"],
                     ref_uar=None if ref is None else ref["uar"],
@@ -313,6 +364,7 @@ def run_target(kind: str, tname: str, data: dict, ids: pd.DataFrame, sources: li
                 test = {c: uar_of(Ls_all[jc][te], tgt.y[te]) for jc, c in enumerate(C_GRID)}
                 ref = ref_map.get(("src_only", sname, "", r))
                 rec.row(source=sname, method="src_only", K="", rep=r, version=j, C=C, C_rule=ts.rule,
+                        n_src=len(ys), n_tgt=0, n_test=int(te.sum()),
                         uar=test[C], ref_C=None if ref is None else ref["C"],
                         ref_rule=None if ref is None else ref["C_rule"],
                         ref_uar=None if ref is None else ref["uar"],
@@ -359,6 +411,7 @@ def run_target(kind: str, tname: str, data: dict, ids: pd.DataFrame, sources: li
                               if not pd.isna(ref[f"test_uar_C{c:g}"])]
                         extra["max_abs_diff_allC"] = max(ds) if ds else None
                     rec.row(source=sname, method="merged", K=K, rep=r, version=j, C=C, C_rule="src",
+                            n_src=ns, n_tgt=len(split[r][1][K]), n_test=int(te.sum()),
                             uar=test[C], ref_C=None if ref is None else ref["C"],
                             ref_rule=None if ref is None else ref["C_rule"],
                             ref_uar=None if ref is None else ref["uar"],
@@ -403,20 +456,21 @@ def run_hands(rec: Recorder, kind: str, tgt: M.Group, s: M.Group, sname: str, j:
         m[split[r][1][K]] = True
         return m
 
-    def put(h: int, r: int, K: str, L: np.ndarray, extra: dict | None = None) -> None:
+    def put(h: int, r: int, K: str, L: np.ndarray, extra: dict | None = None, name: str | None = None) -> None:
         te = split[r][0]
         u = uar_of(L, tgt.y[te])
-        ref = ref_e25.get((E25_NAMES[h], sname, K, r))
+        ref = ref_e25.get((name or E25_NAMES[h], sname, K, r))
         rec.row(source=sname, method=f"h{h}", K=K, rep=r, version=j, C=C, C_rule="src", uar=u, ref_uar=ref,
+                n_src=ns, n_tgt=len(split[r][1][K]), n_test=int(te.sum()),
                 **(extra or {}))
 
-    need_c = any(h in hands for h in (2, 3, 5))
-    Xs_c, L2_all = None, None
+    need_c = any(h in hands for h in (2, 3, 5, 11))
+    Xs_c, L2_all, src_c = None, None, None
     if need_c:
         mean_s = Xs.mean(0)
         Xs_c = Xs - mean_s
     # 手 2（と手 5 の土台）：中心合わせしたソースのみ（E25 と同じく logreg.fit で 1 つの C）
-    if 2 in hands or 5 in hands:
+    if 2 in hands or 5 in hands or 11 in hands:
         t0 = time.perf_counter()
         ckey = ("centered", key, C)                  # 中心合わせしたソースのみはソースの行だけで決まる（ターゲットをまたいで使い回す）
         if ckey not in src_cache:
@@ -431,10 +485,11 @@ def run_hands(rec: Recorder, kind: str, tgt: M.Group, s: M.Group, sname: str, j:
             te = split[r][0]
             u = uar_of(L2_all[te], tgt.y[te])
             rec.row(source=sname, method="h2", K="", rep=r, version=j, C=C, C_rule="src", uar=u,
+                    n_src=ns, n_tgt=0, n_test=int(te.sum()),
                     ref_uar=ref_e25.get((E25_NAMES[2], sname, "", r)), n_iter=int(src_c.n_iter[C]),
                     grad=float(src_c.grad[C]))
         timing["h2"] += time.perf_counter() - t0
-    # 手 4・5：K 本で切片のずらしを解く（CPU．`measure/ablate.fit_class_bias`．l2 は既定の 1e-2）
+    # 手 4・5：K 本で切片のずらしを解く（CPU．`measure/ablate.fit_class_bias`．l2 ＝ ABLATE_L2 を明示して渡す）
     for h, base in ((4, Ls_all_C), (5, L2_all)):
         if h not in hands:
             continue
@@ -444,7 +499,7 @@ def run_hands(rec: Recorder, kind: str, tgt: M.Group, s: M.Group, sname: str, j:
             bs = []
             for K in K_HANDS:
                 i = idx[K]
-                b = ablate.fit_class_bias(base[i], tgt.y[i])
+                b = ablate.fit_class_bias(base[i], tgt.y[i], l2=ABLATE_L2)
                 bs.append(b)
                 put(h, r, K, base[te] + b)
             A[f"h{h}_{sname}_r{r}_b"] = np.stack(bs)
@@ -491,6 +546,90 @@ def run_hands(rec: Recorder, kind: str, tgt: M.Group, s: M.Group, sname: str, j:
         X = torch.cat([tgt.X, IV.coral(Xs, tgt.X)])
         batch(8, X, y_all, [mmask(r, K) for r, K in jobs], lambda r: M.rows(tgt.X, te_rows[r]))
         del X
+    if 11 in hands:                                   # 中心合わせ＋仮説転移（罰則の中心 ＝ h2 の解）
+        batch(11, Xt_c, yt, [tmask(r, K) for r, K in jobs], lambda r: M.rows(Xt_c, te_rows[r]),
+              anchor=src_c, anchor_c=C)
+
+    # 手 9・10 はターゲットの行を K 本の和集合だけに絞って並べる（E31 と同じ．解は変わらない）
+    used = np.unique(np.concatenate([split[r][1][K] for r, K in jobs]))
+    pos = np.full(nt, -1)
+    pos[used] = np.arange(len(used))
+    nu = len(used)
+
+    def umask(r, K):                                  # [使うターゲットの行, ソースの行] の上の仮面
+        m = np.r_[np.zeros(nu, bool), np.ones(ns, bool)]
+        m[pos[split[r][1][K]]] = True
+        return m
+
+    if 9 in hands:                                    # AUGMENT（E31 の O2 と同じ作り方）
+        t0 = time.perf_counter()
+        mu, sd = ts.final.mu, ts.final.sd
+        Xa = torch.cat([(M.rows(tgt.X, used) - mu) / sd, (Xs - mu) / sd])
+        ya = M.labels(np.r_[tgt.y[used], ys])
+        fits = logreg.fit_batch(Xa, ya, [umask(r, K) for r, K in jobs], (C,),
+                                aug=np.r_[np.zeros(nu, bool), np.ones(ns, bool)])
+        fd = dict(zip(jobs, fits))
+        d = tgt.X.shape[1]
+        for r in rs:
+            z = (M.rows(tgt.X, te_rows[r]) - mu) / sd
+            Xte = torch.cat([z, torch.zeros_like(z), z], 1)
+            Ls, As_, a0s = [], [], []
+            for K in K_HANDS:
+                f = fd[(r, K)]
+                L = logits_np(f, Xte, C)
+                Ls.append(L)
+                Wt = f.W[C][:, :d] + f.W[C][:, 2 * d:]          # ターゲット側の係数（標準化した z の上）
+                As_.append((Wt / sd).cpu().numpy().astype(np.float32))
+                a0s.append((f.b[C] - (mu / sd) @ Wt.T).cpu().numpy())
+                put(9, r, K, L, {"n_iter": int(f.n_iter[C]), "grad": float(f.grad[C])})
+            A[f"h9_{sname}_r{r}_logit"] = np.stack(Ls).astype(np.float32)
+            A[f"h9_{sname}_r{r}_A"] = np.stack(As_)
+            A[f"h9_{sname}_r{r}_a0"] = np.stack(a0s)
+        del Xa, fits, fd
+        free_gpu()
+        timing["h9"] += time.perf_counter() - t0
+    if 10 in hands:                                   # WEIGHTED（E31 の O1 と同じ重み．α 5 つ）
+        t0 = time.perf_counter()
+        Xo = torch.cat([M.rows(tgt.X, used), Xs])
+        yo = M.labels(np.r_[tgt.y[used], ys])
+        ys_t = M.labels(ys)
+        ws_src = torch.zeros(nu + ns, dtype=logreg.DTYPE, device=logreg.DEVICE)
+        ws_src[nu:] = 1.0 / (4 * torch.bincount(ys_t, minlength=4).to(logreg.DTYPE)[ys_t])   # ソースの中で均等，和 1
+        wjobs, masks, weights = [], [], []
+        for alpha in ALPHAS:
+            for r, K in jobs:
+                m = umask(r, K)
+                mt = torch.as_tensor(m[:nu], device=logreg.DEVICE)
+                yk = yo[:nu][mt]
+                wt = torch.zeros(nu + ns, dtype=logreg.DTYPE, device=logreg.DEVICE)
+                wt[:nu][mt] = 1.0 / (4 * torch.bincount(yk, minlength=4).to(logreg.DTYPE)[yk])
+                S = float(m.sum())
+                weights.append((alpha * wt / wt.sum() + (1 - alpha) * ws_src) * S)
+                wjobs.append((alpha, r, K))
+                masks.append(m)
+        fits = logreg.fit_batch(Xo, yo, masks, (C,), weights=weights, inits=[ts.final] * len(masks))
+        fd = dict(zip(wjobs, fits))
+        for r in rs:
+            Xte = M.rows(tgt.X, te_rows[r])
+            Ls, As_, a0s = [], [], []
+            for alpha in ALPHAS:
+                La, Aa, aa = [], [], []
+                for K in K_HANDS:
+                    f = fd[(alpha, r, K)]
+                    L = logits_np(f, Xte, C)
+                    La.append(L)
+                    a, b = raw_coef(f, C)
+                    Aa.append(a)
+                    aa.append(b)
+                    put(10, r, K, L, {"alpha": alpha, "n_iter": int(f.n_iter[C]), "grad": float(f.grad[C])},
+                        name=f"10 WEIGHTED a={alpha:g}")
+                Ls.append(np.stack(La)); As_.append(np.stack(Aa)); a0s.append(np.stack(aa))
+            A[f"h10_{sname}_r{r}_logit"] = np.stack(Ls).astype(np.float32)       # (α, K, テスト, 4)
+            A[f"h10_{sname}_r{r}_A"] = np.stack(As_)
+            A[f"h10_{sname}_r{r}_a0"] = np.stack(a0s)
+        del Xo, fits, fd, weights
+        free_gpu()
+        timing["h10"] += time.perf_counter() - t0
     free_gpu()
 
 
@@ -566,14 +705,16 @@ def summarize(rec: Recorder) -> tuple[pd.DataFrame, dict]:
 def verdict(summ: dict) -> list[str]:
     """再現の検算の判定（設計 2.5 節の基準）。空なら合格。
 
-    ① ② は選ばれた C の UAR，C，規則が地図と 1e-6 で一致すること．選ばれなかった C は，地図の 2026-09-30 の
-    実行（未コミットのコードを含む）の弱い罰則（C = 1・10）の解と止める基準の範囲でずれる（試しで最大 0.0069 =
-    AFEW の発話 1 本ぶん）ので，幅 tol の 2.5 倍以内とし，ずれた行の数を記録する（C の別の規則の解析は E76 の値を使う）．
-    ③ と手は，差が tol を超える条件が 1% 以下で，どの条件も tol の 2.5 倍以内。"""
+    ① ② は C と規則が地図と厳密に一致すること（テストの袋やソースの行を取り違えれば C か規則か UAR が大きくずれる）．
+    UAR は選ばれた C も選ばれなかった C も幅 tol で判定する：地図は 2026-09-30〜10-19 の別のコミットの `logreg.fit_batch`
+    で作られ，止める基準の範囲で解がずれて発話 1 本の argmax が入れ替わる（関門 1 の gate-code の試し E：AVT の
+    MOSEI ← MELD の ② の選ばれた C で 0.000142．AFEW では発話 1 本で 0.007）．1e-6 を超えた行の数は記録に残す．
+    ③ と手も同じく，差が tol を超える条件が 1% 以下で，どの条件も tol の 2.5 倍以内。"""
     bad = []
     for m in ("tgt_only", "src_only"):
         e = summ.get(m, {})
-        if e.get("n_ref", 0) and (e.get("n_over_exact", 0) or e.get("C_mismatch", 0) or e.get("rule_mismatch", 0)
+        if e.get("n_ref", 0) and (e.get("C_mismatch", 0) or e.get("rule_mismatch", 0)
+                                  or (e.get("max_diff_over_tol") or 0) > 2.5 or e.get("n_over_tol", 0) > 0.01 * e["n_ref"]
                                   or (e.get("max_allC_over_tol") or 0) > 2.5):
             bad.append(f"{m}：地図と一致しない {e}")
     for m, e in summ.items():
@@ -600,6 +741,8 @@ def main() -> None:
                     help="照合する C を固定した地図（<ref-map>/<kind>/<ターゲット>.csv）")
     ap.add_argument("--ref-e25", type=str, default=str(ROOT / "results" / "interventions_{kind}"),
                     help="照合する E25 の結果のフォルダ（{kind} を置き換える）")
+    ap.add_argument("--ref-e31", type=str, default=str(ROOT / "results" / "compare_{kind}"),
+                    help="照合する E31 の O1・O2 のフォルダ（<ターゲット>.csv と <ターゲット>_o2.csv．{kind} を置き換える）")
     ap.add_argument("--ref-merged-scores", nargs="+",
                     default=[str(ROOT / "results" / "fixc_analysis" / "merged_scores_{kind}"),
                              str(ROOT / "results" / "fixc_text" / "merged_scores_{kind}")],
@@ -629,15 +772,16 @@ def main() -> None:
                 "n_test_folds": M.N_TEST_FOLDS, "n_cv_folds": M.N_CV_FOLDS,
                 "solver": {"tol": logreg.TOL, "max_iter": logreg.MAX_ITER, "history": logreg.HISTORY,
                            "dtype": str(logreg.DTYPE)},
-                "ablate_l2": 1e-2, "mem_fraction": MEM_FRACTION}
+                "ablate_l2": ABLATE_L2, "alphas": list(ALPHAS), "hand_spec": HAND_SPEC, "mem_fraction": MEM_FRACTION}
     started = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     run = {"script": "exp/relearn_e76.py", "argv": sys.argv[1:], **state, "started": started,
            "kinds": args.kinds, "targets": args.targets, **settings,
-           "ref": {"map": str(args.ref_map), "e25": args.ref_e25, "merged_scores": args.ref_merged_scores,
+           "ref": {"map": str(args.ref_map), "e25": args.ref_e25, "e31": args.ref_e31,
+                   "merged_scores": args.ref_merged_scores,
                    "tgt_scores": args.ref_tgt_scores},
            "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
            "numpy": np.__version__, "pandas": pd.__version__, "torch": torch.__version__}
-    # 再開：書き始める前に，残っているファイルのコミット番号と設定を全部照合する（混ぜない）
+    # 再開：書き始める前に，残っているファイルの読み込むコードのハッシュと設定を全部照合する（混ぜない）
     plan: dict[str, list[str]] = {}
     for kind in args.kinds:
         groups = groups_for(kind)
@@ -651,15 +795,15 @@ def main() -> None:
             meta_p = kdir / f"{t}.json"
             if (kdir / f"{t}.npz").exists():
                 meta = json.loads(meta_p.read_text()) if meta_p.exists() else {}
-                same = (meta.get("commit") == state["commit"] and meta.get("settings") == settings
-                        and not meta.get("code_dirty", True))
+                same = meta.get("code_hash") == state["code_hash"] and meta.get("settings") == settings
                 if same and meta.get("check_failed"):
                     raise SystemExit(f"{kdir / t}.npz は再現の検算に落ちている：{meta['check_failed']}．"
                                      f"原因を直してから，消して流し直す")
                 if same:
-                    print(f"{kind} {t}：済み（同じコミット {state['commit'][:7]}．飛ばす）", flush=True)
+                    print(f"{kind} {t}：済み（同じコードのハッシュ {state['code_hash'][:12]} と設定．飛ばす）", flush=True)
                     continue
-                raise SystemExit(f"{kdir / t}.npz が別のコミットか設定で作られている（{meta.get('commit')}）．"
+                raise SystemExit(f"{kdir / t}.npz が別のコード（ハッシュ {str(meta.get('code_hash'))[:12]}，"
+                                 f"コミット {meta.get('commit')}）か別の設定で作られている．"
                                  f"混ぜないので止める．別の --out にするか，消してから流す")
             todo.append(t)
         plan[kind] = todo
@@ -691,6 +835,8 @@ def main() -> None:
             p = args.ref_map / kind / f"{t}.csv"
             ref_map = read_map(p)
             ref_e25 = read_e25(Path(args.ref_e25.format(kind=kind)) / f"{t}.csv")
+            e31_dir = Path(args.ref_e31.format(kind=kind))
+            ref_e25.update(read_e31(e31_dir / f"{t}.csv", e31_dir / f"{t}_o2.csv"))     # 手 9・10 の照合の相手
             old_m = read_old_scores([Path(x.format(kind=kind)) / f"{t}.npz" for x in args.ref_merged_scores])
             old_t = read_old_scores([Path(x.format(kind=kind)) / f"{t}.npz" for x in args.ref_tgt_scores])
             sources = [g for g in groups if g != t and (args.sources is None or g in args.sources)]
@@ -706,15 +852,16 @@ def main() -> None:
                     "sources": sources, "elapsed_sec": elapsed, "timing_sec": rec.timing,
                     "gpu_peak_alloc_gib": peak, "check": summ, "coef_check": cc,
                     "check_failed": bad, "ref": {"map": str(p), "e25": args.ref_e25.format(kind=kind),
+                                                 "e31": args.ref_e31.format(kind=kind),
                                                  "old_merged": old_m.get("path"), "old_tgt": old_t.get("path")},
                     "keys_doc": KEYS_DOC}
-            rec.arrays["_meta"] = np.array(json.dumps({k: meta[k] for k in ("commit", "code_dirty", "settings",
+            rec.arrays["_meta"] = np.array(json.dumps({k: meta[k] for k in ("commit", "code_hash", "code_dirty", "settings",
                                                                              "kind", "target", "started")}))
             tmp = kdir / f".{t}.tmp.npz"
             np.savez_compressed(tmp, **rec.arrays)
             os.replace(tmp, kdir / f"{t}.npz")
             with open(kdir / f".{t}.tmp.csv", "w") as f:
-                f.write("# " + json.dumps({k: meta[k] for k in ("commit", "code_dirty", "settings", "started")},
+                f.write("# " + json.dumps({k: meta[k] for k in ("commit", "code_hash", "code_dirty", "settings", "started")},
                                           ensure_ascii=False) + "\n")
                 d.to_csv(f, index=False)
             os.replace(kdir / f".{t}.tmp.csv", kdir / f"{t}.csv")

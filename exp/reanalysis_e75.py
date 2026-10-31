@@ -160,10 +160,13 @@ class Ctx:
         self.checks.append({"item": item, "kind": kind, "what": what, "value": value, "tol": tol,
                             "ok": ok, "detail": detail})
 
-    def record(self, item: int, kind: str, what: str, max_abs_diff: float, frac_diff: float, n: int, unit: str) -> None:
-        """別々に学んだ同じ設定の分類器どうしの差の記録（一致を求める検算ではない）。"""
+    def record(self, item: int, kind: str, what: str, max_abs_diff: float, frac_diff: float, n: int, unit: str,
+               signed_mean: float = np.nan, frac_c_differs: float = np.nan) -> None:
+        """別々に学んだ同じ設定の分類器どうしの差の記録（一致を求める検算ではない）．符号つきの平均と，
+        2 つの学習で選ばれた C が違う行の割合も書ける（C が違う行の差は解き方の揺れではなく選択の違い）。"""
         self.records.append({"item": item, "kind": kind, "what": what, "max_abs_diff": max_abs_diff,
-                             "frac_rows_diff_gt_1e-6": frac_diff, "n": n, "unit": unit})
+                             "frac_rows_diff_gt_1e-6": frac_diff, "n": n, "unit": unit,
+                             "signed_mean_diff": signed_mean, "frac_rows_C_differs": frac_c_differs})
 
     def assume(self, item: int, kind: str, assumption: str, measure_: str, value: float, criterion: str,
                holds, detail: str = "") -> None:
@@ -938,7 +941,9 @@ def item6(ctx: Ctx) -> None:
     for kind in ctx.a.kinds:
         groups = groups_for(kind)
         lab = ROOT / f"{ctx.a.shift_prefix}{kind}" / "labeling.csv"
-        src_uar = read_csv(ctx, lab).set_index(["target", "source"]).uar_t if lab.exists() else None
+        labdf = read_csv(ctx, lab).set_index(["target", "source"]) if lab.exists() else None
+        src_uar = labdf.uar_t if labdf is not None else None
+        c_mismatch, c_compared = 0, 0
         e13 = ctx.e13(kind)
         ivdir = ROOT / f"{ctx.a.interventions_prefix}{kind}"
         tsdir = ROOT / f"{ctx.a.transfer_scores_prefix}{kind}"
@@ -1001,7 +1006,13 @@ def item6(ctx: Ctx) -> None:
                 ivf, tsf = ivdir / f"{t}.csv", tsdir / f"{t}.npz"
                 if ivf.exists() and tsf.exists():
                     iv = read_csv(ctx, ivf, dtype={"K": str, "source": str})
-                    iv = iv[(iv.method == E25_SRC) & (iv.source == s)].set_index("rep").uar
+                    iv = iv[(iv.method == E25_SRC) & (iv.source == s)]
+                    # 2 つのソースのみの分類器の C が同じか（離散の値なので許容 0．compare の追記の「記録する」）
+                    if labdf is not None and (t, s) in labdf.index and len(iv):
+                        c_shift = float(labdf.loc[(t, s), "C"])
+                        c_mismatch += int((np.abs(iv.C.astype(float).to_numpy() - c_shift) > 0).any())
+                        c_compared += 1
+                    iv = iv.set_index("rep").uar
                     zt = np.load(tsf)
                     for r, u in iv.items():
                         key = f"test_idx_r{int(r)}"
@@ -1033,6 +1044,9 @@ def item6(ctx: Ctx) -> None:
         found = sum(1 for r in rows if r["kind"] == kind)
         if found != groups_n:
             ctx.gap(6, kind, "組の数", groups_n, found)
+        if c_compared:
+            ctx.check(6, kind, "shift のソースのみの C（labeling.csv）と E25 のソースのみの C が違う組の数",
+                      float(c_mismatch), 0, f"{c_compared} 組")
         if kind in e25_diff:
             dv = np.array(e25_diff[kind])
             # 同じデータと C で別々に解いた 2 つのソースのみの分類器なので，答えの数本の入れ替わりの差が残る．
@@ -1384,12 +1398,13 @@ def item10(ctx: Ctx) -> None:
             ctx.gap(10, kind, "α = nat の交差検証かテストの列に NaN がある行", 0,
                     int(w[list(cv_cols.values())].isna().any(axis=1).sum()))
         # 対照：α を nat に固定し，C だけを同じ交差検証で選んだ合併（`map.choose_c` の同点の規則）
-        ctrl = []
+        ctrl, cchosen = [], []
         for _, rr in w.iterrows():
             cbest, _ = M.choose_c({c: float(rr[cv_cols[c]]) for c in M.C_GRID})
             ctrl.append(float(rr[te_cols[cbest]]))
-        w["ctrl"] = ctrl
-        w = w[["target", "source", "K", "rep", "uar", "ctrl"]]
+            cchosen.append(float(cbest))
+        w["ctrl"], w["C_ctrl"] = ctrl, cchosen
+        w = w[["target", "source", "K", "rep", "uar", "ctrl", "C_ctrl"]]
         mp = load_map_dir(ctx.p("fixc_root") / kind)
         m = mp[mp.method == "merged"][["target", "source", "K", "rep", "uar"]].rename(columns={"uar": "m"})
         t = mp[mp.method == "tgt_only"][["target", "K", "rep", "uar"]].rename(columns={"uar": "t"})
@@ -1397,16 +1412,20 @@ def item10(ctx: Ctx) -> None:
         cvdir = ROOT / f"{ctx.a.cv_map_prefix}{kind}"
         if cvdir.exists():
             cvm = load_map_dir(cvdir)
-            cvm = cvm[cvm.method == "merged"][["target", "source", "K", "rep", "uar"]].rename(columns={"uar": "cvm"})
+            cvm = cvm[cvm.method == "merged"][["target", "source", "K", "rep", "uar", "C"]].rename(
+                columns={"uar": "cvm", "C": "C_cvm"})
             x = x.merge(cvm, on=["target", "source", "K", "rep"], how="left")
-            dd = (x.ctrl - x.cvm).abs()
+            sd_ = x.ctrl - x.cvm
             # E12 の学び直しと交差検証の地図は温め直しの出発点が違うので，テストの答えが数本入れ替わる差が残る（関門 1 の
-            # compare の指摘のとおり）．一致の検算ではなく差の大きさの記録として `records.csv` に書く
-            ok = dd.notna()
+            # compare の指摘のとおり）．一致の検算ではなく差の大きさの記録として `records.csv` に書く．符号つきの平均と，
+            # 2 つの学習で選ばれた C が違う行の割合も書く
+            ok = sd_.notna()
             ctx.record(10, kind, "対照（α = nat，C を交差検証）と交差検証の地図の合併の UAR の差（I14）",
-                       float(dd[ok].max()), float((dd[ok] > 1e-6).mean()), int(ok.sum()), "行（組 × K × 反復）")
+                       float(sd_[ok].abs().max()), float((sd_[ok].abs() > 1e-6).mean()), int(ok.sum()),
+                       "行（組 × K × 反復）", signed_mean=float(sd_[ok].mean()),
+                       frac_c_differs=float((x.C_ctrl[ok].astype(float) != x.C_cvm[ok].astype(float)).mean()))
         else:
-            x["cvm"] = np.nan
+            x["cvm"], x["C_cvm"] = np.nan, np.nan
         if len(x) != len(w):
             ctx.gap(10, kind, "E12 の行のうち地図と突き合わせられた数", len(w), len(x))
         for (tt, s, K), h in x.groupby(["target", "source", "K"]):
@@ -1417,13 +1436,18 @@ def item10(ctx: Ctx) -> None:
                                                       n_rep=("rep", "nunique")).reset_index()
         pp["gain_wt"], pp["gain_nat"] = (pp.wt - pp.t) * 100, (pp.m - pp.t) * 100
         pp["gain_ctrl"], pp["gain_cvmap"] = (pp.ctrl - pp.t) * 100, (pp.cvm - pp.t) * 100
-        pp["alpha_part"] = (pp.wt - pp.ctrl) * 100                     # α を選ぶ分
-        pp["c_rule_part"] = (pp.ctrl - pp.m) * 100                     # C を交差検証で選ぶ分（地図の合併との差）
+        # 差は同じ学習の中だけで取る 3 つの項に分ける（compare の追記）．3 つの和は wt − m に等しい
+        pp["alpha_part"] = (pp.wt - pp.ctrl) * 100                     # α を選ぶ分（E12 の学び直しの中）
+        pp["c_rule_part"] = (pp.cvm - pp.m) * 100                      # C の選び方の分（交差検証の地図の中．同じ学習）
+        pp["relearn_part"] = (pp.ctrl - pp.cvm) * 100                  # 学び直しの違いの分（E12 の学び直し − 交差検証の地図）
         pp["wt_minus_nat"] = (pp.wt - pp.m) * 100
+        ctx.check(10, kind, "α の分 + C の選び方の分 + 学び直しの違いの分 と wt − m の差の最大",
+                  float((pp.alpha_part + pp.c_rule_part + pp.relearn_part - pp.wt_minus_nat).abs().max()), 1e-9)
         pp["wt_minus_cvmap"] = (pp.wt - pp.cvm) * 100
         pp["same_corpus"] = [same_corpus(a, b) for a, b in zip(pp.target, pp.source)]
         prs.append(pp.assign(kind=kind))
-        cols = ("gain_wt", "gain_nat", "gain_ctrl", "gain_cvmap", "alpha_part", "c_rule_part", "wt_minus_nat", "wt_minus_cvmap")
+        cols = ("gain_wt", "gain_nat", "gain_ctrl", "gain_cvmap", "alpha_part", "c_rule_part", "relearn_part",
+                "wt_minus_nat", "wt_minus_cvmap")
         for pair_set, base in (("excl_same_corpus", pp[~pp.same_corpus]), ("all_pairs", pp)):
             targets = sorted(base.target.unique())
             for K, h in base.groupby("K"):
@@ -1833,7 +1857,8 @@ def main() -> int:
     ctx.write("checks.csv", Ck)
     ctx.write("e75_assumptions.csv", As)
     ctx.write("records.csv", pd.DataFrame(ctx.records, columns=["item", "kind", "what", "max_abs_diff",
-                                                                "frac_rows_diff_gt_1e-6", "n", "unit"]))
+                                                                "frac_rows_diff_gt_1e-6", "n", "unit",
+                                                                "signed_mean_diff", "frac_rows_C_differs"]))
     prov["written"] = ctx.cache.get("written", [])
     prov["n_gaps"], prov["n_checks"], prov["n_checks_failed"] = len(G), len(Ck), int((~Ck.ok).sum()) if len(Ck) else 0
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1, default=str))
