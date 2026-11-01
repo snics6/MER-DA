@@ -63,6 +63,7 @@ DT, DEV = logreg.DTYPE, logreg.DEVICE
 F32 = torch.float32
 C_FIT = E77.C_FIT
 KS_LAB = E77.KS_LAB
+KS_LAB_ALL = E77.KS_LAB_ALL                    # K 本の抜き方は常に全 K（--ks で解く K を絞っても変わらない）
 SEEDS = (0, 1, 2)
 MAP_LRS, MAP_ITERS, MAP_LAMS, MAP_MUS, MME_SRCW = (1e-3, 1e-2), (200, 1000), (0.01, 0.1, 1.0), (1.0, 10.0), (0.0, 0.1)
 XM_KAPPAS = (0.1, 1.0, 10.0)
@@ -76,6 +77,7 @@ GRID = {"seeds": SEEDS, "map_lrs": MAP_LRS, "map_iters": MAP_ITERS, "map_lams": 
         "coral_cb": [c if c is not None else "free" for c in CORAL_CB], "coral_min_ratio": CORAL_MIN_RATIO, "batch": BATCH,
         "disc_h": DISC_H, "src_batch": SRC_BATCH, "c_fit": C_FIT}
 ALL_METHODS = ("dann", "mme", "mapctl", "xmuda", "cot", "coral")
+COPY_PSEUDO = False                                                            # --copy-pseudo（短縮 a）
 
 
 class _GRL(torch.autograd.Function):
@@ -679,6 +681,11 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
     E77.save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S})
 
     chosen = {}
+    if COPY_PSEUDO and T in E77.COPY_SRC:                                        # 短縮 a：台本の仮のターゲットは即興の結果を写す
+        prows, conv, diag = E77.copy_pseudo(out, T, "E78", KS)
+        S_loop = []
+    else:
+        S_loop = S
 
     def unit(Tn, pool_s, pool, te, info, ev, rec, pseudo, tau_fix):
         stu = make_students(world, Tn, data_f, data_m, pool_s, pool, te, sets, info)
@@ -695,13 +702,13 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
         coral_ctx = {k: dat_of(k, Tn) for k in stu}
         world_unit2(world, stu, ev.y[pool], BD.label_sets_of(rec_ctx[0], rec_ctx[1], pool), rec, methods, srcs_of, raw_of, coral_ctx,
                     tau_fix, diag, noise, pseudo, chosen)
-    for c in S:
+    for c in S_loop:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
         if not pool_c or (pseudo_targets and c not in pseudo_targets):
             continue
         info_c = {k: M5.pool_info(dat_of_all(data_m, data_f, k, world), pool_c, C_FIT, cache[k]) for k in sets}
         evc = data_f[c]
-        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB), center="ind")
+        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB_ALL), center="ind")
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
@@ -719,7 +726,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
         out / f"{T}_chosen.csv", index=False)
     info = {k: M5.pool_info(dat_of_all(data_m, data_f, k, world), S, C_FIT, cache[k]) for k in sets}
     ev = data_f[T]
-    ctx = CB.Ctx(ev, reps, list(KS_LAB), center="ind")
+    ctx = CB.Ctx(ev, reps, list(KS_LAB_ALL), center="ind")
     rows = []
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
@@ -771,13 +778,20 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         run_map(pr, Zs, ys, rec, kind, lab_of(label_sets, yq), problems_for(kind, "map", meths, rec.keep is False, chosen))
         rec.conv.append({**rec.tag, "student": kind, "what": "map", "sec": time.perf_counter() - t0})
     prows = []
-    for c in S:
+    if COPY_PSEUDO and T in E77.COPY_SRC:                                        # 短縮 a
+        prows, conv_c, diag_c = E77.copy_pseudo(out, T, "E78", KS)
+        conv += conv_c
+        diag += diag_c
+        S_loop = []
+    else:
+        S_loop = S
+    for c in S_loop:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
         if not pool_c or (pseudo_targets and c not in pseudo_targets):
             continue
         src_c, lin_c, n_c = M5.pool_info(data, pool_c, C_FIT, cache)
         evc = data[c]
-        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB), center="ind")
+        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB_ALL), center="ind")
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
@@ -792,7 +806,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         out / f"{T}_chosen.csv", index=False)
     src_pc, lin, n_of = M5.pool_info(data, S, C_T, cache)
     ev = data[T]
-    ctx = CB.Ctx(ev, reps, list(KS_LAB), center="ind")
+    ctx = CB.Ctx(ev, reps, list(KS_LAB_ALL), center="ind")
     rows = []
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
@@ -819,9 +833,16 @@ def main() -> int:
     ap.add_argument("--methods", nargs="+", default=list(ALL_METHODS), choices=ALL_METHODS)
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--gpu-fraction", type=float, default=0.6)
+    ap.add_argument("--ks", nargs="+", help="解く K（既定は全部．DAI 論文の短縮 c は 0 5 25）．K 本の抜き方は変わらない")
+    ap.add_argument("--copy-pseudo", action="store_true", help="IEMOCAP-script の仮のターゲットを同じ出力の場所の IEMOCAP-impro の結果から写す（短縮 a）")
     args = ap.parse_args()
     if bool(args.kind) == bool(args.world):
         ap.error("--kind か --world のどちらか 1 つを指定する")
+    global KS, KS_LAB, COPY_PSEUDO
+    if args.ks:
+        E77.set_ks(args.ks)
+        KS, KS_LAB = E77.KS, E77.KS_LAB
+    COPY_PSEUDO = args.copy_pseudo
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(args.gpu_fraction)
         torch.backends.cuda.matmul.allow_tf32 = True                             # 確率的な勾配法の 32 ビットの行列積だけに効く（E39 の学習器は 64 ビット）
@@ -838,7 +859,7 @@ def main() -> int:
     ptg = ["__none__"] if args.pseudo_targets == ["none"] else args.pseudo_targets
     prov = {"script": "exp/compare_dai2.py", "experiment": "E78", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo, "reps": args.reps, "pseudo_reps": args.pseudo_reps,
-            "pseudo_targets": args.pseudo_targets, "methods": args.methods, "gpu_fraction": args.gpu_fraction, **GRID,
+            "pseudo_targets": args.pseudo_targets, "methods": args.methods, "gpu_fraction": args.gpu_fraction, "ks": KS, "copy_pseudo": COPY_PSEUDO, **GRID,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:

@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -67,6 +68,10 @@ from teach_student39 import Student  # noqa: E402
 
 KS = BD.KS                                  # ("0", "1", "5", "10", "25")
 KS_LAB = ("1", "5", "10", "25")
+KS_LAB_ALL = KS_LAB                          # 話者の分割と K 本の抜き方（CB.Ctx）は常に全 K で作る．--ks で解く K を絞っても K=5・25 の K 本は変わらない
+COPY_PSEUDO = False                          # True（--copy-pseudo）で COPY_SRC の写しを使う
+COREG_PSEUDO = True                          # False（--coreg-eval-only）：共正則化を仮のターゲットで解かない（DAI 論文の短縮 b）
+COPY_SRC = {"IEMOCAP-script": "IEMOCAP-impro"}  # --copy-pseudo：台本の仮のターゲットは即興の結果を写す（DAI 論文の短縮 a．ソース・設定・分割が同じ）
 C_FIT = BD.C_FIT                            # 0.01（合併の下書きの C．E60・E61 と同じ）
 MEFFS = ("100", "500", "2000", "n")
 TAUS = ("0.5", "0.7", "0.9")
@@ -631,9 +636,11 @@ def world_unit(world, stu, yq, yte, label_sets, rec, raw):
     t0 = time.perf_counter()
     cotrain_rec({m: prs[m] for m in mods}, prs[world], rec, world)
     t1 = time.perf_counter()
-    coreg_rec({m: prs[m] for m in mods}, rec, world)
+    if rec.keep or COREG_PSEUDO:                                                 # --coreg-eval-only：仮のターゲットでは解かない（短縮 b）
+        coreg_rec({m: prs[m] for m in mods}, rec, world)
     rec.conv.append({**rec.tag, "student": "*", "what": "cotrain_total", "sec": t1 - t0})
-    rec.conv.append({**rec.tag, "student": "*", "what": "coreg_total", "sec": time.perf_counter() - t1})
+    if rec.keep or COREG_PSEUDO:
+        rec.conv.append({**rec.tag, "student": "*", "what": "coreg_total", "sec": time.perf_counter() - t1})
     flush_stats(rec, prs)
 
 
@@ -659,6 +666,50 @@ def check_resume(out, T, commit):
     return True
 
 
+def set_ks(ks):
+    """解く K を絞る（--ks．DAI 論文の短縮 c．判定に使う K だけ）．K 本の抜き方は KS_LAB_ALL のまま変えない。"""
+    global KS, KS_LAB
+    bad = [k for k in ks if k not in BD.KS]
+    if bad or not ks:
+        raise SystemExit(f"--ks は {BD.KS} の中から選ぶ（{ks}）")
+    KS = tuple(k for k in BD.KS if k in ks)
+    KS_LAB = tuple(k for k in KS if k != "0")
+    GRID["KS"] = KS
+
+
+def copy_pseudo(out, T, script, ks, drop_methods=()):
+    """台本 T の仮のターゲットの結果を，同じ出力の場所にある写し元（即興）の結果から作る（--copy-pseudo．短縮 a）．
+
+    写し元と T で，E39 の設定・ソース・C の設定（`_settings.json` の全項目）が一致することを確かめ，違えば止める．
+    写し元の `_pseudo.csv` の行を K と除く手法で絞り，写し元のコミットを `src_commit` に残す．`_conv.csv`・`_diag.csv` の仮のターゲットの行も同じく写す．
+    E77 の none の対数の確率（`_ps_` の npz）は中身を変えずに名前だけ T にして写す。"""
+    src = COPY_SRC[T]
+    a_, b_ = (json.loads((out / f"{g}_settings.json").read_text()) for g in (src, T))
+    if a_ != b_:
+        raise SystemExit(f"{src} と {T} の設定が違うので写せない：{a_} != {b_}")
+    f = out / f"{src}_pseudo.csv"
+    if not f.exists():
+        raise SystemExit(f"写し元 {f} が無い")
+    d = pd.read_csv(f, dtype={"K": str})
+    d = d[d.K.isin(ks) & ~d.method.isin(drop_methods)].rename(columns={"commit": "src_commit"}).assign(copied_from=src)
+    extra = []
+    for name in ("conv", "diag"):
+        g = out / f"{src}_{name}.csv"
+        e = pd.read_csv(g, dtype={"K": str}) if g.exists() and g.stat().st_size > 1 else pd.DataFrame()
+        if not e.empty and "pseudo" in e.columns:
+            e = e[e.pseudo.notna()].rename(columns={"commit": "src_commit"}).assign(copied_from=src)
+            if "K" in e.columns:
+                e = e[e.K.isna() | e.K.astype(str).str.replace(r"\.0$", "", regex=True).isin(ks)]
+        extra.append(e.to_dict("records") if not e.empty else [])
+    n_npz = 0
+    if script == "E77":
+        for g in sorted(out.glob(f"{src}_ps_*_none.npz")):
+            shutil.copyfile(g, out / g.name.replace(f"{src}_ps_", f"{T}_ps_", 1))
+            n_npz += 1
+    print(f"{T}：仮のターゲットを {src} から写した（{len(d)} 行，npz {n_npz} 本）", flush=True)
+    return d.to_dict("records"), extra[0], extra[1]
+
+
 def samples_table(name, T):
     df, _ = load_any(T, name)
     return df[["sample_id", "speaker_id", "speaker_group"]].reset_index(drop=True)
@@ -675,13 +726,18 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
     sets = {k: settings(k, T) for k in WORLDS[world] + [world]}
     save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S})
     prows, conv, diag = [], [], []
-    for c in S:
+    if COPY_PSEUDO and T in COPY_SRC:
+        prows, conv, diag = copy_pseudo(out, T, "E77", KS, () if COREG_PSEUDO else ("coreg", "coreg_sum"))
+        S_loop = []
+    else:
+        S_loop = S
+    for c in S_loop:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
         if not pool_c or (pseudo_targets and c not in pseudo_targets):
             continue
         info_c = {k: M5.pool_info(data_m[k] if k != world else data_f, pool_c, C_FIT, cache[k]) for k in sets}
         evc = data_f[c]
-        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB), center="ind")
+        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB_ALL), center="ind")
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             stu = make_students(world, c, data_f, data_m, pool_c, pool, te, sets, info_c)
@@ -695,7 +751,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
     pd.DataFrame(prows).assign(commit=commit).to_csv(out / f"{T}_pseudo.csv", index=False)
     info = {k: M5.pool_info(data_m[k] if k != world else data_f, S, C_FIT, cache[k]) for k in sets}
     ev = data_f[T]
-    ctx = CB.Ctx(ev, reps, list(KS_LAB), center="ind")
+    ctx = CB.Ctx(ev, reps, list(KS_LAB_ALL), center="ind")
     rows = []
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
@@ -735,13 +791,18 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
         Am = st.mats[rho_m][0]
         return {"st": st, "rho_m": rho_m, "cb": cb, "cp": cp, "Z": st.Xstd @ Am, "Zte": ((M.rows(ev.X, te) - ct - st.src.mu) / st.src.sd) @ Am}
     prows, conv, diag = [], [], []
-    for c in S:
+    if COPY_PSEUDO and T in COPY_SRC:
+        prows, conv, diag = copy_pseudo(out, T, "E77", KS)
+        S_loop = []
+    else:
+        S_loop = S
+    for c in S_loop:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
         if not pool_c or (pseudo_targets and c not in pseudo_targets):
             continue
         src_c, lin_c, n_c = M5.pool_info(data, pool_c, C_FIT, cache)
         evc = data[c]
-        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB), center="ind")
+        ctxc = CB.Ctx(evc, pseudo_reps, list(KS_LAB_ALL), center="ind")
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             s = student_of(evc, M.rows(evc.X, pool) - ctxc.ct[r], src_c, lin_c, n_c, pool_c, C_FIT, te, ctxc.ct[r])
@@ -756,7 +817,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
     pd.DataFrame(prows).assign(commit=commit).to_csv(out / f"{T}_pseudo.csv", index=False)
     src_pc, lin, n_of = M5.pool_info(data, S, C_T, cache)
     ev = data[T]
-    ctx = CB.Ctx(ev, reps, list(KS_LAB), center="ind")
+    ctx = CB.Ctx(ev, reps, list(KS_LAB_ALL), center="ind")
     rows = []
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
@@ -784,9 +845,16 @@ def main() -> int:
     ap.add_argument("--pseudo-targets", nargs="+", help="試走用．仮のターゲットをこの群だけにする（空の指定 'none' で仮のターゲットを回さない）")
     ap.add_argument("--out-dir", type=Path)
     ap.add_argument("--gpu-fraction", type=float, default=0.6)
+    ap.add_argument("--ks", nargs="+", help="解く K（既定は全部．DAI 論文の短縮 c は 0 5 25）．K 本の抜き方は変わらない")
+    ap.add_argument("--copy-pseudo", action="store_true", help="IEMOCAP-script の仮のターゲットを同じ出力の場所の IEMOCAP-impro の結果から写す（短縮 a）")
+    ap.add_argument("--coreg-eval-only", action="store_true", help="共正則化を仮のターゲットで解かない（短縮 b）")
     args = ap.parse_args()
     if bool(args.kind) == bool(args.world):
         ap.error("--kind か --world のどちらか 1 つを指定する")
+    global COPY_PSEUDO, COREG_PSEUDO
+    if args.ks:
+        set_ks(args.ks)
+    COPY_PSEUDO, COREG_PSEUDO = args.copy_pseudo, not args.coreg_eval_only
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(args.gpu_fraction)
     name = args.kind or args.world
@@ -804,7 +872,7 @@ def main() -> int:
     ptg = ["__none__"] if args.pseudo_targets == ["none"] else args.pseudo_targets   # 'none'：仮のターゲットを回さない（試走用）
     prov = {"script": "exp/compare_dai.py", "experiment": "E77", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo, "reps": args.reps, "pseudo_reps": args.pseudo_reps,
-            "pseudo_targets": args.pseudo_targets, "gpu_fraction": args.gpu_fraction, **GRID,
+            "pseudo_targets": args.pseudo_targets, "gpu_fraction": args.gpu_fraction, "copy_pseudo": COPY_PSEUDO, "coreg_pseudo": COREG_PSEUDO, **GRID,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:
