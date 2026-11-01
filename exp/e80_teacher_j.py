@@ -428,8 +428,9 @@ def uar_rows(out, d):
 
 
 def summarize(outs, dest) -> int:
-    """R3′・R3″（E80 の節の「関門を受けた書き直し」）：j_units.csv から（世界, 評価のターゲット T, 生徒, 教師, K）ごとに，
-    T の単位だけを使い，仮のターゲットをコーパスでまとめてコーパスごとの J の中央値を出し，その平均 J_median が 0 より大きい教師を残す．
+    """R3′・R3″・R3⁗（E80 の節の「関門を受けた書き直し」）：j_units.csv から（世界, 評価のターゲット T, 生徒, 教師, K）ごとに，
+    T の単位だけを使い，仮のターゲットをコーパスでまとめてコーパスごとの UAR の差（教師 − none_K）の中央値を出し，その平均
+    uar_diff_median が 0 より大きい教師を残す（正解率の差の J は記述の列）．
     単位の欠け・重複・コミットの混ざりは止める．kept.csv の列は E79 が読む形（world, target, student, teacher, K, J_median, n_units,
     n_corpora, frac_pos, keep）に，記述の列（uar_diff_median：コーパスごとの UAR の差の中央値の平均）を足す。"""
     ds_ = []
@@ -444,8 +445,12 @@ def summarize(outs, dest) -> int:
     d = pd.concat(ds_, ignore_index=True)
     if int(d.duplicated(KEY).sum()):
         raise SystemExit(f"j_units に重複が {int(d.duplicated(KEY).sum())} 行ある")
-    if d.commit.nunique() > 1:
-        raise SystemExit(f"コミットが混ざっている {sorted(d.commit.unique())}")
+    cms = sorted(d.commit.astype(str).unique())
+    if len(cms) > 1:                                                             # 計算の台本が同じなら許す（exp/・measure/ に差が無いこと）
+        for c_ in cms[1:]:
+            r_ = subprocess.run(["git", "diff", "--quiet", cms[0], c_, "--", "exp/", "measure/"], cwd=ROOT)
+            if r_.returncode != 0:
+                raise SystemExit(f"コミットが混ざっていて，exp/・measure/ に差がある {cms}")
     for (w, T), g in d.groupby(["world", "target"]):                             # 単位の欠け：T ごとの（仮のターゲット, 反復）の組が全部の（生徒, 教師, K）にそろうか
         n = len(g[["pseudo", "rep"]].drop_duplicates())
         cnt = g.groupby(["student", "teacher", "K"]).size()
@@ -456,11 +461,21 @@ def summarize(outs, dest) -> int:
         mJ=("J", "median"), mU=("uar_diff", "median"), n=("J", "size")).reset_index()
     k = g1.groupby(["world", "target", "student", "teacher", "K"], sort=False).agg(
         J_median=("mJ", "mean"), uar_diff_median=("mU", "mean"), n_units=("n", "sum"), n_corpora=("corpus", "nunique")).reset_index()
-    fp = d.groupby(["world", "target", "student", "teacher", "K"], sort=False).J.apply(lambda s: float((s > 0).mean())).rename("frac_pos")
-    k = k.merge(fp.reset_index(), on=["world", "target", "student", "teacher", "K"], validate="one_to_one")
-    k["keep"] = k.J_median > 0                                                   # R3″：ちょうど 0 は残さない
-    k = k[["world", "target", "student", "teacher", "K", "J_median", "n_units", "n_corpora", "frac_pos", "keep", "uar_diff_median"]]
+    kk = ["world", "target", "student", "teacher", "K"]
+    fp = d.groupby(kk, sort=False).uar_diff.apply(lambda s: float((s > 0).mean())).rename("frac_pos")
+    fj = d.groupby(kk, sort=False).J.apply(lambda s: float((s > 0).mean())).rename("frac_pos_J")
+    k = k.merge(fp.reset_index(), on=kk, validate="one_to_one").merge(fj.reset_index(), on=kk, validate="one_to_one")
+    k["keep"] = k.uar_diff_median > 0                                            # R3⁗：UAR の差（コーパスごとの中央値の平均）が 0 より大きい．ちょうど 0 は残さない
+    k = k[["world", "target", "student", "teacher", "K", "uar_diff_median", "n_units", "n_corpora", "frac_pos", "keep", "J_median", "frac_pos_J"]]
     write_atomic(k, dest)
+    import hashlib
+    sh = lambda f: hashlib.sha256(Path(f).read_bytes()).hexdigest()  # noqa: E731
+    git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: E731
+    prov = {"script": "exp/e80_teacher_j.py", "script_sha256": sh(Path(__file__)), "commit": git("rev-parse", "HEAD"),
+            "dirty": bool(git("status", "--porcelain", "--untracked-files=no")), "rule": "R3⁗：uar_diff_median > 0（コーパスごとの中央値のコーパスの平均）",
+            "inputs": {str(o / "j_units.csv"): sh(o / "j_units.csv") for o in outs}, "unit_commits": cms,
+            "kept_sha256": sh(dest), "made": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    dest.with_name(dest.stem + "_provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     print(f"{dest}：{len(k)} 行（残す行の数は表に書いた．値は画面に出さない）", flush=True)
     return 0
 
