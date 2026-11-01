@@ -479,6 +479,18 @@ def load_pseudo(run, d77, d78):
     return P
 
 
+def coral_pseudo_units(d78, T, student):
+    """仮のターゲットの（仮のターゲット, 反復）のうち，CORAL の r ごとの行が作られた単位（`_conv.csv` の what の列だけを読む）。"""
+    f = Path(d78) / f"{T}_conv.csv" if d78 else None
+    if f is None or not f.exists():
+        return None
+    c = pd.read_csv(f, usecols=lambda c_: c_ in ("pseudo", "rep", "student", "what"), dtype=str)
+    if "pseudo" not in c.columns:
+        return {r: set() for r in (32, 64, 128)}
+    c = c[c.pseudo.notna() & (c.student == student)]
+    return {r: {(p_, int(x)) for p_, x in zip(c[c.what == f"coral_r{r}"].pseudo, c[c.what == f"coral_r{r}"].rep)} for r in (32, 64, 128)}
+
+
 def coral_eval_ok(d78, T, student, reps):
     """評価のターゲットの全反復で coral の r ごとの行が作られたか（`_conv.csv` の what の列だけを読む．値は読まない）。"""
     f = Path(d78) / f"{T}_conv.csv" if d78 else None
@@ -552,6 +564,7 @@ def stage_select(args, dirs, out):
                 defs = sel_defs(role)
                 Ps = PT[PT.student == st]
                 ev = coral_eval_ok(d78, T, st, args.reps)                     # CORAL の r が評価のターゲットの全反復で作られたか
+                pu = coral_pseudo_units(d78, T, st)                           # CORAL の r が仮のターゲットのどの単位で作られたか
                 for K in KS:
                     PK = Ps[Ps.K == K]
                     for vname, drop in variants:
@@ -576,10 +589,27 @@ def stage_select(args, dirs, out):
                             sc = sc.merge(nu)
                             mult = sc.method.isin(["cot", "cotctl"]).map({True: len(SEEDS), False: 1})
                             ok = (sc.nu == n_units) & (sc.n == n_units * mult)
-                            n_incomplete = int((~ok).sum())
-                            if n_incomplete:                                       # 仮のターゲットの行が揃わない候補（I12-1）
+                            # 仮のターゲットの行が揃わない候補（I12-1）．ただし CORAL の候補で，欠けた（仮のターゲット, 反復）が E78 の `_conv.csv` で
+                            # その r の行が作られなかった単位（5r の条件で外れた単位）とちょうど一致するものは，設計どおり外すだけで止めない（関門 1 の再検査の I12-3）
+                            units_all = set(map(tuple, none[["pseudo", "rep"]].drop_duplicates().itertuples(index=False)))
+                            excused = np.zeros(len(sc), bool)
+                            for i in np.flatnonzero(~ok.to_numpy()):
+                                rr = sc.iloc[i]
+                                m_r = re.match(r"^r(\d+)rho", rr.pnorm) if rr.method == "coral" else None
+                                if m_r is None or pu is None:
+                                    continue
+                                have = set(map(tuple, C[(C.wave == rr.wave) & (C.method == rr.method) & (C.pnorm == rr.pnorm) & (C.meff == rr.meff)][
+                                    ["pseudo", "rep"]].drop_duplicates().itertuples(index=False)))
+                                want_missing = units_all - pu.get(int(m_r.group(1)), set())
+                                if want_missing and (units_all - have) == want_missing and rr.n == rr.nu:
+                                    excused[i] = True
+                            n_incomplete = int((~ok.to_numpy() & ~excused).sum())
+                            if n_incomplete:
                                 fail_or_note(args, issues, check="incomplete_candidates", run=run, target=T, student=st, K=K, selector=sel,
                                              variant=vname, n=n_incomplete)
+                            if excused.any():
+                                issues.append({"check": "coral_r_pseudo_excluded", "run": run, "target": T, "student": st, "K": K, "selector": sel,
+                                               "variant": vname, "n": int(excused.sum())})
                             # CORAL の r が 5r の条件で外れた単位：全部の仮のターゲットと評価のターゲットに値のある候補だけ．CORAL を含む全部の族に当てる（I4-1）
                             is_coral = (sc.method == "coral").to_numpy()
                             if is_coral.any():
@@ -1728,9 +1758,10 @@ def statements_p4(tag, C, Call):
             "(2)": "選択との一致を見る（r2_selection_agrees）",
             "(2')": "〈コーパス〉では〈手法〉が向きの損を減らした（r2p_rest_same_or_inc で 2 つの書き方．r2p_selection_chose_method で選択を添える）",
             "(4)": "ラベル無しの手法が向きの損を減らした証拠は無かった（区間の幅と判定できない数を添える）"}
+    met = "dir_rev" if "rev_order" in tag else "dir"                        # 逆の順序の感度の行は逆の順序の向きの損で文の鍵を作る（関門 1 の再検査の記録）
     for fam in ("P4", "P4'"):
         for subset in ("all", "unseen_only"):
-            g = C[(C.family == fam) & (C.metric == "dir")]
+            g = C[(C.family == fam) & (C.metric == met)]
             if subset == "unseen_only" and len(g):
                 g = g[~g.seen_before_prediction.map(lambda v: v is True or str(v) == "True")]
             if g.empty:
@@ -1743,7 +1774,7 @@ def statements_p4(tag, C, Call):
             notes = []
             ht = half_tag(tag)
             if is3 and ht:                                                     # δ を半分にした行でも (3) か（δ を変えた感度の行そのものでは見ない）
-                Ch = Call[(Call.tag == ht) & (Call.family == fam) & (Call.metric == "dir")] if ht else Call.iloc[:0]
+                Ch = Call[(Call.tag == ht) & (Call.family == fam) & (Call.metric == met)] if ht else Call.iloc[:0]
                 if subset == "unseen_only" and len(Ch):
                     Ch = Ch[~Ch.seen_before_prediction.map(lambda v: v is True or str(v) == "True")]
                 if len(Ch):
