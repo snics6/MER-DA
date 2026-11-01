@@ -6,18 +6,9 @@
 # 各実行で，最初に IEMOCAP-impro だけを流し，--check で E77 の none・鍵の重なり・GPU の型と照らしてから残りのターゲットを流す
 # （照合が落ちたらその実行の残りを流さない）．最後に全ターゲットを照らす．
 #
-# 準備（本体が 1 回だけ流す．E77 が動いている /workspace/MER-DA とは別の作業木でコミットを固定する．設計の 4 節）：
-#   C=<E82 の台本と run/e82h.sh を含むコミット>
-#   git -C /workspace/MER-DA fetch origin
-#   git -C /workspace/MER-DA worktree add --detach /workspace/MER-DA-e82 "$C"
-#   cd /workspace/MER-DA-e82
-#   ln -s /workspace/MER-DA/.venv .venv                                    # Python 環境は E77 と同じもの
-#   rm -rf results && ln -s /workspace/MER-DA/results results              # 共有の results：入力（multisource_scores_*，explore_relation）と E77 の出力，
-#                                                                          # E82 の出力 results/e82_<実行>（追跡している results の 3 本が消えた扱いになるが exp/・measure/ ではない）
-#   for f in /workspace/MER-DA/data/cache/*.npz; do ln -s "$f" data/cache/; done   # 特徴（data/cache の追跡している顔の座標は作業木のものを使う）
-#   mkdir -p logs                                                          # ログは作業木のもの
-#   git status --porcelain --untracked-files=no -- exp measure             # 何も出ないこと（s43_penalty.py は exp/・measure/ の変更か未追跡で止まる）
-#   E82H_DRY=1 bash run/e82h.sh 1; E82H_DRY=1 bash run/e82h.sh 2           # 組み立てたコマンドと準備の確かめを表示するだけ
+# 準備：run/e82_setup.sh <コミット> <git bundle> を Pod A で 1 回だけ流す（絶対の場所と set -eu だけで書いた．関門 gate-code の再検査の指摘）．
+#   別の作業木 /workspace/MER-DA-e82 を作り，.venv・results を /workspace/MER-DA のものへのリンクに，data/cache の npz をリンクにする．
+# GPU の型の照合は E77 の記録を全部数えるので，流す前に results/e77_<実行> の provenance の gpu が 1 種類であることを確かめる．
 # 流し方：tmux で 2 本（例 tmux new -d -s e82h1 'cd /workspace/MER-DA-e82 && bash run/e82h.sh 1'，e82h2 も同じ）．
 # E77 の評価の出力（results/e77_<実行>/IEMOCAP-impro.csv）が無い実行は流さない（照合ができない）．GPU の割り当ては 1 本 0.2（E77 と同じ GPU で
 # 同時に流すときは，E77 の流れの --gpu-fraction との和が 1 を超えないようにする）．試しの出力を results/e82_* に書かない（--allow-dirty の記録が残ると読み手が止まる）．

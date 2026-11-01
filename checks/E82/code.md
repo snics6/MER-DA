@@ -177,3 +177,77 @@
 
 ---
 通す／直してから通す／止める：**直してから通す**（10 倍の端での書き方の規則と出発点の理由を設計に足し，本番の起動の台本をこの役に見せてから計算する）
+
+# 再検査（2026-11-02，差分 522be57..a5aab09）
+
+対象：設計 9ce63fa（2 節「出発点」，3 節の 10 倍の端の規則，4 節の別の作業木），台本 4b27fc1（`exp/analyze_e82.py` sha256 先頭 `dfa4969c3992cc8d`，`exp/s43_penalty.py` `c5a99690b753d280`，新規 `run/e82h.sh` `8fbcd5c33789883d`），記録 a5aab09（`checks/E82/impl.md` 10・11 節）．評価の値は開いていない．試しの出力は `/tmp/claude-1000/-home-snics-MER-DA/4cd03bf4-8db6-4e9a-a1e4-1871eadc639a/scratchpad/gate_code_e82/` の下（`sh_test`，`edge`，`negpt`，`negdl`，`m1_g`）．
+
+## 判定（再検査）
+
+直してから通す．台本の直しは前の指摘を設計どおりに解き，止まる条件も働くが，`run/e82h.sh` の冒頭に書いた準備の手順の `rm -rf results` が相対の場所で書かれており，直前の `cd` が失敗すると E77 の作業木の `results`（本番の出力）を消すので，準備の手順を直してから流す．
+
+## 前の指摘の扱い
+
+| 前の指摘 | 直し | 確かめたこと |
+|---|---|---|
+| [R4・R7] 10 倍の端（止める） | 設計 3 節に「ある手法で 10 倍が過半なら，鍵が同じでも限定を外さず『C′ を E39 の値の 10 倍まで広げた格子では』と書き，限界に書く」．台本は `EDGE_OF`・`edge_category`（`analyze_e82.py:456-470`）で same_a → same_but_edge10，k_label → k_label_but_edge10 に替え，`edge_note` を 10 倍が過半の手法のすべての行に書く．過半は excl の版・手法ごと（族と K をまとめる）・母数は手法が選ばれた単位で，設計の文と同じ | 関数を 5 つの分け方 × 過半（真・偽・不明）で呼び，same_a・k_label だけが替わり limit・opposite・missing は替わらないこと，不明（その手法の excl の単位が無い）では替えないことを確かめた．実装の試しの出力の写しで compare の段を流し，10 倍が過半の手法の行で `category_keys_only` が same_a のとき `category` が same_but_edge10 になり，手法ごとと 3 手法のまとめの行にも上がることを確かめた（`edge/compare/decision.csv`） |
+| [R4] 出発点の理由（直してから進む） | 設計 2 節に「出発点」の項と理由，4 節に限界 | 解いた．30 倍と出発点を替えた版は回さないことが設計に書かれ，主張の書き方の規則と合う |
+| [I10・I8] 起動の台本と RunPod の段取り | `run/e82h.sh`，設計 4 節，`--check` の GPU の型の照合（`s43_penalty.py:382-389`） | 下の「起動の台本」 |
+| [I1-dist] 離れの倍率 1 | 直していない（記録する．計算の後に CPU で出せる） | 前の報告のとおり．計算の後に，評価のターゲットの生の特徴の座標で 1・3・10 倍をそろえて出す |
+| [I11-conv] 収束 | `convergence_e82`（`:514-546`），`convergence_e82.csv`．見張りに `_convp.csv` を足した（`:774`） | compare の段が終了の値 0 で表を書いた（実装の試しの出力で上限 0・早く止まった問 0） |
+| [I1-opposite] | `CATEGORY["opposite"]` を設計の文に直した（`:450`） | 解いた |
+| [I12・I14] compare の条件 | `check_conditions`（`:481-511`．measure の provenance の boot・seed，argv の reps・targets・bias_fixed，δ の sha256，実行），検算の食い違いで終了の値 1（`:784-787`） | 下の「止まる条件」 |
+| [I9] patched | compare の段でも書く（`:735`） | 解いた |
+| [I7] K=0 の恒等 | 記録だけ（impl.md 11 節） | 解いた |
+
+## 起動の台本 `run/e82h.sh`
+
+流れの順を偽の Python（呼ばれた引数を記録し，指定した呼び出しで失敗を返す）と作った git の作業木で流して確かめた（`sh_test`）：
+- 流れ 2：AV の IEMOCAP-impro の後の `--check` が落ちると，AV の残りと全体の `--check` を呼ばずに次の実行（映像）に進んだ．映像の残りのターゲットが落ちると全体の `--check` を呼ばなかった．E77 の `IEMOCAP-impro.csv` が無い実行（RoBERTa）は 1 つも呼ばなかった．失敗はそれぞれ `logs/e82h_fail.log` に 1 行ずつ書かれた
+- 流れ 1：AVT は 4 つのコマンドを順に呼び，E77 の出力が無い WavLM は呼ばなかった
+- 旗は `--ks 0 5 --copy-pseudo --nc-seeds 1 2 --gpu-fraction 0.2` で設計と同じ．IEMOCAP-impro だけの最初の起動の provenance の記録（targets に IEMOCAP-impro）が，2 回目の起動の IEMOCAP 台本の写しの照合（`compare_dai.copy_pseudo` は同じコミットで写し元を含む記録の引数を照らす）を満たす．2 回目は IEMOCAP-impro を `check_resume` で飛ばす
+- E82 は E77 の出力を読むだけで，書くのは `results/e82_<実行>` だけである．共有の `results` の下で E77 と書く場所は重ならない．`.venv` には repo を指す `.pth` が無く（研究室の `.venv` で確かめた），台本は自分の作業木の `exp/` を先に読み込むので，E77 の作業木のコードは読まない
+- GPU の割り当て：E77 の 2 本（0.22 ずつ）と E82 の 2 本（0.2 ずつ）の和は 0.84 で 1 を超えない．ただし 4 本で 1 枚の H100 の計算を分け合うので，台本の注の時間（1 本で使ったときの見積もり）より長くなり，E77 の流れも遅くなる
+
+### [I8] 準備の手順の `rm -rf results` が相対の場所で書かれている
+- 重さ：直してから進む（本体が準備を流す前に直す）
+- 該当箇所：`run/e82h.sh:9-21`（注の準備の手順）
+  ```
+  git -C /workspace/MER-DA worktree add --detach /workspace/MER-DA-e82 "$C"
+  cd /workspace/MER-DA-e82
+  ln -s /workspace/MER-DA/.venv .venv
+  rm -rf results && ln -s /workspace/MER-DA/results results
+  ```
+- 問題：この手順は 1 行ずつ手で流す前提で，`set -e` が無い．`C` を入れ忘れるか作業木が既にあって `worktree add` が失敗し，`cd` も失敗すると，シェルは前の場所に残る．そこが `/workspace/MER-DA`（E77 が動いている作業木）なら，`rm -rf results` が E77・E78 の本番の出力をすべて消す．`for f in ...; do ln -s "$f" data/cache/; done` も相対の場所である．読んだだけ（消える動きは流して確かめていない）
+- 計算の後で直せるか：直せない（消えた出力は H100 で計算し直すことになる）
+- 求める対応：準備の手順を絶対の場所だけで書き，失敗したら止まる形にする．例：`set -eu; W=/workspace/MER-DA-e82; git -C /workspace/MER-DA worktree add --detach "$W" "$C"; ln -s /workspace/MER-DA/.venv "$W/.venv"; rm -r "$W/results"; ln -s /workspace/MER-DA/results "$W/results"; for f in /workspace/MER-DA/data/cache/*.npz; do ln -s "$f" "$W/data/cache/"; done; mkdir -p "$W/logs"`．`e82h.sh` に `prepare` の段として入れ，`[ "$W" != /workspace/MER-DA ]` を確かめてから動くようにしてもよい
+
+### [I14] GPU の型の照合は，E77 の場所の記録のうち別のコミットや別の流れの記録も数える
+- 重さ：記録する
+- 該当箇所：`exp/s43_penalty.py:382-389`（`gpus(d)` は `provenance.json` と `provenance_log.jsonl` の全部の記録の `gpu` を集める）
+- 問題：E77 の場所に，別のコミットの起動や別の Pod（例えば H100 の別の型）で流した起動の記録が 1 つでもあると，型が 2 つになり，照合が必ず落ちてその実行の残りが流れない．研究室で，E82 の出力の記録に別のコミットの H100 の記録を 1 行足した写しで流すと，`gpu_type` が食い違い終了の値 1 になった（`m1_g`）．E77 の AV の世界は 2 つの流れ（av1・av2）で同じ場所に書いているので，別の Pod で流した部分があれば当たる．止まる側に倒れるので誤った数値は出ない
+- 計算の後で直せるか：直せる（照合だけを流し直す）
+- 求める対応：流す前に Pod A で `for d in /workspace/MER-DA/results/e77_*; do echo "$d"; cat "$d"/provenance.json "$d"/provenance_log.jsonl | grep -o '"gpu": *"[^"]*"' | sort | uniq -c; done` を見て，各場所の型が 1 つであることを確かめる．2 つあれば，照合を E77 の `<T>.csv` の commit と同じ記録に絞る
+
+### [I14] compare の段の検算は値の完全な一致を求めるので，`--fixed-from` に別の計算機の E79 の出力を渡すと止まりうる
+- 重さ：記録する
+- 該当箇所：`exp/analyze_e82.py:581`（`n_other_method_units_point_differ_fixed_a` は `!=` で数える），`:784-787`
+- 問題：固定の版の `units.csv` の t3a の点の 1 つを 10⁻¹² だけずらした写しを `--fixed-from` に渡すと，表を書いてから終了の値 1 で止まった（`negpt`）．δ の `delta.csv` に 1 行足した写しでは表を作る前に止まった（`negdl`）．止まる条件は働く．E79 の本番を別の計算機（別の BLAS やスレッド数）で流していると，同じ入力でも点の最後の桁が違って止まりうる
+- 計算の後で直せるか：直せる（CPU）
+- 求める対応：本番では固定の版も `analyze_e82.py --grid fixed` を同じ計算機と同じ引数で流して使う（`--fixed-from` を渡さない既定の道）．E79 の本番を使うなら，同じ計算機で流したことを確かめる
+
+## 止まる条件（実装の記録の 11 節と，この再検査で流したもの）
+
+| 壊し方 | 結果 |
+|---|---|
+| 固定の版の measure の boot を書き換え（実装の記録） | 表を作る前に終了の値 1 |
+| 固定の版の t3a の判定を 1 つ書き換え（実装の記録） | 表を書いてから終了の値 1 |
+| 固定の版の t3a の点を 10⁻¹² ずらす（再検査） | 表を書いてから終了の値 1（`n_other_method_units_point_differ_fixed_a` 1） |
+| 固定の版の `delta.csv` を 1 行変える（再検査） | 表を作る前に終了の値 1（「測った条件が違う」） |
+| E82 の記録に別の GPU の型の行を足す（実装の記録と再検査） | `--check` が終了の値 1 |
+| e82h.sh：最初の `--check` が落ちる（再検査） | その実行の残りを流さず次の実行へ |
+| e82h.sh：E77 の `IEMOCAP-impro.csv` が無い（再検査） | その実行を流さない |
+| e82h.sh：準備の確かめ（results がリンクでない，exp/・measure/ に変更，E77 の作業木）（実装の記録） | 止まる |
+
+---
+通す／直してから通す／止める：**直してから通す**（`run/e82h.sh` の準備の手順を絶対の場所と `set -e` で書き直し，E77 の場所の GPU の型が 1 つであることを Pod A で確かめてから流す．台本の再検査は不要）
