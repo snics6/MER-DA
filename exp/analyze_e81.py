@@ -25,6 +25,11 @@ jk_interval・judge_unit・cluster_labels・statements_p5・Store）をそのま
   statements_main.csv（主の読み方の鍵），statements_sens.csv（感度の行の鍵），statements_2corpus.csv（記述），rule.json（(i)・(ii) と結論），
   rows_g3_<世界>.csv.gz・rows_cur_<世界>.csv.gz（反復ごとの点の値），checks.csv，identity_same_split.csv，provenance.json
 
+段取り：E79 の段 (d)（judge）の後に流す（主の読み方は `judge/units.csv`・`judge/statements.csv` を読む）．
+結論を書かない条件（gate-code の I12・I14）：`checks.csv` に偽の行がある，`identity_same_split.csv` に不一致がある，2 世界 × 3 群 × 反復 0〜9 がそろわない，
+  E79 の judge の出力が無い，E81 の出力が試しの印（--allow-incomplete・--allow-dirty・--check）つきか照合を飛ばした記録（unchecked）を持つ．
+  このとき rule.json の decision は null で，終了の値は 1．rule.json に判定の範囲（世界・群・反復）と偽になった照合の名前を書く．
+
     ./.venv/bin/python exp/analyze_e81.py --e81 fuse-audio-video-text=results/e81_fuse-audio-video-text fuse-audio-video=results/e81_fuse-audio-video \\
         --e79 results/e79 --e77 世界=場所 … --e78 世界=場所 … --e80c 世界=場所 …
   --e77・--e78・--e80c（E77・E78・E80c の本番の出力）は，台本の反復 3・8 を除いた版の Δ_cur と，学習側が変わらない単位の照合に使う．
@@ -538,6 +543,61 @@ def key_2corpus(fam, js):
     return "上回った" if pos >= maj else "判定できない"
 
 
+_IDENT: list = []
+
+
+def ident_rows(stores, runs, e81, prod, args):
+    """反復ごとの点の値の保存と，学習側が変わらない単位（IEMOCAP 台本の反復 3・8）の照合（1 回だけ計算して使い回す）。"""
+    if _IDENT:
+        return _IDENT[0]
+    ident = []
+    for run in runs:
+        cur, g3, pstore = stores[run]
+        R = pd.concat(g3.rows, ignore_index=True)
+        R.to_csv(args.out / f"rows_g3_{run}.csv.gz", index=False)
+        P = None
+        if pstore is not None:
+            P = pd.concat(pstore.rows, ignore_index=True)
+            P.to_csv(args.out / f"rows_cur_{run}.csv.gz", index=False)
+        elif cur.e79 is not None and run in cur.e79.S.point:
+            P = cur.e79.S.point[run]
+        if P is None:
+            continue
+        for (T, r) in sorted(SAME_SPLIT):
+            a = R[(R.target == T) & (R.rep == r)] if len(R) else R
+            if a.empty:
+                continue
+            b = P[(P.target == T) & (P.rep == r)]
+            kk_ = ["student", "K", "wave", "method", "param", "meff"]
+            jj = a.merge(b[kk_ + ["uar", "dirloss", "posloss"]], on=kk_, how="left", suffixes=("", "_cur"), indicator=True)
+            row = {"run": run, "target": T, "rep": r, "check": "points", "n_rows": len(a), "n_unmatched": int((jj._merge != "both").sum())}
+            for q in ("uar", "dirloss", "posloss"):
+                v = (jj[q] - jj[f"{q}_cur"]).abs()
+                row[f"{q}_maxabs"] = float(v.max()) if v.notna().any() else np.nan
+                row[f"{q}_n_over_tol"] = int((v > TOL_POINT).sum())
+            row["ok"] = row["n_unmatched"] == 0 and all(row[f"{q}_n_over_tol"] == 0 for q in ("uar", "dirloss", "posloss"))
+            ident.append(row)
+            t81 = read_tab(e81[run] / f"{T}.csv")
+            t81 = t81[t81.rep == r]
+            f81 = e81[run] / f"{T}_r{r}_logp.npy"
+            for w in ("e77", "e78", "e80c"):
+                dp = prod[w].get(run)
+                if not f81.exists() or not dp or not (Path(dp) / f"{T}_r{r}_logp.npy").exists():
+                    continue
+                L81, Lp = np.load(f81, mmap_mode="r"), np.load(Path(dp) / f"{T}_r{r}_logp.npy", mmap_mode="r")
+                tp = read_tab(Path(dp) / f"{T}.csv")
+                tp = tp[tp.rep == r]
+                src = t81[(t81.wave == w) | ((t81.method == "none") & (w == "e77"))]
+                m = src.merge(tp[["student", "method", "param", "meff", "K", "row_id"]], on=["student", "method", "param", "meff", "K"], suffixes=("", "_p"))
+                for meth, gm in m.groupby("method"):
+                    v = max(float(np.abs(np.asarray(L81[int(a_)]) - np.asarray(Lp[int(b_)])).max()) for a_, b_ in zip(gm.row_id, gm.row_id_p))
+                    pa = min(float((np.asarray(L81[int(a_)]).argmax(1) == np.asarray(Lp[int(b_)]).argmax(1)).mean()) for a_, b_ in zip(gm.row_id, gm.row_id_p))
+                    ident.append({"run": run, "target": T, "rep": r, "check": "logp", "wave": w, "method": meth, "n_rows": len(gm), "n_src": int(len(src)),
+                                  "logp_maxabs": v, "pred_agree_min": pa, "ok": v <= TOL_LOGP})
+    _IDENT.append(ident)
+    return ident
+
+
 # ---------------------------------------------------------------- 入口
 
 def main() -> int:
@@ -588,6 +648,9 @@ def main() -> int:
         prov81 = json.loads((e81[run] / "provenance.json").read_text())
         checks.append({"check": "chosen_sha256", "run": run, "ok": prov81.get("chosen_sha256") == sha256(chosen)})
         checks.append({"check": "e81_split_is_g3", "run": run, "split": prov81.get("split"), "ok": prov81.get("split") == "g3"})
+        trial = {k_: prov81.get(k_) for k_ in ("allow_incomplete", "allow_dirty", "check_only") if prov81.get(k_)}
+        checks.append({"check": "e81_not_trial", "run": run, "flags": json.dumps(trial), "unchecked": json.dumps(prov81.get("unchecked", []), ensure_ascii=False),
+                       "ok": not trial and not prov81.get("unchecked") and "unchecked" in prov81})
         tg = [t for t in TARGETS if (e81[run] / f"{t}.csv").exists()]
         g3 = SrcStore(run, {T: {"*": e81[run]} for T in tg}, "saved", pick, B, seed, args.reps, checks, "g3")
         pstore = None
@@ -785,61 +848,32 @@ def main() -> int:
           "n_changed_with_dd_excl0": int(((~ST.same) & (ST.n_units_changed_dd_excl0 > 0)).sum()) if len(ST) else None,
           "ok": (bool(len(ST) and ST.same.all()) if U79 is not None else None)}
     rii = rule_ii()
+    scope = {run: {"targets": stores[run][1].targets, "reps": args.reps} for run in runs}
+    failed = sorted({c_["check"] for c_ in checks if not c_["ok"]})
+    if any(not x_.get("ok", True) for x_ in ident_rows(stores, runs, e81, prod, args)):
+        failed.append("identity_same_split")
+    if sorted(runs) != sorted(WORLDS81):
+        failed.append("missing_world")
+    for run in runs:
+        if stores[run][1].targets != list(TARGETS):
+            failed.append(f"missing_target:{run}")
+    if list(args.reps) != list(range(10)):
+        failed.append("reps_not_0_9")
+    if U79 is None:
+        failed.append("e79_judge_missing")
     flags = {"rule": "E81 の 4 節：(i) 作り直した文の鍵が世界・生徒・K・P5-1・P5-2・P5-3・P5-3u の全部で E79 の鍵と同じ，"
                      "(ii) oursx − none の UAR の ΔΔ が IEMOCAP と MELD の単位（定義から 0 の単位を除く）の過半で同じ水準で，Δ の判定の向きの逆転が 0．"
                      "両方を満たすときだけ K=0・5 の P5-1〜P5-3 の文から限定を外す",
              "i": ri, "ii": rii,
-             "decision": (None if ri["ok"] is None else ("限定を外す" if (ri["ok"] and rii["ok"]) else "限定を付ける")),
+             "scope": scope, "failed_checks": failed,
+             "decision": (None if (failed or ri["ok"] is None) else ("限定を外す" if (ri["ok"] and rii["ok"]) else "限定を付ける")),
              "sensitivity": {"ii_K0": rule_ii(K="0"), "ii_K5": rule_ii(K="5"), "ii_ex_script38": rule_ii("ex_script38"), "ii_impro_only": rule_ii("impro_only"),
                              "ii_cluster_boot": rule_ii("main", "cluster_boot")},
              "notes": [NOTE_DETECT, "P5-3u の文の鍵は E79 に無いので P5-1・P5-2 と同じ 3 つの区分で作った（impl.md）",
                        "両方の分割で判定できない鍵も (i) では同じに数える（4 節の (i) の文のまま）．数は i.n_both_undetermined",
                        "IEMOCAP の ΔΔ は即興で 4 通り，台本で 6 通りの学習側から来る（checks/E81/stats.md）"]}
     (args.out / "rule.json").write_text(json.dumps(flags, ensure_ascii=False, indent=1, default=str))
-    ident = []                                                                   # 反復ごとの点の値と，学習側が変わらない単位の照合
-    for run in runs:
-        cur, g3, pstore = stores[run]
-        R = pd.concat(g3.rows, ignore_index=True)
-        R.to_csv(args.out / f"rows_g3_{run}.csv.gz", index=False)
-        P = None
-        if pstore is not None:
-            P = pd.concat(pstore.rows, ignore_index=True)
-            P.to_csv(args.out / f"rows_cur_{run}.csv.gz", index=False)
-        elif cur.e79 is not None and run in cur.e79.S.point:
-            P = cur.e79.S.point[run]
-        if P is None:
-            continue
-        for (T, r) in sorted(SAME_SPLIT):
-            a = R[(R.target == T) & (R.rep == r)] if len(R) else R
-            if a.empty:
-                continue
-            b = P[(P.target == T) & (P.rep == r)]
-            kk_ = ["student", "K", "wave", "method", "param", "meff"]
-            jj = a.merge(b[kk_ + ["uar", "dirloss", "posloss"]], on=kk_, how="left", suffixes=("", "_cur"), indicator=True)
-            row = {"run": run, "target": T, "rep": r, "check": "points", "n_rows": len(a), "n_unmatched": int((jj._merge != "both").sum())}
-            for q in ("uar", "dirloss", "posloss"):
-                v = (jj[q] - jj[f"{q}_cur"]).abs()
-                row[f"{q}_maxabs"] = float(v.max()) if v.notna().any() else np.nan
-                row[f"{q}_n_over_tol"] = int((v > TOL_POINT).sum())
-            row["ok"] = row["n_unmatched"] == 0 and all(row[f"{q}_n_over_tol"] == 0 for q in ("uar", "dirloss", "posloss"))
-            ident.append(row)
-            t81 = read_tab(e81[run] / f"{T}.csv")
-            t81 = t81[t81.rep == r]
-            f81 = e81[run] / f"{T}_r{r}_logp.npy"
-            for w in ("e77", "e78", "e80c"):
-                dp = prod[w].get(run)
-                if not f81.exists() or not dp or not (Path(dp) / f"{T}_r{r}_logp.npy").exists():
-                    continue
-                L81, Lp = np.load(f81, mmap_mode="r"), np.load(Path(dp) / f"{T}_r{r}_logp.npy", mmap_mode="r")
-                tp = read_tab(Path(dp) / f"{T}.csv")
-                tp = tp[tp.rep == r]
-                src = t81[(t81.wave == w) | ((t81.method == "none") & (w == "e77"))]
-                m = src.merge(tp[["student", "method", "param", "meff", "K", "row_id"]], on=["student", "method", "param", "meff", "K"], suffixes=("", "_p"))
-                for meth, gm in m.groupby("method"):
-                    v = max(float(np.abs(np.asarray(L81[int(a_)]) - np.asarray(Lp[int(b_)])).max()) for a_, b_ in zip(gm.row_id, gm.row_id_p))
-                    pa = min(float((np.asarray(L81[int(a_)]).argmax(1) == np.asarray(Lp[int(b_)]).argmax(1)).mean()) for a_, b_ in zip(gm.row_id, gm.row_id_p))
-                    ident.append({"run": run, "target": T, "rep": r, "check": "logp", "wave": w, "method": meth, "n_rows": len(gm), "n_src": int(len(src)),
-                                  "logp_maxabs": v, "pred_agree_min": pa, "ok": v <= TOL_LOGP})
+    ident = ident_rows(stores, runs, e81, prod, args)
     pd.DataFrame(ident).to_csv(args.out / "identity_same_split.csv", index=False)
     C = pd.DataFrame(checks)
     C.to_csv(args.out / "checks.csv", index=False)
@@ -857,6 +891,9 @@ def main() -> int:
     print(f"単位 {len(U)} 行，移りの表 {len(TR)} 行，主の鍵 {len(ST)} 行，照合 {len(C)} 項目（食い違い {nbad}），同じ単位の照合 {len(ident)} 項目（食い違い {nid_bad}）",
           flush=True)
     print(f"書いた場所：{args.out}（値と結論は画面に出さない．rule.json に (i)・(ii) と結論）", flush=True)
+    if failed:
+        print(f"照合に落ちたか入力が欠けたので結論を書かない（rule.json の failed_checks：{len(failed)} 件）", flush=True)
+        return 1
     return 0
 
 

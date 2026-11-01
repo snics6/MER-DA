@@ -125,7 +125,7 @@ A5000（共有，0.15）の試しから：AV の IEMOCAP の 1 単位は約 50 �
 ## 7. RunPod での流し方（本体が gate-code の検査の後に）
 
 ```
-# 前提：E77・E78・E80c が終わり，E79 の select・measure・judge が済んでいる．2 本の台本をコミットしてある
+# 前提：E77・E78・E80c が終わり，E79 の段 (b) が済んでいる（g3_split.py）．analyze_e81.py は E79 の段 (d)（judge）の後．2 本の台本をコミットしてある
 ./.venv/bin/python exp/g3_split.py --world fuse-audio-video-text --check          # 分割と chosen.csv・kept の照合（解かない）
 ./.venv/bin/python exp/g3_split.py --world fuse-audio-video --check
 ./.venv/bin/python exp/g3_split.py --world fuse-audio-video-text --gpu-fraction 0.3
@@ -136,3 +136,10 @@ A5000（共有，0.15）の試しから：AV の IEMOCAP の 1 単位は約 50 �
     --e80c fuse-audio-video-text=results/e80c_fuse-audio-video-text fuse-audio-video=results/e80c_fuse-audio-video
 ```
 `g3_split.py` は既定で `results/e80c_<世界>/<T>_pool.csv` と照合し（照合 (c)），`results/e80/kept.csv` と `checks/E81/g3_counts_all.csv` を読む．
+
+## 8. gate-code の指摘（`checks/E81/code.md`）を受けた直し（2026-11-02．設計はコミット 0cc9285）
+
+1. **照合に落ちたら結論を書かない**（`analyze_e81.py` の `main`．852 行あたり）：`checks.csv` に偽の行がある，`identity_same_split.csv` に不一致がある（`ident_rows`，549 行），2 世界がそろわない（`missing_world`），どちらかの世界で 3 群がそろわない（`missing_target:<世界>`），反復が 0〜9 でない（`reps_not_0_9`），E79 の judge の出力が無い（`e79_judge_missing`），E81 の出力が試しの印（`--allow-incomplete`・`--allow-dirty`・`--check`）つきか照合を飛ばした記録を持つ（`e81_not_trial`），のどれかに当たれば `rule.json` の `decision` を null にし，終了の値を 1 にする．`rule.json` に判定の範囲（`scope`：世界ごとの群と反復）と偽になった照合の名前（`failed_checks`）を書く．`reps_incomplete`・`key_missing` は前から `checks.csv` の偽の行として残るので，この規則で結論を止める．
+2. **照合の入力が無いときに黙って進まない**（`g3_split.py`）：`skip_or_stop`（91 行）を通し，kept.csv が無い（`check_kept`，259 行），counts が無い（`check_counts`，179 行），agg_T が要るのに段 c の `_pool.csv` が無い（`check_agg`，356 行），chosen.csv の excl の行に無い DANN・MME・mapctl の設定がある（`read_chosen78`，241 行），のどれでも `--allow-incomplete` が無ければ止める．`--allow-incomplete` のときは飛ばした照合を provenance の `unchecked` に書き，`analyze_e81.py` はそれを見て結論を書かない．
+3. **保存を足した**（`g3_split.py` の `extra_rows`，706 行と `solve_student`）：(1) 自己学習の巡ごとの疑似ラベルの本数・正しさ・テストの UAR（E77 の `run_ab` と同じ形．束の全部の (τ, m_eff, K)）と，LP の疑似ラベルの本数・正しさ・共役勾配法の回数と残差（解いた (k, α, K)）を `<T>_diag.csv` に書く．(2) kept の教師の全部の配列を `_teachers.npz` に足す（`Teachers.keep_array`，418 行．波は E77 の教師の集合にあれば e77，無ければ e80c．agg_T が要るので，kept に poolC・mlp があれば agg_T を作る）．(3) 参照の行（`compare_dai.ref_rows`：ソースのみ，K=5 の合併とターゲットのみ，候補の全ラベルの上限 W*）を全部の生徒で，教師そのもののテストの行（E77 の pF・pFK・poe0・ref・ref0 と段 c の other・poolC・mlp・ds・agree）を融合の生徒の列で足す．行は `--ks` の K だけで，`<T>.csv` の wave は ref の行と E77 の教師が e77，段 c の教師が e80c，selectors は ref・teacher．行の数の照合は，選んだ設定と none の行だけで行う（`n_extra_rows` は `<T>_units.csv` に書く）．
+4. **段取り**：`analyze_e81.py` は E79 の段 (d)（judge）の後に流す（台本の説明と 7 節）．

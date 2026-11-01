@@ -84,6 +84,16 @@ E77_TEACH = {"mod": {"dist": ("pFK", "ref", "pF", "ownK"), "kd": ("pF", "pFK", "
              "fused": {"dist": ("ref", "ref0", "poe0", "ownK"), "kd": ("poe0", "ref")}}
 AGG = ES.AGG                                                                 # ("poolC", "mlp")
 AGG_TOL = 1e-9                                                               # agg_T の MLP の損失の相対の差の許容幅（段 c との照合）
+UNCHECKED: list = []                                                         # --allow-incomplete で飛ばした照合（provenance の unchecked．analyze_e81 は結論を書かない）
+REF_METHODS = ("ref_srconly", "ref_merged", "ref_tgtonly", "ref_wstar")
+
+
+def skip_or_stop(msg, allow, notes):
+    """照合の入力が無いとき：試しの印（--allow-incomplete）が無ければ止める．あれば記録して進む（gate-code の I8・I14）。"""
+    if not allow:
+        raise SystemExit(f"{msg}（照合を飛ばさない．試しだけ --allow-incomplete）")
+    notes.append(msg)
+    UNCHECKED.append(msg)
 
 
 # ---------------------------------------------------------------- 道具
@@ -166,10 +176,10 @@ class G3Ctx(CB.Ctx):
                 assert np.array_equal(pool, cur) and all(np.array_equal(self.idx[(r, K)], self.cur_idx[(r, K)]) for K in self.ks)
 
 
-def check_counts(ctx, world, T, counts, exclude, notes):
+def check_counts(ctx, world, T, counts, exclude, notes, allow):
     """照合 (d)：学習側の大きさが g3_counts_all.csv と同じか（構造の数だけ）。"""
     if counts is None:
-        notes.append("counts_not_checked")
+        skip_or_stop(f"{world} {T}：counts（g3_counts_all.csv）が無いので学習側の大きさを照合できない", allow, notes)
         return
     c = counts[(counts.run == world) & (counts["T"] == T)].set_index("rep")
     for r in ctx.reps:
@@ -228,7 +238,7 @@ def read_chosen(path, world, targets, ks, selectors, variant, allow_incomplete, 
     return plan, pd.DataFrame(used)
 
 
-def read_chosen78(path, world, targets, bks, methods, plan, notes):
+def read_chosen78(path, world, targets, bks, methods, plan, notes, allow):
     """E78 が評価のターゲットで種 1・2 を解いた設定（E78 の `<T>_chosen.csv`．E79 は excl の選択がそれと同じことを確かめて止める：
     analyze_e79 の choose_seeded_match）を，chosen.csv の excl の行（族 dann・mme・mapctl）から作る．T → {(生徒, 方法, K): {param}}．
     行が無い（試しの chosen.csv など）ときは，選んだ設定だけを足して記録する（束の中身が本番と違いうる）。"""
@@ -241,16 +251,17 @@ def read_chosen78(path, world, targets, bks, methods, plan, notes):
     for (T, st, K), sets_ in plan.items():
         for (wave, meth, pn, meff) in sets_:
             if meth in SEEDED_MAP and pn not in out[T].get((st, meth, K), set()):
+                skip_or_stop(f"{T} {st} K={K} {meth} {pn}：chosen.csv の excl の行に無い（種 1・2 の束が E78 と違いうる）", allow, notes)
                 out[T].setdefault((st, meth, K), set()).add(pn)
-                notes.append(f"{T} {st} K={K} {meth} {pn}：chosen.csv の excl の行に無いので種 1・2 の束に足した（E78 の束と違いうる）")
     return out
 
 
-def check_kept(plan, kept_path, world, notes):
-    """照合 (e)：oursx・kd の教師（dist・kd・kdh の行）が kept.csv で残した教師か（台本の行が無ければ即興の行．E79 の load_kept と同じ）。"""
+def check_kept(plan, kept_path, world, notes, allow):
+    """照合 (e)：oursx・kd の教師（dist・kd・kdh の行）が kept.csv で残した教師か（台本の行が無ければ即興の行．E79 の load_kept と同じ）．
+    戻りは (kept.csv の sha256, (T, 生徒, K) → 残した教師の集合)．後者は kept の教師の全部の配列の保存に使う。"""
     if kept_path is None or not Path(kept_path).exists():
-        notes.append("kept_not_checked")
-        return None
+        skip_or_stop(f"kept.csv（{kept_path}）が無いので選んだ教師を照合できない", allow, notes)
+        return None, {}
     kw = ES.read_kept(kept_path, world)
     kept = {(T, st, K): set(g.teacher[g.keep]) for (T, st, K), g in kw.groupby(["target", "student", "K"])}
     for (T, st, K), sets_ in plan.items():
@@ -263,7 +274,15 @@ def check_kept(plan, kept_path, world, notes):
                 k_ = kept.get((ES.SCRIPT_SRC[T], st, K))
             if k_ is None or name not in k_:
                 raise SystemExit(f"{T} {st} K={K}：選んだ教師 {name}（{meth}）が kept で残した教師に無い")
-    return sha_file(kept_path)
+    return sha_file(kept_path), kept
+
+
+def kept_of(kept, T, st, K):
+    """(T, 生徒, K) で残した教師（台本の行が無ければ即興の行）。"""
+    k_ = kept.get((T, st, K))
+    if k_ is None and T in ES.SCRIPT_SRC:
+        k_ = kept.get((ES.SCRIPT_SRC[T], st, K))
+    return sorted(k_ or ())
 
 
 # ---------------------------------------------------------------- 1 回目（E80 段 a の unit_pass1 と同じ．float64 の教師も返す）
@@ -279,12 +298,17 @@ def unit_pass1x(world, stu, yq, yte, label_sets, ks):
     pF = tens(stu[world]["P"])
     b1 = beliefs1(stu, world)
     lg, lg0 = {K: 0 for K in ks}, {K: 0 for K in ks}
+    lt, lt0, lpoe_t = {K: 0 for K in ks}, {K: 0 for K in ks}, 0                  # テストの上の教師（E77 の world_unit の teacher の行と同じ）
     for m in mods:
         sol = prs[m].solve([(("ref", K), weak_rows(P0_f[K], CD.REF_MIN), K) for K in ks] + [(("ref0", K), weak_rows(pF, CD.REF_MIN), K) for K in ks],
                            what="ref")
+        Zt_m = prs[m].s["Zte"]
+        lpoe_t = lpoe_t + torch.log_softmax(Zt_m @ prs[m].W0.T + prs[m].b0, 1)
         for K in ks:
             lg[K] = lg[K] + prs[m].probs(sol[("ref", K)], prs[m].s["Z"]).clamp(min=1e-12).log()
             lg0[K] = lg0[K] + prs[m].probs(sol[("ref0", K)], prs[m].s["Z"]).clamp(min=1e-12).log()
+            lt[K] = lt[K] + torch.log_softmax(Zt_m @ sol[("ref", K)][0].T + sol[("ref", K)][1], 1)
+            lt0[K] = lt0[K] + torch.log_softmax(Zt_m @ sol[("ref0", K)][0].T + sol[("ref0", K)][1], 1)
     votes = np.stack([stu[m]["P"].argmax(1) for m in mods], 1)
     post, pi, Cs = EA.dawid_skene(votes)
     ref = {K: torch.softmax(lg[K], 1) for K in ks}
@@ -296,7 +320,7 @@ def unit_pass1x(world, stu, yq, yte, label_sets, ks):
          "none_te": {k: {K: f32(torch.log_softmax(stu[k]["Zte"] @ none[k][K][0].T + none[k][K][1], 1)) for K in ks} for k in none},
          "poe0": f32(b1["poe"]), "agree": f32(b1["agree"]), "ds": f32(post), "ds_pi": pi, "ds_C": np.stack(Cs),
          "ref": {K: f32(ref[K]) for K in ks}, "ref0": {K: f32(ref0[K]) for K in ks}}
-    x = {"none": none, "P0": P0, "pF": pF, "poe0": tens(b1["poe"]), "ref": ref, "ref0": ref0}
+    x = {"none": none, "P0": P0, "pF": pF, "poe0": tens(b1["poe"]), "ref": ref, "ref0": ref0, "lt": lt, "lt0": lt0, "lpoe_t": lpoe_t}
     return u, prs, x
 
 
@@ -329,14 +353,14 @@ def agg_units(world, T, data_f, data_m, S, sets, pseudo_reps, cache):
     return units
 
 
-def check_agg(rows, e80c_dir, T, notes):
+def check_agg(rows, e80c_dir, T, notes, allow):
     """照合 (c)：agg_T の λ・選び方・単位の数・MLP の種と損失が段 c の `<T>_pool.csv`（pseudo ＝ *eval*，what ＝ final）と同じか。"""
     fin = [x for x in rows if x.get("what") == "final"]
     assert len(fin) == 1
     me = fin[0]
     f = None if e80c_dir is None else Path(e80c_dir) / f"{T}_pool.csv"
     if f is None or not f.exists():
-        notes.append(f"{T}：段 c の {f} が無いので agg_T を照合していない")
+        skip_or_stop(f"{T}：段 c の {f} が無いので agg_T を照合できない", allow, notes)
         return {"check": "agg_vs_e80c", "status": "not_checked"}
     e = pd.read_csv(f)
     e = e[(e.pseudo.astype(str) == "*eval*") & (e.what == "final")]
@@ -390,6 +414,17 @@ class Teachers:
             raise SystemExit(f"教師の波 {wave} は無い")
         self.used[f"{wave}__{name}__K{K}"] = P.detach().cpu().numpy() if torch.is_tensor(P) else np.asarray(P)
         return P
+
+    def keep_array(self, k, name, K):
+        """kept の教師の配列を保存に足す（波は E77 の教師の集合にあれば e77，無ければ e80c．gate-code の R9）．agg_T が無い poolC・mlp は False。"""
+        rl = role(self.world, k)
+        if name in E77_TEACH[rl]["dist"] or name in E77_TEACH[rl]["kd"]:
+            self.get("e77", "dist" if name in E77_TEACH[rl]["dist"] else "kd", k, name, K)
+        elif name in AGG and self.qC is None:
+            return False
+        else:
+            self.get("e80c", "kd" if name not in ES.E77_KD[rl] else "dist", k, name, K)
+        return True
 
 
 # ---------------------------------------------------------------- 手法（1 つの生徒の選んだ設定だけを解く）
@@ -448,9 +483,15 @@ def solve_student(world, k, pr, rec, sets_k, tch, lab, lab_full, rep, nc_seeds, 
             want.add((pn, meff, K))
         keys = [(tau, meff, K) for tau in CD.TAUS for meff in CD.MEFFS for K in CD.KS]
         cur = {key: P0[key[2]] for key in keys}
-        for _ in range(BD.ROUNDS_SELF):
+        for rnd in range(BD.ROUNDS_SELF):
             hr = {key: hard_rows(cur[key], key[0], key[1]) for key in keys}
             sol = pr.solve([(key, hr[key], key[2]) for key in keys], what="self")
+            for key in keys:                                                     # E77 の run_ab と同じ診断（巡ごとの疑似ラベルの本数と正しさ，テストの UAR．gate-code の R9）
+                on = hr[key].view(4, n).sum(0) > 0
+                lab_ = hr[key].view(4, n).argmax(0)
+                rec.diag.append({**rec.tag, "student": k, "method": "self", "param": key[0], "meff": key[1], "K": key[2], "round": rnd + 1,
+                                 "n_pseudo": int(on.sum()), "acc_pseudo": float((lab_[on] == pr.yt[on]).float().mean()) if on.any() else float("nan"),
+                                 "uar_test": float(CB.uar(rec.yte, (Zte @ sol[key][0].T + sol[key][1]).argmax(1).cpu().numpy()))})
             cur = {key: pr.probs(sol[key], s["Z"]) for key in keys}
         for (tau, meff, K), Wb in sol.items():
             if (tau, meff, K) in want:
@@ -493,7 +534,14 @@ def solve_student(world, k, pr, rec, sets_k, tch, lab, lab_full, rep, nc_seeds, 
             kk, al, form = lp_of(pn)
             if K == "0" or meff not in CD.MEFFS:
                 raise SystemExit(f"lp の K={K}・m_eff {meff} は格子に無い")
-            Fs = CD.lp_scores(s["Z"], *lab[K], kk, al)
+            cg = {}
+            Fs = CD.lp_scores(s["Z"], *lab[K], kk, al, info=cg)
+            on = Fs.sum(1) > 0                                                   # E77 の run_ab と同じ診断（gate-code の R9）
+            if len(lab[K][0]):
+                on[torch.as_tensor(lab[K][0], device=on.device)] = False
+            rec.diag.append({**rec.tag, "student": k, "method": "lp", "param": f"k{kk}a{al}", "meff": "-", "K": K, "round": 0, "n_pseudo": int(on.sum()),
+                             "acc_pseudo": float((Fs[on].argmax(1) == pr.yt[on]).float().mean()) if on.any() else float("nan"),
+                             "uar_test": float("nan"), "form": form, "lp_meff": meff, **cg})
             items.append(((pn, meff, K), CD.lp_rows(Fs, lab[K][0], form, meff, n), K))
         for (pn, meff, K), Wb in pr.solve(items, what="lp").items():
             rec.add(k, "lp", pn, meff, K, Wb=Wb, Zte=Zte)
@@ -653,9 +701,63 @@ def wanted_k(wanted, ks):
     return {(K, p) for p, Ks in wanted.items() for K in Ks if K in ks}
 
 
+# ---------------------------------------------------------------- 参照・教師のテストの行と kept の教師の配列（gate-code の R9・R10）
+
+def extra_rows(world, T, S, data_f, data_m, pool, te, prs, rec, x, u, tch, agg, label_sets, ks, kept, studs, notes):
+    """(1) 参照の行（`compare_dai.ref_rows`：ソースのみ，合併・ターゲットのみ（K=5），候補の全ラベルの上限 W*）を生徒ごとに，
+    (2) 教師そのもののテストの行（E77 の world_unit の pF・pFK・poe0・ref・ref0 と，段 c の solve_unit の other・poolC・mlp・ds・agree），
+    (3) kept の教師の全部の配列（`_teachers.npz`）．行は --ks の K だけ。"""
+    mods = WORLDS[world]
+    raw = CD.raw_world(world, data_f, data_m, T, S, pool, te)
+    old = (CD.KS, CD.REF_KS)
+    CD.KS, CD.REF_KS = tuple(ks), tuple(K for K in CD.REF_KS if K in ks)      # ref_rows は K ごとに独立に解くので，行を残す K だけ
+    try:
+        for k in mods + [world]:
+            CD.ref_rows(rec, k, prs[k], raw[k][:4], label_sets)
+    finally:
+        CD.KS, CD.REF_KS = old
+    del raw
+    Zt_f = prs[world].s["Zte"]
+    for K in ks:                                                                 # E77 の world_unit の teacher の行
+        rec.add(world, "teacher", "pF", "0", K, logits=Zt_f @ prs[world].W0.T + prs[world].b0)
+        rec.add(world, "teacher", "pFK", "0", K, Wb=x["none"][world][K], Zte=Zt_f)
+        rec.add(world, "teacher", "poe0", "0", K, logits=x["lpoe_t"])
+        rec.add(world, "teacher", "ref", "0", K, logits=x["lt"][K])
+        rec.add(world, "teacher", "ref0", "0", K, logits=x["lt0"][K])
+    names = [n_ for n_ in dict.fromkeys(n_ for k in [world] + mods for n_ in ES.r1_names(world, k)) if n_ not in ES.E77_TEACHER_ROWS]
+    Lte = {m: torch.log_softmax(prs[m].s["Zte"] @ prs[m].W0.T + prs[m].b0, 1) for m in mods}   # 段 c の solve_unit の teacher の行と同じ
+    P32 = {m: EA.f32(Lte[m].exp()) for m in mods}
+    Fte = np.log(np.clip(np.stack([P32[m] for m in mods], 1).astype(np.float64), 1e-12, None))
+    votes = np.stack([Lte[m].argmax(1).cpu().numpy() for m in mods], 1)
+    pF_te = torch.softmax(Zt_f @ prs[world].W0.T + prs[world].b0, 1).cpu().numpy()
+    aggte = ES.agg_pred(agg, Fte) if agg is not None else (None, None)
+    for K in ks:
+        for n_ in names:
+            if n_.startswith("other_"):
+                m = n_[len("other_"):]
+                rec.add(world, "teacher", n_, "0", K, logits=prs[m].s["Zte"] @ prs[m].W0.T + prs[m].b0)
+            elif n_ in AGG:
+                if agg is None:
+                    continue
+                rec.add(world, "teacher", n_, "0", K, probs=aggte[AGG.index(n_)])
+            elif n_ == "ds":
+                rec.add(world, "teacher", n_, "0", K, probs=ES.ds_apply(votes, u["ds_pi"], list(u["ds_C"])))
+            elif n_ == "agree":
+                rec.add(world, "teacher", n_, "0", K, probs=pF_te * np.where((votes == votes[:, :1]).all(1), 1.0, ES.AGREE_LOW)[:, None])
+            else:
+                raise SystemExit(f"teacher の行の作り方が無い教師 {n_}")
+    n_skip = 0
+    for k in studs:                                                              # kept の教師の全部の配列（教師の疑似ラベルの正しさを後から測れるように）
+        for K in ks:
+            for n_ in kept_of(kept, T, k, K):
+                n_skip += int(not tch.keep_array(k, n_, K))
+    if n_skip:
+        notes.append(f"{T}：agg_T が無いので poolC・mlp の配列 {n_skip} 個を残していない")
+
+
 # ---------------------------------------------------------------- 評価のターゲットごと
 
-def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan, used, unit_cache, prov, counts, c78):
+def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan, used, unit_cache, prov, counts, c78, kept):
     mods = WORLDS[world]
     studs = mods + [world]
     notes = []
@@ -667,7 +769,7 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
     ev = data_f[T]
     assert len(blk) == len(ev.y)
     ctx = G3Ctx(ev, args.reps, list(EA.KS_LAB_ALL), blk, exclude=not args.no_exclude)
-    check_counts(ctx, world, T, counts, not args.no_exclude, notes)
+    check_counts(ctx, world, T, counts, not args.no_exclude, notes, args.allow_incomplete)
     for r in args.reps:                                                         # 照合 (a)
         if (T, r) in SAME_SPLIT:
             st_ = ctx.stats[r]
@@ -680,6 +782,7 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
     used_T.to_csv(out / f"{T}_plan.csv", index=False)
     needs_agg = any(meth in ("dist", "kd", "kdh") and wave == "e80c" and (pn.split(":")[0] if meth == "dist" else re.sub(r"T\d+$", "", pn)) in AGG
                     for sets_ in tp.values() for (wave, meth, pn, meff) in sets_)
+    needs_agg |= any(n_ in AGG for st in studs for K in ks for n_ in kept_of(kept, T, st, K))   # kept の教師の全部の配列を残す（gate-code の R9）
     CD.save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S, "split": "cur" if args.no_exclude else "g3", "chosen_sha256": prov["chosen_sha256"],
                                     "kept_sha256": prov.get("kept_sha256"), "needs_agg": needs_agg,
                                     "plan": {f"{a}|{b}|{c}": sorted("|".join(k_) + "#" + ";".join(sorted(v)) for k_, v in sets_.items())
@@ -707,7 +810,7 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
         keys = list(units)
         assert all(CM.corp(c) != CM.corp(T) for c, _ in keys)
         agg_T, poolr = ES.fit_agg(world, keys, units, {"pseudo": "*eval*"}, zlib.crc32(f"{world}|{T}|eval".encode()) & 0x7FFFFFFF)
-        chk = check_agg(poolr, args.e80c_dir, T, notes)
+        chk = check_agg(poolr, args.e80c_dir, T, notes, args.allow_incomplete)
         poolr = [{**x, **({k_: v for k_, v in chk.items()} if x.get("what") == "final" else {})} for x in poolr]
         print(f"  {world} {T}：agg_T（{len(keys)} 単位，照合 {chk['status']}）{time.perf_counter() - t0:.0f} 秒", flush=True)
     info = {k: M5.pool_info(data_m[k] if k != world else data_f, S, C_FIT, cache[k]) for k in sets}
@@ -772,6 +875,11 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
             map_cfg = {"methods": args.e78_methods, "batch_ks": bks, "chosen78": c78.get(T, {})}
             solve_student(world, k, prs[k], rec, sk, tch, lab, lab_full, r, args.nc_seeds, map_cfg, map_src)
         t_solve = time.perf_counter() - t1
+        t1 = time.perf_counter()
+        n0 = len(rec.rows)
+        extra_rows(world, T, S, data_f, data_m, pool, te, prs, rec, x, u, tch, agg_T, label_sets, ks, kept, studs, notes)
+        n_extra = len(rec.rows) - n0
+        t_extra = time.perf_counter() - t1
         CD.flush_stats(rec, prs)
         sel_of = {}                                                              # 行 → 選んだ族（none は "none"）
         for k in studs:
@@ -786,6 +894,10 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
                 seed = int(m_.group(1)) if m_ else 0
             if row["method"] == "none":
                 wave, sels = "e77", "none"
+            elif row["method"] in REF_METHODS:
+                wave, sels = "e77", "ref"
+            elif row["method"] == "teacher":
+                wave, sels = ("e77" if row["param"] in ES.E77_TEACHER_ROWS else "e80c"), "teacher"
             else:
                 key = (row["student"], row["method"], pn, row["meff"], row["K"])
                 if key not in sel_of:
@@ -796,8 +908,8 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
         want_rows = sum((len(args.nc_seeds) + 1 if key[1] in SEEDED_NC else (len(E78.SEEDS) if key[1] in SEEDED_MAP else 1))
                         for k in studs for K in ks for key in tp.get((T, k, K), {})) + len(studs) * len(ks)
         n_coral_missing = len(miss_r)
-        if len(rec.rows) != want_rows - n_coral_missing:
-            raise SystemExit(f"{T} r{r}：行の数 {len(rec.rows)} が期待 {want_rows - n_coral_missing} と違う")
+        if len(rec.rows) - n_extra != want_rows - n_coral_missing:
+            raise SystemExit(f"{T} r{r}：選んだ設定と none の行の数 {len(rec.rows) - n_extra} が期待 {want_rows - n_coral_missing} と違う")
         missing += miss_r
         rec.teachers = tch.used
         rec.save(out, T, r, te)
@@ -806,9 +918,9 @@ def run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan
         np.savez(out / f"{T}_r{r}_kshot.npz", **{f"K{K}": ctx.idx[(r, K)] for K in EA.KS_LAB_ALL})
         rows += rec.rows
         sec = time.perf_counter() - t0
-        urows.append({"target": T, "rep": r, **ctx.stats[r], "n_rows": len(rec.rows), "n_rows_expected": want_rows, "n_coral_missing": n_coral_missing,
+        urows.append({"target": T, "rep": r, **ctx.stats[r], "n_rows": len(rec.rows), "n_rows_expected": want_rows, "n_extra_rows": n_extra, "n_coral_missing": n_coral_missing,
                       "sec": round(sec, 2), "sec_students": round(t_stu, 2), "sec_coral": round(t_coral, 2), "sec_pass1": round(t_p1, 2),
-                      "sec_solve": round(t_solve, 2), "gpu_max_gb": round(torch.cuda.max_memory_allocated() / 2 ** 30, 2) if torch.cuda.is_available() else None})
+                      "sec_solve": round(t_solve, 2), "sec_extra": round(t_extra, 2), "gpu_max_gb": round(torch.cuda.max_memory_allocated() / 2 ** 30, 2) if torch.cuda.is_available() else None})
         print(f"  {world} {T} r{r}：{len(rec.rows)} 行，候補 {len(pool)}（除いた {ctx.stats[r]['n_excl']}）　{sec:.0f} 秒", flush=True)
         del stu, prs, rec, u, x, tch
         torch.cuda.empty_cache()
@@ -869,8 +981,8 @@ def main() -> int:
     todo = targets if args.check else [t for t in targets if not CD.check_resume(out, t, commit)]
     notes = []
     plan, used = read_chosen(args.chosen, world, targets, ks, args.selectors, args.variant, args.allow_incomplete, notes)
-    c78 = read_chosen78(args.chosen, world, targets, bks, args.e78_methods, plan, notes)
-    kept_sha = check_kept(plan, args.kept, world, notes)
+    c78 = read_chosen78(args.chosen, world, targets, bks, args.e78_methods, plan, notes, args.allow_incomplete)
+    kept_sha, kept = check_kept(plan, args.kept, world, notes, args.allow_incomplete)
     counts = pd.read_csv(args.counts) if args.counts and Path(args.counts).exists() else None
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(args.gpu_fraction)
@@ -882,6 +994,7 @@ def main() -> int:
             "nc_seeds": list(args.nc_seeds), "nc_scale": CD.NC_SCALE, "map_seeds": list(E78.SEEDS), "batch_ks": list(bks), "e78_methods": args.e78_methods,
             "chosen78": {T: {"|".join(k_): sorted(v) for k_, v in d_.items()} for T, d_ in c78.items()}, "gpu_fraction": args.gpu_fraction,
             "tf32": "dann・mme・mapctl の run_map の間だけ真（E78 と同じ）．ほかは偽（E77・E80c と同じ）", "agg_tol": AGG_TOL,
+            "allow_incomplete": args.allow_incomplete, "unchecked": UNCHECKED,
             "block_cols": {k: list(v[1]) for k, v in BLOCK_COLS.items()}, "same_split_units": sorted(SAME_SPLIT), **CD.versions(),
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "", "sec": {}, "notes": {"chosen": notes}}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1, default=str))
@@ -895,7 +1008,7 @@ def main() -> int:
     unit_cache = {}
     for T in todo:
         t0 = time.perf_counter()
-        run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan, used, unit_cache, prov, counts, c78)
+        run_target(world, T, data_f, data_m, args, ks, bks, out, cache, commit, plan, used, unit_cache, prov, counts, c78, kept)
         prov["sec"][T] = round(time.perf_counter() - t0, 1)
         (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1, default=str))
         mem = f"　GPU 最大 {torch.cuda.max_memory_allocated() / 2 ** 30:.1f} GB" if torch.cuda.is_available() else ""
