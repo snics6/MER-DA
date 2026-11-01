@@ -174,3 +174,77 @@
 - 求める対応：`waived` を「元の判定の文のうち `check_failed` に無いもの」にするか，ステップ 4 の台本で読むときにそう読むと書く
 
 `provenance.json` の run の `script` は今も `"exp/relearn_e76.py"` である（本体の 778 行）．包み台本で流した run とは，`check_rule_finish.json` の `started`〜`finished` の時間の範囲と，`written` の code_hash で結べる．記録として足りる．
+
+---
+
+# 再検査 2（2026-11-02，コミット fc4fbd7．検査の間に HEAD は 208fdf5 に進んだが，差は E81 の文書と台本だけで，`exp/relearn_e76_finish.py` と E76 の依存の 10 本は変わっていない）
+
+## 判定
+
+通す．①・② の C と規則の違いを記録だけにする判定は，承認の条件（C の 4 つの値すべてのテストの UAR が tol の中，選ばれた C の UAR の基準も満たす）のときだけ通し，そうでなければ止まる．既存のファイルの判定が変わるのは，承認で受け入れた MELD と RAVDESS だけだった．CREMA-D だけを流すと，AFEW・RAVDESS のファイルには触れず，check_rule_finish.json に 2 件目が正しく足された．
+
+## 確かめたこと
+
+差分は `exp/relearn_e76_finish.py` の 29 行である．`C_WAIVED`，`c_waivable`，`verdict_finish` の先頭（summ を写してから C_mismatch と rule_mismatch を 0 にする），`change_c`，`accepted_existing` の RAVDESS，docstring が変わった．1 回目の本番（`results/e76` の AFEW・RAVDESS）はコミット 2790344 で流れていた．2790344 と 61bd0df の間で `exp/`・`measure/`・`features/` に差は無く，AFEW・RAVDESS の code_hash は前回の試しと同じ 17f731311ff0 だった．
+
+**(1) 判定**（CPU．評価の値は出していない）
+
+既存の 41 個の json に元の判定と新しい判定を当てると，結果が違うのは 2 つだった．
+- audio_hubert の MELD：元の判定は 1 件で落ち，新しい判定は 0 件．h9 の数の基準で，前回の承認どおり
+- audio_hubert の RAVDESS：元の判定は 1 件で落ち，新しい判定は 0 件．tgt_only の C の不一致
+- AFEW はどちらの判定も 0 件で，今までと同じ
+
+RAVDESS で C が違った条件は 1 つ（K＝全件，反復 6）だった．E76 は C=10 を規則 cv で選び，地図は C=1 を規則 tie で選んだ．保存した交差検証の UAR では，上位 2 つの差は 0.0016 だった．
+
+RAVDESS の check の tgt_only を人工的に書き換えて，新しい判定を当てた．
+
+| 書き換え（C_mismatch＝1，rule_mismatch＝1 のまま．最後の 2 行は除く） | 新しい判定 |
+|---|---|
+| そのまま（max_allC_over_tol ＝ 3.3e-15） | 通る |
+| max_allC_over_tol ＝ 1.5（C の 4 つの値のテストの UAR が tol を超える） | 止まる |
+| max_allC_over_tol ＝ 1.0（境界） | 通る（`<= 1.0`．設計の「≤ 1」と同じ） |
+| max_allC_over_tol ＝ None | 止まる |
+| 選ばれた C の差 ÷ tol ＝ 2.6 | 止まる |
+| 選ばれた C の tol 超え 2/60 | 止まる |
+| C_mismatch ＝ 5，rule_mismatch ＝ 5，テストの UAR は一致 | 通る（下の残る指摘） |
+| src_only で C_mismatch ＝ 1，max_allC_over_tol ＝ 1.2 | 止まる |
+| C の不一致が無く，max_allC_over_tol ＝ 3.0 | 止まる（元の基準のまま） |
+
+`verdict_finish` は summ を写してから書き換えるので，呼んだ側の summ は変わらない（C_mismatch は 1 のまま）．json の `check` には実際の不一致の数が残る．
+
+**(2)(3) CREMA-D だけを流す道筋**
+
+GPU は試しの前に 1.2 GiB・使用率 0% だった．scratchpad の `rechk2/` に，本番の今の状態を写した．写したのは `results/e76/check_rule_finish.json`（1 件）と，`audio_hubert/` の AFEW・RAVDESS の json・npz・csv で，それぞれの sha256 を控えた．そのうえで，前回と同じ検査用の台本（引数の検査とハッシュの照合を通した後，本体にだけ `--reps 0` を足す）から流した．
+
+- コマンド：`<scratchpad>/harness/run_finish_rep0.py --kinds audio_hubert --targets CREMA-D --gpu-fraction 0.2 --out <scratchpad>/rechk2`
+- 結果：219 秒，終了コード 0，GPU の最大 1.38 GiB，npz 10.0 MiB
+- 包み台本を除いたハッシュは 9891f0668848 で，E76 の本番と一致した．計算の前の照合を通った
+- CREMA-D の code_hash は b5b36158ddd4 で，AFEW・RAVDESS の 17f731311ff0 とも，E76 の 9891f0668848 とも違う．`code_dirty` は偽，`check_failed` は空
+- 照合はすべて tol の 1.0 倍以下で，超過は 0 件だった．h7 と merged は差 ÷ tol がちょうど 1.0 で，超過は `diff > tol` で数えるので 0 件になる．C と規則の不一致は 0 件
+- AFEW・RAVDESS の json・npz・csv は sha256 が流す前と同じだった．再開の照合は `--targets` に入れたターゲットのファイルしか見ないので，ハッシュの違う AFEW・RAVDESS に触れずに進んだ
+- `check_rule_finish.json` は 2 件になった．1 件目は流す前の内容と同じだった．2 件目には次の値が入っていた
+  - `script`，`started`・`finished`，`result: "ok"`
+  - 2 つのハッシュ（どちらも 9891f066…）
+  - `written: {"audio_hubert/CREMA-D": "b5b36158…"}`，`waived: {"audio_hubert/CREMA-D": []}`
+  - `change_c`
+  - `accepted_existing`：MELD の h9 の 1 件と，RAVDESS の tgt_only の 1 件
+
+本番の 1 回目の記録では，`written` は AFEW・RAVDESS ともに 17f731311ff0 で，`waived` は AFEW 0 件・RAVDESS 1 件（tgt_only）だった．`result` は SystemExit で，止まった理由と合っている．
+
+ステップ 4 で audio_hubert を読む台本は，コードのハッシュを 3 つ受け入れる．9891f0668848 は既存の 4 ターゲット，17f731311ff0 は AFEW・RAVDESS，CREMA-D の値は本番で決まる．E76 の 10 節にある「2 つのハッシュを受け入れる」は「3 つ」に直す．
+
+## 残る指摘
+
+### [I7] C の不一致の数に上限が無い
+- 重さ：記録する
+- 該当箇所：`relearn_e76_finish.py` の `c_waivable`
+- 問題：テストの UAR が C の 4 つの値すべてで地図と合えば，C の不一致が 5/60 でも通る．交差検証の折り方を取り違えると，テストの UAR を変えずに C だけが変わりうる．今回は包み台本を除いたコードのハッシュが E76 の本番と同じことを計算の前に確かめているので，交差検証のコードが違う可能性は無い．数のずれは丸めでしか生じない．また，選ばれた C の UAR の数の基準（超過 1% 以下）が，C が大きく入れ替わった場合を捕まえる
+- 求める対応：直さなくてよい．CREMA-D で C の不一致が出たら，その数を E76 の 10 節に書く
+
+### [記録] E76 の 10 節の「2 つのハッシュ」を「3 つ」に直す
+- 重さ：記録する
+- 該当箇所：`docs/exploratory-analyses.md:8973`（「A(HuBERT) についてこの 2 つのハッシュを受け入れる」，「承認の範囲は h9・h10 だけ」）
+- 問題：CREMA-D は AFEW・RAVDESS と違うハッシュになるので，受け入れるハッシュは 3 つになる．承認の範囲には，2 回目の承認で①・② の C と規則が加わった（同じ節の「2 回目の止まり」）
+- 求める対応：8973 行を「3 つのハッシュ（9891f0668848，17f731311ff0，CREMA-D の値）」と「承認の範囲は h9・h10 の数の基準と，①・② の C と規則の違い（条件つき）」に直す
+
+前回の残る指摘 2 件（`--out` が無いときの finally，waived の中身）は直っていないが，本番の `results/e76` では影響しない（前回のとおり）．
