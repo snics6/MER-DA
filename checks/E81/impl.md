@@ -103,7 +103,7 @@ DANN・MME の種 1・2 と MME（参照の側で回していない）は比べ�
 
 ## 4. 所要の見込み
 
-A5000（共有，0.15）の試しから：AV の IEMOCAP の 1 単位は約 50 秒，MELD は約 100 秒，AVT の IEMOCAP は約 80 秒（MELD は約 150〜200 秒と見込む），agg_T は（世界, T）ごとに約 1〜5 分．本番の 60 単位（2 世界 × 3 群 × 10 反復）は A5000 でおよそ 1.5〜2.5 時間に当たる．H100 は A5000 の約 3.5 倍速い（`checks/E80/code.md`）ので，本番は 1 世界ずつ順に流しておよそ 30〜60 分と見込む．群 B が DANN・MME（反復 1,000 回の 30 問の束を種 0 で解く）や CORAL（r = 128，AVT の融合の生徒）を多く選ぶと伸びる．解析（CPU）は 1,000 回の複製で数分〜十数分．
+A5000（共有，0.15）の試しから：AV の IEMOCAP の 1 単位は約 50 秒，MELD は約 100 秒，AVT の IEMOCAP は約 80 秒（MELD は約 150〜200 秒と見込む），agg_T は（世界, T）ごとに約 1〜5 分．本番の 60 単位（2 世界 × 3 群 × 10 反復）は A5000 でおよそ 1.5〜2.5 時間に当たる．H100 は A5000 の約 3.5 倍速い（`checks/E80/code.md`）ので，本番は 1 世界ずつ順に流しておよそ 30〜60 分と見込む（8 節で足した参照・教師の行で 10〜15 分増える）．群 B が DANN・MME（反復 1,000 回の 30 問の束を種 0 で解く）や CORAL（r = 128，AVT の融合の生徒）を多く選ぶと伸びる．解析（CPU）は 1,000 回の複製で数分〜十数分．
 
 ## 5. 設計から変えたこと・決めたこと（理由）
 
@@ -143,3 +143,10 @@ A5000（共有，0.15）の試しから：AV の IEMOCAP の 1 単位は約 50 �
 2. **照合の入力が無いときに黙って進まない**（`g3_split.py`）：`skip_or_stop`（91 行）を通し，kept.csv が無い（`check_kept`，259 行），counts が無い（`check_counts`，179 行），agg_T が要るのに段 c の `_pool.csv` が無い（`check_agg`，356 行），chosen.csv の excl の行に無い DANN・MME・mapctl の設定がある（`read_chosen78`，241 行），のどれでも `--allow-incomplete` が無ければ止める．`--allow-incomplete` のときは飛ばした照合を provenance の `unchecked` に書き，`analyze_e81.py` はそれを見て結論を書かない．
 3. **保存を足した**（`g3_split.py` の `extra_rows`，706 行と `solve_student`）：(1) 自己学習の巡ごとの疑似ラベルの本数・正しさ・テストの UAR（E77 の `run_ab` と同じ形．束の全部の (τ, m_eff, K)）と，LP の疑似ラベルの本数・正しさ・共役勾配法の回数と残差（解いた (k, α, K)）を `<T>_diag.csv` に書く．(2) kept の教師の全部の配列を `_teachers.npz` に足す（`Teachers.keep_array`，418 行．波は E77 の教師の集合にあれば e77，無ければ e80c．agg_T が要るので，kept に poolC・mlp があれば agg_T を作る）．(3) 参照の行（`compare_dai.ref_rows`：ソースのみ，K=5 の合併とターゲットのみ，候補の全ラベルの上限 W*）を全部の生徒で，教師そのもののテストの行（E77 の pF・pFK・poe0・ref・ref0 と段 c の other・poolC・mlp・ds・agree）を融合の生徒の列で足す．行は `--ks` の K だけで，`<T>.csv` の wave は ref の行と E77 の教師が e77，段 c の教師が e80c，selectors は ref・teacher．行の数の照合は，選んだ設定と none の行だけで行う（`n_extra_rows` は `<T>_units.csv` に書く）．
 4. **段取り**：`analyze_e81.py` は E79 の段 (d)（judge）の後に流す（台本の説明と 7 節）．
+
+### 8.1 直した版の試し（コミット a23456e の後．A5000，`--gpu-fraction 0.15`）
+- 止める照合（CPU，`--check`）：kept.csv が無い，counts が無い，chosen.csv の excl の行に DANN の設定が無い，の 3 つで，`--allow-incomplete` が無ければ止まり，あれば進んで provenance の `unchecked` に 3 件を書いた．段 c の `_pool.csv` が無いときの止まり方は 3.3 節の `check_agg` の試しと同じ道（今回は `--allow-incomplete` で `unchecked` に入ることを GPU の試しで確かめた）．
+- 足した保存（AV の IEMOCAP 即興の反復 0，`--no-exclude`）：同じ単位を `compare_dai.py --ks 0 5 25` で新しく解いた参照と比べ，参照の行（ソースのみ 6，合併 3，ターゲットのみ 3，W* 6）と E77 の教師のテストの行 10 の対数の確率がビット単位で同じだった（予測の一致 1，UAR の差 0）．段 c の教師のテストの行 12（other・poolC・mlp・ds・agree）は段 c の参照が無いので比べていない（段 c の `solve_unit` の同じ行の写し）．`_teachers.npz` は kept の 19 の（生徒, K, 教師）から重なりを除いた 14 の配列を持ち，E77 の波の 5 つは E77 の参照の `teachers.npz` とビット単位で同じだった．`_diag.csv` に自己学習の 108 行（36 の設定 × 3 巡）と LP の 2 行が入った．選んだ設定と none の行の数は期待の 35 と同じで，足した行は 40 だった．
+- 所要：この単位は 108 秒（足した行に 38 秒．大半は参照の合併の当てはめ）．本番の見込みは 1 単位あたり A5000 で 30〜40 秒，H100 で約 10 秒増え，全体で 10〜15 分増える．
+- 解析の結論の止め方：同じ単位を偽の E79（measure と judge を本物の台本で流したもの）と比べると，ΔΔ の点の値と区間の端の絶対値の最大は 3.6e−15 で，照合（`cur_units_vs_e79_units`・`cur_keys_vs_e79_statements`・`cur_store_vs_e79_measure` など）は通った．入力が 1 世界・1 群・反復 0 だけで，E81 の出力が試しの印つきなので，`rule.json` の `decision` は null，`failed_checks` は `e81_not_trial`・`e81_split_is_g3`・`missing_world`・`missing_target:fuse-audio-video`・`reps_not_0_9` の 5 つ，終了の値は 1 だった．
+- 試しの出力（`mine_cur_av`・`ref_e77_av`・`fake79`・`ana3`）は確かめた後に消した（台帳の行のとおり）．
