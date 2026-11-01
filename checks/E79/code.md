@@ -593,3 +593,11 @@ CPU だけ．`--allow-dirty`（作業木の `exp/explore_view_fusion.py` が dir
 
 ### 見たデータ
 画面に出たのは，候補の数，選んだ波の回数，照合の差の最大と行の数，判定の種類の数，`chosen.csv` の 1 行目（AVT の音声の生徒，K＝0，entmin の none_score．仮のターゲットの値）だけである．評価のターゲットの UAR は開いていない．
+
+## 追記 4（段 c の none の照合の再検査．2026-11-01 夜．gate-code．段 c の台本 f55915c，E79 は b9d4ea9 のまま）
+
+### 判定
+通す．追記 3 の [I-e80c-none] は段 c の側の直しで解けた．段 c の新しい出力（`checks/E80/code_run_c/gate/sub_avt2`）を select と measure に通すと，select に `none_e77_vs_e80c_pseudo`（24 項目，差 0）が，measure に `none_e77_vs_e80c_logp`（即興の反復 0，差 0）が出た．`chosen.csv` の sha256 は none の行の無い前回の出力（`gate/e79b`）と同じ 72e98e88… だった．つまり none の行は選択に入らない．none の値を UAR で 1e−6，logp で 1e−4 ずらした写しでは，`none_e77_vs_e80c_pseudo_over_tol` と `none_e77_vs_e80c_over_tol` が記録された．出力は `gate/e79c/` と `gate/e79c_bad/`．
+
+### 記録
+- 仮のターゲットの照合は E77 と段 c の none を内側で結合するので，段 c の none に E77 の対応が無い行は数えるだけで止まらない．試走では段 c の none 48 行のうち E77 の写しにある 24 行だけが比べられた．残りは台本の写しの行で，E77 の写しに台本の行が無いためである．本番では E77 も台本の仮のターゲットを写すのでそろう．`n` が `n_e80c_none` より小さければ止める形にすると確かになる
