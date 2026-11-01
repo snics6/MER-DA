@@ -177,3 +177,27 @@ bash $SP/scripts/reader_test.sh     # analyze_e82 を fixed・reselect × delta�
 - 人工の候補の表（`$SP/scripts/test_choose.py`．点数は作った数）：倍率 1・3・10 が同点 → 倍率 1（文字列の順なら `-C10x`），3 倍と 10 倍が同点で最良 → 3 倍（同 10 倍），同じ倍率の中の同点 → E79 と同じ文字列の順，10 倍がはっきり上 → 10 倍，E82 の行が無い族 → E79 の choose と同じ．5 つの場合すべて決定どおり
 - 3.3 節の試しの入力で reselect の版を delta → select → measure → judge → compare（`--fixed-from` に 3.3 節の fixed）と流し直した（`$SP/rt_analysis2`．各段 20〜30 秒，終了の値 0）．この入力には倍率をまたぐ同点が無く，chosen.csv の 198 行は前の版と 1 行も変わらなかった．作り直しと chosen.csv の食い違い 0，`n_mult10` と `n_mult10_strict` が違う行 0/20，ほかの検算も食い違い 0
 - 同点を作った入力（`$SP/tie_case`．E82 の entmin の仮のターゲットの 160 行の値を E77 の倍率 1 の同じ設定の値に置き換え，どの設定でも 3 つの倍率が同点になるようにした）：entmin の excl・K 0・5 の 6 単位すべてが倍率 1（E77 の行）を選び（n_tie は 3 以上），E79 の文字列の順なら 6 単位とも 10 倍だった（`mult_string_order`）．`n_tie_chose_lower_mult` は entmin 6，im 0，self 0．entmin 以外の族の選択は 180 行すべて前と同じ．measure・judge・compare も終了の値 0，作り直しの食い違い 0
+
+## 8. 関門 1 の後の直し（2026-11-02．設計はコミット 4a52140 の E82 の 2〜4 節．報告は `checks/E82/{stats,leak,compare,define}.md`）
+
+直す前の版は 4a52140 に入っている．直した版は下のコミットに入れてから試した（`docs/methods.md` 9.1 節．評価のターゲットで試す前に台本をコミットする）．
+
+`exp/s43_penalty.py`（sha256 先頭 `3bf22778f93dd0d4`）：
+- **none の対照**（define D10，compare）：`run_methods`（`:131-`）の最初で，倍率 3・10 のそれぞれについて none を同じ C′ で解き，method none・param `-C3x`・`-C10x`・meff 0 の行を K 0・5 で書く（仮のターゲットと評価の両方．`:142-153`）．倍率 1（恒等の試し専用）では書かない
+- **K=0 の検算**：倍率の none の K=0 は出発点そのもので C′ に依らないので，W・b が E39 の none とビット単位で同じことを台本の中で確かめ，`<T>_e82check.csv`（check `none_K0_mult_vs_e39`，W・b の差の最大，ok）に書く．違えば止まる（`:146-153`）
+- **出発点からの離れ**（設計の 2 節の記述の列，define D8）：`Rec2`（`:93-`）が W・b のある行ごとに ‖W − W_出発点‖_F ÷ ‖W_出発点‖_F（`dW_rel`）と ‖b − b_出発点‖（`db`）を `<T>_dist.csv` に書く（生徒の座標 Z の上．出発点は E39 の下書き＝罰則の中心＝K=0 の none．`one_unit` の `:234`）．none（E39・倍率），self，entmin（種 0・1・2），IM の全行
+- 倍率の none の行は，仮のターゲットの `_ps_*_none.npz`（E39 の none．δ の材料）を上書きしない（`Rec2.add`）
+- `--copy-pseudo` の写しは `_dist.csv`・`_e82check.csv` の仮のターゲットの行も写す（`copy_extra`，`:253-`）．`--check` は倍率の none を `none_mult` として数え（E77 に相手が無いはず），`_e82check.csv` を読む
+- 1 単位の行の数：評価 246 行（242 ＋ 倍率の none 4），仮のターゲット 118 行（114 ＋ 4）
+
+`exp/analyze_e82.py`（sha256 先頭 `29cdbe44999e6abe`）：
+- **比べ (b)**：新しい段 `judge_b`（reselect の版だけ）．E79 の判定の段を `StoreB`（`:138-`）で流す．E79 の判定の compare は単位の群ごとに手法の鍵を読んだすぐ後に none の鍵を読む（`analyze_e79.py:2084-2085`）ので，直前の手法の鍵の倍率が 1 でなければ none の鍵を同じ倍率の none（`none_cp`）に替える．倍率 1 の行（E77・E78 の行）と K=0 では (a) と同じ値になり，compare の段でこれを確かめる（`n_units_a_b_differ_K0`，ほかの 5 手法で (a) と (b) の点の値が違う単位の数）
+- 倍率の none の読み方：E82 の場所の表では倍率の none を method `none_cp` に読み替える（`read_rows_e82`，`:117-`．E79 は e80c の波の none を 1 つの鍵に 1 行と決めて E77 の none と照らす（`analyze_e79.py:606`・`:1470`）ので，そのままでは重複で壊れる）．`key_table_e82`（`:128-`）が none_cp の鍵を測る鍵に足す
+- **「働かなかった」**：E82 から選んだ設定は，同じ C′ の none（none_cp）との予測の食い違いで材料を作る（`diagnostics_e82`，`:211-`）．倍率 1 の設定は E79 のまま E39 の none（同じ C′）と比べる．材料は (a)・(b) で共通
+- **書き方の規則**（設計の 3 節）：`decision.csv` は手法 × 族ごとに tag main・subset all の手法ごとの鍵で分ける（`category_of`，`:454-`）：same_a（(a) が固定の版と同じ → 限定なし），limit（(a) が変わり (b) も同じ向き → 限定あり），k_label（(a) が変わり (b) は固定と同じ → 限定なしで「罰則を弱めて K 本のラベルで動いた分」の内訳を添える），opposite（(a) と (b) が逆の向き．設計に無い場合で本体が判断）．向きは鍵が筋 4 を狭める強さ（(3) < (4) < (2′) < (2) < (1)．E79 の印の優先の順）の増減で決める．unseen_only の鍵と (2′) の same_combos は記述の列．全体の行に「限定を外せるのは entmin・IM・自己学習だけ（T3A・LP・DANN・MME には残す）」と，固定と (a) がともに (4) なら「約 1.5δ_d より大きな減りは無かった」までと書く注を出す
+- **倍率の数**：`multipliers.csv` に（実行，生徒，K，手法）ごとの行を足し（stats S7．単位は仮のターゲットを共有するので独立でないと注），過半の母数を手法が選ばれた単位（__none__ を除く）にした（define D1）．`decision.csv` に（実行，生徒，K，手法）の組のうち 10 倍が過半の組の数を出す
+- **候補の数**（compare C2）：`candidates.csv`（固定と選び直した版の n_cand．族 × 手法 × K）
+- **oracle_dir**（stats S4）：`oracle_dir_both.csv`（2 つの版を格子の大きさ `grid_size` を添えて並べる）と `oracle_dir_summary.csv`（版 × 手法 × K の δ_d 以上の単位の数）
+- `decision.csv` の分け方を作った鍵の組で確かめた：(4)(4)(4) → same_a，(4)(2′)(2) → limit，(4)(2′)(4) → k_label，(3)(4)(1) → limit，(2)(4)(1) → opposite，鍵の欠け → missing
+
+試しの結果は 9 節．

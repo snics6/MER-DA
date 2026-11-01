@@ -6,8 +6,11 @@
 
 何を変えて，何を変えないか：
   変える  ：self・entmin・im の解きで使う C′（`Prob2.solve`・`compare_dai.im_solve` が解くときに読む `pr.s["cp"]`）＝ 倍率 × E39 の C′（`geom_e0.settings`）
-  変えない：C_b・ρ_M・罰則の中心（E39 の下書き）・生徒・候補・K 本・テスト．none・自己学習の出発点 P0・エントロピー最小化と IM の初期値は
+  変えない：C_b・ρ_M・罰則の中心（E39 の下書き）・生徒・候補・K 本・テスト．自己学習の出発点 P0・エントロピー最小化と IM の初期値は
             E39 の C′ で解いた none（none は E77 の本番と同じ束（--none-ks．既定 0 5 25）で解く．none の行は E77 の none と同じ値のはず）
+  none の対照：倍率ごとに同じ C′ で解いた none の行（param `-C3x`・`-C10x`）も書く（仮のターゲットと評価の両方．関門 1 の define D10・compare）．
+            K=0 の none は出発点そのもので C′ に依らないので，E39 の none と W・b がビット単位で同じことを台本の中で確かめ（違えば止まる），`<T>_e82check.csv` に書く
+  離れ    ：W・b のある行ごとに，解の出発点（E39 の下書き）からの離れ ‖W − W_出発点‖_F ÷ ‖W_出発点‖_F と ‖b − b_出発点‖ を `<T>_dist.csv` に書く（設計の 2 節の記述の列）
   格子    ：self は τ 3 × m_eff 4，entmin は m_eff 4，IM は α 3 × m_eff 4（TIM は E79 が選ばないので解かない）．評価の単位では
             entmin・IM を揺らした出発点（`compare_dai.shaken`．種 --nc-seeds）からも解く（E77 と同じ）
   範囲    ：--kind audio_wavlm / video / text_roberta（種類の生徒．P4）か --world fuse-audio-video / fuse-audio-video-text（融合の生徒だけ．P4′）
@@ -18,9 +21,10 @@
   `<T>.csv`（target, rep, row_id, student, method, param, meff, K, uar, commit），`<T>_r<r>_logp.npy`・`_pred.npy`・`_rowids.npy`・`_te.npy`・
   `_W_<生徒>.npy`・`_b_<生徒>.npy`・`_wrows_<生徒>.npy`，`<T>_pseudo.csv`，`<T>_ps_<c>_r<r>_none.npz`，`<T>_samples.csv`，`<T>_settings.json`，
   `<T>_conv.csv`（解きごとの所要と収束．what に倍率の印），`<T>_convp.csv`（問ごとの反復の回数・勾配と，解いた C′ の値 cp），`<T>_diag.csv`（自己学習の疑似ラベル），
-  `<T>_cp.csv`（単位 × 生徒 × 倍率の E39 の C′ と解きに使った C′），provenance.json・provenance_log.jsonl
+  `<T>_cp.csv`（単位 × 生徒 × 倍率の E39 の C′ と解きに使った C′），`<T>_dist.csv`（行ごとの出発点からの離れ），`<T>_e82check.csv`（K=0 の倍率の none の検算），
+  provenance.json・provenance_log.jsonl
 照合（--check E77 の場所．GPU を使わない）：`check.csv`（none の E77 との一致，E77 と鍵が重ならないこと，同じ鍵の行の差．値は出さず差と数だけを出す）．
-  none の不一致・相手の無い none・倍率 1 を含まない出力で E77 と重なる鍵が 1 つでもあれば終了の値 1
+  none（E39 の C′）の不一致・相手の無い none・倍率 1 を含まない出力で E77 と重なる鍵（倍率の none を含む）・K=0 の検算の食い違いが 1 つでもあれば終了の値 1
 
     ./.venv/bin/python exp/s43_penalty.py --kind video --copy-pseudo                         # 本番（倍率 3・10，K 0・5，種 1・2）
     ./.venv/bin/python exp/s43_penalty.py --world fuse-audio-video-text --copy-pseudo
@@ -86,6 +90,31 @@ class Prob3(CD.Prob2):
             self.per.append({"what": what, "key": str(key), "n_iter": int(f.n_iter[cp]), "grad": float(f.grad[cp]), "cp": float(cp)})
 
 
+class Rec2(CD.Rec):
+    """`compare_dai.Rec` に 2 つを足す：(1) W・b のある行ごとに，解の出発点からの離れ ‖W − W_出発点‖_F ÷ ‖W_出発点‖_F と ‖b − b_出発点‖
+    （生徒の座標 Z の上．出発点は E39 の下書き＝罰則の中心＝K=0 の none．`start[生徒]`）を `dist` に書く．(2) 倍率の C′ の none の行（param が '-' でない）は
+    仮のターゲットの none の対数の確率（`_ps_*_none.npz`．E79 の δ の材料と照合）を上書きしない（npz は E39 の C′ の none だけを持つ）。"""
+
+    def __init__(self, tag, yte, keep):
+        super().__init__(tag, yte, keep)
+        self.start, self.dist, self.check = {}, [], []
+
+    def add(self, student, method, param, meff, K, probs=None, Wb=None, Zte=None, logits=None):
+        mult_none = method == "none" and str(param) != "-"
+        old = self.none_lp.get((student, K))
+        super().add(student, method, param, meff, K, probs=probs, Wb=Wb, Zte=Zte, logits=logits)
+        if mult_none and not self.keep:
+            if old is None:
+                self.none_lp.pop((student, K), None)
+            else:
+                self.none_lp[(student, K)] = old
+        if Wb is not None and student in self.start:
+            W0, b0 = self.start[student]
+            self.dist.append({**self.tag, "row_id": self.rows[-1]["row_id"], "student": student, "method": method, "param": str(param),
+                              "meff": str(meff), "K": K, "dW_rel": float(torch.linalg.norm(Wb[0] - W0) / torch.linalg.norm(W0)),
+                              "db": float(torch.linalg.norm(Wb[1] - b0))})
+
+
 # ---------------------------------------------------------------- 1 つの生徒
 
 def im_timed(pr, starts, combos, what):
@@ -110,6 +139,17 @@ def run_methods(pr, rec, student, none, P0, mult, cp0, cplog):
     s["cp"] = float(mult) * cp0
     cplog.append({**rec.tag, "student": student, "mult": float(mult), "cp_e39": float(cp0), "cp_used": float(s["cp"])})
     try:
+        if tag:                                                                # none の対照（関門 1 の define D10・compare）：同じ C′ で解いた none（K 本だけ）
+            none_m = pr.solve([(K, None, K) for K in KS], what=f"none{tag}")
+            for K in KS:
+                rec.add(student, "none", f"-{tag}", "0", K, Wb=none_m[K], Zte=Zte)
+            if "0" in KS:                                                      # 検算：K=0 の none は出発点そのもので C′ に依らない（E39 の none と同じはず）
+                dW = float((none_m["0"][0] - none["0"][0]).abs().max())
+                db = float((none_m["0"][1] - none["0"][1]).abs().max())
+                rec.check.append({**rec.tag, "student": student, "check": "none_K0_mult_vs_e39", "mult": float(mult), "W_absdiff_max": dW,
+                                  "b_absdiff_max": db, "ok": dW == 0.0 and db == 0.0})
+                if dW != 0.0 or db != 0.0:
+                    raise RuntimeError(f"{rec.tag} {student}：倍率 {mult} の K=0 の none が E39 の none と違う（W {dW}，b {db}）")
         keys = [(tau, meff, K) for tau in CD.TAUS for meff in CD.MEFFS for K in KS]   # 自己学習（run_ab の 397〜410 行と同じ．出発点は E39 の C′ の none）
         cur = {key: P0[key[2]] for key in keys}
         sol = {}
@@ -191,6 +231,7 @@ def one_unit(student, s, yq, yte, label_sets, rec, center, mults, cplog):
     rec.xform[student] = (st.mats[s["rho_m"]][0], st.src.sd, center + st.src.mu)   # 生の特徴の上の W・b（E77 と同じ写し方）
     t0 = time.perf_counter()
     pr = Prob3(s, yq, label_sets)
+    rec.start[student] = (pr.W0, pr.b0)                                       # 解の出発点（E39 の下書き．Z の座標）
     solve_student(pr, rec, student, mults, float(s["cp"]), cplog)
     CD.flush_stats(rec, {student: pr})
     rec.conv.append({**rec.tag, "student": student, "what": "unit_total", "sec": time.perf_counter() - t0})
@@ -198,8 +239,10 @@ def one_unit(student, s, yq, yte, label_sets, rec, center, mults, cplog):
 
 # ---------------------------------------------------------------- ターゲットごと
 
-def finish(out, T, commit, rows, conv, diag, convp, cplog):
+def finish(out, T, commit, rows, conv, diag, convp, cplog, dist, check):
     """評価のターゲットまで終えたら記録と行を書く（仮のターゲットの行は評価の前に書いてある）。"""
+    pd.DataFrame(dist).assign(commit=commit).to_csv(out / f"{T}_dist.csv", index=False)
+    pd.DataFrame(check).assign(commit=commit).to_csv(out / f"{T}_e82check.csv", index=False)
     pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
     pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
     pd.DataFrame(convp).assign(commit=commit).to_csv(out / f"{T}_convp.csv", index=False)
@@ -207,14 +250,15 @@ def finish(out, T, commit, rows, conv, diag, convp, cplog):
     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)  # 最後に書く（check_resume が終わった印に使う）
 
 
-def copy_cp(out, T, cplog):
-    """写した仮のターゲットの C′ の記録（写し元の `_cp.csv` の仮のターゲットの行）。"""
+def copy_extra(out, T, lists):
+    """写した仮のターゲットの記録（写し元の `_cp.csv`・`_dist.csv`・`_e82check.csv` の仮のターゲットの行）。lists = {名前: 足す先の list}。"""
     src = CD.COPY_SRC[T]
-    f = out / f"{src}_cp.csv"
-    if f.exists() and f.stat().st_size > 1:
-        e = pd.read_csv(f)
-        if "pseudo" in e.columns:
-            cplog += e[e.pseudo.notna()].rename(columns={"commit": "src_commit"}).assign(copied_from=src).to_dict("records")
+    for name, lst in lists.items():
+        f = out / f"{src}_{name}.csv"
+        if f.exists() and f.stat().st_size > 1:
+            e = pd.read_csv(f, dtype={"param": str, "meff": str, "K": str})
+            if "pseudo" in e.columns:
+                lst += e[e.pseudo.notna()].rename(columns={"commit": "src_commit"}).assign(copied_from=src).to_dict("records")
 
 
 def pseudo_header(T, S, pseudo_targets, pseudo_reps, copy, out, commit, args_now):
@@ -234,9 +278,9 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
                                             "e82": {"mults": [float(m) for m in mults], "cp_e39": sets[4],
                                                     "cp": {ctag(m) or "C1x": float(m) * sets[4] for m in mults}}})
     prows, conv, diag, convp, S_loop = pseudo_header(T, S, pseudo_targets, pseudo_reps, copy, out, commit, args_now)
-    cplog = []
+    cplog, dist, check = [], [], []
     if not S_loop and copy and T in CD.COPY_SRC:
-        copy_cp(out, T, cplog)
+        copy_extra(out, T, {"cp": cplog, "dist": dist, "e82check": check})
     for c in S_loop:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
         if not pool_c or (pseudo_targets and c not in pseudo_targets):
@@ -247,8 +291,8 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             s = kind_student(kind, evc, M.rows(evc.X, pool) - ctxc.ct[r], src_c, lin_c, n_c, pool_c, CD.C_FIT, te, ctxc.ct[r], sets)
-            rec = CD.Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
-            rec.conv, rec.diag, rec.convp = conv, diag, convp
+            rec = Rec2({"pseudo": c, "rep": r}, evc.y[te], keep=False)
+            rec.conv, rec.diag, rec.convp, rec.dist, rec.check = conv, diag, convp, dist, check
             one_unit(kind, s, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec, ctxc.ct[r], mults, cplog)
             rec.save_pseudo(out, T, c, r, te)
             prows += rec.rows
@@ -262,14 +306,14 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         s = kind_student(kind, ev, M.rows(ev.X, pool) - ctx.ct[r], src_pc, lin, n_of, S, C_T, te, ctx.ct[r], sets)
-        rec = CD.Rec({"target": T, "rep": r}, ev.y[te], keep=True)
-        rec.conv, rec.diag, rec.convp = conv, diag, convp
+        rec = Rec2({"target": T, "rep": r}, ev.y[te], keep=True)
+        rec.conv, rec.diag, rec.convp, rec.dist, rec.check = conv, diag, convp, dist, check
         one_unit(kind, s, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec, ctx.ct[r], mults, cplog)
         rec.save(out, T, r, te)
         rows += rec.rows
         del s, rec
         torch.cuda.empty_cache()
-    finish(out, T, commit, rows, conv, diag, convp, cplog)
+    finish(out, T, commit, rows, conv, diag, convp, cplog, dist, check)
 
 
 def run_world(world, T, data_f, reps, pseudo_reps, out, cache, commit, pseudo_targets, mults, copy, args_now):
@@ -280,9 +324,9 @@ def run_world(world, T, data_f, reps, pseudo_reps, out, cache, commit, pseudo_ta
                                     "e82": {"mults": [float(m) for m in mults], "cp_e39": sets[world][4], "students": [world],
                                             "cp": {ctag(m) or "C1x": float(m) * sets[world][4] for m in mults}}})
     prows, conv, diag, convp, S_loop = pseudo_header(T, S, pseudo_targets, pseudo_reps, copy, out, commit, args_now)
-    cplog = []
+    cplog, dist, check = [], [], []
     if not S_loop and copy and T in CD.COPY_SRC:
-        copy_cp(out, T, cplog)
+        copy_extra(out, T, {"cp": cplog, "dist": dist, "e82check": check})
     for c in S_loop:
         pool_c = [s for s in S if CM.corp(s) != CM.corp(c)]
         if not pool_c or (pseudo_targets and c not in pseudo_targets):
@@ -293,8 +337,8 @@ def run_world(world, T, data_f, reps, pseudo_reps, out, cache, commit, pseudo_ta
         for r in pseudo_reps:
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             s, mu = fused_student(world, c, data_f, pool_c, pool, te, sets, info_c)
-            rec = CD.Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
-            rec.conv, rec.diag, rec.convp = conv, diag, convp
+            rec = Rec2({"pseudo": c, "rep": r}, evc.y[te], keep=False)
+            rec.conv, rec.diag, rec.convp, rec.dist, rec.check = conv, diag, convp, dist, check
             one_unit(world, s, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec, mu, mults, cplog)
             rec.save_pseudo(out, T, c, r, te)
             prows += rec.rows
@@ -308,14 +352,14 @@ def run_world(world, T, data_f, reps, pseudo_reps, out, cache, commit, pseudo_ta
     for r in reps:
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         s, mu = fused_student(world, T, data_f, S, pool, te, sets, info)
-        rec = CD.Rec({"target": T, "rep": r}, ev.y[te], keep=True)
-        rec.conv, rec.diag, rec.convp = conv, diag, convp
+        rec = Rec2({"target": T, "rep": r}, ev.y[te], keep=True)
+        rec.conv, rec.diag, rec.convp, rec.dist, rec.check = conv, diag, convp, dist, check
         one_unit(world, s, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec, mu, mults, cplog)
         rec.save(out, T, r, te)
         rows += rec.rows
         del s, rec
         torch.cuda.empty_cache()
-    finish(out, T, commit, rows, conv, diag, convp, cplog)
+    finish(out, T, commit, rows, conv, diag, convp, cplog, dist, check)
 
 
 # ---------------------------------------------------------------- 照合（GPU を使わない）
@@ -350,7 +394,8 @@ def run_checks(out, e77):
             rows.append({"check": "pseudo_e77_missing", "target": T, "ok": False})
             continue
         j = a.merge(b[["pseudo", "rep"] + key + ["uar"]], on=["pseudo", "rep"] + key, suffixes=("", "_e77"), how="left")
-        for meth, x in j.groupby("method"):
+        j["mkey"] = np.where((j.method == "none") & (j.param != "-"), "none_mult", j.method)   # 倍率の C′ の none は E77 に相手が無いはず
+        for meth, x in j.groupby("mkey"):
             mt = x.uar_e77.notna()
             d = float((x.uar - x.uar_e77).abs()[mt].max()) if mt.any() else np.nan
             rows.append({"check": f"pseudo_{meth}", "target": T, "n": int(len(x)), "n_matched": int(mt.sum()), "uar_max_abs": d,
@@ -395,13 +440,20 @@ def run_checks(out, e77):
             rows.append({"check": "eval_rows_vs_logp", "target": T, "rep": int(r), "n": int(len(ar)),
                          "ok": bool(len(ar) == La.shape[0] == Pa.shape[0] and np.array_equal(ar.row_id.to_numpy(), np.arange(len(ar))))})
             j = ar.merge(br[key + ["row_id", "uar"]], on=key, suffixes=("", "_e77"), how="left")
-            for meth, x in j.groupby("method"):
+            j["mkey"] = np.where((j.method == "none") & (j.param != "-"), "none_mult", j.method)
+            for meth, x in j.groupby("mkey"):
                 mt = x[x.row_id_e77.notna()]
                 vl = max((float(np.abs(La[int(i)] - Lb[int(k)]).max()) for i, k in zip(mt.row_id, mt.row_id_e77)), default=np.nan)
                 npred = int(sum(int((Pa[int(i)] != Pb[int(k)]).sum()) for i, k in zip(mt.row_id, mt.row_id_e77)))
                 du = float((mt.uar - mt.uar_e77).abs().max()) if len(mt) else np.nan
                 rows.append({"check": f"eval_{meth}", "target": T, "rep": int(r), "n": int(len(x)), "n_matched": int(len(mt)), "max_abs": vl,
                              "n_pred_differ": npred, "uar_max_abs": du, "ok": ok_of(meth, len(x), len(mt), vl, TOL_LOGP)})
+    for f in sorted(out.glob("*_e82check.csv")):                              # 台本の中の検算（K=0 の倍率の none ＝ E39 の none）
+        e = pd.read_csv(f) if f.stat().st_size > 1 else pd.DataFrame()
+        if len(e) and "check" in e.columns:
+            for c_, g in e.groupby("check"):
+                rows.append({"check": f"inscript_{c_}", "target": f.name[: -len("_e82check.csv")], "n": int(len(g)),
+                             "max_abs": float(g[["W_absdiff_max", "b_absdiff_max"]].max().max()), "ok": bool(g.ok.astype(bool).all())})
     d = pd.DataFrame(rows)
     if d.empty:
         print("照合する出力が無い", flush=True)
