@@ -306,6 +306,8 @@ class SrcStore:
                 self.point[(v, T, key)] = pt
 
         def geff_of(rs):
+            if not rs:
+                return np.nan
             vc = pd.Series(spk_all[np.concatenate([te_of[r] for r in rs])]).value_counts()
             return float(vc.sum() ** 2 / (vc ** 2).sum())
         geff = {"all": geff_of(reps), "ex_script38": geff_of([r for r in reps if r not in excl])}
