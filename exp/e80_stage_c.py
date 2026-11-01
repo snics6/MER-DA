@@ -10,13 +10,16 @@
 K は keep が真の K だけ．IEMOCAP-script の kept の行が無ければ即興の行を使う（E80 の段 a は台本を即興の単位で測る．E79 の load_kept と同じ）。
 
 行の形は E77 と同じ：dist（重みの付け方 bal・raw・hard0.5・0.7・0.9 × 総重み 100・500・2000・n．param は「教師:重み」），
-kd・kdh（温度 2・4 × 総重み．param は「教師T温度」），teacher（param は教師，meff 0）．none・own などほかの手法の行は作らない（E77 と鍵が重ならない）。
+kd・kdh（温度 2・4 × 総重み．param は「教師T温度」），teacher（param は教師，meff 0）．このほかに E77 と同じ形の none の行を書く
+（仮のターゲットは UAR，評価のターゲットは対数の確率と W・b）．none の行は E79 が E77 の none と照合するためだけのもので（仮のターゲットは UAR の差 1e−9，
+評価は対数の確率の差 1e−5），E79 は段 c の dist・kd・kdh・teacher の行だけを手法の候補にする．own などほかの手法の行は作らない。
 
 単位と作り方：
   仮のターゲット c の単位（R4 の選択に要る）：E77 と同じ（c ∈ S，c と同じコーパスでないソース，反復 --pseudo-reps）．教師は段 a と同じ
     （`e80_teacher_j.unit_pass1`．poolC・mlp は同じ T の仮のターゲットのうち c と同じコーパスでない群で学ぶ．λ・種も段 a と同じ）．
-    1 回目で全単位の教師を作り，poolC・mlp を学び，2 回目で生徒を作り直して（出発点が 1 回目と同じことを確かめる）dist・KD を解く。
-    IEMOCAP-script は同じ出力の場所の IEMOCAP-impro の仮のターゲットの結果を写す（E77 の --copy-pseudo と同じ考え．設定・kept の集合・引数の一致を確かめる）
+    1 回目で全単位の教師を作り，poolC・mlp を学び，2 回目で生徒を作り直して（出発点と none が 1 回目とビット単位で同じことを確かめる）none・dist・KD を解く。
+    IEMOCAP-script は同じ出力の場所の IEMOCAP-impro の仮のターゲットの結果を写す（E77 の --copy-pseudo と同じ考え．設定・kept の集合・引数の一致と，
+    写し元の none・teachers の npz の鍵と teachers の配列の sha256 を確かめる）
   評価のターゲット T の単位（P5 に要る）：生徒・none・K 本は E77 と同じ（`make_students`，S の全群，`unit_pass1`）．poolC・mlp は
     T の仮のターゲットの全単位（S の全群の候補．全反復）で学び，λ は S のコーパスを 1 つずつ外して選ぶ（1 つのコーパスなら話者の 2 つの袋．段 a の choose_lam）。
     ds は T の候補の票から（ラベル無し）．agree・other は段 a と同じ
@@ -26,13 +29,16 @@ kd・kdh（温度 2・4 × 総重み．param は「教師T温度」），teacher
   `<T>.csv`（target, rep, row_id, student, method, param, meff, K, uar, commit），`<T>_r<r>_logp.npy`・`_pred.npy`・`_rowids.npy`・`_te.npy`・
   `_W_<生徒>.npy`・`_b_<生徒>.npy`・`_wrows_<生徒>.npy`，`<T>_r<r>_teachers.npz`（足した教師の候補の上の確率．鍵は「教師__K<K>」），
   `<T>_pseudo.csv`（pseudo, rep, row_id, …），`<T>_ps_<c>_r<r>_teachers.npz`，`<T>_conv.csv`・`<T>_convp.csv`，`<T>_samples.csv`，`<T>_settings.json`
-  照合と記録：`<T>_ps_<c>_r<r>_none.npz`（E77 と同じ形の仮のターゲットの none），`<T>_r<r>_none.npz`（評価のターゲットの none．鍵は「生徒|K」），
+  照合と記録：`<T>_ps_<c>_r<r>_none.npz`（E77 と同じ形の仮のターゲットの none），
   `<T>_teach_hash.csv`（dist・kd・kdh に渡した配列と保存した配列の sha256），`<T>_pool.csv`（λ の選び，MLP の種と損失），
   `<T>_ds.csv`（Dawid–Skene の反復の回数と最後の 1 回の変化），`<T>_plan.csv`（計算した（生徒, K, 教師, 手法））．provenance.json・provenance_log.jsonl
-  照合（--check．GPU を使わない）：`check.csv`（none の E77 との一致，同じ配列，E77 と鍵が重ならないこと，E77 の教師の集合，段 a の教師の配列との一致）
+  照合（--check．GPU を使わない）：`check.csv`（none の E77 との一致，同じ配列，E77 と鍵が重ならないこと，E77 の教師の集合，段 a の教師の配列との一致）．
+  不一致・状態が ok でない項目・許容幅（none の対数の確率 1e−5，仮のターゲットの none の UAR 1e−9，段 a の教師の配列 0）を超える項目が 1 つでもあれば終了の値 1
 
     ./.venv/bin/python exp/e80_stage_c.py --world fuse-audio-video-text --kept results/e80/kept.csv [--target …] [--reps …] [--pseudo-reps …] [--ks 0 5 25]
-    ./.venv/bin/python exp/e80_stage_c.py --world fuse-audio-video-text --check [--check-e77 results/e77_fuse-audio-video-text] [--check-e80a results/e80]
+    ./.venv/bin/python exp/e80_stage_c.py --world fuse-audio-video-text --check --check-e77 results/e77_fuse-audio-video-text --check-e80a results/e80/avt
+    ./.venv/bin/python exp/e80_stage_c.py --world fuse-audio-video --check --check-e77 results/e77_fuse-audio-video --check-e80a results/e80/av
+  H100 の本番は既定の --gpu-fraction 0.3（本物の kept では 1 回に束ねる問が最大 480．A5000 の 0.25 では落ちる）
 """
 
 from __future__ import annotations
@@ -76,6 +82,7 @@ E77_KD = {"mod": ("pF", "pFK", "ref"), "fused": ("poe0", "ref")}
 E77_TEACHER_ROWS = ("pF", "pFK", "poe0", "ref", "ref0")                    # compare_dai.py の world_unit の teacher の行
 SCRIPT_SRC = dict(CD.COPY_SRC)                                               # {"IEMOCAP-script": "IEMOCAP-impro"}
 AGG = ("poolC", "mlp")
+TOL_LOGP, TOL_UAR, TOL_TEACH = 1e-5, 1e-9, 0.0                  # --check の許容幅（E79 の none の照合と同じ．段 a の教師の配列は同じ値のはず）
 GRID = {"meffs": list(MEFFS), "wgts": list(WGTS), "kd_temps": list(KD_TEMPS), "e77_dist": E77_DIST, "e77_kd": E77_KD,
         "e77_teacher_rows": list(E77_TEACHER_ROWS), "eval_mlp_seed": "crc32(world|T|eval)", "pseudo_mlp_seed": "crc32(world|T|c)（段 a と同じ）",
         "e80a": EA.GRID}
@@ -221,6 +228,19 @@ def agg_pred(agg, F):
 
 # ---------------------------------------------------------------- 1 つの単位の dist・KD・teacher の行
 
+def none_rows(world, prs, rec, u, ks):
+    """E77 と同じ形の none の行（compare_dai.run_ab の 1 行目と同じ束ね方で解き，Rec.add で足す）．E79 が E77 の none と照合するためだけの行で，
+    手法の候補にはならない．値が 1 回目（unit_pass1）の none とビット単位で同じことを確かめる（同じ生徒を作り直したことの照合も兼ねる）。"""
+    for k in [world] + WORLDS[world]:
+        sol = prs[k].solve([(K, None, K) for K in ks], what="none")
+        for K in ks:
+            W, b = sol[K]
+            lp = EA.f32(torch.log_softmax(prs[k].s["Zte"] @ W.T + b, 1))
+            if not np.array_equal(lp, u["none_te"][k][K]):
+                raise SystemExit(f"{rec.tag} の生徒 {k}（K={K}）の none が 1 回目と違う")
+            rec.add(k, "none", "-", "0", K, Wb=(W, b), Zte=prs[k].s["Zte"])
+
+
 def solve_unit(world, prs, rec, plan, trows, u, agg, hrows, htag):
     """plan の dist・kd・kdh を解き，teacher の行（テストの上の教師の予測）を足す．戻りは保存する教師の配列 {"教師__K<K>": float64}。"""
     mods = WORLDS[world]
@@ -316,8 +336,8 @@ def pseudo_pass_a(world, T, data_fT, data_mT, S, sets, pseudo_reps, ks, cache, c
     return units, ctxs
 
 
-def pseudo_pass_b(world, T, data_fT, data_mT, sets, units, ctxs, aggs, plan, trows, out, conv, convp, hrows):
-    """生徒を作り直し（出発点が 1 回目と同じことを確かめる），dist・KD・teacher の行を解く。"""
+def pseudo_pass_b(world, T, data_fT, data_mT, sets, units, ctxs, aggs, plan, trows, out, conv, convp, hrows, ks):
+    """生徒を作り直し（出発点と none が 1 回目と同じことを確かめる），none（照合用）・dist・KD・teacher の行を解く。"""
     mods = WORLDS[world]
     prows = []
     for (c, r), u in units.items():
@@ -333,11 +353,11 @@ def pseudo_pass_b(world, T, data_fT, data_mT, sets, units, ctxs, aggs, plan, tro
         rec = CD.Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
         rec.conv, rec.convp = conv, convp
         htag = {"pseudo": c, "rep": r}
+        none_rows(world, prs, rec, u, ks)                                        # E77 と同じ none の行（rec.none_lp にも入る）
         saved, hs = solve_unit(world, prs, rec, plan, trows, u, aggs.get(c), hrows, htag)
         f = out / f"{T}_ps_{c}_r{r}_teachers.npz"
         np.savez(f, **saved)
         check_saved(f, saved, hs, hrows, htag)
-        rec.none_lp = {(k, K): u["none_te"][k][K] for k in u["none_te"] for K in u["none_te"][k]}   # E77 の Rec.add の none と同じ値（段 a で確かめた）
         rec.save_pseudo(out, T, c, r, te)
         for k, pr in prs.items():
             conv += [{**rec.tag, "student": k, "pass": "b", **s_} for s_ in pr.stats]
@@ -349,10 +369,11 @@ def pseudo_pass_b(world, T, data_fT, data_mT, sets, units, ctxs, aggs, plan, tro
     return prows
 
 
-def copy_pseudo_c(out, T, commit, pairs, args_now):
+def copy_pseudo_c(out, T, commit, pairs, args_now, expect_none, expect_teach):
     """IEMOCAP-script の仮のターゲットを，同じ出力の場所の即興の結果から写す（E77 の copy_pseudo と同じ考え）．
     止める条件：写し元の `<src>.csv` が無いか今と違うコミット，`_settings.json`（設定・ソース・kept の集合・計算する組）の不一致，
-    写し元を回したときの引数の不一致，（仮のターゲット, 反復）の組の不一致。"""
+    写し元を回したときの引数の不一致，（仮のターゲット, 反復）の組の不一致，写し元の none・teachers の npz が無いか鍵が期待
+    （expect_none：「生徒|K」，expect_teach：「教師__K<K>」）とそろわない，teachers の配列の sha256 が写し元の `_teach_hash.csv` の saved の行と違う。"""
     src = SCRIPT_SRC[T]
 
     def stop(m):
@@ -381,11 +402,25 @@ def copy_pseudo_c(out, T, commit, pairs, args_now):
         e = pd.read_csv(out / f"{src}_{name}.csv", dtype={"K": str})
         e = e[e.pseudo.notna() & (e.pseudo.astype(str) != "*eval*")] if "pseudo" in e.columns else e.iloc[:0]
         extra[name] = e.rename(columns={"commit": "src_commit"}).assign(copied_from=src).to_dict("records")
+    hsrc = pd.read_csv(out / f"{src}_teach_hash.csv", dtype={"K": str, "pseudo": str})
+    hsrc = hsrc[(hsrc.method == "saved") & hsrc.pseudo.notna()]
     for c, r in pairs:
-        for suf in ("none", "teachers"):
-            g = out / f"{src}_ps_{c}_r{r}_{suf}.npz"
+        gs = {suf: out / f"{src}_ps_{c}_r{r}_{suf}.npz" for suf in ("none", "teachers")}
+        for g in gs.values():
             if not g.exists():
                 stop(f"写し元の {g.name} が無い")
+        zn = np.load(gs["none"], allow_pickle=False)
+        if set(map(str, zn["keys"])) != set(expect_none):
+            stop(f"写し元の {gs['none'].name} の鍵 {sorted(map(str, zn['keys']))} が期待 {sorted(expect_none)} とそろわない")
+        zt = np.load(gs["teachers"], allow_pickle=False)
+        if set(zt.files) != set(expect_teach):
+            stop(f"写し元の {gs['teachers'].name} の鍵 {sorted(zt.files)} が期待 {sorted(expect_teach)} とそろわない")
+        for key in zt.files:
+            n, K = key.rsplit("__K", 1)
+            hh = hsrc[(hsrc.pseudo == c) & (hsrc.rep == r) & (hsrc.teacher == n) & (hsrc.K == K)].sha256.unique()
+            if len(hh) != 1 or hh[0] != sha(zt[key]):
+                stop(f"写し元の {gs['teachers'].name} の {key} が写し元の記録の sha256 と違う")
+        for g in gs.values():
             shutil.copyfile(g, out / g.name.replace(f"{src}_ps_", f"{T}_ps_", 1))
     print(f"{T}：仮のターゲットを {src} から写した（{len(d)} 行，組 {len(pairs)}）", flush=True)
     return d.to_dict("records"), extra
@@ -418,7 +453,8 @@ def run_target(world, T, data_f, data_m, args, ks, out, cache, commit, kw, kept_
     ukey = (tuple(S), json.dumps(sets, sort_keys=True, default=str), tuple(args.pseudo_reps), tuple(ks))
     units = None
     if T in SCRIPT_SRC and not args.no_copy_pseudo:
-        prows, extra = copy_pseudo_c(out, T, commit, pairs, args_now)
+        prows, extra = copy_pseudo_c(out, T, commit, pairs, args_now, [f"{k}|{K}" for k in [world] + mods for K in ks],
+                                     [f"{n}__K{K}" for n, K in plan_names(plan, [])])
         conv, convp, poolr, dsr, hrows = extra["conv"], extra["convp"], extra["pool"], extra["ds"], extra["teach_hash"]
         if needs_agg:                                                            # 評価のターゲットの poolC・mlp を学ぶ単位（写し元と同じ）
             units = unit_cache.get(ukey)
@@ -439,7 +475,7 @@ def run_target(world, T, data_f, data_m, args, ks, out, cache, commit, kw, kept_
                     raise SystemExit(f"{T} 仮 {c}：poolC・mlp を学ぶ群が無い")
                 aggs[c], rr = fit_agg(world, keys, units, {"pseudo": c}, zlib.crc32(f"{world}|{T}|{c}".encode()) & 0x7FFFFFFF)
                 poolr += rr
-        prows = pseudo_pass_b(world, T, data_fT, data_mT, sets, units, ctxs, aggs, plan, trows, out, conv, convp, hrows)
+        prows = pseudo_pass_b(world, T, data_fT, data_mT, sets, units, ctxs, aggs, plan, trows, out, conv, convp, hrows, ks)
         if T in SCRIPT_SRC.values():
             unit_cache.clear()
             unit_cache[ukey] = units
@@ -467,13 +503,11 @@ def run_target(world, T, data_f, data_m, args, ks, out, cache, commit, kw, kept_
             st = stu[k]["st"]
             rec.xform[k] = (st.mats[stu[k]["rho_m"]][0], st.src.sd, M.rows(dat.X, pool).mean(0) + st.src.mu)
         htag = {"target": T, "rep": r}
+        none_rows(world, prs, rec, u, ks)                                        # E77 と同じ none の行（対数の確率と W・b も E77 と同じ形で残る）
         saved, hs = solve_unit(world, prs, rec, plan, trows, u, agg_T, hrows, htag)
         rec.teachers = saved
         rec.save(out, T, r, te)
         check_saved(out / f"{T}_r{r}_teachers.npz", saved, hs, hrows, htag)
-        keys_ = sorted((k, K) for k in u["none_te"] for K in u["none_te"][k])     # 照合用の評価のターゲットの none（E77 の none の行と同じ値のはず）
-        np.savez(out / f"{T}_r{r}_none.npz", te=np.asarray(te), keys=np.array([f"{a}|{b}" for a, b in keys_]),
-                 **{f"lp{i}": u["none_te"][a][b] for i, (a, b) in enumerate(keys_)})
         CD.flush_stats(rec, prs)
         rows += rec.rows
         print(f"  {world} {T} r{r}：評価　{len(rec.rows)} 行　{time.perf_counter() - t0:.0f} 秒", flush=True)
@@ -492,7 +526,10 @@ def run_target(world, T, data_f, data_m, args, ks, out, cache, commit, kw, kept_
 # ---------------------------------------------------------------- 照合（GPU を使わない）
 
 def run_checks(out, world, e77, e80a):
+    """出力を照合して check.csv を書く．不一致・状態が ok でない項目・許容幅を超える項目が 1 つでもあれば 1 を返す（終了の値）。"""
     rows = []
+    mods = WORLDS[world]
+    ks_run = [str(k) for k in json.loads((out / "provenance.json").read_text()).get("KS", [])]
     for fs in sorted(out.glob("*_settings.json")):
         T = fs.name[: -len("_settings.json")]
         if not (out / f"{T}.csv").exists():
@@ -501,7 +538,8 @@ def run_checks(out, world, e77, e80a):
         h["unit"] = h.pseudo.fillna("*eval*") if "pseudo" in h.columns else "*eval*"
         g = h.groupby(["unit", "rep", "teacher", "K"]).sha256.nunique()
         has_saved = h[h.method == "saved"].groupby(["unit", "rep", "teacher", "K"]).size()
-        rows.append({"check": "same_array", "target": T, "n": len(g), "bad": int((g != 1).sum()) + int(len(g) - len(has_saved))})
+        bad = int((g != 1).sum()) + int(len(g) - len(has_saved))
+        rows.append({"check": "same_array", "target": T, "n": len(g), "bad": bad, "ok": bad == 0})
         bad = 0
         for f in sorted(out.glob(f"{T}_ps_*_teachers.npz")) + sorted(out.glob(f"{T}_r*_teachers.npz")):
             mt = re.match(rf"^{re.escape(T)}_(?:ps_(.+)_)?r(\d+)_teachers\.npz$", f.name)
@@ -511,60 +549,84 @@ def run_checks(out, world, e77, e80a):
                 n, K = key.rsplit("__K", 1)
                 hh = h[(h.unit == unit) & (h.rep == r) & (h.teacher == n) & (h.K == K)].sha256.unique()
                 bad += int(len(hh) != 1 or hh[0] != sha(z[key]))
-        rows.append({"check": "saved_file_hash", "target": T, "bad": bad})
+        rows.append({"check": "saved_file_hash", "target": T, "bad": bad, "ok": bad == 0})
+        own = {nm: pd.read_csv(out / nm, dtype={"K": str, "param": str, "meff": str}) for nm in (f"{T}.csv", f"{T}_pseudo.csv")}
+        for nm, kk in ((f"{T}.csv", ["rep"]), (f"{T}_pseudo.csv", ["pseudo", "rep"])):   # none の行が全部の（単位, 生徒, K）にあるか
+            x = own[nm]
+            want = {(*u_, st_, K) for u_ in x[kk].drop_duplicates().itertuples(index=False) for st_ in [world] + mods for K in ks_run}
+            have = set(x[x.method == "none"][kk + ["student", "K"]].itertuples(index=False, name=None))
+            miss = len(want - have) + len(have - want)
+            rows.append({"check": "none_rows_present", "target": T, "file": nm, "n": len(want), "bad": miss, "ok": miss == 0})
         if e77:
-            src = T
-            for f in sorted(out.glob(f"{T}_ps_*_none.npz")):
+            for f in sorted(out.glob(f"{T}_ps_*_none.npz")):                    # 仮のターゲットの none の対数の確率（E77 と同じ形の npz）
                 g77 = e77 / f.name
                 if not g77.exists():
-                    rows.append({"check": "none_pseudo", "target": T, "file": f.name, "status": "E77 に無い"})
+                    rows.append({"check": "none_pseudo_logp", "target": T, "file": f.name, "status": "E77 に無い", "ok": False})
                     continue
                 a, b = np.load(f), np.load(g77)
                 kb = {str(x): i for i, x in enumerate(b["keys"])}
+                same_te = bool(np.array_equal(a["te"], b["te"]) and np.array_equal(a["y"], b["y"]))
                 for i, key in enumerate(a["keys"]):
-                    x = a[f"lp{i}"]
-                    if str(key) not in kb:
-                        rows.append({"check": "none_pseudo", "target": T, "file": f.name, "key": str(key), "status": "E77 に鍵が無い"})
+                    if str(key) not in kb or not same_te:
+                        rows.append({"check": "none_pseudo_logp", "target": T, "file": f.name, "key": str(key),
+                                     "status": "E77 に鍵が無い" if same_te else "te・y が違う", "ok": False})
                         continue
-                    y = b[f"lp{kb[str(key)]}"]
-                    same_te = bool(np.array_equal(a["te"], b["te"]) and np.array_equal(a["y"], b["y"]))
-                    rows.append({"check": "none_pseudo", "target": T, "file": f.name, "key": str(key), "status": "ok" if same_te else "te・y が違う",
-                                 "max_abs": float(np.abs(x - y).max()) if same_te else np.nan,
-                                 "pred_agree": float((x.argmax(1) == y.argmax(1)).mean()) if same_te else np.nan, "n": len(x)})
-            f77 = e77 / f"{src}.csv"
+                    x, y = a[f"lp{i}"], b[f"lp{kb[str(key)]}"]
+                    v = float(np.abs(x - y).max())
+                    rows.append({"check": "none_pseudo_logp", "target": T, "file": f.name, "key": str(key), "status": "ok", "max_abs": v,
+                                 "pred_agree": float((x.argmax(1) == y.argmax(1)).mean()), "n": len(x), "ok": v <= TOL_LOGP})
+            p77 = e77 / f"{T}_pseudo.csv"                                        # 仮のターゲットの none の UAR（E79 の照合と同じ）
+            if p77.exists():
+                b = pd.read_csv(p77, dtype={"K": str, "param": str, "meff": str})
+                kk = ["pseudo", "rep", "student", "K"]
+                x = own[f"{T}_pseudo.csv"]
+                j = x[x.method == "none"].set_index(kk).uar.rename("c").to_frame().join(
+                    b[b.method == "none"].set_index(kk).uar.rename("e"), how="left")
+                nmiss = int(j.e.isna().sum())
+                v = float((j.c - j.e).abs().max()) if len(j) and nmiss < len(j) else np.nan
+                rows.append({"check": "none_pseudo_uar", "target": T, "n": len(j), "bad": nmiss, "max_abs": v,
+                             "ok": nmiss == 0 and len(j) > 0 and v <= TOL_UAR})
+            else:
+                rows.append({"check": "none_pseudo_uar", "target": T, "status": "E77 に無い", "ok": False})
+            f77 = e77 / f"{T}.csv"                                               # 評価のターゲットの none の対数の確率（E79 の照合と同じ）
+            x = own[f"{T}.csv"]
             d77 = pd.read_csv(f77, dtype={"K": str, "param": str, "meff": str}) if f77.exists() else None
-            for f in sorted(out.glob(f"{T}_r*_none.npz")):
-                r = int(re.match(rf"^{re.escape(T)}_r(\d+)_none\.npz$", f.name).group(1))
+            for r in sorted(set(x.rep)):
                 if d77 is None or not (e77 / f"{T}_r{r}_logp.npy").exists():
-                    rows.append({"check": "none_eval", "target": T, "file": f.name, "status": "E77 に無い"})
+                    rows.append({"check": "none_eval_logp", "target": T, "rep": r, "status": "E77 に無い", "ok": False})
                     continue
-                a = np.load(f)
-                te77 = np.load(e77 / f"{T}_r{r}_te.npy")
-                L = np.load(e77 / f"{T}_r{r}_logp.npy", mmap_mode="r")
-                nn = d77[(d77.rep == r) & (d77.method == "none")].set_index(["student", "K"]).row_id
-                for i, key in enumerate(a["keys"]):
-                    st_, K = str(key).split("|")
-                    if (st_, K) not in nn.index or not np.array_equal(a["te"], te77):
-                        rows.append({"check": "none_eval", "target": T, "file": f.name, "key": str(key), "status": "E77 に行が無いか te が違う"})
+                if not np.array_equal(np.load(out / f"{T}_r{r}_te.npy"), np.load(e77 / f"{T}_r{r}_te.npy")):
+                    rows.append({"check": "none_eval_logp", "target": T, "rep": r, "status": "te が違う", "ok": False})
+                    continue
+                L7 = np.load(e77 / f"{T}_r{r}_logp.npy", mmap_mode="r")
+                L8 = np.load(out / f"{T}_r{r}_logp.npy", mmap_mode="r")
+                a_ = d77[(d77.rep == r) & (d77.method == "none")].set_index(["student", "K"]).row_id
+                b_ = x[(x.rep == r) & (x.method == "none")].set_index(["student", "K"]).row_id
+                for key in b_.index:
+                    if key not in a_.index:
+                        rows.append({"check": "none_eval_logp", "target": T, "rep": r, "key": "|".join(key), "status": "E77 に行が無い", "ok": False})
                         continue
-                    x, y = a[f"lp{i}"], np.asarray(L[int(nn.loc[(st_, K)])])
-                    rows.append({"check": "none_eval", "target": T, "file": f.name, "key": str(key), "status": "ok",
-                                 "max_abs": float(np.abs(x - y).max()), "pred_agree": float((x.argmax(1) == y.argmax(1)).mean()), "n": len(x)})
-            for name, kk in ((f"{T}.csv", ["rep", "student", "method", "param", "meff", "K"]),
-                             (f"{T}_pseudo.csv", ["pseudo", "rep", "student", "method", "param", "meff", "K"])):
-                if (e77 / name).exists() and (out / name).exists():
-                    a = pd.read_csv(out / name, dtype={"K": str, "param": str, "meff": str})[kk].astype(str)
-                    b = pd.read_csv(e77 / name, dtype={"K": str, "param": str, "meff": str})[kk].astype(str)
-                    rows.append({"check": "key_overlap", "target": T, "file": name, "bad": len(a.merge(b, on=kk))})
-            p77 = e77 / f"{T}_pseudo.csv"
+                    p_, q_ = np.asarray(L8[int(b_[key])]), np.asarray(L7[int(a_[key])])
+                    v = float(np.abs(p_ - q_).max())
+                    rows.append({"check": "none_eval_logp", "target": T, "rep": r, "key": "|".join(key), "status": "ok", "max_abs": v,
+                                 "pred_agree": float((p_.argmax(1) == q_.argmax(1)).mean()), "n": len(p_), "ok": v <= TOL_LOGP})
+            for nm, kk in ((f"{T}.csv", ["rep", "student", "method", "param", "meff", "K"]),
+                           (f"{T}_pseudo.csv", ["pseudo", "rep", "student", "method", "param", "meff", "K"])):
+                if (e77 / nm).exists():                                          # E79 が手法の候補にする行（none を除く）が E77 と重ならないか
+                    a = own[nm]
+                    a = a[a.method.isin(("dist", "kd", "kdh", "teacher"))][kk].astype(str)
+                    odd = int((~own[nm].method.isin(("dist", "kd", "kdh", "teacher", "none"))).sum())
+                    b = pd.read_csv(e77 / nm, dtype={"K": str, "param": str, "meff": str})[kk].astype(str)
+                    nb = len(a.merge(b, on=kk)) + odd
+                    rows.append({"check": "key_overlap", "target": T, "file": nm, "bad": nb, "ok": nb == 0})
             if p77.exists():
                 b = pd.read_csv(p77, dtype={"K": str, "param": str, "meff": str})
                 for st_, g_ in b.groupby("student"):
                     rl = role(world, st_)
                     dd = set(g_[g_.method == "dist"].param.str.split(":").str[0])
                     kd = set(g_[g_.method == "kd"].param.str.replace(r"T\d+$", "", regex=True))
-                    rows.append({"check": "e77_teacher_sets", "target": T, "key": st_,
-                                 "bad": int(dd != set(E77_DIST[rl])) + int(kd != set(E77_KD[rl]))})
+                    nb = int(dd != set(E77_DIST[rl])) + int(kd != set(E77_KD[rl]))
+                    rows.append({"check": "e77_teacher_sets", "target": T, "key": st_, "bad": nb, "ok": nb == 0})
         if e80a:
             ta = SCRIPT_SRC.get(T, T)
             for f in sorted(out.glob(f"{T}_ps_*_teachers.npz")):
@@ -572,7 +634,7 @@ def run_checks(out, world, e77, e80a):
                 c, r = mt.group(1), int(mt.group(2))
                 ua = e80a / "units" / world / ta / f"{c}_r{r}.npz"
                 if not ua.exists():
-                    rows.append({"check": "teacher_vs_e80a", "target": T, "file": f.name, "status": "段 a に無い"})
+                    rows.append({"check": "teacher_vs_e80a", "target": T, "file": f.name, "status": "段 a に無い", "ok": False})
                     continue
                 z = np.load(f, allow_pickle=False)
                 ks_ = sorted({key.rsplit("__K", 1)[1] for key in z.files}, key=list(BD.KS).index)
@@ -582,22 +644,30 @@ def run_checks(out, world, e77, e80a):
                     try:
                         y = np.asarray(teacher_array(world, u, n, K, qC, qM), np.float64)
                     except KeyError:
-                        rows.append({"check": "teacher_vs_e80a", "target": T, "file": f.name, "key": key, "status": "段 a に教師が無い"})
+                        rows.append({"check": "teacher_vs_e80a", "target": T, "file": f.name, "key": key, "status": "段 a に教師が無い", "ok": False})
                         continue
-                    rows.append({"check": "teacher_vs_e80a", "target": T, "file": f.name, "key": key, "status": "ok",
-                                 "max_abs": float(np.abs(z[key] - y).max()), "n": len(y)})
+                    v = float(np.abs(z[key] - y).max())
+                    rows.append({"check": "teacher_vs_e80a", "target": T, "file": f.name, "key": key, "status": "ok", "max_abs": v, "n": len(y),
+                                 "ok": v <= TOL_TEACH})
     d = pd.DataFrame(rows)
+    if d.empty:
+        print("照合する出力が無い", flush=True)
+        return 1
     d.to_csv(out / "check.csv", index=False)
     for c_, g in d.groupby("check", sort=False):                                # 差と数だけを出す（UAR などの値は出さない）
-        msg = f"{c_}：{len(g)} 項目"
+        msg = f"{c_}：{len(g)} 項目，食い違い {int((~g.ok.astype(bool)).sum())}"
         if "bad" in g and g.bad.notna().any():
-            msg += f"，不一致 {int(g.bad.fillna(0).sum())}"
+            msg += f"，不一致の数 {int(g.bad.fillna(0).sum())}"
         if "status" in g and g.status.notna().any():
             msg += f"，状態 {g.status.value_counts().to_dict()}"
         if "max_abs" in g and g.max_abs.notna().any():
-            msg += f"，差の最大 {g.max_abs.max():.3g}，予測の一致の最小 {g.pred_agree.min() if 'pred_agree' in g and g.pred_agree.notna().any() else float('nan'):.6f}"
+            msg += f"，差の最大 {g.max_abs.max():.3g}"
+        if "pred_agree" in g and g.pred_agree.notna().any():
+            msg += f"，予測の一致の最小 {g.pred_agree.min():.6f}"
         print(msg, flush=True)
-    return 0
+    nbad = int((~d.ok.astype(bool)).sum())
+    print(f"照合：食い違い {nbad} 項目（{out / 'check.csv'}）", flush=True)
+    return 1 if nbad else 0
 
 
 # ---------------------------------------------------------------- 入口
