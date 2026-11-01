@@ -612,6 +612,8 @@ def load_pseudo(run, d77, d78, args=None, issues=None):
                 issues.append({"check": "none_e77_vs_e80c_pseudo", "run": run, "absdiff_max": dmax, "n": int(len(j_)), "n_e80c_none": int(len(c_))})
             if not (dmax <= TOL_UAR) and args is not None:
                 fail_or_note(args, issues, check="none_e77_vs_e80c_pseudo_over_tol", run=run, absdiff_max=dmax)
+            if len(j_) < len(c_) and args is not None:                        # 段 c の none に E77 の相手が無い行がある（照合できない行を残さない．追記 4）
+                fail_or_note(args, issues, check="none_e77_vs_e80c_pseudo_unmatched", run=run, n=int(len(j_)), n_e80c_none=int(len(c_)))
         other = (P.wave == "e80c") & ~P.method.isin(E80C_METHODS)
         if other.any() and issues is not None:
             issues.append({"check": "e80c_rows_not_used", "run": run, "n": int(other.sum()), "methods": sorted(set(P.method[other]))})
@@ -1467,6 +1469,8 @@ def measure_target(args, run, T, d77, d78, sel, fixed, issues, rows_all, pair_ro
             a_ = t77[(t77.rep == r) & (t77.method == "none")].set_index(["student", "K"]).row_id
             b_ = t80[(t80.rep == r) & (t80.method == "none")].set_index(["student", "K"]).row_id
             common = a_.index.intersection(b_.index)
+            if len(common) < len(b_):                                          # 段 c の none に E77 の相手が無い行がある（追記 4）
+                fail_or_note(args, issues, check="none_e77_vs_e80c_eval_unmatched", run=run, target=T, rep=r, n=int(len(common)), n_e80c_none=int(len(b_)))
             if len(common):
                 L7 = np.load(Path(d77) / f"{T}_r{r}_logp.npy", mmap_mode="r")
                 L8 = np.load(Path(d80) / f"{T}_r{r}_logp.npy", mmap_mode="r")
