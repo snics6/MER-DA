@@ -167,6 +167,7 @@ class SrcStore:
                        for v in ("all", "ex_script38") for nm, _, _, Cm, _ in specs}
                 for r in p["reps"]:
                     L, y, spk, te, Drows, krow, pt = p["load"](r)
+                    Pr = p["load_pred"](r)
                     vs = ("all",) if (T, r) in SAME_SPLIT else ("all", "ex_script38")
                     for nm, ix, labcol, Cm, Am in specs:
                         labels = spk if labcol is None else p["clusters"][te]
@@ -174,14 +175,14 @@ class SrcStore:
                         ls, sidx = np.unique(gi, return_inverse=True)
                         Cb = Cm[:, ls]
                         if nm == "boot" and len(L):                              # E79 と同じ検算：重みを全部 1 にすると点の値に戻る
-                            u1, d1, *_ = boot_rep(L, y, sidx, np.ones((1, len(ls))), Drows)
+                            u1, d1, *_ = boot_rep(L, y, sidx, np.ones((1, len(ls))), Drows, pred=Pr)
                             e1 = max(float(np.nanmax(np.abs(u1[0] - pt[:, 0]))), float(np.nanmax(np.abs(d1[0] - pt[:, 1]))))
                             checks.append({"check": "boot_identity", "store": name, "run": run, "target": T, "rep": r, "absdiff_max": e1, "ok": e1 <= 1e-6})
                             if not e1 <= 1e-6:
                                 raise SystemExit(f"ブートストラップの式が点の値に戻らない（{name} {run} {T} 反復 {r}）")
                         if not len(L):
                             continue
-                        *vals, empty, miss = boot_rep(L, y, sidx, Cb, Drows)
+                        *vals, empty, miss = boot_rep(L, y, sidx, Cb, Drows, pred=Pr)
                         V = dict(zip(QN, vals))
                         ar = Am[:, rep_col[r]] if Am is not None else np.ones(len(Cm))
                         w = ar * (~empty)
@@ -290,7 +291,7 @@ class SrcStore:
                 pt = np.stack([tr.uar.to_numpy() * 100, tr.dirloss.to_numpy()], 1)
             else:
                 Dm, pt = np.zeros((0, 6)), np.zeros((0, 2))
-            krows[r] = ([[pos[wi] for wi in lst] for lst in rows_r], L, Dm, pt)
+            krows[r] = ([[pos[wi] for wi in lst] for lst in rows_r], L, Dm, pt, P)
         R = pd.concat(recs, ignore_index=True) if recs else pd.DataFrame(columns=["student", "K", "wave", "method", "pnorm", "meff", "seed", "rep"])
         self.rows.append(R)
         excl = [r for (t_, r) in SAME_SPLIT if t_ == T]
@@ -319,10 +320,13 @@ class SrcStore:
         cl_units = set(clusters[np.concatenate([te_of[r] for r in reps])]) if clusters is not None else set()
 
         def load(r):
-            krow, L, Dm, pt = krows[r]
+            krow, L, Dm, pt, _ = krows[r]
             return L, yall[te_of[r]], spk_all[te_of[r]], te_of[r], Dm, krow, pt
+
+        def load_pred(r):                                                        # 保存した予測（E79 の段 (c) と同じく UAR はこれで数える．2026-11-02）
+            return krows[r][4]
         return {"keys": keys, "reps": reps, "speakers": set(spk_all[np.concatenate([te_of[r] for r in reps])]), "geff": geff,
-                "clusters": clusters, "cl_units": cl_units, "load": load}
+                "clusters": clusters, "cl_units": cl_units, "load": load, "load_pred": load_pred}
 
     def get(self, T, key, variant="all"):
         v = "ex_script38" if variant == "ex_script38" else "all"

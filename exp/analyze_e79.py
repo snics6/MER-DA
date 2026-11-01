@@ -1188,7 +1188,7 @@ def boot_draws(run, corpus, speakers, B, seed, n_reps, tag=""):
     return C, A
 
 
-def boot_rep(L, y, sidx, Cb, Drows):
+def boot_rep(L, y, sidx, Cb, Drows, pred=None):
     """1 反復ぶん．L：(R, n, 4)．sidx：発話ごとの話者の番号（0..n_ls−1）．Cb：(B, n_ls) の話者の重み．Drows：(R, 6) の行ごとの D（生徒ごと）。
     戻り：uar・向きの損・位置の損・逆の順序の向きの損 A(D,o) − A(d,o)・逆の順序の位置の損 A(D,0) − A(D,o)（B × R．ポイント），
     空の抽出（B），感情が欠けた抽出（B）。"""
@@ -1199,7 +1199,8 @@ def boot_rep(L, y, sidx, Cb, Drows):
     N = Cb @ (GT @ Yk.T)                                                       # B × 4
     empty = Cb.sum(1) == 0
     present = N > 0
-    pred = L.argmax(2)
+    pred = L.argmax(2) if pred is None else np.asarray(pred).astype(int)   # 保存した予測（_pred.npy）を渡せば UAR はそれで数える．
+    # float32 の対数の確率の argmax は，ほぼ同点の発話で保存した予測と食い違いうる（2026-11-02 の段 (c) の検算で E78 の MOSEI の 1 本）
     feats = []
     for k in range(4):
         feats.append((GT @ ((pred == k) * Yk[k]).T).T)                         # R × nls
@@ -1294,6 +1295,7 @@ def stage_measure(args, dirs, out):
                     L, y, spk, Drows, krow, pt, te = p["load"](r)
                     if L is None:
                         continue
+                    Pr = p["load_pred"](r)
                     for nm, ix, labcol, Cm, Am in specs:
                         labels = spk if labcol is None else p[labcol][te]
                         gi = np.array([ix[s] for s in labels])
@@ -1301,14 +1303,14 @@ def stage_measure(args, dirs, out):
                         Cb = Cm[:, ls]
                         if nm == "boot":
                             # 検算：重みを全部 1 にすると，全テストの UAR と向きの損（点の値）に戻る
-                            u1, d1, *_ = boot_rep(L[:args.chunk].astype(np.float64), y, sidx, np.ones((1, len(ls))), Drows[:args.chunk])
+                            u1, d1, *_ = boot_rep(L[:args.chunk].astype(np.float64), y, sidx, np.ones((1, len(ls))), Drows[:args.chunk], pred=Pr[:args.chunk])
                             e1 = max(float(np.nanmax(np.abs(u1[0] - pt[:args.chunk, 0]))), float(np.nanmax(np.abs(d1[0] - pt[:args.chunk, 1]))))
                             issues.append({"check": "boot_identity", "run": run, "target": T, "rep": r, "absdiff_max": e1})
                             if not e1 <= 1e-6:
                                 raise SystemExit(f"ブートストラップの式が点の値に戻らない（{run} {T} 反復 {r}：{e1}）")
                         V = {q: np.full((len(Cm), L.shape[0]), np.nan) for q in QN}
                         for a in range(0, L.shape[0], args.chunk):
-                            *vals, empty, miss = boot_rep(L[a:a + args.chunk].astype(np.float64), y, sidx, Cb, Drows[a:a + args.chunk])
+                            *vals, empty, miss = boot_rep(L[a:a + args.chunk].astype(np.float64), y, sidx, Cb, Drows[a:a + args.chunk], pred=Pr[a:a + args.chunk])
                             for q, v_ in zip(QN, vals):
                                 V[q][:, a:a + args.chunk] = v_
                         ar = Am[:, rep_col[r]] if Am is not None else np.ones(len(Cm))   # jackknife は反復を引かない（全反復を 1 回ずつ）
@@ -1702,8 +1704,24 @@ def measure_target(args, run, T, d77, d78, sel, fixed, issues, rows_all, pair_ro
                 Drows[pos[wi]] = Dval[(keys[j][0], r)]
         pt = np.array([sel_rows[(w, r)].set_index("row_id").loc[rid, ["uar", "dirloss"]].to_numpy(float) * [100, 1] for w, rid in flat])
         return L, yall[te], spk_all[te], Drows, [[pos[wi] for wi in lst] for lst in rows_r], pt, te
+
+    def load_pred(r):
+        """load(r) と同じ行の並びで，保存した予測（`_pred.npy`）を返す（点の値の UAR と同じ予測でブートストラップを数えるため）。"""
+        rows_r = krows_rep.get(r)
+        if not rows_r:
+            return None
+        flat = sorted({wi for lst in rows_r for wi in lst})
+        pos = {wi: i for i, wi in enumerate(flat)}
+        P = np.zeros((len(flat), len(te_of[r])), np.uint8)
+        for w in {wv for wv, _ in flat}:
+            dw = wave_dir(w, d77, d78, run)
+            ids = [i for wv, i in flat if wv == w]
+            a = np.load(Path(dw) / f"{T}_r{r}_pred.npy", mmap_mode="r")[ids]
+            for i, rid in enumerate(ids):
+                P[pos[(w, rid)]] = a[i]
+        return P
     print(f"{run} {T}：点の値と D（{len(reps)} 反復），{time.perf_counter() - t0:.0f} 秒", flush=True)
-    return {"keys": keys, "nseeds": nseeds, "reps": reps, "speakers": speakers, "load": load, "students": students,
+    return {"keys": keys, "nseeds": nseeds, "reps": reps, "speakers": speakers, "load": load, "load_pred": load_pred, "students": students,
             "n_spk": n_spk, "max_share": max_share, "geff": geff, "clusters": clusters, "cl_units": cl_units}
 
 
