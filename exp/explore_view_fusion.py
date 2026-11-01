@@ -279,10 +279,10 @@ def analyze(results=None) -> int:
     for g in range(NB):
         es = Ek[f"E_{g}"].reindex(pd.MultiIndex.from_frame(P[KEY + ["s"]])).values
         et = Ek[f"E_{g}"].reindex(pd.MultiIndex.from_frame(P[KEY + ["t"]])).values
-        rows.append(P.assign(bin=g, corr=P[f"C_{g}"] / np.sqrt(es * et)).groupby(["student", "s", "t", "bin"]).corr.median().reset_index())
+        rows.append(P.assign(bin=g, rho=P[f"C_{g}"] / np.sqrt(es * et)).groupby(["student", "s", "t", "bin"])["rho"].median().reset_index())
     Ct = pd.concat(rows, ignore_index=True)
     write(Ct, "e71_corr.csv", meta)
-    print("\n== 見方どうしの誤差の相関（中央値）\n" + Ct.pivot_table(index=["student", "s", "t"], columns="bin", values="corr").round(2).to_string())
+    print("\n== 見方どうしの誤差の相関（中央値）\n" + Ct.pivot_table(index=["student", "s", "t"], columns="bin", values="rho").round(2).to_string())
     return 0
 
 
