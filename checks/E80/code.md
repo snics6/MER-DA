@@ -187,3 +187,6 @@ gate-code の試走の段 a の出力（`gate/avt_clean`：AVT，T＝IEMOCAP 即
 
 ### 見たデータ（台帳への申し送り）
 画面に出たのは，試走の kept.csv の行の数・列・教師の名前・（世界, T, 生徒）ごとの行の数，AV の T＝MOSEI の（生徒, K）ごとの残す教師の数（E77 にある教師に絞った後），照合の差の最大と不一致の数だけである．仮のターゲットの値の派生で，評価のターゲットの値は開いていない．
+
+## 追記（2026-11-01 夜．R3⁗ の要約の直し 8757dc9 の再検査．gate-code）
+判定：通す．`--summarize` は keep を `uar_diff_median > 0`（コーパスごとの UAR の差の中央値のコーパスの平均．ちょうど 0 は残さない）で決め，`frac_pos` を UAR の差の正の割合，`frac_pos_J` を J の正の割合として出し，J は記述の列に移った．試走の段 a の出力（AVT bb056d2，AV 365ae18）で 210 行を作り，npz から教師の確率を組み直した独立の計算（`checks/E79/code_run/v3/e80/verify_kept_r3q.py`）と全列が一致した（差 ≤ 1.1e−16，keep・n_units・n_corpora の不一致 0）．コミットの混ざりは `exp/`・`measure/` に差が無いときだけ通り，差のあるコミット（4031d1d）と存在しないコミットでは止まった．`kept_provenance.json` の `kept_sha256` は kept.csv と一致し，E79 の `load_kept` はこの kept.csv を読めた．記録：docstring の列の並びが古い．存在しないコミットでも「差がある」と書く．`exp/` 全体の差で止めるので，E80 と関係の無い台本の直しの前後に段 a が分かれると止まる（安全な側）．E79 の側が provenance の `inputs`・`rule`・`unit_commits` を写さない点は `checks/E79/code.md` の追記 2 に書いた．詳細は同じ追記 2 の「E80 の要約の直し」．

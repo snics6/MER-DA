@@ -436,3 +436,111 @@ GPU は使わない．measure は塊のブートストラップ（IEMOCAP 2 群�
 画面に出たのは，人工の入力の差の最大と数，gate-code の試走の E80 の kept.csv の行の数（210）・列・教師の名前・群と生徒ごとの行の数と，AV の T＝MOSEI の（生徒, K）ごとの残す教師の数（`sel_e77only` のために E77 にある教師に絞った後の数），関門の試走の E77 の出力の収束の問の数だけである．評価のターゲットの値（`results/` の E77・E78 の本番の出力）は開いていない．本体のセッションが `docs/seen-data.md` に 1 行足す（仮のターゲットの値の派生だけ）．
 
 判定：直してから通す（[R3‴-1] と [I1-inactive] の規則を値を見る前に設計に書いて judge を直し，[I12-kept-1] の計画を決める．delta の段は今のまま流せる）．
+
+## 追記 2（2026-11-01 夜．関門 1 の直しの再検査．コミット 4031d1d．`git diff dc88231 4031d1d -- exp/analyze_e79.py`．あわせて E80 の要約の 8757dc9）
+
+### 判定
+直してから通す．4 体が求めた直してから進む点はすべて台本に入り，人工の入力での独立の検算（除去の行の意味 234 単位，塊の jackknife 264 複製，働かなかった単位 132 単位，種 0 の感度 54 行，D8 の表 108 行，偶然の見込み 14,848 行）はすべて合い，`--families p4` の出力は全部の族の流れの P4 の部分とビット単位で一致したが，judge の段に 3 つの不備（除去実験の向きの損と切片の族が「外した比べ」と「替えた比べ」を混ぜる，DANN・MME の選び直しの版で種の幅 b が欠けると「働いた」とみなす，教師なしを同じ水準に数えた感度の行が none と参照の本当の差まで「同じ水準」に書き換える）があり，judge を流す前に直す必要がある．delta・select・measure の段はこの 3 つに左右されないので今のまま流してよい．
+
+### 流したもの
+台本は 4031d1d（作業木の `exp/analyze_e79.py` は HEAD と同じ．sha256 の先頭 5ef5e230c8278ae0）．CPU だけ（GPU は使っていない．研究室の計算機の負荷は 0.4〜1.0）．作業木の `exp/explore_view_fusion.py` が dirty なので `--allow-dirty` を付けた．出力は `checks/E79/code_run/v3/` の下だけ．
+- 人工の入力：台本の担当の `fixture2.py` の出力（scratchpad の `e79v2/fx/`）．kept は `kept3.csv`（融合の生徒の K=25 は poe0 だけを残す＝ abl_poe0 が「候補が同じ」になる単位，AFEW の顔の生徒の K=25 は教師 0 個）．台本は `v3/run.sh`
+- 全部の族（`v3/full/`）：delta 21 秒・0.73 GB，select 49 秒・0.75 GB，measure（`--boot 200`）79 秒・1.7 GB，judge 93 秒・0.84 GB
+- `--families p4`（`v3/p4/`．同じ `--boot 200`）：delta 21 秒，select 30 秒，measure 66 秒，judge 76 秒
+- 警告は従来の `Mean of empty slice`（`:1103,1123,1124`）だけ．例外なし
+- 検算：`v3/verify_v3.py`（ログ `v3/verify_v3.log`），`v3/check_seed_override.py`，`v3/e80/verify_kept_r3q.py`，`v3/e80/check_load.py`
+
+### (1) 4 体の直してから進む点
+
+| 検査役の指摘 | 台本の箇所 | 入ったか（確かめ方） |
+|---|---|---|
+| code R3‴-1：教師 0 個の単位を除去実験・群 C・共正則化の上限・5.3 節の融合・P5_refs で対象外 | `:2102-2173`（`no_teacher="exclude"`），P5-2・P5-3u・P5-2_by_method・screening は `"count"` | 入った．AFEW・顔・K=25 で ablation・ablation_replace・ablation_dir・ablation_ofix・groupC 4 族・P5_refs・P5-1・P5-3 系が `no_teacher`，P5-2・P5-3u・P5-2_by_method・screening は判定を残し `n_oursx_none` に数えた．ほかの単位の `no_teacher` は 0 |
+| code I1-inactive：「増やした」を置き換えない，元の判定を残す | `:2011-2012`，`judgment_raw` | 入った．inactive が真の 843 行の内訳は same→inactive 514，undet→inactive 240，neg→neg 59，pos→pos 30．inactive なのに raw が same・undet でない行 0 |
+| code I12-kept-1：P4 を段 c を待たずに流す道 | `--families p4`（`:102,257-260,592-594,837,871-872,1467,2092,2806-2808`） | 入った（下の (3)）．段 c の出力の読み込みは段 c の設計（66eacca）の後で再検査する |
+| code D8-1 / compare 1(c)：D8 の表（KD の行を含む） | `d8_rows`（`:647-677`），`select/d8_table.csv` | 入った．E77 の仮のターゲットの表から作り直した最良 − none の差 ≤ 3.6e−15，keep の不一致 0．範囲は E77 にある教師（pF・pFK・ref・poe0・ref0）に限る（下の [記録 4]） |
+| stats 1：塊の区間を主の区間と和集合，IEMOCAP はセッションの jackknife の t（自由度 塊 − 1） | `:1166-1172,1980-1986` | 入った．jkcl の UAR の複製 264 個を発話一覧のセッションと対数の確率から作り直して差 ≤ 3.8e−6（float32）．refs の 30 行で t 区間（人工の入力はセッション 4 つで自由度 3）を作り直して差 ≤ 6e−7．cluster_boot の 5,063 行がすべて「主・塊の百分位・塊の jackknife」の和集合に一致．MELD は塊が 10 以上なので jackknife を作らない（設計どおり） |
+| stats 2・define 3：働かなかった基準を手法ごとに（DANN・MME は mapctl と種の幅，CORAL は coralctl，entmin・IM は種 0，凸の手法は none） | `inactive_of`（`:1817-1842`），材料は `diagnostics`（`:1600-1635`） | 入った．主の版の 132 単位で a・b を予測の配列から作り直して差 ≤ 1.7e−16，印の不一致 0．ただし選び直しの版で b が欠けたときの扱いに不備（[I-ns-b]） |
+| stats 3・define 2・compare 3：教師なしの単位，組み合わせの文は 2 コーパス以上，組み合わせごとの偶然の見込み，両方の分母 | `summarize`（`:2224-2240`），`statements_p5`（`:2436-2516`） | 入った．`chance_combo_pos` を Binom の上側確率で作り直して差 ≤ 2e−19．要旨の行に「全部の単位・教師なしで外した単位・数えた単位・oursx ＝ none のまま数えた単位」が並ぶ．感度の行 `no_teacher_as_same` は出るが中身に不備（[I-nt-same]） |
+| define 1・compare 2：除去の行を subset・identical・replace・no_teacher に分け，別の族で読む | `abl_class`（`:1844-1860`），`:2145-2155`，`ABL_DROPPED`・`ABL_REPLACED`（`:2417-2422`） | UAR の族は入った．kept.csv と E77 の仮のターゲットの表から候補の集合を作り直して 234 単位の意味の不一致 0（subset 131，replace 91，identical 3 コーパス，教師なし 9）．identical の単位の点の値はすべて 0．ただし向きの損と切片の族は分けていない（[I-abl-dir]） |
+| define 4：entmin・IM を種 0 で読む感度の行，主と鍵が食い違えば (3) にしない | `:2040-2045`（`nc_seed0`），`summarize` の末尾（`:2277-2296`） | 入った．種 0 の向きの損の差（none − 手法）を rows から作り直して 54 行で差 ≤ 5.3e−15，ほかの手法の行は主と差 0．statements_p4 を差し替えて主 (3)・種 0 (2) にすると主の行が (4) に替わり注が付いた（`check_seed_override.py`）．融合の生徒の (4) の文の頭の「(5)」が付かない（[記録 1]） |
+| compare 1：ふるわない版（oursx_noJ，kd_noJ）と P5-1 の感度の行・記述の族 | `NOJ_DIST`・`NOJ_KD`（`:103-104`），`sel_defs`（`:492-495`），`:2105-2113` | 入った．候補の数（none を含む）は oursx_noJ 61（単・融合），kd_noJ 49（単）・33（融合）で比較の検査役の数と一致．kd_noJ が選んだ教師は pF・pFK・poe0・ref だけ |
+| compare：段 c は別に設計 | — | 台本の範囲の外（66eacca の設計を段 c の台本とともに検査する） |
+| define の (ii)（種ごとの最多の感情の割合と崩れた種の数を `seeds.csv` に） | 無い | 設計の 15 に入っていない．E77 の `_pred.npy` から CPU で出せる（[記録 3]） |
+
+### (2) 人工の入力での検算
+上の表のとおり．すべて独立に書いた計算（台本の関数を使わない）で，差は浮動小数の丸めの水準だった．
+
+### (3) `--families p4` と全部の族の流れ
+- 同じ `--boot 200` で流すと，`chosen.csv` の P4 の 11 族（群 B の 8 手法，t3a_b，mapctl，coralctl）の 1,032 行，`units.csv` の P4 系・fixed・refs の 21 族の 24,060 行（鍵，点の値，区間 11 列，a・b，判定），`combos.csv` の P4 系 7,212 行，`statements.csv` の P4・P4′ の 152 行が，全部の族の流れと完全に一致した（数値の差の最大 0）．P4 の選択・測定・判定は kept.csv にも P5 の族にも依らない
+- p4 の select は kept.csv を読まない（E77 に無い教師 agree を残す `kept_bad2.csv` でも止まらないことを台本の担当が確かめている．`load_kept` は `families == "p4"` で空を返す：`check_load.py`）
+- 段の間の照合：p4 で作った select の後に `--families all` で measure と judge を起動すると「select の段は --families p4 で流されている」で止まった．ただし止まる前に空の `measure/` を作るので，同じ `--out` で流し直すには手で消す必要がある（[記録 2]）
+- 運用の注意：p4 と全部の族を同じ `--out` に書くと全部の族が p4 を上書きし，`chosen.csv` の sha256 も変わるので，文書に書いてコミットし直す必要がある．p4 は `results/e79_p4` のように別の `--out` に書き，全部の族の流れの後に上の一致（P4 の行が同じ）を確かめてから，どちらの数で書くかを決める
+
+### 指摘
+
+#### [I-abl-dir] 除去実験の向きの損（ablation_dir）と切片（ablation_ofix）の族が，外した比べと替えた比べを同じ族で数える
+- 重さ：直してから進む（judge だけ）
+- 該当箇所：`exp/analyze_e79.py:2154-2155`（`compare("ablation_dir", ..., no_teacher="exclude", abl=a)`．`abl_keep` を渡していない）
+- 問題：UAR の族は `ablation`（subset）と `ablation_replace`（replace）に分けたが，向きの損と切片の族は `abl_keep` が無いので，identical と教師なし以外の単位を全部判定する．人工の入力で ablation_dir の判定した単位は subset 131・replace 91 で，`combos.csv` の過半はこの 2 つを混ぜて数える．設計の 2.4 節の表（9156 行）は除去実験の行に向きの損の差を並べるので，この表を `combos.csv` から作ると define 1・compare 2 が指摘した意味の混ざりが向きの損の表に残る
+- 計算の後で直せるか：直せる（`units.csv` に `abl_kind` がある．judge の流し直しは約 1.5 分の規模）
+- 求める対応：向きの損と切片も UAR と同じく `(fam, keep)` の 2 つの族（例：`ablation_dir` と `ablation_replace_dir`，`ablation_ofix` と `ablation_replace_ofix`）に分ける
+
+#### [I-ns-b] DANN・MME の選び直しの版（ns_excl）で種の幅 b が欠けると「DA の項が予測を変えた」とみなし，da_effect.csv と逆の扱いになる
+- 重さ：直してから進む（judge だけ．規則は値を見る前に決める）
+- 該当箇所：`exp/analyze_e79.py:1840`（`changed = a >= DISAGREE_MIN and (K == "0" or not np.isfinite(b) or a > b)`），`:1627-1635`（ns_excl の b は E78 が種 1・2 を解いた設定でしか出ない），`:2744`（`da_changed_predictions` は b が欠けると偽）
+- 問題：E78 は自分の選択（台本を含む仮のターゲット）の設定だけ種 1・2 を解くので，MOSEI・MELD の選び直しが別の設定を選ぶと b が無い．そのとき台本は K ≥ 1 でも「a ≥ 1% なら働いた」とする．人工の入力では P4 系の DANN・MME の K ≥ 1 で b が欠けた行が 18 行（すべて ns_excl）あり，18 行とも「働いた」になった．働いたとされた単位の「同じ水準」は (3) の支持に残るので，筋の 4 に有利な側に寄る（検査役の stats 2・define 3 が問題にした向き）．設計の 7′ は「K ≥ 1 は a > b かつ a ≥ 1%」とだけ書き，b が欠けたときを決めていない．統計の検査役は「ns_excl は材料が無いので excl の値を当てると書くか，材料を足す」と求めていた
+- 計算の後で直せるか：直せる（材料は `diag_<実行>.csv` にある）
+- 求める対応：値を見る前に，b が欠けたときの規則を設計の 7′ に書いて台本をそれに合わせる．推すのは「b が欠けた単位は excl の選択の b（同じ単位の種の幅）を使い，それも無ければ働いたかを判定できないとして inactive の印を付けず，`inactive.csv` に印を出す」である．あわせて `da_effect.csv` と同じ扱いにそろえる
+
+#### [I-nt-same] 教師なしを「同じ水準」として数えた感度の行が，none と参照・群 C・替えた除去の行の本当の差まで「同じ水準」に書き換える
+- 重さ：直してから進む（judge だけ）
+- 該当箇所：`exp/analyze_e79.py:2176-2181`（`U2.loc[U2.judgment == "no_teacher", "judgment"] = "same"`）
+- 問題：P5-1・P5-3 では教師なしの単位の差は定義から 0 なので「同じ水準」は正しい．しかし `no_teacher_as_same` は judgment が `no_teacher` の全部の族に当たる．人工の入力の AFEW・顔・K=25 では，P5_refs の oursx − ref_merged（点の値 −13.4，元の判定 neg）と oursx − ref_tgtonly（−18.3，neg）が「同じ水準」に書き換わった．この行を「教師なしの単位を含めても結論は変わらない」の根拠に使うと，oursx（＝ none）が参照に負けた単位を同じ水準として数えることになる
+- 計算の後で直せるか：直せる
+- 求める対応：感度の行の判定を `judgment_raw`（教師なしで外す前の判定．P5-1・P5-3 では same になる）にする．名前も `no_teacher_unconditional` のように「外さずに判定した」と分かるものにする
+
+#### [記録 1] 融合の生徒（P4′）の主の行を (3) から (4) に替えたとき，文の頭の「(5) 筋の 4 を『単モダリティの特徴の空間では』と限る．」が付かない
+- 該当箇所：`exp/analyze_e79.py:2290-2295`（`statement_key` を (4) の文だけに置き換える）．`statements_p4` は P4′ の (3) 以外に (5) の頭を付ける（`:2401-2402`）
+- 求める対応：置き換えるときに `fam == "P4'"` なら同じ頭を付ける（`check_seed_override.py` で確かめた）
+
+#### [記録 2] そのほかの記録
+- `statements_p4` の偶然の見込みの行の文が「働かなかった単位（none との予測の食い違い < 1%．…）」のままで，手法ごとの基準（`inactive_of`）を書いていない（`:2411-2413`）
+- 段の間の照合で止まる前に出力の段の場所（空の `measure/` など）を作るので，同じ `--out` で流し直すには手で消す
+- `abl_class` は IEMOCAP の 2 群で意味が違うと `mixed` を返し，ablation・ablation_replace では `other_class` として外す．今の入力では台本の kept を即興から写すので起きない
+- ns_excl の行の注：MOSEI・MELD の選び直しでは教師のふるいは台本を含む仮のターゲットのまま（比較の検査役の記録．台本は変えていない）
+
+#### [記録 3] 前の検査で記録とされ，台本に入っていないもの（どれも保存した出力から CPU で出せる）
+- R6′ の 20 回の差の標準偏差と正の回数：`chosen.csv` の `oursx_r6s<i>` と `keys_*.csv`・`boot_*.npz` の点の値から出せる
+- entmin・IM の種ごとの最多の感情の割合と崩れた種の数：E77 の `<T>_r<r>_pred.npy` と `<T>.csv` から出せる
+- 共正則化の上限との比べの p 値を表と本文に出さないこと：書き方で直す
+
+#### [記録 4] D8 の表と oursx_noJ は E77 にある教師に限る
+- `d8_rows` は `NOJ_DIST ∪ NOJ_KD` の教師（pF・pFK・ref・poe0・ref0）だけを並べ，kept.csv にある E77 に無い教師（人工の入力では agree・ds）は表に出ない．設計の 15 にはこの範囲が書かれていない
+- 段 c で新しい教師が kept に残ると，oursx の候補が oursx_noJ の候補に含まれなくなり，`screening` の oursx − oursx_noJ は「ふるいの寄与」だけでなく「新しい教師を足した寄与」も含む．段 c の設計（66eacca）の再検査で，`NOJ_DIST`・`NOJ_KD` を段 c の教師まで広げるか，範囲を書くかを確かめる
+
+### 本番の規模の見積もり（更新）
+人工の入力で judge が 75 秒から 93 秒（約 1.25 倍），measure が 72 秒から 79 秒になった．前回の見込み（measure 1.5〜4 時間，judge 30〜60 分）に当てると judge は 40〜75 分の見込み（外挿）．セッションの jackknife は IEMOCAP だけで複製 5 個なので measure の増分は小さい．`--families p4` の measure は共正則化の上限と P5 の鍵を作らない分だけ短い．ディスクは `jkcl_*.npz` が IEMOCAP の群ごとに 1 本（セッション 5 行 × 鍵の数）増える．GPU は使わない．
+
+### B．予想される指摘（今回の直しで増えた行だけ）
+
+| 表・図 | 予想される指摘 | もとにした項目か例 | (a)／(b)／(c) | (b) なら足すもの | 足す費用 |
+|---|---|---|---|---|---|
+| 除去実験の表 | 外した比べと替えた比べを分けた向きの損の表を出せ | D14 案，C12 案 | (a) | `units.csv` の `abl_kind` で分けて数え直す（[I-abl-dir] を直せば台本が出す） | — |
+| 表 J1 | 働かなかった単位の基準を b の欠けで変えたら | S14 案 | (a) | `inactive.csv` の `inactive_a`・`inactive_b` から当て直す | — |
+| 表 J1 | IEMOCAP をセッションで引いた区間だけで | G4 | (a) | `units.csv` の `lo_cluster`・`hi_cluster`・`lo_cluster_jk`・`hi_cluster_jk` | — |
+| 表 J2 | ふるいを外した提案・KD との比べ | C11 案 | (a)（E77 にある教師の範囲） | `oursx_noJ`・`kd_noJ` の行．段 c の教師まで含めるなら段 c で dist・KD を仮のターゲットでも解く（段 c の設計が範囲を決めた） | 段 c の見積もり |
+| 付録の D8 の表 | 残した教師は蒸留で none を上回ったか | E80 の D8 | E77 の教師は (a)，段 c の教師は (b) | 段 c で仮のターゲットの dist・KD を解く（66eacca の範囲に入っているかを段 c の再検査で見る） | 段 c の見積もり |
+| 表 J2 | 教師なしの単位を外さずに判定したら | D6，S15 案 | (a) | `judgment_raw`（[I-nt-same] を直せば台本が出す） | — |
+
+### E80 の要約の直し（8757dc9．本体のセッションの追加の依頼）
+- 流したもの：E80 の gate-code の試走の段 a の出力（`checks/E80/code_run/gate/avt_clean`（bb056d2）と `av_clean`（365ae18））を `v3/e80/` に写し，8757dc9 の `--summarize` を流した（CPU，数秒）．210 行と `kept_provenance.json` を書いた
+- コミットの混ざり：bb056d2 と 365ae18 は `exp/`・`measure/` に差が無いので止まらずに通った．写しの AV の部品の commit を 4031d1d（`exp/` に差がある）に書き換えると「コミットが混ざっていて，exp/・measure/ に差がある」で止まった．存在しないコミットでも止まった（git が 128 を返すため．文は「差がある」になる）
+- 独立の検算（`v3/e80/verify_kept_r3q.py`．前回の `verify_kept.py` の判定の規則を R3⁗ に替えた版．npz から教師の確率を組み直す）：j_units と 924 行が 1 対 1，kept.csv と 210 行が 1 対 1，`uar_diff_median`・`J_median`・`frac_pos`（UAR の差の正の割合）・`frac_pos_J` の差 ≤ 1.1e−16，`n_units`・`n_corpora`・`keep`（＝ uar_diff_median > 0）の不一致 0
+- E79 が読めるか（`v3/e80/check_load.py`）：`load_kept` は新しい列の並びの kept.csv を読み，keep（bool）から残した教師を作り，`kept.csv` の keep と一致した（台本の 12 単位は即興から写した）．`kept_provenance.json` の `kept_sha256` は kept.csv の sha256 と一致し，E79 の `kept_provenance` はこのファイルを見つけた．ただし E79 は `script`・`commit`・`dirty`・`script_sha256` だけを写し，`inputs`（j_units の sha256）・`rule`・`unit_commits`・`kept_sha256`・`made` を select の provenance に残さない（E80 は `inputs`，E79 は `inputs_sha256` という名前で探す）．`j_units.csv` は kept.csv の隣に無いので `j_units` の記録も入らない（記録する．求める対応：E79 の `kept_provenance` で sidecar の中身を全部写し，`kept_sha256` が kept.csv の sha256 と違えば止める）
+- 記録：`summarize` の docstring の列の並び（「J_median, n_units, …, keep」と記述の列 uar_diff_median）が新しい並びと違う．`exp/` 全体の差で止めるので，E80 と関係の無い台本（例：`exp/analyze_e79.py`）を直した前後に段 a が分かれると止まる（安全な側．本番で止まったら `exp/e80_teacher_j.py` とそれが読む部品の差だけを確かめて `--summarize` の対象を決める）
+- 判定：E80 の要約の直しは設計の R3⁗ どおりで，E79 はこの出力を読める．直してから進む点は無い
+
+### 見たデータ
+画面に出たのは，人工の入力の行の数・照合の差の最大・判定の種類の数，人工の入力の AFEW・顔・K=25 の点の値（P5_refs の −13.4・−18.3 など．人工の値），E80 の gate-code の試走の kept.csv（仮のターゲットの値の派生）の先頭 2 行（AVT の T＝IEMOCAP 即興の融合の生徒の poe0・other_audio_wavlm，K=0 の uar_diff_median・J_median）と keep が真の行の数（133／210），E80 の試走の出力の列の名前とコミットだけである．評価のターゲットの値（`results/` の E77・E78 の本番の出力）と E80 の本番の kept.csv は開いていない．
+
+判定：直してから通す（[I-abl-dir]・[I-ns-b]・[I-nt-same] を judge の前に直す．delta・select・measure と `--families p4` の select・measure は今のまま流せる．p4 の judge も [I-ns-b] を直してから）．
