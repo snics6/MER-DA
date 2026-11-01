@@ -7,7 +7,10 @@ E76（`exp/relearn_e76.py`）は 2026-11-01 21:06 に A(HuBERT) の MELD を書�
 
 この台本は `relearn_e76.verdict` だけを差し替え，`relearn_e76.main` をそのまま呼ぶ．計算・保存・照合の表は E76 と同じである．
 差し替えた判定：h9 と h10 では大きさの基準（どの条件も tol の 2.5 倍以下）を残し，数の基準（tol を超える条件が 1% 以下）は
-記録だけにする．①・②・③・h2〜h8 の基準は E76 のまま（そこで止まったら研究者に報告する．E76 の 10 節）．
+記録だけにする．①・②（tgt_only・src_only）では，C の 4 つの値すべてのテストの UAR が地図と tol の中で一致し，選ばれた C の
+UAR の基準も満たすときに限り，C と規則の違いを記録だけにする（2026-11-02 に RAVDESS の ① で 60 条件のうち 1 条件の C が地図と
+違って止まった後の研究者の承認．取り違えなら 4 つの C のテストの UAR がそろってずれるので，その場合は止める）．③・h2〜h8 の基準は
+E76 のまま（そこで止まったら研究者に報告する．E76 の 10 節）．
 
 計算の前に，この台本を除いた読み込むコードのハッシュが E76 の本番（A(HuBERT) の MELD.json）と同じことを確かめる．
 引数は `--kinds`・`--targets`・`--gpu-fraction`・`--out`・`--allow-dirty` だけを受け付ける（設定を E76 と同じに保つ）．
@@ -17,6 +20,7 @@ E76（`exp/relearn_e76.py`）は 2026-11-01 21:06 に A(HuBERT) の MELD を書�
 
 使い方（研究室 PC の tmux mer-da．台本をコミットしてから）：
     ./.venv/bin/python exp/relearn_e76_finish.py --kinds audio_hubert --targets AFEW RAVDESS CREMA-D --gpu-fraction 0.3
+    （2026-11-02 の 2 回目：AFEW と RAVDESS は 1 回目で書いたので --targets CREMA-D だけ）
 """
 from __future__ import annotations
 
@@ -29,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import relearn_e76 as R  # noqa: E402
 
 COUNT_WAIVED = ("h9", "h10")      # 数の基準を記録だけにする手（E31 の O2・O1 と照合する手）
+C_WAIVED = ("tgt_only", "src_only")  # C と規則の違いを，テストの UAR が C の 4 つすべてで地図と合うときだけ記録にする（①・②）
 ALLOWED_KINDS = ("audio_hubert",)
 ALLOWED_TARGETS = ("AFEW", "RAVDESS", "CREMA-D")
 ALLOWED_OPTS = ("--kinds", "--targets", "--gpu-fraction", "--out", "--allow-dirty")
@@ -38,8 +43,22 @@ REF_JSON = R.ROOT / "results" / "e76" / "audio_hubert" / "MELD.json"   # E76 の
 _orig_verdict = R.verdict
 
 
+def c_waivable(e: dict) -> bool:
+    """①・② で C か規則が地図と違っても，C の 4 つの値すべてのテストの UAR が地図と tol の中で一致し，
+    選ばれた C の UAR の基準（tol の 2.5 倍以下，tol を超える条件が 1% 以下）も満たすなら真（2026-11-02 研究者の承認）。"""
+    n = e.get("n_ref", 0)
+    return bool(n) and (e.get("max_allC_over_tol") is not None and e["max_allC_over_tol"] <= 1.0) \
+        and (e.get("max_diff_over_tol") or 0) <= 2.5 and e.get("n_over_tol", 0) <= 0.01 * n
+
+
 def verdict_finish(summ: dict) -> list[str]:
-    """E76 の verdict と同じ．ただし h9・h10 は大きさの基準（tol の 2.5 倍）だけで止める。"""
+    """E76 の verdict と同じ．ただし h9・h10 は大きさの基準（tol の 2.5 倍）だけで止める．
+    ①・②（tgt_only・src_only）は，C と規則の違いを c_waivable のときだけ記録にする。"""
+    summ = dict(summ)
+    for m in C_WAIVED:
+        e = summ.get(m)
+        if e and (e.get("C_mismatch") or e.get("rule_mismatch")) and c_waivable(e):
+            summ[m] = {**e, "C_mismatch": 0, "rule_mismatch": 0}
     bad = _orig_verdict({m: e for m, e in summ.items() if m not in COUNT_WAIVED})
     for m in COUNT_WAIVED:
         e = summ.get(m, {})
@@ -97,7 +116,11 @@ def main() -> None:
                      "超えた条件はソース RAVDESS・K=1・C=10．相手の E31 は別の GPU で解いた値．"
                      "ほかの 7 種類では h9・h10 の超過は 0",
            "approved": "2026-11-02 研究者",
-           "accepted_existing": {"audio_hubert/MELD": ref.get("check_failed")}}
+           "change_c": "①・② で C か規則が地図と違っても，C の 4 つの値すべてのテストの UAR が地図と tol の中で一致し，"
+                       "選ばれた C の UAR の基準も満たすなら記録だけにする（2026-11-02 研究者の承認．RAVDESS の ① の後）",
+           "accepted_existing": {"audio_hubert/MELD": ref.get("check_failed"),
+                                 "audio_hubert/RAVDESS": json.loads((out / "audio_hubert" / "RAVDESS.json").read_text())
+                                 .get("check_failed") if (out / "audio_hubert" / "RAVDESS.json").exists() else None}}
     R.verdict = verdict_finish
     result = "error"
     try:
