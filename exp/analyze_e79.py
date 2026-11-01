@@ -98,13 +98,20 @@ KEPT_FAMS = ("oursx", "kd", "abl_bal", "abl_raw", "abl_hard")                # E
 R6_DRAWS = 20                                                                  # R6′：oursx の候補から KD の族と同じ数の部分集合を種 0〜19 で一様に引き（none は常に含む），それぞれで選ぶ
 CONV_MAX_ITER, CONV_TOL = 20000, 1e-6                                          # exp/logreg.py の MAX_ITER・TOL（L-BFGS の反復の上限と勾配の許容幅．付録の収束の表）
 LP_CG_MAX = 50                                                                 # exp/compare_dai.py の LP_CG_ITERS（ラベル伝播の共役勾配法の上限）
-R6_PREFIX = "oursx_r6s"                                                        # R6′ の選択の族の名前（oursx_r6s0 〜 oursx_r6s19）
+R6_PREFIX = "oursx_r6s"
+P4_SELS = set(GROUP_B) | {"t3a_b", "mapctl", "coralctl"}                       # --families p4 で選ぶ族（P4・P4′・その対照と記述．E80 の段 c を待たずに流す道）
+NOJ_DIST = {"uni": ("pF", "pFK", "ref"), "fused": ("poe0", "ref", "ref0")}    # ふるわない版 oursx_noJ：E77 に dist の行がある全部の教師（ownK は教師でなく除去の行）
+NOJ_KD = {"uni": ("pF", "pFK", "ref"), "fused": ("poe0", "ref")}               # ふるわない版 kd_noJ：前の設計の KD と同じ教師（E77 の kd・kdh の教師）
+ABL_TEACHER = {"abl_refa": "pFK", "abl_refb": "ref", "abl_pF": "pF", "abl_ref0": "ref0", "abl_poe0": "poe0"}   # 教師を固定した除去の行
+EXCLUDED = ("no_teacher", "identical", "other_class")
+CLUSTER_JK_MAX = 10                                                            # 塊の数がこれ未満なら，塊の百分位の区間に塊を 1 つずつ抜く jackknife の t 区間（自由度 塊の数 − 1）を和集合で足す                          # 判定の数え上げから外す単位（過半は残りのコーパスの数で決め直す）                                                        # R6′ の選択の族の名前（oursx_r6s0 〜 oursx_r6s19）
 CONSTS = {"KS": KS, "DISAGREE_MIN": DISAGREE_MIN, "MODEL_RATIO_MAX": MODEL_RATIO_MAX, "MODEL_UNIT_FRAC": MODEL_UNIT_FRAC,
           "VR_RANGE": VR_RANGE, "NULL_DRAWS": NULL_DRAWS, "CORAL_FIX_R": CORAL_FIX_R, "TOL_LOGP": TOL_LOGP,
           "TOL_UAR": TOL_UAR, "P4_KS": P4_KS, "P5_KS": P5_KS, "GROUP_B": GROUP_B, "SEEN": {k: sorted(v) for k, v in SEEN.items()},
           "SEEDED": sorted(SEEDED), "NC_SEEDED": sorted(NC_SEEDED), "GEFF_MIN": GEFF_MIN,
           "CLUSTER_COLS": {k: list(v[1]) for k, v in CLUSTER_COLS.items()}, "COREG": COREG, "KEPT_FAMS": KEPT_FAMS, "R6_DRAWS": R6_DRAWS,
-          "CONV_MAX_ITER": CONV_MAX_ITER, "CONV_TOL": CONV_TOL, "LP_CG_MAX": LP_CG_MAX}
+          "CONV_MAX_ITER": CONV_MAX_ITER, "CONV_TOL": CONV_TOL, "LP_CG_MAX": LP_CG_MAX, "NOJ_DIST": NOJ_DIST, "NOJ_KD": NOJ_KD,
+          "EXCLUDED": EXCLUDED, "CLUSTER_JK_MAX": CLUSTER_JK_MAX}
 EMPTY = "__none__"
 OWN_CHECKED: set = set()
 
@@ -221,7 +228,8 @@ def write_prov(d, stage, args, extra):
             "dirty_files": git("status", "--porcelain", "--untracked-files=no").splitlines(),
             "script_sha256": sha256(Path(__file__)), "started": args._t0_str, "seconds": round(time.time() - args._t0, 1),
             "consts": CONSTS, "threads": {v: os.environ.get(v) for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")},
-            "allow_incomplete": args.allow_incomplete, "skip_commit_check": args.skip_commit_check, "allow_dirty": args.allow_dirty, **extra}
+            "allow_incomplete": args.allow_incomplete, "skip_commit_check": args.skip_commit_check, "allow_dirty": args.allow_dirty,
+            "families": getattr(args, "families", "all"), **extra}
     (d / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1, default=str))
 
 
@@ -249,6 +257,8 @@ def check_chain(stage, args):
     prev = ["delta"] + (["select"] if stage in ("measure", "judge") else []) + (["measure"] if stage == "judge" else [])
     for st in prev:
         p = read_prov(st, args)
+        if st != "delta" and p.get("families", "all") != args.families:      # --families は select・measure・judge で同じ（P4 だけの出力を全部の族の段に渡さない）
+            raise SystemExit(f"{st} の段は --families {p.get('families', 'all')} で流されている（今は {args.families}）．同じ値で流し直す")
         if p.get("script_sha256") != me:
             raise SystemExit(f"{st} の段の台本の版（{p.get('script_sha256', '')[:16]}）が今の台本（{me[:16]}）と違う．同じ版で流し直す")
         if not args.skip_commit_check and (p.get("skip_commit_check") or (p.get("delta") or {}).get("skipped")):
@@ -480,6 +490,9 @@ def sel_defs(role, kept=()):
     if world:
         D["kd"] = [("e77", lambda m, p, f: m in ("kd", "kdh") and re.sub(r"T\d+$", "", p) in kept)]   # E80 の C1：提案と同じ教師
         D["oursx"] = [dist(kept)]                                             # E80 の R4
+        noj_d, noj_k = NOJ_DIST["uni" if uni else "fused"], NOJ_KD["uni" if uni else "fused"]
+        D["oursx_noJ"] = [dist(noj_d)]                                        # ふるわない版（J でふるう前の，E77 に dist の行がある全部の教師．比較の検査役の追記の指摘 1）
+        D["kd_noJ"] = [("e77", lambda m, p, f: m in ("kd", "kdh") and re.sub(r"T\d+$", "", p) in noj_k)]   # 前の設計の KD と同じ教師
         D["ours"] = [("e77", lambda m, p, f: m == "dist" and p == f"{ours_ref}:bal")]   # 除去実験の行（R4）
         if uni:
             D["abl_refa"], D["abl_refb"], D["abl_pF"] = [dist(("pFK",))], [dist(("ref",))], [dist(("pF",))]
@@ -548,18 +561,48 @@ def load_pseudo(run, d77, d78, args=None, issues=None):
     return P[~co]
 
 
+def kept_provenance(f):
+    """kept.csv の由来（関門 1 の C6）：kept.csv の sha256 と大きさと時刻，作った台本（exp/e80_teacher_j.py）の今の sha256 と最後のコミットと dirty，
+    kept.csv の隣にある provenance（あれば中身の commit・script_sha256 など）と j_units.csv（あれば sha256 と commit の列）。"""
+    f = Path(f)
+    scr = ROOT / "exp" / "e80_teacher_j.py"
+    pv = {"path": str(f), "sha256": sha256(f), "bytes": f.stat().st_size, "mtime": f.stat().st_mtime, "script": "exp/e80_teacher_j.py",
+          "script_sha256_now": sha256(scr) if scr.exists() else None, "script_last_commit": git("log", "-1", "--format=%H", "--", "exp/e80_teacher_j.py"),
+          "script_dirty": bool(git("status", "--porcelain", "--", "exp/e80_teacher_j.py")),
+          "note": "script_sha256_now・script_last_commit は E79 を流したときの台本．kept.csv を作ったときの版は sidecar（E80 が書く provenance）か j_units の commit で読む"}
+    side = {}
+    for nm in (f.stem + "_provenance.json", f.name + ".provenance.json", "provenance.json"):
+        g = f.parent / nm
+        if g.exists():
+            try:
+                d = json.loads(g.read_text())
+            except json.JSONDecodeError:
+                continue
+            side[nm] = {k: d.get(k) for k in ("script", "commit", "dirty", "script_sha256", "argv", "started", "kept_out", "inputs_sha256") if k in d}
+    pv["sidecar"] = side
+    j = f.parent / "j_units.csv"
+    if j.exists():
+        try:
+            c = pd.read_csv(j, usecols=["commit"]).commit.astype(str).unique().tolist()
+        except ValueError:
+            c = []
+        pv["j_units"] = {"path": str(j), "sha256": sha256(j), "commits": c}
+    return pv
+
+
 def load_kept(args, dirs, issues):
-    """E80 の kept.csv（R3′〜R3‴．（世界, 評価のターゲット, 生徒, 教師, K）ごとの keep）を読み，(実行, T, 生徒, K) → 残した教師（名前の順）を返す．
-    IEMOCAP 台本の行が無いときは即興の行を使う（E80 は台本を即興の単位で測る．記録する）．world の実行が無ければ空。"""
+    """E80 の kept.csv（R3′〜R3‴．（世界, 評価のターゲット, 生徒, 教師, K）ごとの keep）を読み，(実行, T, 生徒, K) → 残した教師（名前の順）と，
+    (実行, T, 生徒, K) → {教師: keep}（D8 の表に使う）と，由来の記録を返す．IEMOCAP 台本の行が無いときは即興の行を使う（E80 は台本を即興の単位で測る．記録する）．
+    world の実行が無いか --families p4 なら読まない。"""
     worlds = [r for r in dirs if r in WORLDS]
-    if not worlds:
-        return {}, None
+    if not worlds or args.families == "p4":
+        return {}, None, {}, None
     f = Path(args.e80_kept)
     if not f.exists():
         if not args.allow_incomplete:
-            raise SystemExit(f"E80 の kept.csv（{f}）が無い．E80 の段 b（R3′〜R3‴）が終わってから流す（R7）")
+            raise SystemExit(f"E80 の kept.csv（{f}）が無い．E80 の段 b（R3′〜R3‴）が終わってから流す（R7）．P4 だけなら --families p4")
         issues.append({"check": "kept_missing", "path": str(f)})
-        return {}, None
+        return {}, None, {}, None
     k = pd.read_csv(f, dtype={"K": str, "world": str, "target": str, "student": str, "teacher": str})
     need = {"world", "target", "student", "teacher", "K", "keep"}
     if not need <= set(k.columns):
@@ -567,14 +610,17 @@ def load_kept(args, dirs, issues):
     if k.duplicated(["world", "target", "student", "teacher", "K"]).any():
         raise SystemExit(f"{f} に（世界, 評価のターゲット, 生徒, 教師, K）の重複がある")
     k["keep"] = k.keep.map(lambda v: v is True or str(v).strip().lower() in ("true", "1"))
-    out = {}
+    out, allk = {}, {}
     for (w, T, st, K), g in k.groupby(["world", "target", "student", "K"]):
         out[(w, T, st, K)] = tuple(sorted(g.teacher[g.keep]))
+        allk[(w, T, st, K)] = dict(zip(g.teacher, g.keep))
     for (w, T, st, K) in list(out):                                            # 台本は即興の単位（E80 の段 a の SKIP_T）
         if T == "IEMOCAP-impro" and (w, "IEMOCAP-script", st, K) not in out:
             out[(w, "IEMOCAP-script", st, K)] = out[(w, T, st, K)]
+            allk[(w, "IEMOCAP-script", st, K)] = allk[(w, T, st, K)]
             issues.append({"check": "kept_script_from_impro", "run": w, "student": st, "K": K})
-    return out, sha256(f)
+    pv = kept_provenance(f)
+    return out, pv["sha256"], allk, pv
 
 
 def check_kept(args, run, T, PT, kept, issues):
@@ -596,6 +642,39 @@ def check_kept(args, run, T, PT, kept, issues):
                 raise SystemExit(f"E80 の段 c が要る：{run} {T} の生徒 {st}（K={K}）で残した教師 {miss} の dist か KD（kd・kdh）の行が E77 に無い"
                                  "（E77 の参照は，dist が単モダリティ pFK・ref・pF，融合 ref・ref0・poe0，KD が単モダリティ pF・pFK・ref，融合 poe0・ref）．"
                                  "段 c で dist と KD の行を足してから流す")
+
+
+def d8_rows(run, T, st, role, K, PK, kept_all_u, kept_u):
+    """E80 の D8 の表（記述．R3″ は変えない）：E77 に dist か KD の行がある教師ごとに，kept で残したかと，その教師の dist（重みの付け方 × 総重み）と
+    KD（kd・kdh × 温度 × 総重み）の最良の設定の仮のターゲットの UAR（仮のターゲット × 反復の単純平均．全部の単位に値のある設定だけ）− none の UAR。
+    R3″ と同じ仮のターゲットのデータで 2 回選んだ結果どうしの一致なので，一致は高めに出る（表の注に書く）。"""
+    none = PK[(PK.method == "none") & (PK.wave == "e77")]
+    n_units = none.groupby(["pseudo", "rep"]).ngroups
+    nv = float(none.uar.mean()) if len(none) else np.nan
+    x = PK[PK.wave == "e77"]
+    dist = x[x.method == "dist"].assign(t=lambda d: d.pnorm.str.split(":").str[0])
+    kd = x[x.method.isin(["kd", "kdh"])].assign(t=lambda d: d.pnorm.str.replace(r"T\d+$", "", regex=True))
+    out = []
+
+    def best(d):
+        if d.empty:
+            return np.nan, None
+        g = d.groupby(["method", "pnorm", "meff"]).uar.agg(["mean", "size"])
+        g = g[g["size"] == n_units]
+        return (float(g["mean"].max()), "|".join(g["mean"].idxmax())) if len(g) else (np.nan, None)
+    for t in sorted(set(NOJ_DIST[role]) | set(NOJ_KD[role])):
+        bd, sd = best(dist[dist.t == t])
+        bk, sk = best(kd[kd.t == t])
+        keep = t in kept_u
+        row = {"run": run, "target": T, "student": st, "role": role, "K": K, "teacher": t,
+               "in_kept_csv": bool(kept_all_u is not None and t in kept_all_u), "keep": keep, "none_pseudo_uar": 100 * nv,
+               "dist_best_minus_none": 100 * (bd - nv), "dist_best": sd, "kd_best_minus_none": 100 * (bk - nv), "kd_best": sk}
+        row["dist_beats_none"] = bool(np.isfinite(bd) and bd > nv) if np.isfinite(bd) else np.nan
+        row["kd_beats_none"] = bool(np.isfinite(bk) and bk > nv) if np.isfinite(bk) else np.nan
+        row["agree_dist"] = (keep == row["dist_beats_none"]) if isinstance(row["dist_beats_none"], bool) else np.nan
+        row["agree_kd"] = (keep == row["kd_beats_none"]) if isinstance(row["kd_beats_none"], bool) else np.nan
+        out.append(row)
+    return out
 
 
 def r6_subsets(cands, n_kd, run, T, st, K):
@@ -649,8 +728,10 @@ def stage_select(args, dirs, out):
     chain = check_chain("select", args)
     dmeta = chain["delta"]
     issues, rows, cand_rows, fixed, inputs, copied, r6rows = [], [], [], [], {}, {}, []
-    kept, kept_sha = load_kept(args, dirs, issues)
+    kept, kept_sha, kept_all, kept_prov = load_kept(args, dirs, issues)
     kept_commit = require_committed(args.e80_kept, "E80 の kept.csv", args) if kept_sha else None   # E80 の節に sha256 を書いてコミットしてから（δ と同じ形）
+    p4only = args.families == "p4"
+    d8rows = []
 
     def pick_one(ctx, sel, dd, PV):
         """1 つの族の選択（仮のターゲット × 反復の全行の UAR の単純平均の最大）．行を rows に足す。"""
@@ -753,7 +834,7 @@ def stage_select(args, dirs, out):
             if PT.empty:
                 fail_or_note(args, issues, check="pseudo_missing", run=run, target=T)
                 continue
-            if run in WORLDS:
+            if run in WORLDS and not p4only:
                 check_kept(args, run, T, PT, kept, issues)
             src = ";".join(sorted(set(PT.copied_from.dropna().astype(str))))   # 写した仮のターゲット（短縮 a）
             if src:
@@ -787,7 +868,11 @@ def stage_select(args, dirs, out):
                 for K in KS:
                     kept_u = kept.get((run, T, st, K), ())
                     defs = sel_defs(role, kept_u)
+                    if p4only:                                                # --families p4：P4・P4′ の族だけ（kept.csv を使う族を選ばない）
+                        defs = {k_: v_ for k_, v_ in defs.items() if k_ in P4_SELS}
                     PK = Ps[Ps.K == K]
+                    if role in ("uni", "fused") and not p4only:              # D8 の表（E80）：E77 に行がある教師ごとに，残したかと，dist・KD の最良が仮のターゲットで none を上回ったか
+                        d8rows += d8_rows(run, T, st, role, K, PK, kept_all.get((run, T, st, K)), kept_u)
                     subsets = []
                     if "oursx" in defs:                                       # R6′：KD の族と同じ数の oursx の部分集合（none は常に含む）
                         key_ = lambda d_: set((d_.method + "|" + d_.pnorm + "|" + d_.meff).unique())  # noqa: E731
@@ -810,6 +895,7 @@ def stage_select(args, dirs, out):
                     # 固定版の行（設計の文書の「固定」．選ばない）
                     fixed += fixed_rows(run, T, st, role, K, sets, rows)
     pd.DataFrame(r6rows).to_csv(out / "r6_subsets.csv", index=False)
+    pd.DataFrame(d8rows).to_csv(out / "d8_table.csv", index=False)
     pd.DataFrame([{"run": a, "target": T_, "student": b, "K": c, "teachers": ";".join(t), "n_teachers": len(t)}
                   for (a, T_, b, c), t in sorted(kept.items()) if a in dirs]).to_csv(out / "kept_used.csv", index=False)
     R = pd.DataFrame(rows)
@@ -819,7 +905,8 @@ def stage_select(args, dirs, out):
     pd.DataFrame(issues).to_csv(out / "checks.csv", index=False)
     hc, hf = sha256(out / "chosen.csv"), sha256(out / "fixed.csv")
     write_prov(out, "select", args, {"delta": dmeta, "chain": chain, "n_issues": len(issues), "inputs_sha256": inputs,
-                                     "e80_kept": {"path": str(args.e80_kept), "sha256": kept_sha, "commit_check": kept_commit}, "copied_pseudo": copied,
+                                     "e80_kept": {"path": str(args.e80_kept), "sha256": kept_sha, "commit_check": kept_commit, "provenance": kept_prov},
+                                     "copied_pseudo": copied,
                                      "rule": "仮のターゲット × 反復の全行（種のある手法は種 0）の UAR の単純平均の最大．同点は 'method|pnorm|meff' の文字列の順で先頭．"
                                              "none を含む版は none と同点なら none．oursx は E80 の R4（kept.csv で（世界, T, 生徒, K）ごとに残した教師 × 重みの付け方 5 × 総重み 4．"
                                              "残した教師が無い単位は none．R3‴），KD（kd と kdh）の教師も同じ集合（C1），"
@@ -1077,7 +1164,10 @@ def stage_measure(args, dirs, out):
                 if all(p["clusters"] is not None for p in prep.values()):
                     clusters = sorted(set().union(*[p["cl_units"] for p in prep.values()]))
                     Cc, Ac = boot_draws(run, cp, clusters, args.boot, args.seed, len(args.reps), tag="cluster")
-                    specs.append(("cl", {c: i for i, c in enumerate(clusters)}, "clusters", Cc, Ac))
+                    cl_ix = {c: i for i, c in enumerate(clusters)}
+                    specs.append(("cl", cl_ix, "clusters", Cc, Ac))
+                    if len(clusters) < CLUSTER_JK_MAX:                         # 塊が少ない（IEMOCAP のセッション 5 つ）：塊を 1 つずつ抜く jackknife（関門 1 の追記 stats 1）
+                        specs.append(("cljk", cl_ix, "clusters", 1.0 - np.eye(len(clusters)), None))
                 else:
                     issues.append({"check": "cluster_labels_missing", "run": run, "corpus": cp, "cols": list(CLUSTER_COLS[cp][1])})
             for T, p in prep.items():
@@ -1131,6 +1221,8 @@ def stage_measure(args, dirs, out):
                     np.savez_compressed(out / f"jk_{run}_{T}.npz", persons=np.array(speakers), **res["jk"])
                 if "cl" in res:
                     np.savez_compressed(out / f"bootcl_{run}_{T}.npz", **res["cl"])
+                if "cljk" in res:
+                    np.savez_compressed(out / f"jkcl_{run}_{T}.npz", clusters=np.array(clusters), **res["cljk"])
                 bu = res["boot"]["uar"]
                 kt = pd.DataFrame(p["keys"], columns=["student", "K", "wave", "method", "param", "meff", "seedmode"]).assign(
                     key_id=range(nk), run=run, target=T, n_seeds=p["nseeds"])
@@ -1138,6 +1230,7 @@ def stage_measure(args, dirs, out):
                 meta.append({"run": run, "target": T, "corpus": cp, "n_speakers_corpus": len(speakers), "n_speakers_target": p["n_spk"],
                              "max_speaker_share": p["max_share"], "g_eff": p["geff"], "g_eff_min_corpus": geff_min, "jk": "jk" in res,
                              "cluster_cols": "|".join(CLUSTER_COLS[cp][1]) if "cl" in res else "", "n_clusters_corpus": len(clusters) if clusters else 0,
+                             "cluster_jk": "cljk" in res,
                              "n_keys": nk, "boot": args.boot,
                              "frac_empty_rep_draws": n_empty / max(n_draw, 1), "frac_missing_class_draws": n_miss / max(n_draw, 1),
                              "n_nan_uar_reps": int(np.isnan(bu).sum()), "sec": round(time.perf_counter() - t0, 1)})
@@ -1371,7 +1464,7 @@ def measure_target(args, run, T, d77, d78, sel, fixed, issues, rows_all, pair_ro
         tr["n_neg_dir_pairs"] = (aD0 - a0 < 0).sum(1)
     # 共正則化（群 C の探索）：評価のターゲットでテストで選んだ上限（短縮 b）．（生徒, K）ごとに，反復の平均の UAR が最大の設定と，
     # 反復の平均の向きの損が最小の設定を別々に選ぶ（none も候補．同点は none）．全反復に値のある候補だけ
-    extra = coreg_oracle(args, run, T, tab, sel_rows, reps, students, issues)
+    extra = [] if args.families == "p4" else coreg_oracle(args, run, T, tab, sel_rows, reps, students, issues)
     keys = key_table(sel, fixed, run, T, tab, extra)
     # 鍵ごとの反復の値（点）と，選んだ行の 6 対の内訳・切片だけを直した UAR
     krow, nseeds, krows_rep = [], [], {}
@@ -1504,24 +1597,42 @@ def diagnostics(args, run, T, d77, d78, tab, reps, sel, issues, diag_rows):
         for st in a77.student.unique():
             for K in KS:
                 n7 = a77[(a77.student == st) & (a77.method == "none") & (a77.K == K)].row_id
-                # P4 の「働かなかった」：選んだ設定（none を除いて選んだ版と MOSEI・MELD の選び直しの版）のテストの予測が none と食い違う割合．
-                # 種のある手法は判定と同じ種（excl は種 0・1・2，ns_excl は種 0）の食い違いの平均
+                # P4 の「働かなかった」の材料（関門 1 の追記の stats 2・define 3・code I1-inactive）．選んだ設定（none を除いて選んだ版と MOSEI・MELD の
+                # 選び直しの版）について：(i) テストの予測が none と食い違う割合（判定と同じ種：excl は種 0・1・2，ns_excl は E78 の手法だけ種 0），
+                # (ii) 種のある手法の種 0 だけの食い違い（entmin・im は none の解から始めた種 0 で決める），(iii) CORAL は同じ (ρ_M, C′, C_b) の coralctl との食い違い，
+                # (iv) DANN・MME の選び直しの版の DA の項の材料（同じ lr・反復・μ の mapctl（種 0）との食い違いと種の間の食い違いの最大）
                 if len(n7):
                     pn7 = P77[int(n7.iloc[0])]
                     for meth in GROUP_B:
-                        for v in ("excl", "ns_excl", "excl_s0"):
-                            ch = chosen_row(st, K, meth, "excl" if v == "excl_s0" else v)
+                        for v in ("excl", "ns_excl"):
+                            ch = chosen_row(st, K, meth, v)
                             if ch is None or ch.method == "none":
                                 continue
                             t_, Pw = (a77, P77) if ch.wave == "e77" else (a78, P78)
                             if t_ is None:
                                 continue
                             x = t_[(t_.student == st) & (t_.method == ch.method) & (t_.K == K) & (t_.pnorm == ch.param) & (t_.meff == ch.meff)]
-                            if v in ("ns_excl", "excl_s0") and ch.method in SEEDED - NC_SEEDED:   # 判定と同じ種（entmin・im は選び直しの版でも種の平均）
-                                x = x[x.seed == 0]
+                            xs = x[x.seed == 0] if ch.method in SEEDED else x
+                            if v == "ns_excl" and ch.method in SEEDED - NC_SEEDED:   # 判定と同じ種（entmin・im は選び直しの版でも種の平均）
+                                x = xs
                             if len(x):
                                 add(r, st, K, f"pred_disagree_vs_none|{meth}|{v}", float(np.mean([(Pw[int(i)] != pn7).mean() for i in x.row_id])),
                                     n_rows=int(len(x)))
+                            if ch.method in SEEDED and len(xs):
+                                add(r, st, K, f"pred_disagree_vs_none_s0|{meth}|{v}", float((Pw[int(xs.row_id.iloc[0])] != pn7).mean()))
+                            if ch.method == "coral" and len(x) and t_ is a78:
+                                cc = t_[(t_.student == st) & (t_.method == "coralctl") & (t_.K == K) & (t_.pnorm == re.sub(r"^r\d+", "", ch.param))]
+                                if len(cc):
+                                    add(r, st, K, f"coral_vs_coralctl_disagree|{v}", float((Pw[int(x.row_id.iloc[0])] != Pw[int(cc.row_id.iloc[0])]).mean()))
+                            if ch.method in ("dann", "mme") and v == "ns_excl" and t_ is a78:
+                                sr = rows78(a78, st, ch.method, K, ch.param)
+                                pairs_ = [(i, j) for i in sr for j in sr if i < j]
+                                if pairs_:
+                                    add(r, st, K, f"{ch.method}_seed_disagree_max|ns_excl", float(max((P78[sr[i]] != P78[sr[j]]).mean() for i, j in pairs_)))
+                                m_ = re.match(r"lr(?P<lr>[^i]+)it(?P<it>\d+)lam[^m]+mu(?P<mu>[0-9.]+)", ch.param)
+                                cr = rows78(a78, st, "mapctl", K, f"lr{m_['lr']}it{m_['it']}mu{m_['mu']}") if m_ else {}
+                                if 0 in sr and 0 in cr:
+                                    add(r, st, K, f"{ch.method}_vs_mapctl_disagree|ns_excl", float((P78[sr[0]] != P78[cr[0]]).mean()))
                 if a78 is None:
                     continue
                 n8 = a78[(a78.student == st) & (a78.method == "none") & (a78.K == K)].row_id
@@ -1590,16 +1701,18 @@ class Store:
     """measure の出力を読み，(run, target, 鍵) → 点の値（反復の平均）と複製を返す．複製は主の 2 段のブートストラップ（boot），
     人物を 1 人ずつ抜く jackknife（jk．G_eff < 20 のコーパス），塊を引くブートストラップ（cl．MELD・IEMOCAP）。"""
 
-    FILES = {"boot": "boot_{run}_{T}.npz", "jk": "jk_{run}_{T}.npz", "cl": "bootcl_{run}_{T}.npz"}
+    FILES = {"boot": "boot_{run}_{T}.npz", "jk": "jk_{run}_{T}.npz", "cl": "bootcl_{run}_{T}.npz", "cljk": "jkcl_{run}_{T}.npz"}
 
     def __init__(self, mdir, runs):
         self.mdir, self.keys, self.reps, self.point, self.idx, self.keylist = Path(mdir), {}, {}, {}, {}, {}
-        self.geff, self.coreg = {}, {}
+        self.geff, self.coreg, self.ncl = {}, {}, {}
         bm = self.mdir / "boot_meta.csv"
         if bm.exists():
             m = pd.read_csv(bm)
             if "g_eff" in m.columns:
                 self.geff = {(a, b): float(c) for a, b, c in zip(m.run, m.target, m.g_eff)}
+            if "n_clusters_corpus" in m.columns:
+                self.ncl = {(a, b): int(c) for a, b, c in zip(m.run, m.target, m.n_clusters_corpus)}
         for run in runs:
             f = self.mdir / f"keys_{run}.csv"
             if not f.exists():
@@ -1686,20 +1799,66 @@ def stage_judge(args, dirs, out):
         fixed["seedmode"] = np.nan
     FIX = {(r.run, r.target, r.student, r.K, r.fixname): r for r in fixed.itertuples(index=False)}
     DEL = {(r.run, r.student, r.K): r for r in delta.itertuples(index=False)}
-    NOKEPT = set()                                                             # E80 で残す教師が 0 個の (実行, T, 生徒, K)（R3‴．select の段の kept_used.csv）
+    KEPTU = {}                                                                 # (実行, T, 生徒, K) → E80 で残した教師（select の段の kept_used.csv）
     kf = Path(args.out) / "select" / "kept_used.csv"
     if kf.exists() and kf.stat().st_size > 1:
-        kk = pd.read_csv(kf, dtype={"K": str})
-        NOKEPT = {(a, b, c, d) for a, b, c, d, n in zip(kk.run, kk.target, kk.student, kk.K, kk.n_teachers) if int(n) == 0}
-    DIS = {}                                                                   # P4 の選んだ設定と none の予測の食い違い（反復の平均）
+        kk = pd.read_csv(kf, dtype={"K": str, "teachers": str}).fillna({"teachers": ""})
+        KEPTU = {(a, b, c, d): tuple(t for t in e.split(";") if t) for a, b, c, d, e in zip(kk.run, kk.target, kk.student, kk.K, kk.teachers)}
+    NOKEPT = {k_ for k_, v_ in KEPTU.items() if not v_}                        # 残す教師が 0 個（R3‴）
+    DIAG = {}                                                                  # (実行, T, 生徒, K, what) → 反復の平均（diag の材料）
     for run in dirs:
         f = mdir / f"diag_{run}.csv"
         if f.exists():
             dg = pd.read_csv(f, dtype={"K": str})
-            x = dg[dg.what.str.startswith("pred_disagree_vs_none|")]
-            for (T, st, K, w), v in x.groupby(["target", "student", "K", "what"]).value.mean().items():
-                _, meth, var = w.split("|")
-                DIS[(run, T, st, K, meth, var)] = float(v)
+            dg = dg[dg.rep >= 0]
+            for (T, st, K, w), v in dg.groupby(["target", "student", "K", "what"]).value.mean().items():
+                DIAG[(run, T, st, K, w)] = float(v)
+
+    def inactive_of(run, Ts, st, K, meth, variant):
+        """「働かなかった」（関門 1 の追記 stats 2・define 3・code I1-inactive）．DANN・MME は DA の項の基準（同じ lr・反復・μ の mapctl との食い違い a，
+        種の間の食い違いの最大 b．K ≥ 1 は a > b かつ a ≥ 1%，K ＝ 0 は a ≥ 1%）を満たさない単位，CORAL は同じ (ρ_M, C′, C_b) の coralctl との食い違いが 1% 未満，
+        entmin・IM は種 0（none の解から始めた解）と none の食い違いが 1% 未満，ほかの手法（self・t3a・lp）は none との食い違いが 1% 未満．
+        値は群の平均．選び直しの版で MOSEI・MELD 以外の群は excl の選択なので excl の材料を使う．戻り：(働かなかったか, a, b)。"""
+        a_, b_ = [], []
+        for T in Ts:
+            v = variant if (variant == "excl" or T in ("MOSEI", "MELD")) else "excl"
+            sfx = "" if v == "excl" else "|ns_excl"
+            if meth in ("dann", "mme"):
+                a_.append(DIAG.get((run, T, st, K, f"{meth}_vs_mapctl_disagree{sfx}"), np.nan))
+                b_.append(DIAG.get((run, T, st, K, f"{meth}_seed_disagree_max{sfx}"), np.nan))
+            elif meth == "coral":
+                a_.append(DIAG.get((run, T, st, K, f"coral_vs_coralctl_disagree|{v}"), np.nan))
+            elif meth in NC_SEEDED:
+                a_.append(DIAG.get((run, T, st, K, f"pred_disagree_vs_none_s0|{meth}|{v}"), np.nan))
+            else:
+                a_.append(DIAG.get((run, T, st, K, f"pred_disagree_vs_none|{meth}|{v}"), np.nan))
+        a = float(np.mean(a_)) if a_ and np.isfinite(a_).all() else np.nan
+        b = float(np.mean(b_)) if b_ and np.isfinite(b_).all() else np.nan
+        if not np.isfinite(a):
+            return False, a, b
+        if meth in ("dann", "mme"):
+            changed = a >= DISAGREE_MIN and (K == "0" or not np.isfinite(b) or a > b)
+            return (not changed), a, b
+        return a < DISAGREE_MIN, a, b
+
+    def abl_class(a, run, T, st, K):
+        """除去の行 X の単位ごとの意味（関門 1 の追記 define 1・compare 2）：subset ＝ X の候補 ⊆ oursx の候補（外した比べ），identical ＝ 候補が同じ
+        （X の教師だけが残った．差は定義から 0），replace ＝ X が oursx に無い教師を使う（替えた比べ．教師が kept に無い，own・ownK），no_teacher ＝ 残す教師が 0 個。"""
+        kept = KEPTU.get((run, T, st, K))
+        if kept is None:
+            return "unknown"
+        if not kept:
+            return "no_teacher"
+        if a in ("abl_bal", "abl_raw", "abl_hard"):
+            return "subset"
+        if a in ("abl_own", "abl_ownK"):
+            return "replace"
+        t = ("pF" if role_of(run, st) == "uni" else "poe0") if a == "ours" else ABL_TEACHER.get(a)
+        if t is None or t not in kept:
+            return "replace"
+        if a != "ours" and set(kept) == {t}:
+            return "identical"
+        return "subset"
 
     def pick(run, T, st, K, selector, variant):
         r = SEL.get((run, T, st, K, selector, variant))
@@ -1717,22 +1876,23 @@ def stage_judge(args, dirs, out):
     def refkey(meth, pn):
         return ("e77", meth, pn, "0", "-")
 
-    def val1(run, T, st, K, k, s0=False):
+    def val1(run, T, st, K, k, s0=False, nc_s0=False):
         if k is None:
             return {q: np.nan for q in QN + ("uar_bfix", "a_auc", "e_model", "ofix")}, None
         wave, meth, pn, meff = k[:4]
         # s0（MOSEI・MELD の選び直しの版）：選び直した設定に種 1・2 の無い E78 の手法だけ種 0 で読む．entmin・im は全候補に種 1・2 があるので，
-        # 主の版とそろえて種 0・1・2 の平均で読む（本体のセッションの決定．選択は種 0）
-        md = k[4] if isinstance(k[4], str) else ("s0" if s0 and meth in SEEDED - NC_SEEDED else ("agg" if meth in SEEDED else "-"))
+        # 主の版とそろえて種 0・1・2 の平均で読む（本体のセッションの決定．選択は種 0）．nc_s0（種の感度の行．関門 1 の追記 define 4）：entmin・im を種 0 だけで読む
+        md = k[4] if isinstance(k[4], str) else (
+            "s0" if (s0 and meth in SEEDED - NC_SEEDED) or (nc_s0 and meth in NC_SEEDED) else ("agg" if meth in SEEDED else "-"))
         if meth == "none":
             md = "-"
         return S.get(run, T, st, K, wave, meth, pn, meff, md)
 
-    def val(run, T, st, K, k, s0=False):
+    def val(run, T, st, K, k, s0=False, nc_s0=False):
         """鍵が list なら（R6′ の 20 回の選択）点の値と複製をそれぞれ平均する（差の平均 ＝ 平均の差）。"""
         if not isinstance(k, list):
-            return val1(run, T, st, K, k, s0)
-        vs = [val1(run, T, st, K, k_, s0) for k_ in k]
+            return val1(run, T, st, K, k, s0, nc_s0)
+        vs = [val1(run, T, st, K, k_, s0, nc_s0) for k_ in k]
         if not vs or any(v[0] is None for v in vs):
             return val1(run, T, st, K, None)
         pt = {q: float(np.mean([v[0][q] for v in vs])) for q in vs[0][0]}
@@ -1757,13 +1917,15 @@ def stage_judge(args, dirs, out):
     def zone(x, dl):
         return "pos" if x >= dl else ("neg" if x <= -dl else "mid")
 
-    def compare(family, comp, run, st, K, kx, ky, metric, variant, sens, s0=False, iem_mode="both", inactive=None, note=None, no_teacher=False):
+    def compare(family, comp, run, st, K, kx, ky, metric, variant, sens, s0=False, iem_mode="both", inactive=None, note=None, no_teacher=None,
+                nc_s0=False, abl=None, abl_keep=None):
         """値 = METRIC の向き（uar は x − y，dir などは y − x）．コーパスごとに点の値と 2 段のブートストラップの区間を作り，判定する．
-        inactive は T → (手法, 版) を返す関数（diag の pred_disagree_vs_none を引く）．
-        G_eff < 20 のターゲットを含む単位は，百分位の区間と人物の jackknife の t 区間の広い方（和集合）で判定する（E76 の規則）．
-        sens が空（主の行）のときは，MELD・IEMOCAP の区間を塊のブートストラップに替えた感度の行（cluster_boot）も出す．
-        inactive（P4 の手法の名前と版）：選んだ設定のテストの予測が none と食い違う割合が DISAGREE_MIN 未満の単位は「働かなかった」（inactive）として
-        「同じ水準」「増やした」に数えない（模擬査読の S4-2）。"""
+        区間：G_eff < 20 のターゲットを含む単位は，百分位の区間と人物の jackknife の t 区間の和集合（E76 の規則）．sens が空（主の行）のときは，
+        MELD・IEMOCAP の塊の区間（MELD は対話の百分位，IEMOCAP はセッションの百分位とセッションを 1 つずつ抜く jackknife の t（自由度 セッション数 − 1）の和集合）を
+        主の区間と和集合にした感度の行（cluster_boot）も出す（関門 1 の追記 stats 1．主の区間を置き換えない）．
+        inactive（P4 の手法の名前）：inactive_of の基準で「働かなかった」単位の「同じ水準」「判定できない」を inactive に替える（「増やした」は替えない）．
+        no_teacher："exclude" なら残す教師が 0 個の単位を「対象外（教師なし）」にして数え上げから外す，"count" なら判定を残して印だけ付ける（P5-2・P5-3u）．
+        abl（除去の行の名前）：単位ごとの意味（abl_class）を列に出し，identical は数え上げから外す．abl_keep を渡すと，その意味でない単位を other_class にして外す。"""
         q, sign, dkind, has_ci = METRIC[metric]
         targets = [t for t in groups_for(run) if (args.targets is None or t in args.targets)]
         byc = {}
@@ -1772,12 +1934,12 @@ def stage_judge(args, dirs, out):
                 continue
             byc.setdefault(corp(T), []).append(T)
         for cp, Ts in byc.items():
-            pts, reps_, aucs, des, geffs, dis = [], [], [], [], [], []
+            pts, reps_, aucs, des, geffs, ncls = [], [], [], [], [], []
             for T in Ts:
                 kxx = kx(T) if callable(kx) else kx
                 kyy = ky(T) if callable(ky) else ky
-                px, bx = val(run, T, st, K, kxx, s0)
-                py, by = val(run, T, st, K, kyy, s0)
+                px, bx = val(run, T, st, K, kxx, s0, nc_s0)
+                py, by = val(run, T, st, K, kyy, s0, nc_s0)
                 pts.append(sign * (px[q] - py[q]))
                 aucs.append(sign * -(px["a_auc"] - py["a_auc"]) if metric == "dir" else np.nan)   # 向きの損の差を Φ(d_AUC/2) で測った値
                 des.append(px["e_model"] - py["e_model"] if metric == "dir" else np.nan)
@@ -1787,8 +1949,7 @@ def stage_judge(args, dirs, out):
                     rr[kind] = None if (a_ is None or a_[0] is None or a_[1] is None or q not in a_[0]) else sign * (a_[0][q] - a_[1][q])
                 reps_.append(rr)
                 geffs.append(S.geff.get((run, T), np.nan))
-                if inactive is not None:
-                    dis.append(DIS.get((run, T, st, K, *inactive(T)), np.nan))
+                ncls.append(S.ncl.get((run, T), 0))
             x = float(np.mean(pts)) if pts else np.nan
 
             def pct(kind):
@@ -1797,6 +1958,10 @@ def stage_judge(args, dirs, out):
                 b = np.mean(np.stack([r_[kind] for r_ in reps_]), 0)
                 b = b[np.isfinite(b)]
                 return (*(np.percentile(b, [2.5, 97.5]) if len(b) else (np.nan, np.nan)), len(b))
+
+            def union(*iv):
+                los, his = [a_ for a_, _ in iv if np.isfinite(a_)], [b_ for _, b_ in iv if np.isfinite(b_)]
+                return (min(los) if los else np.nan), (max(his) if his else np.nan)
             lo_p, hi_p, nvalid = pct("boot")
             gmin = float(np.nanmin(geffs)) if np.isfinite(geffs).any() else np.nan
             lo_j = hi_j = np.nan
@@ -1810,42 +1975,59 @@ def stage_judge(args, dirs, out):
                     rule = "union_pct_jk"
                 else:
                     rule = "pct_jk_missing"
-            lo = np.nanmin([lo_p, lo_j]) if np.isfinite([lo_p, lo_j]).any() else np.nan
-            hi = np.nanmax([hi_p, hi_j]) if np.isfinite([hi_p, hi_j]).any() else np.nan
+            lo, hi = union((lo_p, hi_p), (lo_j, hi_j))
             if rule == "pct_jk_missing":
                 lo = hi = np.nan                                               # jackknife が要る単位で無いときは判定しない（欠け）
-            lo_c, hi_c, n_c = pct("cl")
-            dmean = float(np.mean(dis)) if dis and np.isfinite(dis).all() else np.nan
-            is_inactive = bool(np.isfinite(dmean) and dmean < DISAGREE_MIN)
-            # 残す教師が 0 個の単位（R3‴）：P5-1・P5-3 では oursx も KD も none になるので，判定の数え上げから外し「対象外（教師なし）」として別に数える．
-            # 単位のすべての群で教師が 0 個のときだけ当て，一部の群だけのときは記録する（本体のセッションの決定）
+            # 塊の区間（感度の行）：塊の百分位 ∪ 塊が少なければ塊を 1 つずつ抜く jackknife の t（自由度 塊の数 − 1），それを主の区間と和集合にする
+            lo_c, hi_c, _ = pct("cl")
+            lo_cj = hi_cj = np.nan
+            if reps_ and all(r_["cljk"] is not None for r_ in reps_):
+                lo_cj, hi_cj = jk_interval(x, np.mean(np.stack([r_["cljk"] for r_ in reps_]), 0), float(min(ncls)))
+            lo_s, hi_s = union((lo, hi), (lo_c, hi_c), (lo_cj, hi_cj)) if np.isfinite([lo, hi]).all() else (np.nan, np.nan)
+            if inactive is not None:
+                is_inactive, ina_a, ina_b = inactive_of(run, Ts, st, K, inactive, variant)
+            else:
+                is_inactive, ina_a, ina_b = False, np.nan, np.nan
+            # 残す教師が 0 個の単位（R3‴）：単位のすべての群で教師が 0 個のときだけ当て，一部の群だけのときは記録する
             nk = [(run, T, st, K) in NOKEPT for T in Ts]
-            is_no_teacher = bool(no_teacher and nk and all(nk))
+            all_nt = bool(nk and all(nk))
+            is_no_teacher = bool(no_teacher == "exclude" and all_nt)
             partial_no_teacher = bool(no_teacher and any(nk) and not all(nk))
+            acls = None
+            if abl is not None:
+                cl_ = {abl_class(abl, run, T, st, K) for T in Ts}
+                acls = cl_.pop() if len(cl_) == 1 else "mixed"
             xa, de = float(np.mean(aucs)), float(np.mean(des))
             ivs = [(sens, lo, hi, rule)]
-            if not sens:                                                       # 塊の区間の感度の行：MELD・IEMOCAP だけ区間を替え，ほかのコーパスは主の区間のまま
-                ivs.append(("cluster_boot", lo_c, hi_c, "cluster") if cp in CLUSTER_COLS else ("cluster_boot", lo, hi, rule))
+            if not sens:
+                ivs.append(("cluster_boot", lo_s, hi_s, "union_main_cluster" if cp in CLUSTER_COLS else rule))
             for sname, lo_, hi_, rule_ in ivs:
                 for scale, stag in ((1.0, ""), (0.5, "delta_half"), (2.0, "delta_double")):
                     dl = dl_of(run, st, K, dkind, scale)
                     md = np.nan
                     if metric == "dir" and np.isfinite(x) and np.isfinite(xa) and np.isfinite(dl):   # 模型に依る単位の印（3 節の表の 1・2 行目）
                         md = bool(abs(x - xa) > MODEL_UNIT_FRAC * dl or abs(de) > MODEL_UNIT_FRAC * dl or zone(x, dl) != zone(xa, dl))
-                    jd = judge_unit(x, lo_, hi_, dl) if has_ci else "point_only"
-                    if is_inactive and jd in ("same", "neg", "undet"):
+                    jd = jraw = judge_unit(x, lo_, hi_, dl) if has_ci else "point_only"
+                    if is_inactive and jd in ("same", "undet"):                # 「増やした」は替えない（関門 1 の追記）
                         jd = "inactive"
-                    if is_no_teacher:
+                    if is_no_teacher or (acls == "no_teacher" and no_teacher == "exclude"):
                         jd = "no_teacher"
+                    elif acls == "identical":
+                        jd = "identical"
+                    elif abl_keep is not None and acls != abl_keep:
+                        jd = "other_class"
                     units.append({"family": family, "comparison": comp, "run": run, "student": st, "role": role_of(run, st), "K": K,
                                   "corpus": cp, "n_groups": len(Ts), "metric": metric, "point": x, "lo": lo_, "hi": hi_, "n_boot_valid": nvalid,
-                                  "lo_pct": lo_p, "hi_pct": hi_p, "lo_jk": lo_j, "hi_jk": hi_j, "g_eff_min": gmin, "interval_rule": rule_,
-                                  "delta": dl, "judgment": jd, "variant": variant, "disagree_vs_none": dmean, "inactive": is_inactive,
-                                  "no_teacher": is_no_teacher, "partial_no_teacher": partial_no_teacher,
+                                  "lo_pct": lo_p, "hi_pct": hi_p, "lo_jk": lo_j, "hi_jk": hi_j, "lo_cluster": lo_c, "hi_cluster": hi_c,
+                                  "lo_cluster_jk": lo_cj, "hi_cluster_jk": hi_cj, "g_eff_min": gmin, "interval_rule": rule_,
+                                  "delta": dl, "judgment": jd, "judgment_raw": jraw, "variant": variant,
+                                  "inactive_a": ina_a, "inactive_b": ina_b, "inactive": is_inactive,
+                                  "no_teacher": all_nt and bool(no_teacher), "partial_no_teacher": partial_no_teacher, "abl_kind": acls,
                                   "point_auc": xa, "model_err_diff": de, "model_dependent": md,
                                   "sensitivity": ",".join([s_ for s_ in (sname, stag) if s_]) or "main",
                                   "note": note if note is not None else NOTES.get(comp.split("-")[-1], "")})
 
+    p4only = args.families == "p4"
     for run in dirs:
         world = run in WORLDS
         stus = sorted(set(sel[sel.run == run].student))
@@ -1855,27 +2037,27 @@ def stage_judge(args, dirs, out):
             fam4 = "P4" if role == "kind" else ("P4'" if role == "fused" else "P4_uni_world")
             for K in KS:
                 famK = fam4 + ("" if K in P4_KS or fam4 == "P4_uni_world" else "_otherK")
-                for v, s0, sens in (("excl", False, ""), ("ns_excl", True, "noscript_reselect")):
+                # 主（excl），MOSEI・MELD の選び直し（ns_excl），entmin・IM を種 0 だけで読む感度の行（nc_seed0．関門 1 の追記 define 4．ほかの手法は主と同じ値）
+                for v, s0, sens, ncs0 in (("excl", False, "", False), ("ns_excl", True, "noscript_reselect", False), ("excl", False, "nc_seed0", True)):
                     def kx_of(mm, vv=v):
                         return lambda T: pick(run, T, st, K, mm, vv if (not vv.startswith("ns") or T in ("MOSEI", "MELD")) else "excl")
                     for meth in GROUP_B + ("t3a_b", "mapctl", "coralctl"):
                         if role == "fused" and meth in ("dann", "mme", "mapctl"):
                             continue
+                        if ncs0 and meth not in GROUP_B:
+                            continue
                         fam = famK if meth in GROUP_B else "P4_aux"
-                        # 「働かなかった」単位（S4-2）：判定と同じ選択と種で測った none との予測の食い違い．選び直しの版は MOSEI・MELD 以外では
-                        # excl の選択を種 0 で読むので excl_s0 の値を使う
-                        ina_fn = None if meth not in GROUP_B else (
-                            (lambda T, m_=meth: (m_, "excl")) if not sens else (lambda T, m_=meth: (m_, "ns_excl" if T in ("MOSEI", "MELD") else "excl_s0")))
-                        compare(fam, f"none-{meth}", run, st, K, kx_of(meth), NONE, "dir", v, sens, s0, inactive=ina_fn)
+                        ina = meth if meth in GROUP_B else None                # 「働かなかった」（inactive_of の手法ごとの基準）
+                        compare(fam, f"none-{meth}", run, st, K, kx_of(meth), NONE, "dir", v, sens, s0, inactive=ina, nc_s0=ncs0)
                         if not sens:
-                            compare(fam, f"none-{meth}", run, st, K, kx_of(meth), NONE, "dir_rev", v, "rev_order", s0, inactive=ina_fn)
+                            compare(fam, f"none-{meth}", run, st, K, kx_of(meth), NONE, "dir_rev", v, "rev_order", s0, inactive=ina)
                             if run in ("text_roberta", "fuse-audio-video-text"):
-                                compare(fam, f"none-{meth}", run, st, K, kx_of(meth), NONE, "dir", v, "iemocap_impro_only", s0, "impro_only", inactive=ina_fn)
+                                compare(fam, f"none-{meth}", run, st, K, kx_of(meth), NONE, "dir", v, "iemocap_impro_only", s0, "impro_only", inactive=ina)
                     # 対照との比較（関門 1 の C-2）：CORAL は coralctl − CORAL，DANN・MME は自分で選んだ mapctl（種 3 つ）− 手法（種 3 つ）
                     ctl = [("coral", "coralctl")] + ([] if role == "fused" else [("dann", "mapctl"), ("mme", "mapctl")])
                     for meth, cm in ctl:
                         fam = (famK if fam4 != "P4_uni_world" else fam4) + "_ctl"
-                        compare(fam, f"{cm}-{meth}", run, st, K, kx_of(meth), kx_of(cm), "dir", v, sens, s0)
+                        compare(fam, f"{cm}-{meth}", run, st, K, kx_of(meth), kx_of(cm), "dir", v, sens, s0, nc_s0=ncs0)
                     if sens:
                         continue
                     for meth in GROUP_B + ("massbal", "saerens", "t3a_b"):    # 記述（判定の族に入れない）：UAR，位置の損，切片だけを直した UAR，切片で取り戻せる分
@@ -1907,37 +2089,52 @@ def stage_judge(args, dirs, out):
                         nm = f"{meth}:{pn}" if meth == "teacher" else meth
                         compare("refs", f"{nm}-none", run, st, K, refkey(meth, pn), NONE, "uar", "ref", "")
                         compare("refs_dir", f"none-{nm}", run, st, K, refkey(meth, pn), NONE, "dir", "ref", "")
-                if not world or K not in P5_KS:
+                if not world or K not in P5_KS or p4only:                     # --families p4 では P5 の族を流さない
                     continue
                 OX = lambda T, s_="oursx", v_="incl": pick(run, T, st, K, s_, v_)  # noqa: E731
                 KD = lambda T: pick(run, T, st, K, "kd", "incl")  # noqa: E731
                 GB = lambda T: pick(run, T, st, K, "groupB", "incl")  # noqa: E731
+                OXN = lambda T: pick(run, T, st, K, "oursx_noJ", "incl")  # noqa: E731
+                KDN = lambda T: pick(run, T, st, K, "kd_noJ", "incl")  # noqa: E731
                 R6 = lambda T: [pick(run, T, st, K, f"{R6_PREFIX}{i}", "incl") for i in range(R6_DRAWS)]  # noqa: E731
-                compare("P5-1", "oursx-kd", run, st, K, OX, KD, "uar", "incl", "", no_teacher=True)
-                compare("P5-2", "oursx-groupB", run, st, K, OX, GB, "uar", "incl", "")
+                # 教師なしの単位（R3‴）：P5-1・P5-3 とその記述，除去実験，5.3 節の融合の生徒，群 C，共正則化の上限，参照との比べは対象外にして外す（"exclude"）．
+                # P5-2・P5-3u・群 B の手法ごとの表は oursx ＝ none として残し，数だけ数える（"count"．手順としての提案を問う行）
+                compare("P5-1", "oursx-kd", run, st, K, OX, KD, "uar", "incl", "", no_teacher="exclude")
+                compare("P5-2", "oursx-groupB", run, st, K, OX, GB, "uar", "incl", "", no_teacher="count")
                 # R6′（縮めた格子の感度の行）：oursx の候補から KD と同じ数の部分集合を 20 回引いて選んだ値の平均と相手の差
-                compare("P5-1", "oursx-kd", run, st, K, R6, KD, "uar", "incl", "r6_subsets", note=NOTES["r6"], no_teacher=True)
-                compare("P5-2", "oursx-groupB", run, st, K, R6, GB, "uar", "incl", "r6_subsets", note=NOTES["r6"])
-                compare("P5-3", "none-oursx", run, st, K, OX, NONE, "dir", "incl", "", no_teacher=True)
-                compare("P5-3", "none-oursx", run, st, K, OX, NONE, "dir_rev", "incl", "rev_order", no_teacher=True)
-                compare("P5-3u", "oursx-none", run, st, K, OX, NONE, "uar", "incl", "", no_teacher=True)
+                compare("P5-1", "oursx-kd", run, st, K, R6, KD, "uar", "incl", "r6_subsets", note=NOTES["r6"], no_teacher="exclude")
+                compare("P5-2", "oursx-groupB", run, st, K, R6, GB, "uar", "incl", "r6_subsets", note=NOTES["r6"], no_teacher="count")
+                # ふるわない版（関門 1 の追記 compare 1）：KD を前の設計の教師で調整した相手（kd_noJ），提案も J でふるわない版（oursx_noJ）．
+                # どちらも教師なしの単位で none 以外を選びうるので数え上げに入れる
+                compare("P5-1", "oursx-kd_noJ", run, st, K, OX, KDN, "uar", "incl", "kd_noJ", note=NOTES["noJ"], no_teacher="count")
+                compare("P5-1", "oursx_noJ-kd_noJ", run, st, K, OXN, KDN, "uar", "incl", "noJ_both", note=NOTES["noJ"])
+                compare("screening", "oursx-oursx_noJ", run, st, K, OX, OXN, "uar", "incl", "", note=NOTES["noJ"], no_teacher="count")
+                compare("screening_dir", "oursx_noJ-oursx", run, st, K, OXN, OX, "dir", "incl", "", note=NOTES["noJ"], no_teacher="count")
+                compare("screening", "kd-kd_noJ", run, st, K, KD, KDN, "uar", "incl", "", note=NOTES["noJ"], no_teacher="count")
+                compare("P5-3", "none-oursx", run, st, K, OX, NONE, "dir", "incl", "", no_teacher="exclude")
+                compare("P5-3", "none-oursx", run, st, K, OX, NONE, "dir_rev", "incl", "rev_order", no_teacher="exclude")
+                compare("P5-3u", "oursx-none", run, st, K, OX, NONE, "uar", "incl", "", no_teacher="count")
                 for met in ("bfix", "ofix", "pos"):                            # P5-3 を 4 クラスのまま分ける（点の値．切片だけを直した UAR）と，模型の位置の損
-                    compare(f"P5-3_desc_{met}", "oursx-none" if met != "pos" else "none-oursx", run, st, K, OX, NONE, met, "incl", "", no_teacher=True)
+                    compare(f"P5-3_desc_{met}", "oursx-none" if met != "pos" else "none-oursx", run, st, K, OX, NONE, met, "incl", "",
+                            no_teacher="exclude")
                 # 群 B の 8 手法それぞれ（仮のターゲットで選んだもの，none を含む版）と oursx の UAR の差（記述．判定の族に入れない．模擬査読の S5-2）
                 for meth in GROUP_B:
                     if role == "fused" and meth in ("dann", "mme"):
                         continue
-                    compare("P5-2_by_method", f"oursx-{meth}", run, st, K, OX, lambda T, m_=meth: pick(run, T, st, K, m_, "incl"), "uar", "incl", "")
+                    compare("P5-2_by_method", f"oursx-{meth}", run, st, K, OX, lambda T, m_=meth: pick(run, T, st, K, m_, "incl"), "uar", "incl", "",
+                            no_teacher="count")
                 if run == "fuse-audio-video-text":
                     for fam, comp, kx, ky, met in (("P5-1", "oursx-kd", OX, KD, "uar"),
                                                    ("P5-2", "oursx-groupB", OX, GB, "uar"),
                                                    ("P5-3", "none-oursx", OX, NONE, "dir")):
-                        compare(fam, comp, run, st, K, kx, ky, met, "incl", "iemocap_impro_only", False, "impro_only", no_teacher=fam != "P5-2")
+                        compare(fam, comp, run, st, K, kx, ky, met, "incl", "iemocap_impro_only", False, "impro_only",
+                                no_teacher="count" if fam == "P5-2" else "exclude")
                 ns = lambda T: "ns_incl" if T in ("MOSEI", "MELD") else "incl"  # noqa: E731
                 for fam, comp, kx, ky in (("P5-1", "oursx-kd", lambda T: pick(run, T, st, K, "oursx", ns(T)), lambda T: pick(run, T, st, K, "kd", ns(T))),
                                           ("P5-2", "oursx-groupB", lambda T: pick(run, T, st, K, "oursx", ns(T)),
                                            lambda T: pick(run, T, st, K, "groupB", ns(T)))):
-                    compare(fam, comp, run, st, K, kx, ky, "uar", "ns_incl", "noscript_reselect", True, no_teacher=fam != "P5-2")
+                    compare(fam, comp, run, st, K, kx, ky, "uar", "ns_incl", "noscript_reselect", True,
+                            no_teacher="count" if fam == "P5-2" else "exclude")
                 # 配備できる参照と oursx（関門 1 の C-3）：合併（S+T）・ターゲットのみ（K = 5・25），W*（上限としてだけ），融合の生徒の教師
                 if refk is not None:
                     rk = refk[(refk.student == st) & (refk.K == K) & refk.method.isin(REFS)][["method", "param"]].drop_duplicates()
@@ -1945,28 +2142,43 @@ def stage_judge(args, dirs, out):
                         if meth in ("ref_srconly",):
                             continue
                         nm = f"{meth}:{pn}" if meth == "teacher" else meth
-                        compare("P5_refs", f"oursx-{nm}", run, st, K, OX, refkey(meth, pn), "uar", "incl", "")
-                # 除去実験（今の ours を含む．総重みは行ごとに選ぶ．R4・R5）と群 C の探索（xMUDA 型・共訓練）
+                        compare("P5_refs", f"oursx-{nm}", run, st, K, OX, refkey(meth, pn), "uar", "incl", "", no_teacher="exclude")
+                # 除去実験（今の ours を含む．総重みは行ごとに選ぶ．R4・R5）．単位ごとの意味（abl_class）で 2 つの族に分けて読む：
+                # ablation ＝ 外した比べ（X の候補 ⊆ oursx の候補），ablation_replace ＝ 替えた比べ（X が oursx に無い教師を使う）．
+                # 候補が同じ単位（identical）と教師なしの単位は外す（関門 1 の追記 define 1・compare 2）
                 abl = ["abl_refa", "abl_refb", "abl_pF"] if role == "uni" else ["abl_ref0", "abl_poe0"]
-                for a in abl + ["abl_bal", "abl_raw", "abl_hard", "abl_own", "abl_ownK", "ours", "xmuda", "cotrain", "cotrain_prod"]:
+                for a in abl + ["abl_bal", "abl_raw", "abl_hard", "abl_own", "abl_ownK", "ours"]:
+                    XA = lambda T, a_=a: pick(run, T, st, K, a_, "incl")  # noqa: E731
+                    for fam, keep in (("ablation", "subset"), ("ablation_replace", "replace")):
+                        compare(fam, f"oursx-{a}", run, st, K, OX, XA, "uar", "incl", "", no_teacher="exclude", abl=a, abl_keep=keep)
+                    compare("ablation_dir", f"{a}-oursx", run, st, K, XA, OX, "dir", "incl", "", no_teacher="exclude", abl=a)
+                    compare("ablation_ofix", f"oursx-{a}", run, st, K, OX, XA, "ofix", "incl", "", no_teacher="exclude", abl=a)
+                # 群 C の探索（xMUDA 型・共訓練）
+                for a in ("xmuda", "cotrain", "cotrain_prod"):
                     if (a == "xmuda" and role != "uni") or (a == "cotrain_prod" and role != "fused"):
                         continue
-                    fam = "ablation" if a.startswith("abl_") or a == "ours" else "groupC_explore"
-                    compare(fam, f"oursx-{a}", run, st, K, OX, lambda T, a_=a: pick(run, T, st, K, a_, "incl"), "uar", "incl", "")
-                    compare(fam + "_dir", f"{a}-oursx", run, st, K, lambda T, a_=a: pick(run, T, st, K, a_, "incl"), OX, "dir", "incl", "")
-                    if fam == "ablation":
-                        compare("ablation_ofix", f"oursx-{a}", run, st, K, OX, lambda T, a_=a: pick(run, T, st, K, a_, "incl"), "ofix", "incl", "")
+                    XA = lambda T, a_=a: pick(run, T, st, K, a_, "incl")  # noqa: E731
+                    compare("groupC_explore", f"oursx-{a}", run, st, K, OX, XA, "uar", "incl", "", no_teacher="exclude")
+                    compare("groupC_explore_dir", f"{a}-oursx", run, st, K, XA, OX, "dir", "incl", "", no_teacher="exclude")
                 # 共正則化：テストで選んだ上限と比べる（短縮 b）．UAR は UAR の上限，向きの損は向きの損の上限．片側にだけ読む
                 compare("groupC_coreg_oracle", "oursx-coreg_oracle", run, st, K, OX, lambda T: S.coreg.get((run, T, st, K, "uar")), "uar", "incl", "",
-                        note=NOTES["coreg_oracle"])
+                        note=NOTES["coreg_oracle"], no_teacher="exclude")
                 compare("groupC_coreg_oracle_dir", "coreg_oracle-oursx", run, st, K, OX, lambda T: S.coreg.get((run, T, st, K, "dir")), "dir", "incl", "",
-                        note=NOTES["coreg_oracle"])
-                if role == "uni":                                              # 5.3 節：K 本で学び直すことの寄与
+                        note=NOTES["coreg_oracle"], no_teacher="exclude")
+                if role == "uni":                                              # 5.3 節：K 本で学び直すことの寄与（単モダリティの生徒は oursx を含まない比べ）
                     compare("sec5.3", "abl_refa-abl_pF", run, st, K, lambda T: pick(run, T, st, K, "abl_refa", "incl"),
                             lambda T: pick(run, T, st, K, "abl_pF", "incl"), "uar", "incl", "")
                 else:
-                    compare("sec5.3", "oursx-abl_ref0", run, st, K, OX, lambda T: pick(run, T, st, K, "abl_ref0", "incl"), "uar", "incl", "")
+                    compare("sec5.3", "oursx-abl_ref0", run, st, K, OX, lambda T: pick(run, T, st, K, "abl_ref0", "incl"), "uar", "incl", "",
+                            no_teacher="exclude")
     U = pd.DataFrame(units)
+    # 教師なしの単位を「同じ水準」として数えた感度の行（関門 1 の追記 stats 3・define 6・compare 3）
+    nt = U[(U.sensitivity == "main") & (U.judgment == "no_teacher")]
+    if len(nt):
+        fams = set(nt.family)
+        U2 = U[(U.sensitivity == "main") & U.family.isin(fams)].copy()
+        U2.loc[U2.judgment == "no_teacher", "judgment"] = "same"
+        U = pd.concat([U, U2.assign(sensitivity="no_teacher_as_same")], ignore_index=True)
     U["excl_mosei_afew"] = U.corpus.isin(["MOSEI", "AFEW"])
     U.to_csv(out / "units.csv", index=False)
     noneloss = none_levels(S)
@@ -1982,7 +2194,8 @@ def stage_judge(args, dirs, out):
     print(f"判定：単位 {len(U)} 行，組み合わせ {len(combos)} 行，文の行 {len(statements)} 行", flush=True)
 
 
-NOTES = {"r6": "R6′：oursx の候補から KD の族と同じ数の部分集合を種 0〜19 で一様に引き（none は常に含む），それぞれ仮のターゲットで選んだ値の 20 回の平均",
+NOTES = {"noJ": "ふるわない版：oursx_noJ は E77 に dist の行がある全部の教師（単モダリティ pF・pFK・ref，融合 poe0・ref・ref0），kd_noJ は前の設計の KD の教師（単モダリティ pF・pFK・ref，融合 poe0・ref）．ふるいの寄与と，ふるいが KD に不利に働いたかを見る（関門 1 の追記 compare 1）",
+         "r6": "R6′：oursx の候補から KD の族と同じ数の部分集合を種 0〜19 で一様に引き（none は常に含む），それぞれ仮のターゲットで選んだ値の 20 回の平均",
          "coreg_oracle": "共正則化はテストで選んだ上限（UAR は反復の平均の最大，向きの損は反復の平均の最小．none も候補）．oursx が上回った・減らしたかだけを読む",
          "ours": "今の ours（pF・poe0 の bal）．除去実験の 1 行（E80 の R4）"}
 
@@ -2001,7 +2214,7 @@ def none_levels(S):
 def summarize(U, sel, delta, noneloss):
     """7.2 節の表を組み合わせごとに当てる．感度の行（sensitivity）と MOSEI・AFEW を除いた集計も同じ規則で。"""
     combos, st_rows = [], []
-    variants = [(s_, False) for s_ in sorted(U.sensitivity.unique())] + [("main", True), ("delta_half", True)]
+    variants = [(s_, False) for s_ in sorted(U.sensitivity.unique())] + [("main", True), ("delta_half", True), ("nc_seed0", True), ("nc_seed0,delta_half", True)]
     DEL = {(r.run, r.student, r.K): r for r in delta.itertuples(index=False)}
     SELX = {(r.run, r.target, r.student, r.K, r.selector, r.variant): r.chose_none for r in sel.itertuples(index=False)}
     for sens, drop_ma in variants:
@@ -2012,14 +2225,18 @@ def summarize(U, sel, delta, noneloss):
         for (fam, comp, run, st, K, metric), g in V.groupby(["family", "comparison", "run", "student", "K", "metric"]):
             cps = {corp(t) for t in groups_for(run)} - ({"MOSEI", "AFEW"} if drop_ma else set())
             c = g.judgment.value_counts()
-            nnt = int(c.get("no_teacher", 0))                                  # 対象外（教師なし）の単位は数え上げから外し，過半は残りのコーパスの数で決める
-            n_tot = len(cps) - nnt
+            nnt = int(c.get("no_teacher", 0))                                  # 対象外（教師なし），候補が同じ（identical），読む意味の違う除去の単位（other_class）は
+            nid, noc = int(c.get("identical", 0)), int(c.get("other_class", 0))   # 数え上げから外し，過半は残りのコーパスの数で決める
+            n_tot = len(cps) - nnt - nid - noc
             maj = majority(n_tot)
             npos, nneg, nsame, nund, nmis, nina = (int(c.get(k, 0)) for k in ("pos", "neg", "same", "undet", "missing", "inactive"))
             dr = DEL.get((run, st, K))
             row = {"tag": tag, "family": fam, "comparison": comp, "metric": metric, "run": run, "student": st, "K": K, "n_corpora": n_tot,
                    "majority": maj, "n_pos": npos, "n_neg": nneg, "n_same": nsame, "n_undet": nund, "n_missing": nmis, "n_inactive": nina,
-                   "n_no_teacher": nnt,
+                   "n_no_teacher": nnt, "n_identical": nid, "n_other_class": noc,
+                   "n_oursx_none": int((g.no_teacher.map(lambda v: v is True or str(v) == "True") & ~g.judgment.isin(EXCLUDED)).sum())
+                   if "no_teacher" in g.columns else 0,
+                   "chance_combo_pos": float(stats.binom.sf(maj - 1, max(n_tot - nmis, 0), 0.025)) if n_tot - nmis > 0 else 0.0,
                    "expected_chance_pos": round(0.025 * (n_tot - nmis), 3),
                    "ci_halfwidth_median": float(((g.hi - g.lo) / 2).median()) if g.hi.notna().any() else np.nan,
                    "delta_d": float(dr.delta_d) if dr is not None else np.nan, "none_dirloss": noneloss.get((run, st, K), np.nan)}
@@ -2057,7 +2274,26 @@ def summarize(U, sel, delta, noneloss):
             C.loc[g.index[ok], "sign_p_holm"] = res
     for tag, g in C.groupby("tag"):
         st_rows += statements_p4(tag, g, C) + statements_p5(tag, g)
-    return C, pd.DataFrame(st_rows)
+    S_ = pd.DataFrame(st_rows)
+    # 種の感度（関門 1 の追記 define 4）：entmin・IM を種 0 だけで読んだ行（nc_seed0）と主の行で筋 4 の文の鍵が食い違うときは (3) にせず，両方の鍵を書く
+    if len(S_) and "subset" in S_.columns:
+        for base, alt in (("main", "nc_seed0"), ("main+excl_mosei_afew", "nc_seed0+excl_mosei_afew")):
+            for fam in ("P4", "P4'"):
+                for sub in ("all", "unseen_only"):
+                    m0 = (S_.tag == base) & (S_.family == fam) & (S_.subset == sub) & ~S_.rule.isin(["chance"])
+                    m1 = (S_.tag == alt) & (S_.family == fam) & (S_.subset == sub) & ~S_.rule.isin(["chance"])
+                    if not m0.any() or not m1.any():
+                        continue
+                    r0, r1 = S_.loc[m0, "rule"].iloc[0], S_.loc[m1, "rule"].iloc[0]
+                    if r0 != r1:
+                        i0 = S_.index[m0][0]
+                        note = f"entmin・IM の種 0 だけの判定（{alt}）では {r1}：{S_.loc[m1, 'statement_key'].iloc[0]}"
+                        if r0 == "(3)":
+                            S_.loc[i0, "rule"] = "(4)"
+                            S_.loc[i0, "statement_key"] = "ラベル無しの手法が向きの損を減らした証拠は無かった（区間の幅と判定できない数を添える）"
+                            note = "種の平均と種 0 で文の鍵が食い違うので (3) にせず (4) の文にする．" + note
+                        S_.loc[i0, "notes"] = " / ".join(x for x in (str(S_.loc[i0, "notes"]) if pd.notna(S_.loc[i0, "notes"]) else "", note) if x)
+    return C, S_
 
 
 def rule_p4(g, npos, nneg, nsame, nmis, maj, n_tot, SELX, meth, tag):
@@ -2178,17 +2414,35 @@ def statements_p4(tag, C, Call):
     return rows
 
 
+ABL_DROPPED = {"abl_bal": "② raw と ③ hard の重みの付け方", "abl_raw": "① bal と ③ hard の重みの付け方", "abl_hard": "① bal と ② raw の重みの付け方",
+               "abl_refa": "pFK 以外の残した教師", "abl_refb": "ref 以外の残した教師", "abl_pF": "pF 以外の残した教師",
+               "abl_ref0": "ref0 以外の残した教師", "abl_poe0": "poe0 以外の残した教師", "ours": "ほかの残した教師と bal 以外の重みの付け方"}
+ABL_REPLACED = {"abl_refa": "教師を pFK に替えた版", "abl_refb": "教師を ref に替えた版", "abl_pF": "教師を pF に替えた版", "abl_ref0": "教師を ref0 に替えた版",
+                "abl_poe0": "教師を poe0 に替えた版", "ours": "教師を pF（融合は poe0）の bal に替えた版（今の ours）",
+                "abl_own": "自分の出発点を釣り合いを取って弱いラベルにした版（own）", "abl_ownK": "自分の none[K] を参照にした版（ownK）"}
+
+
+def chance_rows(tag, fam, g, what="上回った"):
+    """組み合わせごとの偶然の見込み（関門 1 の追記 stats 3）：真の差が 0 で単位ごとの当たりが 0.025 のとき，過半に当たる確率の和 Σ P(Binom(n, 0.025) ≥ 過半)。"""
+    n_eff = (g.n_corpora - g.n_missing).clip(lower=0)
+    units = int(n_eff.sum())
+    ch = float(sum(stats.binom.sf(m - 1, n, 0.025) for m, n in zip(g.majority, n_eff) if n > 0))
+    return units, ch
+
+
 def statements_p5(tag, C):
     rows = []
-    P5 = C[C.family.str.match(r"^P5-\d$|^ablation$|^sec5\.3$|^P5_refs$|^groupC_coreg_oracle(_dir)?$") & C.metric.isin(["uar", "dir"])]
-    ABL = {"pos": "その部品は得に寄与した", "same": "寄与は見えない", "neg": "その部品を外すと良くなった"}
+    P5 = C[C.family.str.match(r"^P5-\d$|^ablation(_replace)?$|^sec5\.3$|^P5_refs$|^groupC_coreg_oracle(_dir)?$") & C.metric.isin(["uar", "dir"])]
     for (fam, comp, run, st, K, metric), g in P5.groupby(["family", "comparison", "run", "student", "K", "metric"]):
         r = g.iloc[0]
         maj = r.majority
-        if fam in ("P5-1", "P5-3", "P5-3u") and r.n_corpora == 0:            # すべてのコーパスで残す教師が 0 個（R3‴）
+        excl = int(r.n_no_teacher + r.n_identical + r.n_other_class) if "n_identical" in r.index else int(r.n_no_teacher)
+        if r.n_corpora < 2 and excl > 0:                                      # 組み合わせの文は教師の残った（読む意味の）コーパスが 2 つ以上のときだけ（関門 1 の追記 stats 3）
             rows.append({"tag": tag, "family": fam, "rule": comp, "n_combos": 1, "combos": f"{run}|{st}|K{K}",
-                         "statement_key": f"対象外（教師なし．{int(r.n_no_teacher)} コーパス）"})
+                         "statement_key": f"対象外（教師の残ったコーパスが {int(r.n_corpora)} つ．教師なし {int(r.n_no_teacher)}，"
+                                          f"候補が同じ {int(getattr(r, 'n_identical', 0))}，意味の違う除去の単位 {int(getattr(r, 'n_other_class', 0))}）"})
             continue
+        den = f"（教師の残った {int(r.n_corpora)} コーパスのうち）" if excl else ""
         if fam in ("P5-1", "P5-2"):
             if r.n_same + r.n_neg >= maj:
                 key = "相手が oursx と同じ水準か上回った"
@@ -2196,23 +2450,35 @@ def statements_p5(tag, C):
                 key = "oursx が相手を上回った"
             else:
                 key = "判定できない（受け皿の行）"
+            if fam == "P5-2" and getattr(r, "n_oursx_none", 0):
+                key += f"．うち {int(r.n_oursx_none)} コーパスは教師なしで oursx ＝ none"
         elif fam == "P5-3":
             if metric != "dir":
                 continue
             u = C[(C.family == "P5-3u") & (C.run == run) & (C.student == st) & (C.K == K)]
             if r.n_pos >= maj:
                 key = "oursx は none より向きの損を減らした"
-            elif len(u) and u.n_pos.iloc[0] >= maj:
+            elif len(u) and u.n_pos.iloc[0] >= u.majority.iloc[0]:
                 key = "向きの損は減らさず UAR は上回った：筋の 5 を書き直し ours を o の補正として書く"
             else:
                 key = "判定できない（受け皿の行）"
         elif fam == "ablation":
-            # 除去実験の読み方（模擬査読の S6-1．結果を見る前の規則）：oursx − X の UAR を P5 と同じ単位の規則で判定し，過半のコーパスで数える
+            # 外した比べ（X の候補 ⊆ oursx の候補）だけで数える（関門 1 の追記 define 1・compare 2）
+            a = comp.split("-", 1)[1]
             hit = [k for k, n in (("pos", r.n_pos), ("same", r.n_same), ("neg", r.n_neg)) if n >= maj]
-            key = ABL[hit[0]] if hit else "判定できない"
+            drop = ABL_DROPPED.get(a, a)
+            key = {"pos": f"外した候補（{drop}）は得に寄与した", "same": f"外した候補（{drop}）の寄与は見えない",
+                   "neg": f"候補（{drop}）を外すと仮のターゲットの選択が良い設定を選んだ"}.get(hit[0] if hit else "", "判定できない")
             if comp == "oursx-abl_hard":                                       # 5.3 節の筋（③ だけ）は別の行にも残す
                 rows.append({"tag": tag, "family": fam, "rule": comp + "|5.3", "n_combos": 1, "combos": f"{run}|{st}|K{K}",
-                             "statement_key": "5.3 節の筋で書く" if r.n_same >= maj else "（③ だけは oursx と同じ水準ではない）"})
+                             "statement_key": ("5.3 節の筋で書く" if r.n_same >= maj else "（③ だけは oursx と同じ水準ではない）") + den})
+        elif fam == "ablation_replace":
+            # 替えた比べ（X が oursx に無い教師を使う）：部品の寄与としては書かない
+            a = comp.split("-", 1)[1]
+            hit = [k for k, n in (("pos", r.n_pos), ("same", r.n_same), ("neg", r.n_neg)) if n >= maj]
+            rep = ABL_REPLACED.get(a, a)
+            key = {"pos": f"oursx は {rep} を上回った", "same": f"oursx は {rep} と同じ水準", "neg": f"oursx は {rep} を下回った"}.get(
+                hit[0] if hit else "", "判定できない")
         elif fam in ("groupC_coreg_oracle", "groupC_coreg_oracle_dir"):
             # 共正則化はテストで選んだ上限なので片側にだけ読む（短縮 b．比較の検査役の C5・C9）
             what = "上回った" if fam == "groupC_coreg_oracle" else "向きの損を減らした"
@@ -2224,27 +2490,38 @@ def statements_p5(tag, C):
                    else ("oursx が教師を上回った" if r.n_pos >= maj else "判定できない（受け皿の行）"))
         else:
             key = "上回った" if r.n_pos >= maj else "上回っていない"
-        rows.append({"tag": tag, "family": fam, "rule": comp, "n_combos": 1, "combos": f"{run}|{st}|K{K}", "statement_key": key})
-    # 要旨の文は数え上げの形だけ（関門 1 の S-3）：21 の生徒 × K のうち何個で「上回った」か（世界ごとの内訳）．偶然の見込みも並べる
+        rows.append({"tag": tag, "family": fam, "rule": comp, "n_combos": 1, "combos": f"{run}|{st}|K{K}", "statement_key": key + den})
+    # 要旨の文は数え上げの形だけ（関門 1 の S-3）：生徒 × K のうち何個で「上回った」か（世界ごとの内訳）．単位ごとと組み合わせごとの偶然の見込みを並べ，
+    # 教師なしの単位を外した分母と含めた分母の両方を書く（関門 1 の追記 stats 3・define 6・compare 3）
     for fam in ("P5-1", "P5-2", "P5-3"):
         g = C[(C.family == fam) & C.metric.isin(["uar", "dir"])]
         if g.empty:
             continue
-        n_nt_combo = int((g.n_corpora == 0).sum())                             # すべてのコーパスが対象外（教師なし）の生徒 × K は数えない
+        n_all_combo = int(len(g))
         n_nt_unit = int(g.n_no_teacher.sum()) if "n_no_teacher" in g.columns else 0
-        g = g[g.n_corpora > 0]
+        n_none_unit = int(g.n_oursx_none.sum()) if "n_oursx_none" in g.columns else 0
+        units_all = int((g.n_corpora + g.n_no_teacher - g.n_missing).clip(lower=0).sum())
+        g = g[g.n_corpora >= 2]                                                # 組み合わせの文を書けるもの
         hit = g.n_pos >= g.majority
         by = g.assign(h=hit).groupby("run").h.agg(["sum", "size"])
-        units = int((g.n_corpora - g.n_missing).sum())
+        units, ch = chance_rows(tag, fam, g)
         rows.append({"tag": tag, "family": fam, "rule": "summary", "n_combos": int(len(g)), "combos": "",
-                     "statement_key": f"{len(g)} の生徒 × K のうち {int(hit.sum())} で上回った（"
+                     "statement_key": f"生徒 × K {n_all_combo} のうち教師の残ったコーパスが 2 つ以上の {len(g)} で，{int(hit.sum())} で上回った（"
                                       + "，".join(f"{a} の {b} のうち {c}" for a, c, b in zip(by.index, by["sum"], by["size"])) + "）．"
-                                      f"単位 {units}，偶然の「上回った」の見込み {0.025 * units:.2f}，実際の「上回った」{int(g.n_pos.sum())}．"
-                                      f"対象外（教師なし）：単位 {n_nt_unit}，すべてのコーパスが対象外の生徒 × K {n_nt_combo}（数えていない）．"
-                                      "特定の生徒と K だけを取り出した文は書かない"})
+                                      f"単位：全部で {units_all}（うち教師なし {n_nt_unit} を外した），数えた単位 {units}．"
+                                      f"偶然の「上回った」の見込み：単位 {0.025 * units:.2f}，組み合わせ {ch:.3f}．実際の「上回った」：単位 {int(g.n_pos.sum())}．"
+                                      + (f"oursx ＝ none（教師なし）のまま数えた単位 {n_none_unit}．" if n_none_unit else "")
+                                      + "特定の生徒と K だけを取り出した文は書かない"})
+    for fam in ("ablation", "ablation_replace"):                               # 除去実験の偶然の見込み（関門 1 の追記 stats の変更 9 の記録）
+        for comp, g in C[(C.family == fam) & (C.metric == "uar")].groupby("comparison"):
+            g = g[g.n_corpora >= 2]
+            units, ch = chance_rows(tag, fam, g)
+            rows.append({"tag": tag, "family": fam, "rule": f"{comp}|chance", "n_combos": int(len(g)), "combos": "",
+                         "statement_key": f"単位 {units}，偶然の「上回った」「下回った」の見込み：単位 各 {0.025 * units:.2f}，組み合わせ 各 {ch:.3f}．"
+                                          f"実際：上回った {int(g.n_pos.sum())}，下回った {int(g.n_neg.sum())}"})
     s53 = C[(C.family == "sec5.3") & C.K.isin(["5", "25"])]
     if len(s53):
-        per = s53.assign(ok=s53.n_pos >= s53.majority).groupby(["run", "student"]).ok.all()
+        per = s53.assign(ok=(s53.n_pos >= s53.majority) & (s53.n_corpora >= 2)).groupby(["run", "student"]).ok.all()
         rows.append({"tag": tag, "family": "sec5.3", "rule": "7 生徒の過半", "n_combos": int(len(per)),
                      "combos": ";".join(f"{a}|{b}:{bool(v)}" for (a, b), v in per.items()),
                      "statement_key": "「K 本で学び直してから」を書く" if int(per.sum()) >= 4 else "その部分を外す（教師の作り方の寄与を 2 段目の参照に限る）"})
@@ -2447,7 +2724,7 @@ def tables(args, out, S, sel, fixed, dirs, U, delta):
             vr.append(p.groupby(["target", "student"]).vr_in.mean().reset_index().assign(run=run))
     if vr:
         pd.concat(vr).to_csv(out / "model_var_ratio.csv", index=False)
-    da, ina = [], []
+    da = []
     for run in dirs:
         f = Path(args.out) / "measure" / f"diag_{run}.csv"
         if not f.exists():
@@ -2467,15 +2744,14 @@ def tables(args, out, S, sel, fixed, dirs, U, delta):
             g["da_changed_predictions"] = [(av >= DISAGREE_MIN) if k == "0" else (av >= DISAGREE_MIN and av > bv)
                                            for av, bv, k in zip(g.a_vs_mapctl, g.b_seed_max, g.K)]
             da.append(g.assign(run=run, method=sm))
-        x = dg[dg.what.str.startswith("pred_disagree_vs_none|")]              # P4 の選んだ設定と none の予測の食い違い（「働かなかった」の材料）
-        if len(x):
-            g = x.groupby(["target", "student", "K", "what"]).value.agg(mean="mean", max="max", n_reps="size").reset_index()
-            g[["method", "variant"]] = g.what.str.split("|", expand=True)[[1, 2]]
-            ina.append(g.assign(run=run, inactive=g["mean"] < DISAGREE_MIN))
     if da:
         pd.concat(da).to_csv(out / "da_effect.csv", index=False)
-    if ina:
-        pd.concat(ina).to_csv(out / "inactive.csv", index=False)
+    # 「働かなかった」の表（関門 1 の追記）：P4 の族の単位ごとに，基準の量（a：DANN・MME は mapctl との食い違い，CORAL は coralctl との食い違い，
+    # entmin・IM は種 0 と none の食い違い，ほかは none との食い違い．b：DANN・MME の種の間の食い違いの最大），置き換える前と後の判定，向きの損の点の値
+    ia = U[U.family.str.match(r"^P4") & U.inactive_a.notna() & (U.metric.isin(["dir", "dir_rev"]))]
+    if len(ia):
+        ia[["family", "comparison", "metric", "sensitivity", "run", "student", "K", "corpus", "variant", "inactive_a", "inactive_b", "inactive",
+            "judgment_raw", "judgment", "point"]].to_csv(out / "inactive.csv", index=False)
     # 対照との食い違い（関門 1 の C-2）：none との判定と対照との判定がコーパスで食い違う単位
     M = U[(U.sensitivity == "main") & (U.metric == "dir")]
     a = M[M.family.isin(["P4", "P4'", "P4_uni_world"]) & M.comparison.isin(["none-coral", "none-dann", "none-mme"])].assign(
@@ -2527,6 +2803,9 @@ def main() -> int:
     ap.add_argument("--reps", nargs="+", type=int, default=list(REPS))
     ap.add_argument("--pseudo-reps", nargs="+", type=int, default=list(PSEUDO_REPS))
     ap.add_argument("--out", type=Path, default=ROOT / "results" / "e79")
+    ap.add_argument("--families", choices=("all", "p4"), default="all",
+                    help="p4：P4・P4′ の族（群 B の 8 手法とその対照・記述・固定版）だけを選び・測り・判定する．kept.csv を読まないので，"
+                         "E80 で E77 に無い教師が残っても（段 c を待たずに）流せる．select・measure・judge で同じ値を渡す（違えば止まる）")
     ap.add_argument("--e80-kept", type=Path, default=ROOT / "results" / "e80" / "kept.csv",
                     help="E80 の R3′〜R3‴ で残した教師の表（世界, target, 生徒, 教師, K, keep）．select の段が読む")
     ap.add_argument("--boot", type=int, default=1000)
