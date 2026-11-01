@@ -682,7 +682,8 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, m
 
     chosen = {}
     if COPY_PSEUDO and T in E77.COPY_SRC:                                        # 短縮 a：台本の仮のターゲットは即興の結果を写す
-        prows, conv, diag = E77.copy_pseudo(out, T, "E78", KS)
+        prows, conv, diag, _ = E77.copy_pseudo(out, T, "E78", KS, commit, E77.pseudo_pairs(S, pseudo_targets, pseudo_reps),
+                                               {"ks": list(KS), "methods": list(methods)})
         S_loop = []
     else:
         S_loop = S
@@ -779,7 +780,8 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, methods, pseu
         rec.conv.append({**rec.tag, "student": kind, "what": "map", "sec": time.perf_counter() - t0})
     prows = []
     if COPY_PSEUDO and T in E77.COPY_SRC:                                        # 短縮 a
-        prows, conv_c, diag_c = E77.copy_pseudo(out, T, "E78", KS)
+        prows, conv_c, diag_c, _ = E77.copy_pseudo(out, T, "E78", KS, commit, E77.pseudo_pairs(S, pseudo_targets, pseudo_reps),
+                                                   {"ks": list(KS), "methods": list(methods)})
         conv += conv_c
         diag += diag_c
         S_loop = []
@@ -859,7 +861,7 @@ def main() -> int:
     ptg = ["__none__"] if args.pseudo_targets == ["none"] else args.pseudo_targets
     prov = {"script": "exp/compare_dai2.py", "experiment": "E78", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo, "reps": args.reps, "pseudo_reps": args.pseudo_reps,
-            "pseudo_targets": args.pseudo_targets, "methods": args.methods, "gpu_fraction": args.gpu_fraction, "ks": KS, "copy_pseudo": COPY_PSEUDO, **GRID,
+            "pseudo_targets": args.pseudo_targets, "methods": args.methods, "gpu_fraction": args.gpu_fraction, "ks": list(KS), "copy_pseudo": COPY_PSEUDO, **E77.versions(), **GRID,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:

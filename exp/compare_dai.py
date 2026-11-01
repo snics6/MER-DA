@@ -70,6 +70,8 @@ KS = BD.KS                                  # ("0", "1", "5", "10", "25")
 KS_LAB = ("1", "5", "10", "25")
 KS_LAB_ALL = KS_LAB                          # 話者の分割と K 本の抜き方（CB.Ctx）は常に全 K で作る．--ks で解く K を絞っても K=5・25 の K 本は変わらない
 COPY_PSEUDO = False                          # True（--copy-pseudo）で COPY_SRC の写しを使う
+NC_SEEDS = (1, 2)                            # 凸でない entmin・IM を評価のターゲットで揺らした出発点から解き直す種（種 0 は none の解から．--nc-seeds で変える）
+NC_SCALE = 0.1
 COREG_PSEUDO = True                          # False（--coreg-eval-only）：共正則化を仮のターゲットで解かない（DAI 論文の短縮 b）
 COPY_SRC = {"IEMOCAP-script": "IEMOCAP-impro"}  # --copy-pseudo：台本の仮のターゲットは即興の結果を写す（DAI 論文の短縮 a．ソース・設定・分割が同じ）
 C_FIT = BD.C_FIT                            # 0.01（合併の下書きの C．E60・E61 と同じ）
@@ -101,6 +103,7 @@ class Rec:
     def __init__(self, tag, yte, keep):
         self.tag, self.yte, self.keep = tag, np.asarray(yte), keep
         self.rows, self.P, self.A, self.W, self.conv, self.none_lp, self.diag, self.xform = [], [], [], {}, [], {}, [], {}
+        self.convp = []
 
     def add(self, student, method, param, meff, K, probs=None, Wb=None, Zte=None, logits=None):
         if Wb is not None:
@@ -161,6 +164,12 @@ class Prob2(Prob):
     def __init__(self, s, yq, label_sets):
         super().__init__(s, yq, label_sets)
         self.stats = []
+        self.per = []                                                            # 問ごとの反復の回数と止まったときの勾配（関門の C6）
+
+    def note(self, what, keys, fits):
+        cp = self.s["cp"]
+        for key, f in zip(keys, fits):
+            self.per.append({"what": what, "key": str(key), "n_iter": int(f.n_iter[cp]), "grad": float(f.grad[cp])})
 
     def solve(self, items, u=None, inits=None, what="-"):
         s, cp = self.s, self.s["cp"]
@@ -193,6 +202,7 @@ class Prob2(Prob):
                                 inits=ini if any(i is not None for i in ini) else None)
         self.stats.append({"what": what, "n_prob": len(keys), "sec": time.perf_counter() - t0,
                            "n_iter_max": max(int(f.n_iter[cp]) for f in fits), "grad_max": max(float(f.grad[cp]) for f in fits)})
+        self.note(what, keys, fits)
         for key, f in zip(keys, fits):
             out[key] = (f.W[cp], f.b[cp])
         return out
@@ -236,8 +246,20 @@ def im_mass(meff, K, n):
     return 40.0 * int(K) if meff == "tim" else mass(meff, n)
 
 
-def im_solve(pr, none, combos):
-    """combos = [(α, m_eff, K)]．目的に m·(α·条件のエントロピーの平均 − 予測の平均のエントロピー) を足し，none の解から始める。"""
+def shaken(none, seed, rep_, student):
+    """none の解の W に，W の要素の標準偏差の NC_SCALE 倍の正規の乱れを足した出発点（種・反復・生徒で決まる）。切片は動かさない。"""
+    g = torch.Generator(device="cpu").manual_seed(int(1_000_003 * seed + 1_009 * rep_ + sum(map(ord, student))))
+    out = {}
+    for K in KS:
+        W, b = none[K]
+        e = torch.randn(W.shape, generator=g, dtype=torch.float64).to(device=W.device, dtype=W.dtype)
+        out[K] = (W + NC_SCALE * W.std() * e, b)
+    return out
+
+
+def im_solve(pr, none, combos, what="im"):
+    """combos = [(α, m_eff, K)]．目的に m·(α·条件のエントロピーの平均 − 予測の平均のエントロピー) を足し，none[K] の解から始める
+    （出発点を揺らすときは none に揺らした解を渡す）。"""
     s, cp, n = pr.s, pr.s["cp"], pr.n
     if not combos:
         return {}
@@ -256,6 +278,8 @@ def im_solve(pr, none, combos):
     fits = logreg.fit_batch(pr.X, pr.y, [np.ones(len(pr.y), bool)] * len(combos), (cp,), anchor=s["st"].anchor(s["rho_m"]),
                             anchor_c=s["st"].C, stats=(pr.zero, pr.one), Cb=[s["cb"]] * len(combos),
                             weights=[pr.wt[K] for _, _, K in combos], extra=(fn, [float(x) for x in ms]), inits=ini)
+    if hasattr(pr, "note"):
+        pr.note(what, combos, fits)
     return {key: (f.W[cp], f.b[cp]) for key, f in zip(combos, fits)}
 
 
@@ -296,7 +320,7 @@ def t3a_probs(pr, Wb, lab_pos, lab_y, Ms):
 
 # ---------------------------------------------------------------- ラベル伝播（Zhou ほか 2004．Iscen ほか 2019 の形）
 
-def lp_scores(Z, lab_pos, lab_y, k, alpha, gamma=LP_GAMMA, iters=LP_CG_ITERS):
+def lp_scores(Z, lab_pos, lab_y, k, alpha, gamma=LP_GAMMA, iters=LP_CG_ITERS, info=None):
     """候補の k 近傍のグラフ（余弦の類似度の γ 乗．負は 0）で K 本のラベルを伝播させた F（n×4．行は 0 以上）。共役勾配法で解く。"""
     n = len(Z)
     zn = F.normalize(Z.to(torch.float32), dim=1)
@@ -323,7 +347,8 @@ def lp_scores(Z, lab_pos, lab_y, k, alpha, gamma=LP_GAMMA, iters=LP_CG_ITERS):
     R = Y - A(Xs)
     P = R.clone()
     rs = (R * R).sum(0)
-    for _ in range(iters):
+    it = 0
+    for it in range(1, iters + 1):
         AP = A(P)
         a_ = rs / (P * AP).sum(0).clamp(min=1e-30)
         Xs = Xs + a_ * P
@@ -333,6 +358,8 @@ def lp_scores(Z, lab_pos, lab_y, k, alpha, gamma=LP_GAMMA, iters=LP_CG_ITERS):
             break
         P = R + (rs_new / rs.clamp(min=1e-30)) * P
         rs = rs_new
+    if info is not None:                                                         # 共役勾配法の回数と最後の残差（関門の C6）
+        info.update({"cg_iters": it, "cg_resid": float(((Y - A(Xs)) ** 2).sum(0).max().sqrt())})
     return Xs.clamp(min=0)
 
 
@@ -386,9 +413,18 @@ def run_ab(pr, rec, student, lab):
                    what="entmin")
     for (meff, K), Wb in sol.items():
         rec.add(student, "entmin", "-", meff, K, Wb=Wb, Zte=Zte)
-    for (a, meff, K), Wb in im_solve(pr, none, [(a, meff, K) for a in IM_ALPHAS for meff in MEFFS for K in KS]
-                                     + [(0.1, "tim", K) for K in KS_LAB]).items():
+    im_combos = [(a, meff, K) for a in IM_ALPHAS for meff in MEFFS for K in KS] + [(0.1, "tim", K) for K in KS_LAB]
+    for (a, meff, K), Wb in im_solve(pr, none, im_combos).items():
         rec.add(student, "im", f"a{a}", meff, K, Wb=Wb, Zte=Zte)
+    if rec.keep and NC_SEEDS:                                                    # 凸でない 2 手法は出発点を揺らして解き直す（評価のターゲットだけ．関門の C1・C5）
+        for seed in NC_SEEDS:
+            st0 = shaken(none, seed, int(rec.tag["rep"]), student)
+            sol = pr.solve([(key, None, key[1]) for key in keys], u=[mass(meff, n) / n for meff, K in keys],
+                           inits=[st0[K] for meff, K in keys], what=f"entmin_s{seed}")
+            for (meff, K), Wb in sol.items():
+                rec.add(student, "entmin", f"-s{seed}", meff, K, Wb=Wb, Zte=Zte)
+            for (a, meff, K), Wb in im_solve(pr, st0, im_combos, what=f"im_s{seed}").items():
+                rec.add(student, "im", f"a{a}s{seed}", meff, K, Wb=Wb, Zte=Zte)
     for K in KS:
         for Mv, (lm, lb) in t3a_probs(pr, none[K], *lab[K], T3A_MS).items():
             rec.add(student, "t3a", f"M{Mv}", "0", K, logits=lm)
@@ -397,14 +433,15 @@ def run_ab(pr, rec, student, lab):
     for K in KS_LAB:
         for k in LP_KS:
             for al in LP_ALPHAS:
-                Fs = lp_scores(s["Z"], *lab[K], k, al)
+                cg = {}
+                Fs = lp_scores(s["Z"], *lab[K], k, al, info=cg)
                 on = Fs.sum(1) > 0
                 if len(lab[K][0]):
                     on[torch.as_tensor(lab[K][0], device=on.device)] = False
                 rec.diag.append({**rec.tag, "student": student, "method": "lp", "param": f"k{k}a{al}", "meff": "-", "K": K, "round": 0,
                                  "n_pseudo": int(on.sum()),
                                  "acc_pseudo": float((Fs[on].argmax(1) == pr.yt[on]).float().mean()) if on.any() else float("nan"),
-                                 "uar_test": float("nan")})
+                                 "uar_test": float("nan"), **cg})
                 for form in LP_FORMS:
                     for meff in MEFFS:
                         items.append(((f"k{k}a{al}{form}", meff, K), lp_rows(Fs, lab[K][0], form, meff, n), K))
@@ -432,6 +469,8 @@ def kdh_solve(pr, items):
     fits = logreg.fit_batch(pr.X, pr.y, [np.ones(len(pr.y), bool)] * len(items), (cp,), anchor=s["st"].anchor(s["rho_m"]),
                             anchor_c=s["st"].C, stats=(pr.zero, pr.one), Cb=[s["cb"]] * len(items),
                             weights=[pr.wt[K] for _, _, _, _, K in items], extra=(fn, [float(x) for x in ms]))
+    if hasattr(pr, "note"):
+        pr.note("kdh", [it[0] for it in items], fits)
     return {key: (f.W[cp], f.b[cp]) for (key, _, _, _, _), f in zip(items, fits)}
 
 
@@ -584,6 +623,8 @@ def flush_stats(rec, prs):
     for k, pr in prs.items():
         for st_ in pr.stats:
             rec.conv.append({**rec.tag, "student": k, **st_})
+        for st_ in getattr(pr, "per", []):
+            rec.convp.append({**rec.tag, "student": k, **st_})
 
 
 # ---------------------------------------------------------------- 世界と種類の 1 反復
@@ -677,37 +718,80 @@ def set_ks(ks):
     GRID["KS"] = KS
 
 
-def copy_pseudo(out, T, script, ks, drop_methods=()):
+def versions():
+    """計算機とライブラリの版（再現の手順に書く．関門の C6）。"""
+    try:
+        drv = subprocess.run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], capture_output=True, text=True).stdout.strip()
+    except OSError:
+        drv = ""
+    return {"torch": torch.__version__, "cuda": torch.version.cuda, "cudnn": torch.backends.cudnn.version(), "driver": drv,
+            "numpy": np.__version__, "pandas": pd.__version__, "python": sys.version.split()[0], "host": __import__("socket").gethostname()}
+
+
+def pseudo_pairs(S, pseudo_targets, pseudo_reps):
+    """仮のターゲットで計算する（群, 反復）の組（run_world・run_kind の繰り返しと同じ規則）。"""
+    out = []
+    for c in S:
+        pool_c = [s_ for s_ in S if CM.corp(s_) != CM.corp(c)]
+        if not pool_c or (pseudo_targets and c not in pseudo_targets):
+            continue
+        out += [(c, int(r)) for r in pseudo_reps]
+    return out
+
+
+def copy_pseudo(out, T, script, ks, commit, pairs, args_now, drop_methods=()):
     """台本 T の仮のターゲットの結果を，同じ出力の場所にある写し元（即興）の結果から作る（--copy-pseudo．短縮 a）．
 
-    写し元と T で，E39 の設定・ソース・C の設定（`_settings.json` の全項目）が一致することを確かめ，違えば止める．
-    写し元の `_pseudo.csv` の行を K と除く手法で絞り，写し元のコミットを `src_commit` に残す．`_conv.csv`・`_diag.csv` の仮のターゲットの行も同じく写す．
-    E77 の none の対数の確率（`_ps_` の npz）は中身を変えずに名前だけ T にして写す。"""
+    止める条件（関門の I12-3）：写し元の `<src>.csv` が無い／今と違うコミット，`_settings.json` の不一致，
+    写し元を回したときの引数（args_now の鍵）が今と違う，（仮のターゲット, 反復）の組が pairs とそろわない，K が ks とそろわない，
+    E77 で npz の本数が組の数と違う．写した行には写し元のコミット `src_commit` と `copied_from` を残す。"""
     src = COPY_SRC[T]
+    stop = lambda m: (_ for _ in ()).throw(SystemExit(f"{T} の写し：{m}"))  # noqa: E731
+    f0 = out / f"{src}.csv"
+    if not f0.exists():
+        stop(f"写し元 {f0} が無い（写し元の評価の反復が終わっていない）")
+    c0 = set(pd.read_csv(f0, usecols=["commit"]).commit.astype(str))
+    if c0 != {commit}:
+        stop(f"写し元のコミット {c0} が今 {commit} と違う")
     a_, b_ = (json.loads((out / f"{g}_settings.json").read_text()) for g in (src, T))
     if a_ != b_:
-        raise SystemExit(f"{src} と {T} の設定が違うので写せない：{a_} != {b_}")
-    f = out / f"{src}_pseudo.csv"
-    if not f.exists():
-        raise SystemExit(f"写し元 {f} が無い")
-    d = pd.read_csv(f, dtype={"K": str})
+        stop(f"設定が違う：{a_} != {b_}")
+    ent = [json.loads(x) for x in (out / "provenance_log.jsonl").read_text().splitlines() if x.strip()]
+    ent = [e for e in ent if e.get("commit") == commit and src in e.get("targets", [])]
+    if not ent:
+        stop("写し元を回したときの記録（provenance_log.jsonl）が無い")
+    for k, v in args_now.items():
+        if json.dumps(ent[-1].get(k), sort_keys=True) != json.dumps(v, sort_keys=True):
+            stop(f"写し元の引数 {k}={ent[-1].get(k)} が今 {v} と違う")
+    d = pd.read_csv(out / f"{src}_pseudo.csv", dtype={"K": str})
     d = d[d.K.isin(ks) & ~d.method.isin(drop_methods)].rename(columns={"commit": "src_commit"}).assign(copied_from=src)
+    got = set(zip(d.pseudo.astype(str), d.rep.astype(int)))
+    if got != set(pairs):
+        stop(f"（仮のターゲット, 反復）の組がそろわない：写し元 {sorted(got)}，期待 {sorted(pairs)}")
+    if set(d.K) != set(ks):
+        stop(f"K がそろわない：写し元 {sorted(set(d.K))}，今 {list(ks)}")
     extra = []
-    for name in ("conv", "diag"):
+    for name in ("conv", "diag", "convp"):
         g = out / f"{src}_{name}.csv"
         e = pd.read_csv(g, dtype={"K": str}) if g.exists() and g.stat().st_size > 1 else pd.DataFrame()
         if not e.empty and "pseudo" in e.columns:
             e = e[e.pseudo.notna()].rename(columns={"commit": "src_commit"}).assign(copied_from=src)
             if "K" in e.columns:
                 e = e[e.K.isna() | e.K.astype(str).str.replace(r"\.0$", "", regex=True).isin(ks)]
+        elif name in ("conv", "convp") and script == "E77":
+            stop(f"写し元の {g.name} が無い")
         extra.append(e.to_dict("records") if not e.empty else [])
     n_npz = 0
     if script == "E77":
-        for g in sorted(out.glob(f"{src}_ps_*_none.npz")):
+        fs = [out / f"{src}_ps_{c}_r{r}_none.npz" for c, r in pairs]
+        miss = [x.name for x in fs if not x.exists()]
+        if miss:
+            stop(f"写し元の npz が無い：{miss}")
+        for g in fs:
             shutil.copyfile(g, out / g.name.replace(f"{src}_ps_", f"{T}_ps_", 1))
             n_npz += 1
-    print(f"{T}：仮のターゲットを {src} から写した（{len(d)} 行，npz {n_npz} 本）", flush=True)
-    return d.to_dict("records"), extra[0], extra[1]
+    print(f"{T}：仮のターゲットを {src} から写した（{len(d)} 行，組 {len(pairs)}，npz {n_npz} 本）", flush=True)
+    return d.to_dict("records"), extra[0], extra[1], extra[2]
 
 
 def samples_table(name, T):
@@ -725,9 +809,11 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
     S = [s for s in data_f if CM.corp(s) != CM.corp(T)]
     sets = {k: settings(k, T) for k in WORLDS[world] + [world]}
     save_settings(out, T, sets, {"c_fit": C_FIT, "sources": S})
-    prows, conv, diag = [], [], []
+    prows, conv, diag, convp = [], [], [], []
     if COPY_PSEUDO and T in COPY_SRC:
-        prows, conv, diag = copy_pseudo(out, T, "E77", KS, () if COREG_PSEUDO else ("coreg", "coreg_sum"))
+        prows, conv, diag, convp = copy_pseudo(out, T, "E77", KS, commit, pseudo_pairs(S, pseudo_targets, pseudo_reps),
+                                               {"KS": list(KS), "coreg_pseudo": COREG_PSEUDO, "nc_seeds": list(NC_SEEDS), "nc_scale": NC_SCALE},
+                                               () if COREG_PSEUDO else ("coreg", "coreg_sum"))
         S_loop = []
     else:
         S_loop = S
@@ -742,7 +828,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             stu = make_students(world, c, data_f, data_m, pool_c, pool, te, sets, info_c)
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
-            rec.conv, rec.diag = conv, diag
+            rec.conv, rec.diag, rec.convp = conv, diag, convp
             world_unit(world, stu, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec, raw_world(world, data_f, data_m, c, pool_c, pool, te))
             rec.save_pseudo(out, T, c, r, te)
             prows += rec.rows
@@ -757,7 +843,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         stu = make_students(world, T, data_f, data_m, S, pool, te, sets, info)
         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
-        rec.conv, rec.diag = conv, diag
+        rec.conv, rec.diag, rec.convp = conv, diag, convp
         world_unit(world, stu, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec, raw_world(world, data_f, data_m, T, S, pool, te))
         rec.save(out, T, r, te)
         rows += rec.rows
@@ -765,6 +851,7 @@ def run_world(world, T, data_f, data_m, reps, pseudo_reps, out, cache, commit, p
         torch.cuda.empty_cache()
     pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
     pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
+    pd.DataFrame(convp).assign(commit=commit).to_csv(out / f"{T}_convp.csv", index=False)
     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
 
 
@@ -790,9 +877,10 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
         st = Student(ev, Xc, src, lin, n_of, pool_s, C, gamma, rho_s, [rho_m])
         Am = st.mats[rho_m][0]
         return {"st": st, "rho_m": rho_m, "cb": cb, "cp": cp, "Z": st.Xstd @ Am, "Zte": ((M.rows(ev.X, te) - ct - st.src.mu) / st.src.sd) @ Am}
-    prows, conv, diag = [], [], []
+    prows, conv, diag, convp = [], [], [], []
     if COPY_PSEUDO and T in COPY_SRC:
-        prows, conv, diag = copy_pseudo(out, T, "E77", KS)
+        prows, conv, diag, convp = copy_pseudo(out, T, "E77", KS, commit, pseudo_pairs(S, pseudo_targets, pseudo_reps),
+                                               {"KS": list(KS), "coreg_pseudo": COREG_PSEUDO, "nc_seeds": list(NC_SEEDS), "nc_scale": NC_SCALE})
         S_loop = []
     else:
         S_loop = S
@@ -807,7 +895,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
             pool, te = np.flatnonzero(~ctxc.te[r]), np.flatnonzero(ctxc.te[r])
             s = student_of(evc, M.rows(evc.X, pool) - ctxc.ct[r], src_c, lin_c, n_c, pool_c, C_FIT, te, ctxc.ct[r])
             rec = Rec({"pseudo": c, "rep": r}, evc.y[te], keep=False)
-            rec.conv, rec.diag = conv, diag
+            rec.conv, rec.diag, rec.convp = conv, diag, convp
             kind_unit(kind, s, evc.y[pool], evc.y[te], BD.label_sets_of(ctxc, r, pool), rec,
                       (M.rows(evc.X, pool) - ctxc.ct[r], M.rows(evc.X, te) - ctxc.ct[r], [(data[s_].X, data[s_].y) for s_ in pool_c], C_FIT, ctxc.ct[r]))
             rec.save_pseudo(out, T, c, r, te)
@@ -823,7 +911,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
         pool, te = np.flatnonzero(~ctx.te[r]), np.flatnonzero(ctx.te[r])
         s = student_of(ev, M.rows(ev.X, pool) - ctx.ct[r], src_pc, lin, n_of, S, C_T, te, ctx.ct[r])
         rec = Rec({"target": T, "rep": r}, ev.y[te], keep=True)
-        rec.conv, rec.diag = conv, diag
+        rec.conv, rec.diag, rec.convp = conv, diag, convp
         kind_unit(kind, s, ev.y[pool], ev.y[te], BD.label_sets_of(ctx, r, pool), rec,
                   (M.rows(ev.X, pool) - ctx.ct[r], M.rows(ev.X, te) - ctx.ct[r], [(data[s_].X, data[s_].y) for s_ in S], C_T, ctx.ct[r]))
         rec.save(out, T, r, te)
@@ -832,6 +920,7 @@ def run_kind(kind, T, data, reps, pseudo_reps, out, cache, commit, pseudo_target
         torch.cuda.empty_cache()
     pd.DataFrame(conv).assign(commit=commit).to_csv(out / f"{T}_conv.csv", index=False)
     pd.DataFrame(diag).assign(commit=commit).to_csv(out / f"{T}_diag.csv", index=False)
+    pd.DataFrame(convp).assign(commit=commit).to_csv(out / f"{T}_convp.csv", index=False)
     pd.DataFrame(rows).assign(commit=commit).to_csv(out / f"{T}.csv", index=False)
 
 
@@ -848,13 +937,14 @@ def main() -> int:
     ap.add_argument("--ks", nargs="+", help="解く K（既定は全部．DAI 論文の短縮 c は 0 5 25）．K 本の抜き方は変わらない")
     ap.add_argument("--copy-pseudo", action="store_true", help="IEMOCAP-script の仮のターゲットを同じ出力の場所の IEMOCAP-impro の結果から写す（短縮 a）")
     ap.add_argument("--coreg-eval-only", action="store_true", help="共正則化を仮のターゲットで解かない（短縮 b）")
+    ap.add_argument("--nc-seeds", nargs="*", type=int, default=[1, 2], help="entmin・IM を揺らした出発点から解き直す種（評価のターゲットだけ．空で行わない）")
     args = ap.parse_args()
     if bool(args.kind) == bool(args.world):
         ap.error("--kind か --world のどちらか 1 つを指定する")
-    global COPY_PSEUDO, COREG_PSEUDO
+    global COPY_PSEUDO, COREG_PSEUDO, NC_SEEDS
     if args.ks:
         set_ks(args.ks)
-    COPY_PSEUDO, COREG_PSEUDO = args.copy_pseudo, not args.coreg_eval_only
+    COPY_PSEUDO, COREG_PSEUDO, NC_SEEDS = args.copy_pseudo, not args.coreg_eval_only, tuple(args.nc_seeds)
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(args.gpu_fraction)
     name = args.kind or args.world
@@ -872,7 +962,8 @@ def main() -> int:
     ptg = ["__none__"] if args.pseudo_targets == ["none"] else args.pseudo_targets   # 'none'：仮のターゲットを回さない（試走用）
     prov = {"script": "exp/compare_dai.py", "experiment": "E77", "argv": sys.argv[1:], "commit": commit, "dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "targets": todo, "reps": args.reps, "pseudo_reps": args.pseudo_reps,
-            "pseudo_targets": args.pseudo_targets, "gpu_fraction": args.gpu_fraction, "copy_pseudo": COPY_PSEUDO, "coreg_pseudo": COREG_PSEUDO, **GRID,
+            "pseudo_targets": args.pseudo_targets, "gpu_fraction": args.gpu_fraction, "copy_pseudo": COPY_PSEUDO, "coreg_pseudo": COREG_PSEUDO,
+            "nc_seeds": list(NC_SEEDS), "nc_scale": NC_SCALE, **versions(), **GRID,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""}
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     with open(out / "provenance_log.jsonl", "a") as fh:
