@@ -107,3 +107,70 @@
 ## 目録に無い種類の不備
 
 **判定や設定を差し替える包み台本（wrapper）**：本体の再開の照合はコードのハッシュの一致で「同じ計算」を保証していたが，包み台本は自分をハッシュに含めるので，作りからこの保証を外す．`docs/methods.md` 9.3 節に次の項目を足す案：「I-wrap：本体の関数を差し替える包み台本で残りを計算するときは，(i) 包み台本を除いた読み込むコードのハッシュが既存の出力のハッシュと同じであること，(ii) 設定が既存の出力の設定と同じであること，を計算の前に台本の中で確かめて記録する．(iii) 引数は本体の引数のうち許したものだけに限り，包み台本と本体が引数を別々に読む作りにしない．(iv) 差し替えた規則で受け入れた出力（既存のものを含む）を機械で読める形で残す」
+
+---
+
+# 再検査（2026-11-02，コミット 61bd0df）
+
+## 判定
+
+通す．4 つの直し（[I12] のコードのハッシュの照合，[I1] の引数の制限，[R] の計算の後の記録，[I7] の E76 の 10 節の追記）はどれも意図どおりに動いた．直した台本で流した AFEW の反復 0 の出力は，直す前の試しの出力と，配列・csv・settings・check がビット単位で同じだった．残る 2 件はどちらも本番の出力の値に影響しない（下の「残る指摘」．記録する）．
+
+## 確かめたこと
+
+差分は `exp/relearn_e76_finish.py`（81 行 → 132 行），`docs/exploratory-analyses.md` の E76 の 10 節（2 行），この報告である．`exp/relearn_e76.py` とその依存の 10 本は変わっていない．作業木の未コミットの変更は `exp/explore_view_fusion.py` だけで，読み込むコードに入らない．GPU は試しの間，ほかの計算が無かった（1.2 GiB，使用率 0%）．試しはすべて `--gpu-fraction 0.2` 以下で流し，出力は scratchpad に書かせた．`results/e76` の下に `logs/e76.log` より新しいファイルは無い．
+
+**[I12] コードのハッシュの照合**（`relearn_e76_finish.py:82-88`）
+- 今の作業木では，包み台本を除いた `R.code_files()` の一覧が MELD.json の `code_files` と同じで，ハッシュは 9891f0668848 で一致した
+- `REF_JSON` を，`code_hash` だけを 0 に替えた偽の json に差し替えると，「包み台本を除いたコードが E76 の本番と違う」で止まった．`R.main` は呼ばれず，`--out` のフォルダも作られなかった（CPU で確かめた）
+- `REF_JSON` は `--out` によらず `results/e76/audio_hubert/MELD.json` を読む．試しでも本番の参照と照合するので，これは正しい
+
+**[I1] 引数の制限**（`:51-69`，`:74-79`．どれも計算の前に止まり，`--out` のフォルダは作られなかった）
+
+| 渡した引数（`--kinds audio_hubert` に続けて．最後の行は除く） | 結果 |
+|---|---|
+| `--targets=MELD` | 「`--opt=値` の書き方は使わない」で止まる |
+| `--targets MELD` | 範囲の外で止まる |
+| `--targets AFEW --reps 0` | 「`--reps` は受け付けない」で止まる |
+| `--targets AFEW --targets CREMA-D` | 「2 回ある」で止まる |
+| `--targ AFEW`（argparse なら略として通る） | 受け付けないで止まる |
+| `--targets AFEW -h` | `-h` がターゲットの値に入り，範囲の外で止まる |
+| `x --kinds audio_hubert --targets AFEW` | 位置引数で止まる |
+| `--kinds video --targets AFEW` | 範囲の外で止まる |
+
+前回の試し 5 のように argparse が別の値を読む道筋は無くなった．`--reps` などを渡せないので，設定は本体の既定値に固定される．本体の既定値は，上のハッシュの照合で E76 の本番と同じことが保証される．
+
+**[R] 計算の後の記録と，計算が変わっていないこと**
+
+台本は `--reps` を受け付けなくなったので，小さく流す方法が無い．そこで，ROOT の外に置いた検査用の台本（scratchpad の `harness/run_finish_rep0.py`）から流した．この台本は，`relearn_e76_finish.main` の引数の検査とハッシュの照合を通した後，本体の main を呼ぶときにだけ `--reps 0` を足す．ROOT の外に置いたので，`code_files` には入らない．
+
+- コマンド：`./.venv/bin/python <scratchpad>/harness/run_finish_rep0.py --kinds audio_hubert --targets AFEW --gpu-fraction 0.2 --out <scratchpad>/rechk_trial`
+- 結果：329 秒，終了コード 0，GPU の最大 1.31 GiB
+- 前回の試し 2（直す前の台本，`--gpu-fraction 0.2`）と突き合わせた（`checks/E76/code_run/finish_fraction.py`）．npz の 241 配列がビット単位で同じで，csv（288 行 × 28 列），settings，check も同じだった．code_hash だけが違う（包み台本の中身が変わったため．17f731311ff0）
+- json は `code_dirty` が偽で，`commit` は 61bd0df だった
+- `check_rule_finish.json` には 1 件だけ書かれ，次の値が入っていた
+  - `result: "ok"`，`started`・`finished`
+  - `code_hash_without_wrapper` と `code_hash_e76`：どちらも 9891f06688489b66…
+  - `written: {"audio_hubert/AFEW": "17f731311ff0…"}`，`waived: {"audio_hubert/AFEW": []}`
+  - `accepted_existing: {"audio_hubert/MELD": [h9 の 1 件]}`
+- `written` と `waived` は，json の `started` が包み台本の `started` 以降のファイルだけを数える（`:119`）．前の実行で済んだターゲットは数えない．本体が飛ばしたファイルを今回の実行のものと取り違えないので，これは正しい
+
+**[I7]**：E76 の 10 節に「①・②・③・h2〜h8 で止まったら規則を広げずに研究者に報告する」と，ステップ 4 で A(HuBERT) の 2 つのハッシュを受け入れることが書かれた．
+
+**`--gpu-fraction 0.3`**：上限を変えても出力がビット単位で同じことは，前回 0.6 と 0.2 で確かめた．今回の 0.2 でも同じだった．`settings.mem_fraction` は定数 0.6 のままで，0.3 は `provenance.json` の `argv` にだけ残る．
+
+## 残る指摘
+
+### [R] 本体が `--out` のフォルダを作る前に止まると，finally の書き込みが FileNotFoundError になり，止まった理由の表示を上書きする
+- 重さ：記録する（本番の `results/e76` は既にあるので起きない）
+- 該当箇所：`relearn_e76_finish.py:125-128`
+- 問題：新しい `--out` に `--gpu-fraction abc` か `--allow-dirty foo` を渡すと，argparse のエラー（終了コード 2）の後に，finally の `p.write_text` が `FileNotFoundError` を出す．終了コードは 1 になり，記録は書かれない（流して確かめた）．読み込むコードが dirty で止まった場合も同じ道筋を通る（本体の `relearn_e76.py:763-765` は `out.mkdir` の前にある）
+- 求める対応：finally の中で `out.mkdir(parents=True, exist_ok=True)` してから書く
+
+### [R] `waived` は元の規則の判定のすべてで，外した基準の分だけではない
+- 重さ：記録する
+- 該当箇所：`relearn_e76_finish.py:122`
+- 問題：新しい規則でも落ちたターゲット（h9 が tol の 2.5 倍を超えた，h3 の数の基準で落ちた，など）では，同じ文が `waived` と json の `check_failed` の両方に入る．`result` が SystemExit になるので，読み分けることはできる
+- 求める対応：`waived` を「元の判定の文のうち `check_failed` に無いもの」にするか，ステップ 4 の台本で読むときにそう読むと書く
+
+`provenance.json` の run の `script` は今も `"exp/relearn_e76.py"` である（本体の 778 行）．包み台本で流した run とは，`check_rule_finish.json` の `started`〜`finished` の時間の範囲と，`written` の code_hash で結べる．記録として足りる．
