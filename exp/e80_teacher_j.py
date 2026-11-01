@@ -25,10 +25,10 @@ J（R2）＝ P(none_K の argmax が外れ ∧ 教師の argmax が正解) − P
   units/<world>/<T>/<c>_r<r>.npz（1 回目の確率．float32．J はこの float32 の値から出す），<c>_r<r>_agg.npz（poolC・mlp），
   units/<world>/samples_<c>.csv（群の行番号 → sample_id・話者）
   provenance.json（世界ごと），provenance_log.jsonl
-  kept.csv（--summarize．R3：（世界, 生徒, 教師, K）ごとの J の中央値・単位の数・正の割合・残す）
+  kept.csv（--summarize DIR…．R3′・R3″：（世界, 評価のターゲット, 生徒, 教師, K）ごとに，コーパスごとの J の中央値の平均・単位の数・コーパスの数・正の割合・残す，記述の UAR の差）
 
     ./.venv/bin/python exp/e80_teacher_j.py --world fuse-audio-video-text [--target …] [--pseudo-reps …] [--ks 0 5 25] [--out-dir …] [--gpu-fraction …]
-    ./.venv/bin/python exp/e80_teacher_j.py --summarize [--out-dir …]
+    ./.venv/bin/python exp/e80_teacher_j.py --summarize results/e80/avt results/e80/av [--kept-out results/e80/kept.csv]
 """
 
 from __future__ import annotations
@@ -389,25 +389,79 @@ def rebuild(out):
 
 # ---------------------------------------------------------------- R3
 
-def summarize(out) -> int:
-    """j_units.csv から（世界, 生徒, 教師, K）ごとに J の中央値・平均・単位の数・正の割合と「残す」（中央値 > 0）を kept.csv に書く。"""
-    rebuild(out)
-    d = pd.read_csv(out / "j_units.csv", dtype={"K": str}, float_precision="round_trip")
-    dup = int(d.duplicated(KEY).sum())
-    if dup:
-        raise SystemExit(f"j_units.csv に重複が {dup} 行ある")
+def load_unit(path, world, ks):
+    """save_unit の逆（要約で UAR の差を出し直すため）。"""
+    z = np.load(path, allow_pickle=False)
+    mods = WORLDS[world]
+    u = {"y": z["y"], "poe0": z["poe0"], "agree": z["agree"], "ds": z["ds"],
+         "lab": {K: z[f"lab__{K}"] for K in ks}, "ref": {K: z[f"ref__{K}"] for K in ks}, "ref0": {K: z[f"ref0__{K}"] for K in ks},
+         "P": {k: z[f"P__{k}"] for k in mods + [world]}, "none": {k: {K: z[f"none__{k}__{K}"] for K in ks} for k in mods + [world]}}
+    a = path.with_name(path.stem + "_agg.npz")
+    qC = qM = None
+    if a.exists():
+        za = np.load(a, allow_pickle=False)
+        qC, qM = za["poolC"], za["mlp"]
+    return u, qC, qM
+
+
+def uar_np(y, pred):
+    return float(np.mean([np.mean(pred[y == c] == c) for c in np.unique(y)]))
+
+
+def uar_rows(out, d):
+    """j_units の各行について，K 本を除いた候補の上の UAR（教師 − none_K）を記述の列として出し直す（R3″ の記述の列．判定には使わない）。"""
+    rows = []
+    for (world, T, c, r), g in d.groupby(["world", "target", "pseudo", "rep"], sort=False):
+        ks = sorted(set(g.K), key=list(BD.KS).index)
+        u, qC, qM = load_unit(out / "units" / world / T / f"{c}_r{r}.npz", world, ks)
+        mods = WORLDS[world]
+        for K in ks:
+            mask = np.ones(len(u["y"]), bool)
+            mask[u["lab"][K]] = False
+            yy = u["y"][mask]
+            for k in [world] + mods:
+                ub = uar_np(yy, u["none"][k][K][mask].argmax(1))
+                for name, q in teachers_for(world, mods, u, k, K, qC, qM).items():
+                    rows.append({"world": world, "target": T, "pseudo": c, "rep": int(r), "student": k, "teacher": name, "K": K,
+                                 "uar_diff": uar_np(yy, np.asarray(q)[mask].argmax(1)) - ub})
+    return pd.DataFrame(rows)
+
+
+def summarize(outs, dest) -> int:
+    """R3′・R3″（E80 の節の「関門を受けた書き直し」）：j_units.csv から（世界, 評価のターゲット T, 生徒, 教師, K）ごとに，
+    T の単位だけを使い，仮のターゲットをコーパスでまとめてコーパスごとの J の中央値を出し，その平均 J_median が 0 より大きい教師を残す．
+    単位の欠け・重複・コミットの混ざりは止める．kept.csv の列は E79 が読む形（world, target, student, teacher, K, J_median, n_units,
+    n_corpora, frac_pos, keep）に，記述の列（uar_diff_median：コーパスごとの UAR の差の中央値の平均）を足す。"""
+    ds_ = []
+    for out in outs:
+        rebuild(out)
+        d = pd.read_csv(out / "j_units.csv", dtype={"K": str}, float_precision="round_trip")
+        u = uar_rows(out, d)
+        d = d.merge(u, on=KEY, how="left", validate="one_to_one")
+        if d.uar_diff.isna().any():
+            raise SystemExit(f"{out}：UAR の差を出せない行が {int(d.uar_diff.isna().sum())}")
+        ds_.append(d)
+    d = pd.concat(ds_, ignore_index=True)
+    if int(d.duplicated(KEY).sum()):
+        raise SystemExit(f"j_units に重複が {int(d.duplicated(KEY).sum())} 行ある")
     if d.commit.nunique() > 1:
-        print(f"注意：コミットが混ざっている {sorted(d.commit.unique())}", flush=True)
-    k = d.groupby(["world", "student", "teacher", "K"], sort=False).J.agg(
-        median_J="median", mean_J="mean", n_units="size", frac_pos=lambda s: float((s > 0).mean())).reset_index()
-    k["keep"] = k.median_J > 0                                                   # R3：中央値が 0 より大きい教師を残す
-    full = d.groupby("world")[["target", "pseudo", "rep"]].apply(lambda x: len(x.drop_duplicates()))
-    for w, n in full.items():                                                    # 単位の欠けを知らせる
-        short = k[(k.world == w) & (k.n_units < n)]
-        if len(short):
-            print(f"注意：{w} で単位が {n} に満たない行 {len(short)}（{sorted(set(short.teacher))}）", flush=True)
-    k.to_csv(out / "kept.csv", index=False)
-    print(f"kept.csv：{len(k)} 行，残す {int(k.keep.sum())}", flush=True)
+        raise SystemExit(f"コミットが混ざっている {sorted(d.commit.unique())}")
+    for (w, T), g in d.groupby(["world", "target"]):                             # 単位の欠け：T ごとの（仮のターゲット, 反復）の組が全部の（生徒, 教師, K）にそろうか
+        n = len(g[["pseudo", "rep"]].drop_duplicates())
+        cnt = g.groupby(["student", "teacher", "K"]).size()
+        if (cnt != n).any():
+            raise SystemExit(f"{w} {T}：単位が {n} にそろわない行 {cnt[cnt != n].to_dict()}")
+    d["corpus"] = d.pseudo.map(CM.corp)
+    g1 = d.groupby(["world", "target", "student", "teacher", "K", "corpus"], sort=False).agg(
+        mJ=("J", "median"), mU=("uar_diff", "median"), n=("J", "size")).reset_index()
+    k = g1.groupby(["world", "target", "student", "teacher", "K"], sort=False).agg(
+        J_median=("mJ", "mean"), uar_diff_median=("mU", "mean"), n_units=("n", "sum"), n_corpora=("corpus", "nunique")).reset_index()
+    fp = d.groupby(["world", "target", "student", "teacher", "K"], sort=False).J.apply(lambda s: float((s > 0).mean())).rename("frac_pos")
+    k = k.merge(fp.reset_index(), on=["world", "target", "student", "teacher", "K"], validate="one_to_one")
+    k["keep"] = k.J_median > 0                                                   # R3″：ちょうど 0 は残さない
+    k = k[["world", "target", "student", "teacher", "K", "J_median", "n_units", "n_corpora", "frac_pos", "keep", "uar_diff_median"]]
+    write_atomic(k, dest)
+    print(f"{dest}：{len(k)} 行（残す行の数は表に書いた．値は画面に出さない）", flush=True)
     return 0
 
 
@@ -421,11 +475,12 @@ def main() -> int:
     ap.add_argument("--ks", nargs="+", default=["0", "5", "25"], help="J を測る K（none_K と pFK・ref・ref0 もこの K だけ解く）")
     ap.add_argument("--out-dir", type=Path, default=ROOT / "results" / "e80")
     ap.add_argument("--gpu-fraction", type=float, default=0.3)
-    ap.add_argument("--summarize", action="store_true", help="j_units.csv から kept.csv を作る（R3．GPU は使わない）")
+    ap.add_argument("--summarize", nargs="+", type=Path, metavar="DIR", help="段 a の出力の場所（世界ごと）から kept.csv を作る（R3′・R3″．GPU は使わない）")
+    ap.add_argument("--kept-out", type=Path, default=ROOT / "results" / "e80" / "kept.csv")
     args = ap.parse_args()
     out = args.out_dir
     if args.summarize:
-        return summarize(out)
+        return summarize(args.summarize, args.kept_out)
     if not args.world:
         ap.error("--world か --summarize を指定する")
     CD.set_ks(args.ks)                                                           # 検査と順（BD.KS の順）．K 本の抜き方は変わらない
