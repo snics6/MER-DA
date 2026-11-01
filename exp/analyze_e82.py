@@ -32,11 +32,17 @@ E82 の行はこの枠に置く（ここでは E80C を E82 の場所だけに�
   judge_b ：reselect の版の measure の出力から比べ (b) の判定を作る（E79 の判定の段を StoreB で流す）
   compare ：`judgments.csv`（3 手法 × 族 × K × 感度 × 版（固定，(a)，(b)）ごとの判定の数），`judgment_units.csv`（単位ごとの 3 つの判定と変わったか），
             `statements.csv`（筋 4 の文の鍵：族の全手法（E79 の statements.csv）と手法ごと（E79 の規則を 1 手法の組み合わせに当てる）．固定・(a)・(b)），
-            `decision.csv`（設計の 3 節の書き方の規則：手法 × 族ごとに tag main・subset all の鍵で，(a) が同じ／(a) が変わり (b) も同じ向き／
-            (a) が変わり (b) は同じ．unseen_only の鍵と (2′) の same_combos は記述の列．限定を外せるのは entmin・IM・自己学習だけ），
+            `decision.csv`（設計の 3 節の書き方の規則：手法 × 族ごとに tag main・subset all の鍵で，same_a（(a) が同じ → 限定なし），
+            limit（(a) が変わり (b) も同じ向き → 限定あり），k_label（(a) が変わり (b) は同じ → 限定なしで K 本のラベルの内訳），
+            opposite（(a) と (b) が逆の向き → 限定を付け (a)・(b) の鍵と判定を並べる）．その手法で 10 倍が過半（excl，母数は手法が選ばれた単位）なら，
+            same_a・k_label を same_but_edge10・k_label_but_edge10 に替え，限定を外さず「C′ を E39 の値の 10 倍まで広げた格子では」と書く．
+            unseen_only の鍵と (2′) の same_combos は記述の列．限定を外せるのは entmin・IM・自己学習だけ），
+            `convergence_e82.csv`（E82 の `_convp.csv` を実行 × 側 × 手法 × 倍率ごとに，反復の上限・勾配の許容を超えた問の数），
             `candidates.csv`（候補の数），`oracle_dir_both.csv`・`oracle_dir_summary.csv`（2 つの版を格子の大きさを添えて），
             `multipliers.csv`・`multiplier_units.csv`（倍率ごとに選ばれた単位の数（（実行，生徒，K，手法）ごとにも），10 倍の数と過半か（母数は手法が選ばれた単位），
             同点に複数の倍率が並んだ単位の数，同点で倍率の小さい方を選んだ単位の数，固定の版と同じ設定か）
+compare の段は，固定の版（--fixed-from）と選び直した版の measure の条件（--boot・--seed・反復・ターゲット・切片の UAR・δ・実行）が違えば止まり，
+ほかの 5 手法の判定か点の値，K=0 の (a) と (b)，文の鍵の作り直し，選択の作り直しが食い違えば，表を書いてから終了の値 1 で止まる。
 画面には行の数と場所だけを出す（評価の値は出さない）。
 
     ./.venv/bin/python exp/analyze_e82.py --stage delta --grid reselect --e79-delta results/e79/delta/delta.csv
@@ -437,18 +443,28 @@ STRENGTH = {"(3)": 0, "(4)": 1, "(2')": 2, "(2)": 3, "(1)": 4}                 #
 SCOPE_NOTE = ("限定を外せるのは entmin・IM・自己学習だけ．T3A・LP・DANN・MME は C′ を選び直していないので，その文には「E39 の罰則で出発点につないだとき」を残す"
               "（CORAL は C′ を格子で選んでいる）")
 BOTH4_NOTE = "固定の版と選び直した版がともに (4)：書けるのは「約 1.5δ_d より大きな減りは無かった」までで，「罰則に依らない」とは書かない"
+EDGE_TEXT = "C′ を E39 の値の 10 倍まで広げた格子では"
 CATEGORY = {"same_a": "比べ (a) の鍵が固定の版と同じ：罰則の限定なしで書き，E82 を感度の表に載せる",
             "limit": "比べ (a) の鍵が変わり，比べ (b) も同じ向きに変わった：「E39 の罰則で出発点につないだとき」と限定を付け，選び直した版の鍵と判定を並べる",
             "k_label": "比べ (a) の鍵が変わったが比べ (b) の鍵は固定の版と同じ：変わった分は罰則を弱めて K 本のラベルで向きが動いた分．限定なしで書き，内訳を添える",
-            "opposite": "比べ (a) と (b) の鍵が逆の向きに変わった：設計の 3 節の規則に無い場合（本体が判断する）",
+            "opposite": "比べ (a) と (b) の鍵が固定の版から逆の向きに変わった：「E39 の罰則で出発点につないだとき」と限定を付け，(a)・(b) の鍵と判定を並べて書く",
+            "same_but_edge10": f"比べ (a) の鍵は固定の版と同じだが，この手法で 10 倍（格子の端）が過半：限定は外さず「{EDGE_TEXT}」と書き，格子がまだ足りないことを限界に書く",
+            "k_label_but_edge10": (f"比べ (a) の鍵が変わり (b) は固定の版と同じ（K 本のラベルで動いた分）だが，この手法で 10 倍が過半：限定は外さず「{EDGE_TEXT}」と書き，"
+                                   "内訳を添え，格子がまだ足りないことを限界に書く"),
             "missing": "鍵が無い（その族の組み合わせが無いか全部が欠け）"}
-CAT_ORDER = ["limit", "opposite", "k_label", "same_a", "missing"]              # 手法と全体のまとめで先に立てる順
+CAT_ORDER = ["limit", "opposite", "k_label_but_edge10", "same_but_edge10", "k_label", "same_a", "missing"]   # 手法と全体のまとめで先に立てる順
+EDGE_OF = {"same_a": "same_but_edge10", "k_label": "k_label_but_edge10"}       # 10 倍が過半なら限定を外す分け方を外さない側に替える（設計の 3 節．gate-code の R4・R7）
 
 
 def direction(r_new, r_old):
     if not isinstance(r_new, str) or not isinstance(r_old, str):
         return np.nan
     return int(np.sign(STRENGTH.get(r_new, np.nan) - STRENGTH.get(r_old, np.nan)))
+
+
+def edge_category(cat, edge10):
+    """10 倍が過半（母数はその手法が選ばれた単位，excl の版，同点の規則で選んだ数）の手法では，限定を外す分け方（same_a・k_label）を外さない側に替える。"""
+    return EDGE_OF.get(cat, cat) if edge10 is True else cat
 
 
 def category_of(rf, ra, rb):
@@ -462,8 +478,71 @@ def category_of(rf, ra, rb):
     return "limit" if db == da else "opposite"
 
 
+def measure_conditions(d):
+    """その版の measure の段の条件（ブートストラップの回数・種，反復，評価のターゲット，切片だけを直した UAR の有無，実行）と δ の sha256。"""
+    d = Path(d)
+    f = d / "measure" / "provenance.json"
+    if not f.exists():
+        raise SystemExit(f"{f} が無い（その版の measure の段の記録）")
+    p = json.loads(f.read_text())
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("--reps", nargs="+", type=int, default=list(A.REPS))
+    ap.add_argument("--targets", nargs="+")
+    ap.add_argument("--runs", nargs="+", default=list(A.RUNS))
+    ap.add_argument("--no-bias-fixed", dest="bias_fixed", action="store_false")
+    a, _ = ap.parse_known_args([str(x) for x in p.get("argv", [])])
+    dl = d / "delta" / "delta.csv"
+    return {"boot": p.get("boot"), "seed": p.get("seed"), "reps": sorted(a.reps), "targets": sorted(a.targets) if a.targets else None,
+            "bias_fixed": a.bias_fixed, "delta_sha256": A.sha256(dl) if dl.exists() else None}, sorted(a.runs)
+
+
+def check_conditions(fsrc, rdir):
+    """固定の版（--fixed-from）と選び直した版が同じ条件で測られたか（gate-code の I12・I14）．違えば止める．戻り：記録。"""
+    cf, rf = measure_conditions(fsrc)
+    cr, rr = measure_conditions(rdir)
+    bad = {k: (cf[k], cr[k]) for k in cf if cf[k] != cr[k] and not (k == "delta_sha256" and None in (cf[k], cr[k]))}
+    if not set(rr) <= set(rf):
+        bad["runs"] = (rf, rr)
+    if bad:
+        raise SystemExit(f"固定の版（{fsrc}）と選び直した版（{rdir}）の測った条件が違う：{bad}．同じ --boot・--seed・反復・ターゲット・δ で流し直す")
+    return {"fixed": cf, "reselect": cr, "runs_fixed": rf, "runs_reselect": rr}
+
+
+CONV_WHAT = re.compile(r"^(none|self|entmin|im)(?:C([0-9.]+)x)?(?:_s(\d+))?$")
+
+
+def convergence_e82(e82, targets):
+    """E82 の `_convp.csv`（問ごとの反復の回数・止まったときの勾配・解いた C′）を，E79 の付録の収束の表と同じ列で，実行 × 側 × 手法 × 倍率ごとに数える
+    （写した仮のターゲットの行は写し元と同じ問なので数えない）。"""
+    rows = []
+    for run, d in e82.items():
+        for f in sorted(Path(d).glob("*_convp.csv")):
+            T = f.name[: -len("_convp.csv")]
+            if targets and T not in targets:
+                continue
+            x = pd.read_csv(f, usecols=lambda c: c in ("pseudo", "target", "rep", "student", "what", "n_iter", "grad", "cp", "copied_from"),
+                            dtype={"what": str})
+            if x.empty:
+                continue
+            if "copied_from" in x.columns:
+                x = x[x.copied_from.isna()]
+            m = x.what.str.extract(CONV_WHAT)
+            x = x.assign(eval_target=T, side=np.where(x.target.notna(), "target", "pseudo") if "target" in x.columns else "pseudo",
+                         method=m[0], mult=pd.to_numeric(m[1], errors="coerce").fillna(1.0), seed=pd.to_numeric(m[2], errors="coerce").fillna(0).astype(int),
+                         hit=x.n_iter >= A.CONV_MAX_ITER, over=x.grad > A.CONV_TOL)
+            x["early"] = x.over & ~x.hit
+            rows.append(x.assign(run=run))
+    if not rows:
+        return pd.DataFrame()
+    X = pd.concat(rows, ignore_index=True)
+    return X.groupby(["run", "side", "method", "mult"], dropna=False).agg(
+        n_prob=("n_iter", "size"), n_hit_max_iter=("hit", "sum"), n_grad_over_tol=("over", "sum"), n_stopped_early=("early", "sum"),
+        n_iter_max=("n_iter", "max"), n_iter_median=("n_iter", "median"), grad_max=("grad", "max"), cp_min=("cp", "min"), cp_max=("cp", "max")).reset_index()
+
+
 def stage_compare(args, dirs, e82, out):
     fsrc = args.fixed_from or Path(args.out) / "fixed"
+    cond = check_conditions(fsrc, Path(args.out) / "reselect")
     F, hf = read_grid(fsrc)
     Ra, hra = read_grid(Path(args.out) / "reselect")
     Rb, hrb = read_grid(Path(args.out) / "reselect", "judge_b")
@@ -499,6 +578,7 @@ def stage_compare(args, dirs, e82, out):
                                                                                      on=ko, how="outer")
     n_other_diff = int(((OJ.judgment_f != OJ.judgment_a) | (OJ.judgment_a != OJ.judgment_b)).sum())
     n_other_point_diff = int((((OJ.point_a != OJ.point_b) & ~(OJ.point_a.isna() & OJ.point_b.isna()))).sum())
+    n_other_point_diff_fa = int((((OJ.point_f != OJ.point_a) & ~(OJ.point_f.isna() & OJ.point_a.isna()))).sum())
     # 2．筋 4 の文の鍵：族（E79 の statements.csv）と手法ごと（E79 の規則を 1 手法の組み合わせに当てる）
     srows, longs = [], []
     for gname, g_ in G.items():
@@ -524,34 +604,6 @@ def stage_compare(args, dirs, e82, out):
         ST[f"dir_{gname}"] = [direction(r1, r0) for r1, r0 in zip(ST[f"rule_{gname}"], ST.rule_fixed)]
     ST["category"] = [category_of(rf, ra, rb) for rf, ra, rb in zip(ST.rule_fixed, ST.rule_a, ST.rule_b)]
     ST.to_csv(out / "statements.csv", index=False)
-    # 3．論文の書き方の規則（設計の 3 節．判断は tag main・subset all の手法ごとの鍵．unseen_only と same_combos は記述）
-    D = ST[(ST.tag == "main") & ST.scope.isin(E82_METHODS)]
-    drows = []
-    for m in E82_METHODS:
-        for fam in P4_FAMS:
-            g = D[(D.scope == m) & (D.family == fam)]
-            ga, gu = g[g.subset == "all"], g[g.subset == "unseen_only"]
-            if ga.empty:
-                continue
-            r = ga.iloc[0]
-            drows.append({"method": m, "family": fam, "rule_fixed": r.rule_fixed, "rule_a": r.rule_a, "rule_b": r.rule_b, "dir_a": r.dir_a, "dir_b": r.dir_b,
-                          "category": r.category, "category_text": CATEGORY[r.category],
-                          "same_combos_a_desc": r.same_combos_a, "same_combos_b_desc": r.same_combos_b,
-                          "unseen_only_rules_desc": (f"fixed {gu.rule_fixed.iloc[0]} / a {gu.rule_a.iloc[0]} / b {gu.rule_b.iloc[0]}" if len(gu) else ""),
-                          "both4_note": BOTH4_NOTE if (r.rule_fixed == "(4)" and r.rule_a == "(4)") else ""})
-    DD = pd.DataFrame(drows)
-    cats = list(DD.category) if len(DD) else ["missing"]
-    worst = next(c for c in CAT_ORDER if c in cats)
-    per_m = {m: next((c for c in CAT_ORDER if c in set(DD[DD.method == m].category)), "missing") for m in E82_METHODS}
-    fam_main = ST[(ST.tag == "main") & (ST.subset == "all") & (ST.scope == "family")]
-    DD = pd.concat([DD, pd.DataFrame([{"method": f"*{m}*", "category": c, "category_text": CATEGORY[c]} for m, c in per_m.items()]),
-                    pd.DataFrame([{"method": "*all3*", "category": worst, "category_text": CATEGORY[worst],
-                                   "writing_rule": (CATEGORY["same_a"] if worst == "same_a" else
-                                                    "手法ごとの category に従う（" + "，".join(f"{m}：{c}" for m, c in per_m.items()) + "）"),
-                                   "scope_note": SCOPE_NOTE,
-                                   "family_level_same_rule_a_desc": bool(len(fam_main) and fam_main.same_rule_a.all()),
-                                   "family_level_same_rule_b_desc": bool(len(fam_main) and fam_main.same_rule_b.all()),
-                                   "n_other_method_units_judgment_differ": n_other_diff, "n_units_a_b_differ_K0": n_ab_k0}])], ignore_index=True)
     # 4．倍率ごとに選ばれた単位の数（excl・ns_excl が判定に使う版．incl は記述）．過半の母数は手法が選ばれた単位（__none__ を除く）
     ch = Ra["chosen"]
     ch = ch[ch.selector.isin(E82_METHODS) & ch.K.isin(A.P4_KS) & ch.role.isin(["kind", "fused"])].copy()
@@ -591,6 +643,38 @@ def stage_compare(args, dirs, e82, out):
     ex = MM[(MM.level == "method") & (MM.variant == "excl")].set_index("selector")
     grp = MM[(MM.level == "run×student×K×method") & (MM.variant == "excl")]
     a3 = MM[(MM.level == "all3") & (MM.variant == "excl")]
+    edge = {m: (bool(ex.majority_mult10.get(m)) if m in ex.index else None) for m in E82_METHODS}
+    # 3．論文の書き方の規則（設計の 3 節．判断は tag main・subset all の手法ごとの鍵．unseen_only と same_combos は記述．
+    #    ある手法で 10 倍が過半なら，鍵が同じでも限定を外さない（EDGE_OF）．10 倍の過半は excl の版，母数はその手法が選ばれた単位）
+    D = ST[(ST.tag == "main") & ST.scope.isin(E82_METHODS)]
+    drows = []
+    for m in E82_METHODS:
+        for fam in P4_FAMS:
+            g = D[(D.scope == m) & (D.family == fam)]
+            ga, gu = g[g.subset == "all"], g[g.subset == "unseen_only"]
+            if ga.empty:
+                continue
+            r = ga.iloc[0]
+            cat = edge_category(r.category, edge.get(m))
+            drows.append({"method": m, "family": fam, "rule_fixed": r.rule_fixed, "rule_a": r.rule_a, "rule_b": r.rule_b, "dir_a": r.dir_a, "dir_b": r.dir_b,
+                          "category_keys_only": r.category, "edge10": edge.get(m), "category": cat, "category_text": CATEGORY[cat],
+                          "edge_note": f"{EDGE_TEXT}（10 倍が過半．格子がまだ足りないことを限界に書く）" if edge.get(m) is True else "",
+                          "same_combos_a_desc": r.same_combos_a, "same_combos_b_desc": r.same_combos_b,
+                          "unseen_only_rules_desc": (f"fixed {gu.rule_fixed.iloc[0]} / a {gu.rule_a.iloc[0]} / b {gu.rule_b.iloc[0]}" if len(gu) else ""),
+                          "both4_note": BOTH4_NOTE if (r.rule_fixed == "(4)" and r.rule_a == "(4)") else ""})
+    DD = pd.DataFrame(drows)
+    cats = list(DD.category) if len(DD) else ["missing"]
+    worst = next(c for c in CAT_ORDER if c in cats)
+    per_m = {m: next((c for c in CAT_ORDER if c in set(DD[DD.method == m].category)), "missing") for m in E82_METHODS}
+    fam_main = ST[(ST.tag == "main") & (ST.subset == "all") & (ST.scope == "family")]
+    DD = pd.concat([DD, pd.DataFrame([{"method": f"*{m}*", "category": c, "category_text": CATEGORY[c]} for m, c in per_m.items()]),
+                    pd.DataFrame([{"method": "*all3*", "category": worst, "category_text": CATEGORY[worst],
+                                   "writing_rule": (CATEGORY["same_a"] if worst == "same_a" else
+                                                    "手法ごとの category に従う（" + "，".join(f"{m}：{c}" for m, c in per_m.items()) + "）"),
+                                   "scope_note": SCOPE_NOTE,
+                                   "family_level_same_rule_a_desc": bool(len(fam_main) and fam_main.same_rule_a.all()),
+                                   "family_level_same_rule_b_desc": bool(len(fam_main) and fam_main.same_rule_b.all()),
+                                   "n_other_method_units_judgment_differ": n_other_diff, "n_units_a_b_differ_K0": n_ab_k0}])], ignore_index=True)
     for c_ in ("majority_mult10", "majority_mult10_strict"):
         DD[f"{c_}_excl"] = DD.method.map(lambda m, c_=c_: bool(ex[c_].get(m.strip("*"))) if m.strip("*") in ex.index else np.nan)
         DD.loc[DD.method == "*all3*", f"{c_}_excl"] = bool(a3[c_].iloc[0]) if len(a3) else np.nan
@@ -625,12 +709,17 @@ def stage_compare(args, dirs, e82, out):
         O.assign(at=O.at_least_delta_d.astype(str) == "True").groupby(["grid", "method", "K"]).agg(
             n_units=("at", "size"), n_at_least_delta_d=("at", "sum"), grid_size_median=("grid_size", "median")).reset_index().to_csv(
             out / "oracle_dir_summary.csv", index=False)
+    # 7．E82 の解きの収束（gate-code の I11．倍率ごと）
+    CV = convergence_e82(e82, args.targets)
+    CV.to_csv(out / "convergence_e82.csv", index=False)
     n_mis = int((~ch.recomputed_matches_chosen.astype(bool)).sum()) if "recomputed_matches_chosen" in ch else -1
     outs = [f.name for f in sorted(out.glob("*.csv"))]
     return {"reselect_a_inputs_sha256": hra, "reselect_b_inputs_sha256": hrb, "fixed_inputs_sha256": hf, "fixed_from": str(fsrc),
             "outputs_sha256": {nm: A.sha256(out / nm) for nm in outs}, "n_units_rows": len(UJ),
             "n_unmatched_units": int((UJ["merge_fixed_a"] != "both").sum()), "n_other_method_units_judgment_differ": n_other_diff,
-            "n_other_method_units_point_differ_a_b": n_other_point_diff, "n_units_a_b_differ_K0": n_ab_k0,
+            "n_other_method_units_point_differ_a_b": n_other_point_diff, "n_other_method_units_point_differ_fixed_a": n_other_point_diff_fa,
+            "n_units_a_b_differ_K0": n_ab_k0, "conditions": cond,
+            "n_conv_hit_max_iter": int(CV.n_hit_max_iter.sum()) if len(CV) else None, "n_conv_stopped_early": int(CV.n_stopped_early.sum()) if len(CV) else None,
             "statement_recheck_mismatch": int(recheck.n_rule_mismatch.sum()), "n_choice_recompute_mismatch": n_mis, "n_multiplier_units": len(ch)}
 
 
@@ -643,7 +732,7 @@ def write_e82_prov(d, args, e82, extra):
             "analyze_e79_sha256": A.sha256(Path(A.__file__)), "started": args._t0_str, "seconds": round(time.time() - args._t0, 1),
             "e82_dirs": {k: str(v) for k, v in e82.items()}, "slot": SLOT, "e82_methods": E82_METHODS, "e82_mults": E82_MULTS,
             "patched": ["E80C", "E80C_METHODS", "sel_defs", "check_e80c_prov", "diagnostics", "choose", "read_rows", "key_table"]
-            + (["Store（比べ (b)）"] if args.stage == "judge_b" else []) if getattr(args, "grid", None) == "reselect" else [],
+            + (["Store（比べ (b)）"] if args.stage == "judge_b" else []) if (getattr(args, "grid", None) == "reselect" or args.stage == "compare") else [],
             "allow_incomplete": args.allow_incomplete, "skip_commit_check": args.skip_commit_check, "allow_dirty": args.allow_dirty, **extra}
     (Path(d) / "e82_provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1, default=str))
 
@@ -682,7 +771,7 @@ def main() -> int:
     base = Path(args.out)
     if args.stage == "compare":
         out = A.prepare_out(base, "compare")
-        A.ALLOW["compare"] = A.ALLOW["select"]                                 # 仮のターゲットの行と provenance だけを開く（評価の出力と data/ は開かない）
+        A.ALLOW["compare"] = A.ALLOW["select"] + (r"_convp\.csv$",)           # 仮のターゲットの行，問ごとの収束の記録と provenance だけを開く（評価の出力と data/ は開かない）
         A.install_guard("compare", roots)
         A.guard_selftest("compare", [str(d) for d in roots])
         res = stage_compare(args, dirs, e82, out)
@@ -690,7 +779,12 @@ def main() -> int:
         print(f"比べ：単位 {res['n_units_rows']} 行（相手の無い行 {res['n_unmatched_units']}），倍率の表の単位 {res['n_multiplier_units']}，"
               f"ほかの 5 手法で判定の違う単位 {res['n_other_method_units_judgment_differ']}（(a) と (b) で点の値が違う単位 {res['n_other_method_units_point_differ_a_b']}），"
               f"K=0 で (a) と (b) の違う単位 {res['n_units_a_b_differ_K0']}，文の鍵の作り直しの食い違い {res['statement_recheck_mismatch']}，"
-              f"選択の作り直しの食い違い {res['n_choice_recompute_mismatch']}（{out}）", flush=True)
+              f"選択の作り直しの食い違い {res['n_choice_recompute_mismatch']}，収束：反復の上限 {res['n_conv_hit_max_iter']}・早く止まった問 "
+              f"{res['n_conv_stopped_early']}（{out}）", flush=True)
+        bad = {k: res[k] for k in ("n_other_method_units_judgment_differ", "n_other_method_units_point_differ_a_b", "n_other_method_units_point_differ_fixed_a",
+                                   "n_units_a_b_differ_K0", "n_unmatched_units", "statement_recheck_mismatch", "n_choice_recompute_mismatch") if res[k]}
+        if bad:                                                                # 罰則と関係の無いずれ（gate-code の I12・I14）．表は書いたまま止める
+            raise SystemExit(f"検算が食い違う：{bad}．固定の版と選び直した版の入力と条件を確かめる（{out}）")
         return 0
     args.out = base / args.grid                                                # E79 の関数は args.out/<段> を読み書きする
     out = A.prepare_out(args.out, args.stage)

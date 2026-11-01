@@ -220,3 +220,24 @@ bash $SP/scripts/reader_test.sh     # analyze_e82 を fixed・reselect × delta�
 試していないこと（5 節に足す）：judge_b の `StoreB` は E79 の判定の compare が「手法の鍵 → none の鍵」の順に読むことに頼る（`analyze_e79.py:2084-2085`）．E79 の台本が変わればこの前提を確かめ直す（今は analyze_e79.py の sha256 を provenance に残す）．世界の出力・ns_excl・E78 がそろった入力で読み手を流していないのは 5 節と同じ．
 
 見たデータの台帳（`docs/seen-data.md`）に足す行の材料（本体が書く）：評価のターゲットで試した単位は，映像の種類の AFEW の反復 0（恒等），AV の世界の AFEW の反復 0，映像の種類の IEMOCAP-impro・IEMOCAP-script・AFEW の反復 0・1（仮のターゲット AFEW・CREMA-D の反復 0・1）．出力は scratchpad の `e82_test/` で，画面と記録に出したのは差・数・形・所要・C′ の値だけ（評価の値は誰も開いていない）．このうち 3 節の試しは台本のコミットの前に流した（関門 1 の leak の指摘）．9 節の試しはコミット a06c165 の後に流した．
+
+## 10. gate-code の指摘の後の直し（2026-11-02．報告 `checks/E82/code.md`．設計はコミット 9ce63fa）
+
+`exp/analyze_e82.py`（sha256 先頭 `dfa4969c3992cc8d`）：
+- **10 倍の端の規則**（R4・R7．設計の 3 節）：`decision.csv` の分け方を，倍率の数え上げの後で決めるように移した．手法ごとに excl の版で 10 倍が過半（母数はその手法が選ばれた単位，同点の規則で選んだ数）なら，限定を外す分け方を外さない側に替える（`edge_category`・`EDGE_OF`，`:456`・`:465`）：same_a → `same_but_edge10`，k_label → `k_label_but_edge10`（limit・opposite は元から限定を付ける）．列 `category_keys_only`（鍵だけで決めた分け方），`edge10`，`edge_note`（「C′ を E39 の値の 10 倍まで広げた格子では」と，格子がまだ足りないことを限界に書く注）を足した
+- **opposite の文**（I1-opposite）：「E39 の罰則で出発点につないだとき」と限定を付け，(a)・(b) の鍵と判定を並べて書く（設計の 3 節）に直した（`CATEGORY`，`:447-`）．説明の文に 4 つの場合と 10 倍の規則を書いた
+- **compare の段の照合**（I12・I14）：固定の版（`--fixed-from`）と選び直した版の measure の段の条件（`--boot`・`--seed`・反復・評価のターゲット・切片だけを直した UAR の有無・δ の sha256．実行は選び直した版 ⊆ 固定の版）が違えば，表を作る前に止める（`check_conditions`，`:499-`）．ほかの 5 手法の判定か点の値（固定と (a)，(a) と (b)），K=0 の (a) と (b)，相手の無い単位，文の鍵の作り直し，選択の作り直しが 1 つでも食い違えば，表と provenance を書いてから終了の値 1 で止まる（`:787` 付近）
+- **provenance**（I9）：compare の段でも差し込んだ名前を `patched` に書く
+- **収束の表**（I11）：`convergence_e82.csv`（`convergence_e82`，`:514-`）．E82 の `_convp.csv` を実行 × 側 × 手法 × 倍率ごとに，E79 と同じ列（`n_hit_max_iter`，`n_grad_over_tol`，`n_stopped_early`）と反復の最大・中央値，勾配の最大，C′ の範囲で数える．写した仮のターゲットの行は数えない．compare の段の見張りが開いてよいファイルに `_convp.csv` を足した（値の列は無い）
+
+`exp/s43_penalty.py`（sha256 先頭 `c5a99690b753d280`）：
+- **GPU の型**（I8．設計の 4 節）：`--check` で，E82 と E77 の `provenance.json`・`provenance_log.jsonl` の `gpu` がすべて同じ 1 つの型かを照らし（check `gpu_type`），違えば終了の値 1（`run_checks`，`:382-389`）
+
+`run/e82h.sh`（新規．sha256 先頭 `8fbcd5c33789883d`）：
+- 冒頭の注に準備の手順（本体が流す）：`/workspace/MER-DA` で `git worktree add --detach /workspace/MER-DA-e82 <コミット>`，`.venv` と `results` は `/workspace/MER-DA` のものへのリンク，`data/cache` は特徴の npz だけをリンク（追跡している顔の座標の csv は作業木のもの），`logs` は作業木のもの，`git status -- exp measure` が空であること
+- 引数は流れの番号 1・2．配分は流れ 1 ＝ AVT・WavLM，流れ 2 ＝ AV・映像・RoBERTa（H100 の見積もり：AVT 2.2，WavLM 1.8，AV 2.2，映像 0.9，RoBERTa 0.8 時間．4 節の式に gate-code の T の MELD の評価の 1 単位（305 秒）を足して当てはめ直した．A5000 の共有の GPU の測りを 3.5 で割った値で，合計約 7.9 時間，2 本で壁時計約 4 時間）
+- 各実行：E77 の `results/e77_<実行>/IEMOCAP-impro.csv` が無ければ流さない → `--targets IEMOCAP-impro` → `--check results/e77_<実行>`（none・鍵の重なり・K=0 の検算・GPU の型．落ちたらその実行の残りを流さない）→ 残りのターゲット（終わった IEMOCAP-impro は check_resume で飛ばす）→ 全ターゲットの `--check`．旗は `--ks 0 5 --copy-pseudo --nc-seeds 1 2 --gpu-fraction 0.2`．ログ `logs/e82h_<名前>.log`，失敗 `logs/e82h_fail.log`，終わりに `logs/e82h_<番号>.done`
+- 準備の確かめ（results がリンクか，`.venv/bin/python` があるか，特徴の npz があるか，exp/・measure/ に変更が無いか，E77 の作業木でないか）が落ちたら止まる
+- `E82H_DRY=1` で，コマンドの組み立てと準備の確かめを表示するだけにできる（ログにも何も書かない）
+
+試しの結果は 11 節．

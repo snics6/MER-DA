@@ -24,7 +24,9 @@
   `<T>_cp.csv`（単位 × 生徒 × 倍率の E39 の C′ と解きに使った C′），`<T>_dist.csv`（行ごとの出発点からの離れ），`<T>_e82check.csv`（K=0 の倍率の none の検算），
   provenance.json・provenance_log.jsonl
 照合（--check E77 の場所．GPU を使わない）：`check.csv`（none の E77 との一致，E77 と鍵が重ならないこと，同じ鍵の行の差．値は出さず差と数だけを出す）．
-  none（E39 の C′）の不一致・相手の無い none・倍率 1 を含まない出力で E77 と重なる鍵（倍率の none を含む）・K=0 の検算の食い違いが 1 つでもあれば終了の値 1
+  GPU の型（E82 と E77 の provenance.json・provenance_log.jsonl の gpu がすべて同じ 1 つの型）も照らす．
+  none（E39 の C′）の不一致・相手の無い none・倍率 1 を含まない出力で E77 と重なる鍵（倍率の none を含む）・K=0 の検算の食い違い・GPU の型の違いが
+  1 つでもあれば終了の値 1
 
     ./.venv/bin/python exp/s43_penalty.py --kind video --copy-pseudo                         # 本番（倍率 3・10，K 0・5，種 1・2）
     ./.venv/bin/python exp/s43_penalty.py --world fuse-audio-video-text --copy-pseudo
@@ -376,6 +378,15 @@ def run_checks(out, e77):
     prov = json.loads((out / "provenance.json").read_text())
     has1 = any(float(m) == 1.0 for m in prov.get("mults", []))
     rows = []
+    # GPU の型：E82 の起動の記録すべてと E77 の起動の記録すべてで同じ型か（none を E77 と同じ値にそろえる前提．設計の 4 節．gate-code の I8）
+    def gpus(d):
+        recs = [json.loads((d / "provenance.json").read_text())] if (d / "provenance.json").exists() else []
+        lg = d / "provenance_log.jsonl"
+        if lg.exists():
+            recs += [json.loads(x) for x in lg.read_text().splitlines() if x.strip()]
+        return sorted({str(r.get("gpu", "")) for r in recs})
+    g82, g77 = gpus(out), gpus(e77)
+    rows.append({"check": "gpu_type", "e82": ";".join(g82), "e77": ";".join(g77), "ok": len(g82) == 1 and g82 == g77 and g82[0] != ""})
     key = ["student", "method", "param", "meff", "K"]
 
     def ok_of(meth, n, n_m, diff, tol):
@@ -461,6 +472,8 @@ def run_checks(out, e77):
     d.to_csv(out / "check.csv", index=False)
     for c_, g in d.groupby("check", sort=False):                                # 差と数だけを出す（UAR などの値は出さない）
         msg = f"{c_}：{len(g)} 項目，食い違い {int((~g.ok.astype(bool)).sum())}"
+        if c_ == "gpu_type":
+            msg += f"，E82 {g.e82.iloc[0]} ／ E77 {g.e77.iloc[0]}"
         for col, lab, fmt in (("n", "行", "d"), ("n_matched", "E77 に相手のある行", "d"), ("max_abs", "対数の確率の差の最大", ".3g"),
                               ("n_pred_differ", "予測の食い違い", "d"), ("uar_max_abs", "UAR の差の最大", ".3g")):
             if col in g and g[col].notna().any():
