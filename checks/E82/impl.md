@@ -241,3 +241,13 @@ bash $SP/scripts/reader_test.sh     # analyze_e82 を fixed・reselect × delta�
 - `E82H_DRY=1` で，コマンドの組み立てと準備の確かめを表示するだけにできる（ログにも何も書かない）
 
 試しの結果は 11 節．
+
+## 11. 10 節の直しの試し（コミット 4b27fc1 の台本．CPU と照合だけ．GPU の計算はしていない．評価の値は開いていない）
+
+- compare の段を 9 節の出力（`$SP/rt_analysis_v2`）で流し直した：終了の値 0．検算はすべて食い違い 0（ほかの 5 手法の判定・点の値，K=0 の (a) と (b)，相手の無い単位，文の鍵と選択の作り直し）．`decision.csv` の手法 × 族の 3 行で，鍵だけで決めた分け方（`category_keys_only`）は直す前の版の分け方と 3/3 同じ．10 倍が過半の手法の行は分け方が `same_but_edge10`・`k_label_but_edge10` の側に替わり（替わった行 2，`edge_note` のある行 2），10 倍が過半なのに限定を外す分け方（same_a・k_label）のまま残った行は 0．ほかの表（judgments，judgment_units，statements，multipliers，multiplier_units，candidates，oracle_dir_both）は直す前の版とバイト単位で同じ．`convergence_e82.csv` は 18 行（問 3,312．反復の上限に当たった問 0，勾配が許容を超えて早く止まった問 0）．provenance の `patched` に 8 つの名前が入り，条件（`--boot 50`・`--seed 0`・反復 0・1・3 ターゲット・切片の UAR あり・δ の sha256 が同じ）が残った
+- 止まる条件：
+  - 固定の版の measure の `boot` を 60 に書き換えた写し（`$SP/neg_cond`）を `--fixed-from` に渡す → 表を作る前に終了の値 1（「測った条件が違う」）
+  - 固定の版の `units.csv` の t3a の単位の判定を 1 つ書き換えた写し（`$SP/neg_other`）→ 表 11 本と provenance を書いてから終了の値 1（`n_other_method_units_judgment_differ` 1）
+  - E82 の出力の `provenance.json` の `gpu` を H100 に書き換えた写し（`$SP/neg_gpu`）で `--check` → `gpu_type` が食い違い（E82 は 2 つの型，E77 は A5000），終了の値 1．書き換えない出力では `gpu_type` が ok（A5000 ／ A5000）
+- `run/e82h.sh`：`bash -n` が通った．`E82H_DRY=1 bash run/e82h.sh 1`・`2` で，各実行 4 つのコマンド（IEMOCAP-impro → `--check results/e77_<実行>` → 残り → 全体の `--check`）と旗（`--ks 0 5 --copy-pseudo --nc-seeds 1 2 --gpu-fraction 0.2`）の組み立てを確かめた．研究室では準備の確かめが「results が共有のリンクでない」「exp/・measure/ に変更がある」と出て，E77 の出力の無い実行は「流さない」と出る（期待どおり）．引数 3 は終了の値 2．DRY ではログを 1 本も作らない．RunPod では流していない
+- [I7] のとおり K=0 の倍率の none の検算は定義から成り立つ（重みが全部 0 の問は解かずに下書きを返す）．倍率が効いたことは `_convp.csv` の cp（解きの結果の鍵）と，K=5 で (a) と (b) が違う単位があること（9 節）で確かめた
