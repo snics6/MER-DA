@@ -544,3 +544,52 @@ GPU は使わない．measure は塊のブートストラップ（IEMOCAP 2 群�
 画面に出たのは，人工の入力の行の数・照合の差の最大・判定の種類の数，人工の入力の AFEW・顔・K=25 の点の値（P5_refs の −13.4・−18.3 など．人工の値），E80 の gate-code の試走の kept.csv（仮のターゲットの値の派生）の先頭 2 行（AVT の T＝IEMOCAP 即興の融合の生徒の poe0・other_audio_wavlm，K=0 の uar_diff_median・J_median）と keep が真の行の数（133／210），E80 の試走の出力の列の名前とコミットだけである．評価のターゲットの値（`results/` の E77・E78 の本番の出力）と E80 の本番の kept.csv は開いていない．
 
 判定：直してから通す（[I-abl-dir]・[I-ns-b]・[I-nt-same] を judge の前に直す．delta・select・measure と `--families p4` の select・measure は今のまま流せる．p4 の judge も [I-ns-b] を直してから）．
+
+---
+
+## 追記 3（段 c の読み込みと judge の直し．2026-11-01 夜．gate-code．コミット b9d4ea9．`git diff 4031d1d b9d4ea9 -- exp/analyze_e79.py`）
+
+### 判定
+直してから通す．段 c の行の読み込み，鍵の重なりの照合，provenance の照合，oursx・kd・noJ の候補の数，measure での段 c の行の読み方は正しく働き（候補の数は独立の数え方と 48 項目すべて一致），judge の 3 つの直しも人工の入力で確かめられたが，段 c の none の照合（設計の 16）は段 c が none の行を書かないので一度も働かず，段 c の生徒が E77 とずれても E79 は止まらない（[I-e80c-none]）．段 c の台本か E79 のどちらかを直してから，段 c の行を読む select を流す．
+
+### 流したもの
+CPU だけ．`--allow-dirty`（作業木の `exp/explore_view_fusion.py` が dirty），`--skip-commit-check`，`--allow-incomplete`．出力は `checks/E80/code_run_c/gate/` の下だけ．
+- **段 c の本物の出力を通す**（`gate/e79b_run.sh`，出力 `gate/e79b/`）：段 c の出力は gate-code の試走 `gate/sub_avt`（AVT，T＝即興・台本，反復 0，仮の反復 0，K 0・5・25．本物の kept.csv の AVT 即興の行のうちモダリティの生徒の新しい教師を（生徒, K）ごとに 2 つまでにした `gate/kept_sub.csv`）．E77 は A5000 の `results/e77_fuse-audio-video-text` から即興の仮の反復 0 と評価の反復 0 の分だけを写した `gate/e77_r0/`（写しは 126 MB あるので検査の後に消した．`gate/build_e77_r0.sh` で作り直せる．全反復のまま読むと，段 c の行が全部の仮のターゲットの単位にそろわないので `incomplete_candidates` として落ちる．本番では両方が反復 0〜4 なので起きない）．delta 19 秒・0.73 GB，select 25 秒・0.73 GB，measure（`--boot 50`）29 秒・1.1 GB．例外なし
+- **judge の直し**（`gate/e79fx/`）：追記 2 の人工の入力（scratchpad の `e79v2/fx`，`kept3.csv`，`--boot 200`）で b9d4ea9 の全部の段を流し（delta 19 秒，select 47 秒，measure 76 秒，judge 106 秒），4031d1d の出力（`checks/E79/code_run/v3/full/`）と比べた（`gate/e79fx/verify_judge.py`）
+- **試しの教師の出力**（`gate/e79_trial/`）：担当の試走（`--trial-teachers`，K 0・25）を select に通すと，kept_trial.csv の教師の行が無いので `check_kept` で「E80 の段 c が要る」で止まった
+
+### 設計の 16 と台本の対応
+
+| 設計の 16 の項目 | 台本の箇所 | 確かめたこと |
+|---|---|---|
+| 段 c の dist・kd・kdh・teacher の行を E77 の行に足して読む | `parse_dirs`（`:298-319`），`load_pseudo`（`:604-619`），`measure_target`（`:1457-1478`），`wave_dir` | 読めた．select は仮のターゲットで e80c の行を選び（oursx 1 回，kd 4 回，oursx_noJ 1 回，kd_noJ 4 回），measure は e80c の行 656 行の UAR を保存した予測から出し直して差 1.4e−14，argmax の食い違い 0，a・dirloss の NaN 0．teacher の行 12 個が参照の鍵に入った |
+| 同じ鍵の行が重なったら止める | `check_overlap`（`:325-332`） | 試走では重なり 0．段 c の `--check` の key_overlap も 0 |
+| 段 c の none を E77 の none と照合する（仮 1e−9，評価 1e−5） | `:604-614`，`:1464-1478` | **働かない**．段 c の CSV に none の行が無いので，select・measure の `checks.csv` に `none_e77_vs_e80c_*` が 1 行も出なかった（[I-e80c-none]） |
+| 段 c の provenance の K・kept の sha256・試走でないこと | `check_e80c_prov`（`:800-829`） | provenance.json と同じコミットの provenance_log の 2 行を見て，K＝0,5,25，kept の sha256 の先頭 55af6abf…，trial＝False を記録した |
+| noJ に段 c の教師を入れる | `e80c_teachers`（`:492-499`），`sel_defs`（`:511-521`），`tables` の `members_of` | 候補の数（none を含む）を kept_sub.csv と E77・段 c の仮のターゲットの行から独立に数え（`gate/verify_e79sel.py`），oursx・kd・oursx_noJ・kd_noJ の 4 族 × 12 の（生徒, K）の 48 項目すべてが `candidates.csv` と一致した（例：音声の生徒 oursx 101・kd 81，融合の生徒 K＝25 は oursx 21・kd 17・oursx_noJ 61・kd_noJ 33）．融合の生徒の kd_noJ に段 c の ref0 が入る |
+| [I-abl-dir] 向きの損と切片も外した比べと替えた比べに分ける | `:2293-2296` | ablation_dir・ablation_ofix は subset の 131 単位だけ，ablation_replace_dir・ablation_replace_ofix は replace の 91 単位だけを判定した |
+| [I-ns-b] b が欠けたら働かなかったとみなす | `:1979` | K ≥ 1 で b が欠ける DANN・MME の 18 行（すべて ns_excl）が，前は 18 行とも働いた，後は 18 行とも働かなかった（`inactive.csv`） |
+| [I-nt-same] 教師なしの単位だけを judgment_raw に戻す | `:2316-2324` | 感度の行 `no_teacher_unconditional` 1,809 行．教師なしの 68 単位で judgment_raw と一致，ほかの単位で主の判定から変わった数 0．P5_refs の教師なしの単位は neg 2・undet 1 になった（前は same）．古い名前 `no_teacher_as_same` は 0 行 |
+| 記録 1（P4′ の (4) に (5) の頭） | `:2438-2439` | P4′ の (4) の 19 行すべてに付いた |
+| 変えていない族 | — | P5-1・P5-2・P4・ablation・ablation_replace の点の値の差 0，判定の不一致 0 |
+
+### 指摘
+
+#### [I-e80c-none] 段 c の none の照合が一度も働かない
+- 重さ：直してから進む（段 c の行を読む select の前）
+- 該当箇所：`exp/analyze_e79.py:606-614`（`P[(P.wave == "e80c") & (P.method == "none")]` が空なら何もしない），`:1464-1478`（評価も同じ），`exp/e80_stage_c.py:340,474-476`（段 c は none を npz にしか書かない）
+- 問題：段 c の `<T>_pseudo.csv`・`<T>.csv` には none の行が無い．照合は「none の行があれば比べる」形なので，記録も残さずに飛ばす．段 c の `--check` は差を表示するだけで止まらない（`checks/E80/code.md` の追記の指摘 1）．段 c の生徒が E77 の本番の生徒と違っても，段 c の dist・KD の行は E77 の none と同じ基準のものとして選ばれ，比べられる
+- 計算の後で直せるか：直せる
+- 求める対応：段 c が E77 と同じ形の none の行を書く（E79 の今の照合がそのまま働く）か，E79 が段 c の `_ps_*_none.npz`（E77 の同じ名前の npz と対数の確率で比べる）と `_r*_none.npz`（E77 の評価の none の logp と比べる）を読む．どちらの形でも，段 c の none が 1 つも見つからないときは止める（`fail_or_note`）．npz を読むなら select の見張りの `ALLOW` に `_ps_.+_r\d+_none\.npz$` を足す
+
+#### [記録] そのほか
+- `check_kept`（`:698-712`）は生徒ごとに K をまたいだ教師の和集合で「行がある」を判定する．ある K で残した教師の行が別の K にしか無くても止まらない．段 c は kept の K ごとに計算するので今は起きない．K ごとに見るように直すと確かになる
+- `check_e80c_prov` は段 c の `check.csv`（段 a の教師の配列との一致，同じ配列の照合）を読まない．段 c の `--check` を止まる形に直したうえで，check.csv の sha256 と「不一致 0」を provenance に写すとよい
+- 段 c の teacher の行はモダリティの生徒の教師（agree，other_*）も生徒の列が世界の行なので，P5_refs の「oursx − teacher:agree」などは融合の生徒の行としてだけ作られる（E77 の teacher:pF と同じ扱い）．表では「融合の生徒の参照」として読まない
+- 段 c の新しい教師は kept で残したものだけなので，noJ は「E77 の教師はふるわない，新しい教師はふるった後」の集合である（設計の 16 と NOTES に書かれている）．screening の oursx − oursx_noJ は「E77 にある教師の範囲でのふるいの寄与」と書く
+
+### 本番の規模の見積もり（更新）
+段 c の行で select と measure の候補と鍵が増える．試走では select の候補の行が 1 単位あたり 656 行，measure の鍵が 354 から 374（＋20）に増え，所要の増え方は数秒だった．本番の段 c の行は AVT で E77 の仮のターゲットの行の約 0.3〜0.4 倍なので，select・measure の所要は前の見込みの 1.2〜1.4 倍とみる（外挿）．
+
+### 見たデータ
+画面に出たのは，候補の数，選んだ波の回数，照合の差の最大と行の数，判定の種類の数，`chosen.csv` の 1 行目（AVT の音声の生徒，K＝0，entmin の none_score．仮のターゲットの値）だけである．評価のターゲットの UAR は開いていない．
