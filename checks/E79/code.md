@@ -223,3 +223,66 @@
 ---
 
 小さく流した出力と検算の台本：`checks/E79/code_run/`（`fx/`，`fx_b1000/`，`real/`，`drop_demo/`，`commitcheck/`，`verify_boot.py`，`verify_point.py`，`time_bias.py`，`fx_args.txt`，`real_args.txt`）．
+
+---
+
+## 追記：関門 1 の後の直しの再検査（2026-11-01，コミット c8e7eaf．ade63a8 からの差分）
+
+### 判定
+直してから通す．指摘した「止める」1 件と「直してから進む」9 件はすべて満たされ，足した計算は独立の計算と一致したが，新しい停止の条件（揃わない候補で止まる）が設計で外すと決めた CORAL の r の欠けにも当たり，本番の select が音声・顔の種類と AV の世界の多くのターゲットで止まるので，これを直してから段 (b) を流す．
+
+### 流したもの
+`exp/analyze_e79.py` は c8e7eaf の版（sha256 の先頭 b8b63e6a5eeb0296）．CPU だけ．出力は `checks/E79/code_run/` の下だけに書いた．作業木に他人の未コミットの変更（`exp/explore_view_fusion.py`）があるので，全部の試しに `--allow-dirty` を付けた．
+
+1. **人工の入力**（前回と同じ `e79_fx/`．引数は `checks/E79/code_run/fx2_args.txt`，出力は `fx2/`）：4 段とも落ちずに終わった．所要は delta 22 秒，select 43 秒，measure（`--boot 200`）1 分 22 秒（糸 4 本で user 2 分 59 秒），judge 1 分 23 秒．`units.csv` は 17,940 行（前回 7,638 行）．警告は前回と同じ `Mean of empty slice` だけ
+2. **実際の試走の出力**（E77 は `kind_audio_dc6`・`av_dc6`，E78 は `r2/kind256`・`r2/av256`（どちらも 9dd145f）．引数は `real2_args.txt`，出力は `real2/`）：4 段とも落ちずに終わった（各段 20〜28 秒）
+3. **独立の検算**（台本の関数を使わない）
+   - `verify_boot2.py`：前回の素朴な計算（発話を抽出の重複の数だけ並べ直す）を 5 量（UAR，向きの損，位置の損，逆の順序の向きの損と位置の損）に広げた．AFEW と IEMOCAP（即興・台本）の 9 鍵 × 6 回で `boot_*.npz` との差の最大は 3.8e−6 ポイント（float32）
+   - `verify_point.py`（前回のまま）：P4・P4′・P5-1・P5-3・P5-4 の K=5 の点の値と区間の差の最大 7.1e−15．選択の作り直し 245 件すべて一致
+   - `verify_new.py`（新しく書いた）：足した比較（P4_ctl の coralctl − CORAL と mapctl − MME，P4_desc_pos の none − entmin の位置の損，P4_desc_uar の DANN − none の UAR，refs の W* − none，P5-3 の逆の順序）を `<T>.csv`・`_logp.npy`・`D_*.csv` から作り直した．全単位で点の値と区間の差の最大 1.4e−14
+4. **台本の検算の数値**（`real2/measure/checks.csv`，`diag_*.csv`）：重みを 1 にしたブートストラップの照合 2.0e−13，D と `own_separation` 4.0e−14，E77 と E78 の none の対数の確率の差 0（20 行），K=0 の mapctl と none 4.8e−7，none を除いた選択と E78 の `_chosen.csv` 15 件すべて一致
+5. **段の間の照合と dirty の検査**（`chain_demo/`）：`chosen.csv` に 1 行足すと measure は「select の段が書いた chosen.csv・fixed.csv と今のファイルが違う」で止まった．delta の provenance の台本の sha256 を書き換えると「delta の段の台本の版が今の台本と違う」で止まった．`--allow-dirty` を外すと「exp/ か measure/ に未コミットの変更がある：exp/explore_view_fusion.py」で止まった
+
+### 前回の指摘ごとの状態
+
+| 指摘 | 前回の重さ | 状態 | 確かめ方 |
+|---|---|---|---|
+| [R7-1] 第 2 のエンコーダと向きの損での選択を範囲の外に | 止める | 満たした | E79 7 節の「学び直しが要る次の 5 つは範囲の外」に 2 つが理由とともに入り，筋の 4・5 の文を WavLM・ResNet-50・RoBERTa の上の結果に限ると書いた（読んだ） |
+| [I4-1] CORAL の r の規則を群 B にも | 直してから進む | 満たした | `:584-595` が CORAL の行を含む全部の族に当たる．`_conv.csv` が無ければ止まる（読んだ）．オラクルも評価の全反復に値のある候補だけにした（`tables`）．ただし下の新しい指摘 [I12-3] |
+| [I1-1] coralctl − CORAL | 直してから進む | 満たした | `P4_ctl`・`P4'_ctl`・`P4_uni_world_ctl` の族と `P4_ctl_uar`．独立の計算と一致 |
+| [I1-2] o の変化と none との UAR の差 | 直してから進む | 満たした | `P4_desc_uar`・`P4_desc_pos`・`P4_desc_bfix`・`P4_desc_ofix`，`ablation_ofix`，`P5-3_desc_*`．独立の計算と一致（UAR と位置の損） |
+| [I14-1] E77 と E78 の none と教師の許容幅 | 直してから進む | 満たした | 仮のターゲット `:536`（1e−9），評価 `:1243`（1e−5），教師 `:1277`（1e−5）．超えたら `fail_or_note` |
+| [I12-1] 仮のターゲットの欠けで止まる | 直してから進む | 満たした（行き過ぎがある） | 組の照合（`pseudo_units_mismatch`），揃わない候補（`incomplete_candidates`），候補なしの族（`selector_without_candidates`）．人工の入力で記録の行が出ることを確かめた．行き過ぎは [I12-3] |
+| [I12-2] 段の間の照合 | 直してから進む | 満たした | `check_chain`（`:223`）．上の 5 で止まることを確かめた |
+| [I1-3] 模型の基準を (実行, 生徒) で | 直してから進む | 満たした | 3 節の基準を作り直し，`units.csv` の `model_dependent`，`combos.csv` の `n_model_dependent`・`*_nomd`，`model_fit.csv` が (実行, 生徒, K) ごとになった．基準そのものの妥当性は定義の検査役の範囲 |
+| [R4-1] 逆の順序 | 直してから進む | 満たした | `boot_*.npz` に `dirloss_rev`・`posloss_rev`，rows に同じ列，感度の行 `rev_order`．`verify_boot2.py` と `verify_new.py` で一致 |
+| [R10-1] 参照の行の区間 | 直してから進む | 満たした | `key_table` が `ref_*`・`teacher` を鍵にし，`refs`・`refs_dir`・`P5_refs` の族．独立の計算と一致 |
+| [R4-2] 全行のブートストラップ | 記録する | 記録で決着 | 選び方を変えた版の区間は段 (c) の流し直しで出すと 2.3 節に書いた |
+| [I9-1] 入力の sha256 | 記録する | 満たした | select と measure の provenance に `inputs_sha256`・`inputs` |
+| [I10-1] 糸の数 | 記録する | 満たした | 既定 4 本．provenance に `threads` |
+
+### 新しい指摘
+
+#### [I12-3] 揃わない候補で止まる条件が，設計で外すと決めた CORAL の r の欠けにも当たり，本番の select が止まる
+- 重さ：直してから進む（誤った数値は出さないが，段 (b) が止まる）
+- 該当箇所：`exp/analyze_e79.py:579-582`（`n_incomplete = int((~ok).sum())` を CORAL の r の処理 `:584-595` より前に数え，`fail_or_note(..., check="incomplete_candidates", ...)`）
+- 問題：設計の 2.2 節は「CORAL の r は，仮のターゲットか評価のターゲットのどれかで 5r の条件で外れた単位では，すべての仮のターゲットと評価のターゲットに値のある候補だけから選ぶ」と書き，仮のターゲットで r の行が無い候補は外すと決めている．台本はこの候補も「揃わない候補」に数えて止まる．`checks/E79/code_run/coral_r_demo/` で，人工の入力の E78 の仮のターゲット AFEW から CORAL の r=32 の行（270 行）だけを消して select を流すと，`incomplete_candidates` が 20 件記録された（coral と groupB の incl・excl × K 5 つ．`--allow-incomplete` を付けたので記録になった．付けなければ `fail_or_note` が止める）．E78 の関門の数え（`checks/E78/code_run/coral_r_count.csv`）では，音声の種類（AFEW・RAVDESS を除く 5 ターゲット），顔の種類（AFEW を除く 5），AV の世界（AFEW を除く 5）で，仮のターゲット AFEW・RAVDESS が r=128 を満たさない．したがって本番では select がこれらのターゲットで止まる．人工の入力は r=128 を全部外しているので，fx2 の試しでは起きなかった
+- 計算の後で直せるか：直せる（止まるだけで値は書かない）
+- 求める対応：CORAL の候補について，欠けた（仮のターゲット, 反復）が E78 の `_conv.csv` の仮のターゲットの行で `coral_r<r>` の無い単位とちょうど一致するときは，`n_dropped` に数えるだけにして止めない．それ以外の欠けは今のまま止める．直したら，仮のターゲットの 1 つから r の行を消した入力で select が止まらず，その r の候補が外れることを確かめる
+
+#### [I12-4] 本番の起動の前に作業木の `exp/explore_view_fusion.py` の変更を片づける必要がある
+- 重さ：記録する
+- 該当箇所：`exp/analyze_e79.py:208`（`check_dirty`）
+- 問題：`git status` で `exp/explore_view_fusion.py` に未コミットの変更がある（E79 とは関係しない）．`check_dirty` は `exp/` の変更で止まるので，このままでは本番を `--allow-dirty` なしで起動できない
+- 求める対応：起動の前にその変更をコミットするか退避する．`--allow-dirty` で本番を流さない
+
+#### [記録] 逆の順序の感度の行は `combos.csv` にあるが `statements.csv` に出ない
+- 重さ：記録する
+- 該当箇所：`exp/analyze_e79.py:1733`（`statements_p4` が `C.metric == "dir"` だけを見る）
+- 問題：`rev_order` の行は判定の数（`combos.csv` の tag rev_order，P4 の 16 組み合わせなど）まで出るが，筋の 4 の文の鍵は作らない．感度の行として「逆の順序でも同じ文になるか」を見るには，文の鍵があると読み違いが減る
+- 求める対応：`statements_p4` で tag が rev_order のときは metric dir_rev を読む（任意）
+
+### 本番の規模の見積もり（更新）
+GPU は使わない．人工の入力の measure（`--boot 200`）は前回の 2 分 16 秒（user 16 分 20 秒）から 1 分 22 秒（糸 4 本で user 2 分 59 秒）になった．judge は単位が約 2.3 倍になり人工の入力で 1 分 23 秒なので，本番は 20〜30 分の見込み．measure は 1〜3 時間，全段で 2〜4 時間の見込みは変わらない（外挿）．
+
+判定：直してから通す（[I12-3] を直し，仮のターゲットの 1 つで CORAL の r が欠けた入力で select が止まらないことを確かめてから段 (b) を流す）．
