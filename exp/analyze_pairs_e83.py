@@ -3,20 +3,27 @@
 設計：docs/exploratory-analyses.md の E83（規則は値を見る前に書いた）．新しい学習はしない．(A)(B) は評価のターゲットの値を対に分けて判定するので本番として扱う．
 
   (A) 対ごとの D と none の向きの損（results/e79/measure/D_*.csv，pairs_*.csv.gz．種類の実行の none は results/e79_p4/measure から）．
-      反復ごとの行と，反復・ターゲットの中央値と範囲，d_AUC から作った向きの損，模型の誤差 acc_model − acc_actual を残す
+      反復ごとの行と，反復・ターゲットの中央値と範囲，d_AUC から作った向きの損，模型の誤差 acc_model − acc_actual，負の対の数，分散の比を残す
   (B) 対ごとの手法（oursx．none を含む版の選択．E79 の Claim 5 の P5-3 と同じ鍵）− none の向きの損の差を，E79 と同じ単位・2 段のブートストラップ・jackknife で判定する．
       δ_d は対ごとに仮のターゲットの none の揺れから作る．模型に依る対の印も対ごとに付ける．
-      感度の行は δ の半分・2 倍，逆の順序（A(D,o) − A(d,o)．rev_order），IEMOCAP 即興だけ（iemocap_impro_only）．E79 の P5-3 と同じ作り．
-      kd と abl_own（none を含む版の選択）の行も同じ計算で出す（comparison 列．文の規則 (3) の補助）．単位ごとのブートストラップの複製は npz に残す
-  (C) 仮のターゲットの候補の上で，f のアンカー（単モダリティと融合）と予測モデル g の 2 感情の判定を比べ，対ごとの補い合い J_kl，感情ごとの再現率，誤りの φ を出す．
-      agree は pF の行ごとの正の定数倍で判定が pF と同じなので出さない
+      感度の行は δ の半分・2 倍，逆の順序（A(D,o) − A(d,o)．rev_order），IEMOCAP 即興だけ（iemocap_impro_only），IEMOCAP のセッションを 1 つずつ抜く jackknife（session_jk）．
+      比較相手 kd・abl_own・abl_ownK・groupB（none を含む版の選択．種のある手法は種 0〜2 の平均）の行も同じ計算で出し，手法どうしの直接の差（oursx − 相手）は
+      同じ抽出の複製の差から判定する．単位ごとのブートストラップと jackknife の複製は npz に残す
+  (C) 仮のターゲットの候補の上で，f のアンカー（単モダリティと融合）と予測モデル g の 2 感情の判定を比べ，対ごとの補い合い J_kl（切片を含む）と向きだけの版 J_dir，
+      感情ごとの再現率，誤りの φ を出す．agree は pF の行ごとの正の定数倍で判定が pF と同じなので出さない
+  P3a の判定：数は複製から作った帰無の 95% 点，広がりは怒りの対の「減らした」が出たコーパスの数，偏りは効果の出うるセルに限った感情の名前の置換（24 通り）の厳密な p．
 
-使い方：./.venv/bin/python exp/analyze_pairs_e83.py [--out results/e83] [--boot 1000] [--perm 1000] [--targets ...] [--stages ab c] [--smoke]
+使い方：./.venv/bin/python exp/analyze_pairs_e83.py [--out results/e83] [--boot 1000] [--targets ...] [--stages ab c] [--smoke]
+  試走（--smoke，--targets，--stages の一部）の出力は results/ の下に書けない（--out を checks/E83/ か scratchpad にする）．本番は既定の引数で 1 回で流す．
+  出力の CSV は先頭に `#` の行（コミットと設定）を持つので，読むときは pd.read_csv(..., comment="#") にする．
 """
 import argparse
 import datetime as dt
 import hashlib
+import itertools
 import json
+import re
+import shutil
 import subprocess
 import sys
 import zlib
@@ -50,11 +57,36 @@ AROUSAL_PAIRS = (PAIR_IDX[(1, 3)], PAIR_IDX[(0, 2)])                           #
 NEU_ANG = PAIR_IDX[(0, 3)]
 GEFF_MIN = 20                                                                  # E79・E76 の規則
 MODEL_UNIT_FRAC = 0.5                                                          # E79 の規則（模型に依る印）
-CHANCE = 0.025                                                                 # 差が 0 のとき偶然「減らした」に当たる割合（両側 5% の片側）
-COMPARISONS = (("oursx", "none-oursx"), ("kd", "none-kd"), ("abl_own", "none-abl_own"))   # 先頭が主（P3a・P3c の判定に使う）
+CHANCE = 0.025                                                                 # 差が 0 のとき偶然「減らした」に当たる割合（両側 5% の片側）．記述の列にだけ使う
+DELTA_SCALES = ((1.0, "main"), (0.5, "delta_half"), (2.0, "delta_double"))
+MIN_PAIR_N = 10                                                                # (C) の J と φ に要る最小の本数
+P_ALPHA = 0.05                                                                 # P3a (iii) の厳密な p の基準
+COMPARISONS = (("oursx", "none-oursx"), ("kd", "none-kd"), ("abl_own", "none-abl_own"), ("abl_ownK", "none-abl_ownK"), ("groupB", "none-groupB"))
 MAIN_COMP = "none-oursx"
+DIRECT = (("none-kd", "oursx-kd"), ("none-abl_own", "oursx-abl_own"), ("none-abl_ownK", "oursx-abl_ownK"), ("none-groupB", "oursx-groupB"))
 JUDG_COLS = ["pos", "neg", "same", "undet", "missing", "same_by_definition"]
-PERM_SEED = 12345
+SEEDED = {"dann", "mme", "mapctl", "xmuda", "entmin", "im"}                   # E79 と同じ（評価は種 0・1・2 の平均．選択は種 0）
+NC_SEEDED = {"entmin", "im"}                                                   # E77 の非凸の手法：種 0 の param は末尾に s が無い
+EXCL_MA = ("MOSEI", "AFEW")                                                    # 話者が代用の定義のコーパス（E79 の excl_mosei_afew）
+TEACHER_G = {"ref": "ref", "ref0": "ref0", "agree": "pF", "pF": "pF"}          # oursx が選んだ教師 → (C) の g（pFK は units に無いので欠け）
+CLASS_PERM_MAPS = np.array([[PAIR_IDX[tuple(sorted((s[k], s[j])))] for (k, j) in PAIRS] for s in itertools.permutations(range(4))])   # (24, 6)
+PAIR_PERM_MAPS = np.array(list(itertools.permutations(range(6))))             # (720, 6)．感度の列にだけ使う
+HEADER = "E83"                                                                 # 各 CSV の先頭の # 行（main で設定する）
+SCRIPT_DEPS = ("exp/analyze_pairs_e83.py", "exp/explore_pairs.py", "exp/explore_synergy.py", "exp/multimodal_distill.py", "measure/data.py")
+
+
+def strip_seed(p):
+    return re.sub(r"s\d+$", "", p)
+
+
+def seed_of(method, p):
+    """E79 と同じ．種の番号．E78 の手法は param の末尾 `s<種>`．E77 の entmin・im は種 0 の param に末尾の s が無い．"""
+    if method not in SEEDED:
+        return -1
+    m = re.search(r"s(\d+)$", p)
+    if m:
+        return int(m.group(1))
+    return 0 if method in NC_SEEDED else -1
 
 
 def sha256(path):
@@ -78,8 +110,20 @@ def note_input(prov, path, with_sha=False):
     prov["inputs"][key] = rec
 
 
+def write_csv(df, path):
+    """各 CSV の先頭に # の行（コミットと設定）を書く（methods.md 6.3）．読むときは comment="#"．"""
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(f"# {HEADER}\n")
+        df.to_csv(fh, index=False)
+
+
 def corp(g):
     return GROUP_SPEC[g][0]
+
+
+def session_of(speaker_group):
+    """IEMOCAP の話者群 Ses0x_F/M → セッション Ses0x（セッションの jackknife に使う）．"""
+    return str(speaker_group)[:5]
 
 
 def role_of(run, student):
@@ -188,6 +232,11 @@ def max_abs_or_nan_mismatch(a, b):
     return (float(np.abs(a[both] - b[both]).max()) if both.any() else 0.0), mism
 
 
+def recall_by_emotion(L, y):
+    am = L.argmax(1)
+    return np.array([float((am[y == e] == e).mean()) if (y == e).any() else np.nan for e in range(4)])
+
+
 # ---------------------------------------------------------------- 入力の読み込み
 
 def read_rows_csv(path):
@@ -205,7 +254,7 @@ def dedupe_pairs(X, where):
 
 
 def row_table(run, T, prov=None):
-    """(wave, rep, row_id) → (student, method, param, meff, K)．E77・E78・E80 の段 c の <T>.csv から．"""
+    """(wave, rep, row_id) → (student, method, param, pnorm, seed, meff, K)．E77・E78・E80 の段 c の <T>.csv から．"""
     out = []
     for wave in ("e77", "e78", "e80c"):
         f = ROOT / "results" / f"{wave}_{run}" / f"{T}.csv"
@@ -220,12 +269,14 @@ def row_table(run, T, prov=None):
     tab = pd.concat(out, ignore_index=True)
     if tab.duplicated(["wave", "rep", "row_id"]).any():
         raise SystemExit(f"{run} {T}：(wave, rep, row_id) が重複している")
+    tab["pnorm"] = [strip_seed(p) if m in SEEDED else p for m, p in zip(tab.method, tab.param)]   # 種を除いた param（E79 と同じ）
+    tab["seed"] = [seed_of(m, p) for m, p in zip(tab.method, tab.param)]
     return tab
 
 
 def chosen_setting(sel, run, T, student, K, selector):
     """results/e79/select/chosen.csv の selector（oursx は E79 の Claim 5 の P5-3 と同じ鍵），variant = incl（none を含めて選ぶ版）．
-    戻り (wave, method, param, meff) か None（none が選ばれた）か "missing"．"""
+    戻り (wave, method, pnorm, meff) か None（none が選ばれた）か "missing"．chosen.csv の param は種を除いた形（E79 の pnorm）．"""
     ch = sel[(sel.run == run) & (sel.target == T) & (sel.student == student) & (sel.K == K) & (sel.selector == selector) & (sel.variant == "incl")]
     if ch.empty:
         return "missing"
@@ -241,6 +292,11 @@ def chosen_setting(sel, run, T, student, K, selector):
 def chosen_ours(sel, run, T, student, K):
     """主の手法の行（oursx・incl）．"""
     return chosen_setting(sel, run, T, student, K, "oursx")
+
+
+def n_cand_of(sel, run, T, student, K, selector):
+    ch = sel[(sel.run == run) & (sel.target == T) & (sel.student == student) & (sel.K == K) & (sel.selector == selector) & (sel.variant == "incl")]
+    return int(ch.iloc[0].n_cand) if len(ch) == 1 and pd.notna(ch.iloc[0].n_cand) else -1
 
 
 def load_labels_speakers(run, T, d77, prov):
@@ -267,7 +323,7 @@ def a_rows_from(run, T, X):
                          "none_dirloss_auc": 100 * float(ba(r_.D, 0.0) - ba(r_.d_auc, 0.0)),
                          "none_posloss": 100 * float(ba(r_.d, 0.0) - ba(r_.d, r_.o)),
                          "none_model_err": float(r_.acc_model - r_.acc_actual), "none_d": float(r_.d), "none_d_auc": float(r_.d_auc), "D": float(r_.D),
-                         "none_o": float(r_.o)})
+                         "none_o": float(r_.o), "none_var_ratio": float(getattr(r_, "var_ratio", np.nan))})
     return rows
 
 
@@ -275,7 +331,16 @@ def stage_ab(args, out, prov):
     sel_path = ROOT / "results" / "e79" / "select" / "chosen.csv"
     sel = pd.read_csv(sel_path, dtype={"K": str, "param": str, "meff": str})
     note_input(prov, sel_path, with_sha=True)
-    rep_rows, unit_rows, delta_rows, check_rows, boot_store = [], [], [], [], {}
+    # 比較相手ごとの候補の数と none を選んだ数（C2・C6．選択の事実で，評価の値ではない）
+    cand = sel[(sel.variant == "incl") & sel.K.isin(KS) & sel.run.isin(RUNS) & sel.selector.isin([s for s, _ in COMPARISONS])]
+    cand = cand[["run", "target", "student", "K", "selector", "n_cand", "chose_none", "wave", "method", "param", "meff"]].copy()
+    write_csv(cand, out / "b_candidates.csv")
+    prov["candidates"] = {s: {"n_rows": int((cand.selector == s).sum()), "n_none": int(((cand.selector == s) & (cand.chose_none.astype(str) == "True")).sum()),
+                              "n_cand_min": int(cand[cand.selector == s].n_cand.astype(float).min()) if (cand.selector == s).any() else -1,
+                              "n_cand_max": int(cand[cand.selector == s].n_cand.astype(float).max()) if (cand.selector == s).any() else -1}
+                         for s, _ in COMPARISONS}
+    rep_rows, unit_rows, delta_rows, check_rows, recall_rows = [], [], [], [], []
+    boot_store, jk_store = {}, {}
     # ---- (A) D と none の向きの損．融合の実行は e79/measure から，種類の実行は e79_p4/measure から（二重に読まない．I8）
     a_rep = []
     for mdir, runs in ((ROOT / "results" / "e79" / "measure", RUNS), (ROOT / "results" / "e79_p4" / "measure", KINDS)):
@@ -295,29 +360,32 @@ def stage_ab(args, out, prov):
                     raise SystemExit(f"{run} {T}：pairs の行が <T>.csv に無い")
                 a_rep.extend([{**row, "source": str(mdir.relative_to(ROOT))} for row in a_rows_from(run, T, X)])
             if run in RUNS:                                                    # (B) は E79 の主の実行だけ（e79_p4 は P4 の判定用で oursx の行が無い）
-                stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, boot_store, prov)
+                stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, recall_rows, boot_store, jk_store, prov)
     AR = pd.DataFrame(a_rep)
-    AR.to_csv(out / "a_none_pairs_rep.csv", index=False)
+    write_csv(AR, out / "a_none_pairs_rep.csv")
     A_ = pd.DataFrame()
     if len(AR):
         if AR.duplicated(["run", "target", "student", "K", "rep", "pair"]).any():
             raise SystemExit("(A)：(run, target, student, K, rep, pair) が重複している")
-        qcols = ["A_D0", "none_dirloss", "none_dirloss_auc", "none_posloss", "none_model_err"]
+        qcols = ["A_D0", "none_dirloss", "none_dirloss_auc", "none_posloss", "none_model_err", "none_var_ratio"]
         A_ = AR.groupby(["run", "target", "student", "K", "pair", "pair_name"]).agg(
             n_reps=("rep", "nunique"), **{c: (c, "mean") for c in qcols},
             **{f"{c}_rep_med": (c, "median") for c in ("A_D0", "none_dirloss")}, **{f"{c}_rep_min": (c, "min") for c in ("A_D0", "none_dirloss")},
-            **{f"{c}_rep_max": (c, "max") for c in ("A_D0", "none_dirloss")},
+            **{f"{c}_rep_max": (c, "max") for c in ("A_D0", "none_dirloss")}, n_neg_reps=("none_dirloss", lambda x: int((x < 0).sum())),
             none_d=("none_d", "mean"), none_d_auc=("none_d_auc", "mean"), D=("D", "mean"), none_o_abs=("none_o", lambda x: float(x.abs().mean()))).reset_index()
-    A_.to_csv(out / "a_none_pairs.csv", index=False)
-    pd.DataFrame(rep_rows).to_csv(out / "b_pairs_rep.csv", index=False)
-    pd.DataFrame(delta_rows).to_csv(out / "b_delta_pairs.csv", index=False)
-    pd.DataFrame(check_rows).to_csv(out / "checks.csv", index=False)
+    write_csv(A_, out / "a_none_pairs.csv")
+    write_csv(pd.DataFrame(rep_rows), out / "b_pairs_rep.csv")
+    write_csv(pd.DataFrame(recall_rows), out / "b_recall_rep.csv")
+    write_csv(pd.DataFrame(delta_rows), out / "b_delta_pairs.csv")
+    write_csv(pd.DataFrame(check_rows), out / "checks.csv")
     U = pd.DataFrame(unit_rows)
-    U.to_csv(out / "b_units_pairs.csv", index=False)
-    if boot_store:                                                             # 単位ごとのブートストラップの複製 (B, 6)（R1）
+    write_csv(U, out / "b_units_pairs.csv")
+    if boot_store:                                                             # 単位ごとのブートストラップと jackknife の複製（R1，S4）
         np.savez_compressed(out / "b_boot_units.npz", **boot_store)
-        pd.DataFrame([{"key": k, "B": v.shape[0]} for k, v in boot_store.items()]).to_csv(out / "b_boot_units_index.csv", index=False)
-    return A_, U
+        np.savez_compressed(out / "b_jk_units.npz", **jk_store)
+        write_csv(pd.DataFrame([{"key": k, "B": v.shape[0], "has_jk": k in jk_store, "G_jk": jk_store[k].shape[0] if k in jk_store else 0} for k, v in boot_store.items()]),
+                  out / "b_boot_units_index.csv")
+    return A_, AR, U, pd.DataFrame(recall_rows), boot_store, jk_store
 
 
 def delta_pairs(run, d77, targets, prov):
@@ -367,13 +435,14 @@ def delta_pairs(run, d77, targets, prov):
     return D, R
 
 
-def stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, boot_store, prov):
+def stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, recall_rows, boot_store, jk_store, prov):
     d77 = ROOT / "results" / f"e77_{run}"
     targets = [t for t in sorted(P.target.unique()) if (not args.targets or t in args.targets)]
     D, Rd = delta_pairs(run, d77, targets, prov)
-    Rd.to_csv(args.out / f"b_delta_reps_{run}.csv", index=False)
+    write_csv(Rd, args.out / f"b_delta_reps_{run}.csv")
     delta_rows.extend(D.assign(run=run).to_dict("records"))
     dmap = {(r.student, r.K, int(r.pair)): float(r.delta_d_pair) for r in D.itertuples()}
+    dmap_c = {(r.student, r.K, int(r.pair)): float(r.delta_d_pair_corpus) for r in D.itertuples()}
     mods = WORLDS[run]
     students = mods + [run]
     # ---- 行の対応，ラベルと話者，反復ごとの対数確率
@@ -391,6 +460,13 @@ def stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, 
             te = {r: np.load(d77 / f"{T}_r{r}_te.npy") for r in REPS}
             for r in REPS:
                 note_input(prov, d77 / f"{T}_r{r}_te.npy")
+            # 反復ごとのテストの集合が異なる数（I15・S6・S9）
+            sets = {}
+            for r in REPS:
+                sets.setdefault(te[r].tobytes(), []).append(r)
+            same = [v for v in sets.values() if len(v) > 1]
+            check_rows.append({"check": "distinct_test_sets", "run": run, "target": T, "n_distinct": len(sets), "identical_reps": ";".join("=".join(map(str, v)) for v in same)})
+            prov.setdefault("distinct_test_sets", {})[f"{run}|{T}"] = {"n_distinct": len(sets), "identical_reps": [v for v in same]}
             logp = {}
             for wave in ("e77", "e78", "e80c"):
                 dd = ROOT / "results" / f"{wave}_{run}"
@@ -409,11 +485,20 @@ def stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, 
         nls = len(speakers)
         C, A = boot_draws(run, cp, speakers, args.boot, args.seed, len(REPS))
         Wj = np.ones((nls, nls)) - np.eye(nls)
+        sess, Wj_s = None, None
+        if cp == "IEMOCAP":                                                    # セッションを 1 つずつ抜く jackknife（S3）
+            sessions = sorted({session_of(s) for s in speakers})
+            sess = {s: sessions.index(session_of(s)) for s in speakers}
+            Wj_s = np.ones((len(sessions), len(sessions))) - np.eye(len(sessions))
+            prov.setdefault("sessions", {})[f"{run}|{cp}"] = sessions
         # G_eff（E79：反復 0〜9 のテストの発話数を人物ごとに足す．群ごと）
         geff = {}
         for T, p in prep.items():
             cnt = pd.Series(np.concatenate([p["spk"][p["te"][r]] for r in REPS])).value_counts().to_numpy().astype(float)
             geff[T] = cnt.sum() ** 2 / (cnt ** 2).sum()
+        prov.setdefault("g_eff", {}).update({f"{run}|{T}": float(v) for T, v in geff.items()})
+        need_jk = min(geff.values()) < GEFF_MIN
+        n_sess = len(set(sess.values())) if sess else 0
         for selector, comp in COMPARISONS:
             for st in students:
                 for K in KS:
@@ -426,29 +511,35 @@ def stage_b_run(args, run, P, sel, rep_rows, unit_rows, delta_rows, check_rows, 
                                            "chosen": ";".join(f"{T}:{'none' if c is None else '|'.join(c)}" for T, c in chs.items())})
                         if comp == MAIN_COMP:
                             raise SystemExit(f"{run} {cp} {st} K{K}：IEMOCAP の 2 群で {selector} の選択が違う（主の比較なので止める）")
+                    ncands = {T: n_cand_of(sel, run, T, st, K, selector) for T in Ts}
                     per_T = {}
                     for T in Ts:
-                        per_T[T] = pair_diffs_target(run, T, prep[T], chs[T], st, K, comp, sid, nls, C, Wj, min(geff.values()) < GEFF_MIN, rep_rows, check_rows)
+                        per_T[T] = pair_diffs_target(run, T, prep[T], chs[T], st, K, comp, sid, nls, C, Wj, need_jk, sess, Wj_s, rep_rows, check_rows, recall_rows)
                     all_none = all(c is None for c in chs.values())
                     chosen_str = "none" if all_none else ";".join(f"{T}:{'none' if c is None else '|'.join(c)}" for T, c in chs.items())
                     chosen_short = "none" if all_none else "|".join(next(c for c in chs.values() if c is not None))
-                    # 単位（コーパス）に集める：主（全群），逆の順序，IEMOCAP 即興だけ（AVT．E79 の P5-3 と同じ）
-                    specs = [("main", "dir", Ts), ("rev_order", "dir_rev", Ts)]
+                    meta = {"chosen": chosen_short, "chosen_by_group": chosen_str, "n_groups_none": sum(c is None for c in chs.values()),
+                            "n_cand_min": min(ncands.values()), "n_cand_by_group": ";".join(f"{T}:{n}" for T, n in ncands.items()),
+                            "n_seeds": max((len(per_T[T]["seeds"]) for T in Ts), default=0)}
+                    # 単位（コーパス）に集める：主（全群），逆の順序，IEMOCAP 即興だけ（AVT），セッションの jackknife（IEMOCAP）
+                    specs = [("main", "dir", Ts, "jk"), ("rev_order", "dir_rev", Ts, "jk")]
                     if run == "fuse-audio-video-text":
-                        specs.append(("iemocap_impro_only", "dir", [T for T in Ts if T != "IEMOCAP-script"]))
-                    for stag, metric, Ts_use in specs:
+                        specs.append(("iemocap_impro_only", "dir", [T for T in Ts if T != "IEMOCAP-script"], "jk"))
+                    if sess is not None:
+                        specs.append(("session_jk", "dir", Ts, "jk_sess"))
+                    for stag, metric, Ts_use, jkkind in specs:
                         if not Ts_use:
                             continue
-                        aggregate_unit(run, cp, st, K, comp, metric, stag, Ts_use, per_T, A, geff, dmap, all_none, chosen_short, chosen_str, unit_rows, boot_store)
+                        aggregate_unit(run, cp, st, K, comp, metric, stag, jkkind, Ts_use, per_T, A, geff, n_sess, dmap, dmap_c, all_none, meta, unit_rows, boot_store, jk_store)
 
 
-def pair_diffs_target(run, T, p, chT, st, K, comp, sid, nls, C, Wj, need_jk, rep_rows, check_rows):
-    """1 つのターゲット（群）：反復ごとの対ごとの点の値（pairs の表），対数の確率からの照合，ブートストラップと jackknife の複製．
-    chT が None（none を選んだ群）なら差を 0 とする（E79 と同じ）．"""
+def pair_diffs_target(run, T, p, chT, st, K, comp, sid, nls, C, Wj, need_jk, sess, Wj_s, rep_rows, check_rows, recall_rows):
+    """1 つのターゲット（群）：反復ごとの対ごとの点の値（pairs の表），対数の確率からの照合，ブートストラップと jackknife の複製，感情ごとの再現率の差．
+    chT が None（none を選んだ群）なら差を 0 とする（E79 と同じ）．種のある手法は種ごとに計算して平均する（E79 と同じ）．"""
     X = p["X"]
     R = len(REPS)
     res = {k: np.full((R, 6), np.nan) for k in ("pts", "aucs", "des", "dos", "nonelosses", "revs")}
-    res["boot"], res["boot_rev"], res["jk"], res["jk_rev"] = {}, {}, {}, {}
+    res["boot"], res["boot_rev"], res["jk"], res["jk_rev"], res["jk_sess"], res["seeds"] = {}, {}, {}, {}, {}, set()
     for r in REPS:
         xn = X[(X.rep == r) & (X.student == st) & (X.K == K) & (X.method == "none") & (X.param == "-")].sort_values("pair")
         if len(xn) != 6:
@@ -456,6 +547,11 @@ def pair_diffs_target(run, T, p, chT, st, K, comp, sid, nls, C, Wj, need_jk, rep
             continue
         dn, on, Dn = xn.d.to_numpy(), xn.o.to_numpy(), xn.D.to_numpy()
         res["nonelosses"][r] = 100 * (ba(Dn, 0.0) - ba(dn, 0.0))
+        yte = p["y"][p["te"][r]]
+        sidx = np.array([sid[s] for s in p["spk"][p["te"][r]]])
+        ssidx = np.array([sess[s] for s in p["spk"][p["te"][r]]]) if sess is not None else None
+        Ln = logp_row(p["logp"], "e77", r, int(xn.row_id.iloc[0]))
+        rec_n = recall_by_emotion(Ln, yte)
         if chT is None:
             for k in ("pts", "aucs", "des", "dos", "revs"):
                 res[k][r] = 0.0
@@ -464,63 +560,86 @@ def pair_diffs_target(run, T, p, chT, st, K, comp, sid, nls, C, Wj, need_jk, rep
             if need_jk:
                 res["jk"][r] = np.zeros((nls, 6))
                 res["jk_rev"][r] = np.zeros((nls, 6))
-            chosen_lab = "none"
+            if sess is not None:
+                res["jk_sess"][r] = np.zeros((Wj_s.shape[0], 6))
+            chosen_lab, rec_o = "none", rec_n.copy()
         else:
             wave, meth, par, me = chT
-            xo = X[(X.rep == r) & (X.student == st) & (X.K == K) & (X.wave == wave) & (X.method == meth) & (X.param == par) & (X.meff == me)].sort_values("pair")
-            if len(xo) != 6:
-                check_rows.append({"check": "ours_rows", "comparison": comp, "run": run, "target": T, "student": st, "K": K, "rep": r, "n": len(xo), "chosen": "|".join(chT)})
+            xo_all = X[(X.rep == r) & (X.student == st) & (X.K == K) & (X.wave == wave) & (X.method == meth) & (X.pnorm == par) & (X.meff == me)]
+            seeds = sorted(xo_all.seed.unique())
+            if meth in SEEDED and len(seeds) != 3:
+                check_rows.append({"check": "seed_rows", "comparison": comp, "run": run, "target": T, "student": st, "K": K, "rep": r, "n_seeds": len(seeds), "chosen": "|".join(chT)})
+            if not seeds or any(len(xo_all[xo_all.seed == s_]) != 6 for s_ in seeds):
+                check_rows.append({"check": "ours_rows", "comparison": comp, "run": run, "target": T, "student": st, "K": K, "rep": r, "n": len(xo_all), "chosen": "|".join(chT)})
                 continue
-            if not np.allclose(xo.D.to_numpy(), Dn, rtol=0, atol=1e-9):
-                raise SystemExit(f"{run} {T} {st} K{K} r{r}：手法の行と none の行で D が違う")
-            do_, oo = xo.d.to_numpy(), xo.o.to_numpy()
-            res["pts"][r] = dir_diff(do_, dn)
-            res["aucs"][r] = 100 * (ba(xo.d_auc.to_numpy(), 0.0) - ba(xn.d_auc.to_numpy(), 0.0))
-            res["des"][r] = (xo.acc_model.to_numpy() - xo.acc_actual.to_numpy()) - (xn.acc_model.to_numpy() - xn.acc_actual.to_numpy())   # すでにポイント（I7）
-            res["dos"][r] = oo - on
-            res["revs"][r] = dir_diff_rev(Dn, do_, oo, dn, on)
-            # 対数の確率から計算し直して照合し，ブートストラップの材料にする
-            yte = p["y"][p["te"][r]]
-            sidx = np.array([sid[s] for s in p["spk"][p["te"][r]]])
-            Ln = logp_row(p["logp"], "e77", r, int(xn.row_id.iloc[0]))
-            Lo = logp_row(p["logp"], wave, r, int(xo.row_id.iloc[0]))
+            res["seeds"].update(int(s_) for s_ in seeds)
+            acc = {k: [] for k in ("pts", "aucs", "des", "dos", "revs", "boot", "boot_rev", "jk", "jk_rev", "jk_sess", "rec")}
+            Fn = pair_feats(Ln, yte, sidx, nls)
+            Fn_s = pair_feats(Ln, yte, ssidx, Wj_s.shape[0]) if sess is not None else None
             dn2, on2 = d_o_pairs(Ln, yte)
-            do2, oo2 = d_o_pairs(Lo, yte)
-            for name, rec, ref in (("dir", dir_diff(do2, dn2), res["pts"][r]), ("dir_rev", dir_diff_rev(Dn, do2, oo2, dn2, on2), res["revs"][r])):
-                mx, mism = max_abs_or_nan_mismatch(rec, ref)
-                if mx > 1e-6 or mism:
-                    raise SystemExit(f"{run} {T} {st} K{K} r{r} {comp} {name}：対ごとの点の値が pairs の表と合わない（最大 {mx:.2e}，NaN の食い違い {mism}）")
-            Fn, Fo = pair_feats(Ln, yte, sidx, nls), pair_feats(Lo, yte, sidx, nls)
-            for W, key in ((C, "boot"), (Wj, "jk")):
-                if key == "jk" and not need_jk:
-                    continue
-                dBn, oBn = pair_d_o_from_feats(Fn, W)
-                dBo, oBo = pair_d_o_from_feats(Fo, W)
-                res[key][r] = dir_diff(dBo, dBn)
-                res[key + "_rev"][r] = dir_diff_rev(Dn[None, :], dBo, oBo, dBn, oBn)
-            chosen_lab = "|".join(chT)
+            for s_ in seeds:
+                xo = xo_all[xo_all.seed == s_].sort_values("pair")
+                if not np.allclose(xo.D.to_numpy(), Dn, rtol=0, atol=1e-9):
+                    raise SystemExit(f"{run} {T} {st} K{K} r{r}：手法の行と none の行で D が違う")
+                do_, oo = xo.d.to_numpy(), xo.o.to_numpy()
+                acc["pts"].append(dir_diff(do_, dn))
+                acc["aucs"].append(100 * (ba(xo.d_auc.to_numpy(), 0.0) - ba(xn.d_auc.to_numpy(), 0.0)))
+                acc["des"].append((xo.acc_model.to_numpy() - xo.acc_actual.to_numpy()) - (xn.acc_model.to_numpy() - xn.acc_actual.to_numpy()))   # すでにポイント（I7）
+                acc["dos"].append(oo - on)
+                acc["revs"].append(dir_diff_rev(Dn, do_, oo, dn, on))
+                # 対数の確率から計算し直して照合し，ブートストラップの材料にする
+                Lo = logp_row(p["logp"], wave, r, int(xo.row_id.iloc[0]))
+                do2, oo2 = d_o_pairs(Lo, yte)
+                for name, rec, ref in (("dir", dir_diff(do2, dn2), acc["pts"][-1]), ("dir_rev", dir_diff_rev(Dn, do2, oo2, dn2, on2), acc["revs"][-1])):
+                    mx, mism = max_abs_or_nan_mismatch(rec, ref)
+                    if mx > 1e-6 or mism:
+                        raise SystemExit(f"{run} {T} {st} K{K} r{r} {comp} seed{s_} {name}：対ごとの点の値が pairs の表と合わない（最大 {mx:.2e}，NaN の食い違い {mism}）")
+                Fo = pair_feats(Lo, yte, sidx, nls)
+                for W, key, FN, FO in ((C, "boot", Fn, Fo), (Wj, "jk", Fn, Fo)):
+                    if key == "jk" and not need_jk:
+                        continue
+                    dBn, oBn = pair_d_o_from_feats(FN, W)
+                    dBo, oBo = pair_d_o_from_feats(FO, W)
+                    acc[key].append(dir_diff(dBo, dBn))
+                    acc[key + "_rev"].append(dir_diff_rev(Dn[None, :], dBo, oBo, dBn, oBn))
+                if sess is not None:
+                    Fo_s = pair_feats(Lo, yte, ssidx, Wj_s.shape[0])
+                    acc["jk_sess"].append(dir_diff(pair_d_from_feats(Fo_s, Wj_s), pair_d_from_feats(Fn_s, Wj_s)))
+                acc["rec"].append(recall_by_emotion(Lo, yte))
+            for k in ("pts", "aucs", "des", "dos", "revs"):
+                res[k][r] = np.mean(np.stack(acc[k]), 0)                       # 種は平均する（E79 と同じ．合奏ではない）
+            for k in ("boot", "boot_rev", "jk", "jk_rev", "jk_sess"):
+                if acc[k]:
+                    res[k][r] = np.mean(np.stack(acc[k]), 0)
+            chosen_lab, rec_o = "|".join(chT), np.mean(np.stack(acc["rec"]), 0)
         for pidx in range(6):
             rep_rows.append({"comparison": comp, "run": run, "target": T, "student": st, "K": K, "rep": r, "pair": pidx, "pair_name": PAIR_NAME[pidx],
                              "diff_dir": res["pts"][r, pidx], "diff_dir_rev": res["revs"][r, pidx], "diff_dir_auc": res["aucs"][r, pidx],
-                             "diff_model_err": res["des"][r, pidx], "diff_o": res["dos"][r, pidx], "none_dirloss": res["nonelosses"][r, pidx], "chosen": chosen_lab})
+                             "diff_model_err": res["des"][r, pidx], "diff_o": res["dos"][r, pidx], "none_dirloss": res["nonelosses"][r, pidx], "chosen": chosen_lab,
+                             "n_seeds": len(res["seeds"])})
+        for e in range(4):                                                     # 感情ごとの再現率の差（UAR への橋．記述．D2）
+            recall_rows.append({"comparison": comp, "run": run, "target": T, "student": st, "K": K, "rep": r, "emotion": EMO[e],
+                                "recall_none": rec_n[e], "recall_method": rec_o[e], "diff_recall": rec_o[e] - rec_n[e], "chosen": chosen_lab})
     return res
 
 
-def aggregate_unit(run, cp, st, K, comp, metric, stag, Ts_use, per_T, A, geff, dmap, all_none, chosen_short, chosen_str, unit_rows, boot_store):
+def aggregate_unit(run, cp, st, K, comp, metric, stag, jkkind, Ts_use, per_T, A, geff, n_sess, dmap, dmap_c, all_none, meta, unit_rows, boot_store, jk_store):
     """単位（コーパス）に集める：反復の平均をターゲットで平均（E79 と同じ）．区間は反復の重み A で反復を混ぜ，ターゲットで平均した複製の百分位．
-    G_eff < 20 の群を含む単位は jackknife の t 区間との和集合．"""
-    pk, bk, jk = ("pts", "boot", "jk") if metric == "dir" else ("revs", "boot_rev", "jk_rev")
+    G_eff < 20 の群を含む単位は jackknife の t 区間との和集合（jkkind = jk_sess はセッションを抜く jackknife．自由度 セッション数 − 1）．"""
+    pk, bk = ("pts", "boot") if metric == "dir" else ("revs", "boot_rev")
+    jk = {"jk": "jk" if metric == "dir" else "jk_rev", "jk_sess": "jk_sess"}[jkkind]
     x = np.nanmean(np.stack([np.nanmean(per_T[T][pk], 0) for T in Ts_use]), 0)   # (6,)
     xa = np.nanmean(np.stack([np.nanmean(per_T[T]["aucs"], 0) for T in Ts_use]), 0)
     de = np.nanmean(np.stack([np.nanmean(per_T[T]["des"], 0) for T in Ts_use]), 0)
     dO = np.nanmean(np.stack([np.nanmean(per_T[T]["dos"], 0) for T in Ts_use]), 0)
     nl = np.nanmean(np.stack([np.nanmean(per_T[T]["nonelosses"], 0) for T in Ts_use]), 0)
     gmin = float(min(geff[T] for T in Ts_use))
+    geff_jk = float(n_sess) if jkkind == "jk_sess" else gmin
     lo = hi = np.full(6, np.nan)
     lo_j = hi_j = np.full(6, np.nan)
     nvalid = 0
     rule = "pct"
-    b = None
+    b = th = None
     if all(len(per_T[T][bk]) == len(REPS) for T in Ts_use):
         per = []
         for T in Ts_use:
@@ -531,22 +650,27 @@ def aggregate_unit(run, cp, st, K, comp, metric, stag, Ts_use, per_T, A, geff, d
         b = np.nanmean(np.stack(per), 0)                                       # (B, 6)
         lo, hi = np.nanpercentile(b, 2.5, 0), np.nanpercentile(b, 97.5, 0)
         nvalid = int(np.isfinite(b).all(1).sum())
-        if gmin < GEFF_MIN:
+        use_jk = (jkkind == "jk_sess") or (gmin < GEFF_MIN)
+        if use_jk:
             if all(len(per_T[T][jk]) == len(REPS) for T in Ts_use):
                 th = np.nanmean(np.stack([np.nanmean(np.stack([per_T[T][jk][r] for r in REPS], 1), 1) for T in Ts_use]), 0)   # (G, 6)
-                lo_j, hi_j = np.array([jk_interval(x[pp], th[:, pp], gmin) for pp in range(6)]).T
+                lo_j, hi_j = np.array([jk_interval(x[pp], th[:, pp], geff_jk) for pp in range(6)]).T
                 lo, hi = np.fmin(lo, lo_j), np.fmax(hi, hi_j)
-                rule = "union_pct_jk"
+                rule = "union_pct_jk" if jkkind == "jk" else "union_pct_session_jk"
             else:
                 rule = "pct_jk_missing"
                 lo = hi = np.full(6, np.nan)
     else:
         rule = "no_replicates"
+    key = f"{comp}|{run}|{st}|{K}|{cp}|{stag}"
     if b is not None:
-        boot_store[f"{comp}|{run}|{st}|{K}|{cp}|{stag}"] = b.astype(np.float32)
-    scales = ((1.0, stag),) if stag != "main" else ((1.0, "main"), (0.5, "delta_half"), (2.0, "delta_double"))
+        boot_store[key] = b.astype(np.float32)
+    if th is not None:
+        jk_store[key] = th.astype(np.float32)
+    scales = DELTA_SCALES if stag == "main" else ((1.0, stag),)
     for pidx in range(6):
         dl = dmap.get((st, K, pidx), np.nan)
+        dlc = dmap_c.get((st, K, pidx), np.nan)
         for scale, sname in scales:
             dls = dl * scale
             md = np.nan
@@ -555,10 +679,11 @@ def aggregate_unit(run, cp, st, K, comp, metric, stag, Ts_use, per_T, A, geff, d
             jd = "same_by_definition" if all_none else judge_unit(x[pidx], lo[pidx], hi[pidx], dls)
             unit_rows.append({"comparison": comp, "run": run, "role": role_of(run, st), "student": st, "K": K, "corpus": cp, "n_groups": len(Ts_use),
                               "groups": ";".join(Ts_use), "metric": metric, "pair": pidx, "pair_name": PAIR_NAME[pidx], "point": x[pidx],
-                              "lo": lo[pidx], "hi": hi[pidx], "lo_jk": lo_j[pidx], "hi_jk": hi_j[pidx], "interval_rule": rule, "g_eff_min": gmin,
-                              "n_boot_valid": nvalid, "delta_d_pair": dls, "sensitivity": sname, "judgment": jd, "model_dependent": md,
+                              "lo": lo[pidx], "hi": hi[pidx], "lo_jk": lo_j[pidx], "hi_jk": hi_j[pidx], "interval_rule": rule, "g_eff_min": gmin, "g_eff_jk": geff_jk,
+                              "n_boot_valid": nvalid, "delta_d_pair": dls, "delta_d_pair_corpus": dlc * scale, "sensitivity": sname, "boot_key": key,
+                              "judgment": jd, "model_dependent": md,
                               "point_auc": xa[pidx] if metric == "dir" else np.nan, "model_err_diff": de[pidx] if metric == "dir" else np.nan,
-                              "diff_o": dO[pidx], "none_dirloss": nl[pidx], "chosen": chosen_short, "chosen_by_group": chosen_str})
+                              "diff_o": dO[pidx], "none_dirloss": nl[pidx], **meta})
 
 
 def logp_row(logp, wave, r, row_id):
@@ -574,8 +699,18 @@ def logp_row(logp, wave, r, row_id):
 
 # ---------------------------------------------------------------- (C)
 
+def d_from_probs(Pm, yy, k, j):
+    """候補の確率から 2 感情の d（E13 と同じ式．z = log p_k − log p_j）．"""
+    z = np.log(np.clip(Pm[:, k], 1e-12, None)) - np.log(np.clip(Pm[:, j], 1e-12, None))
+    zk, zj = z[yy == k], z[yy == j]
+    if len(zk) < 2 or len(zj) < 2:
+        return np.nan
+    sd = np.sqrt((zk.var(ddof=1) + zj.var(ddof=1)) / 2)
+    return (zk.mean() - zj.mean()) / sd if sd > 0 else np.nan
+
+
 def stage_c(args, out, prov):
-    rows, rec_rows, phi_rows = [], [], []
+    rows, rec_rows, phi_rows, anchor_rows = [], [], [], []
     for w, run in (("avt", "fuse-audio-video-text"), ("av", "fuse-audio-video")):
         mods = WORLDS[run]
         udir = ROOT / "results" / "e80" / w / "units" / run
@@ -622,7 +757,7 @@ def stage_c(args, out, prov):
                                 mm = yk == e
                                 a, b = corr[m1][mm].astype(float), corr[m2][mm].astype(float)
                                 phi = np.nan
-                                if mm.sum() >= 10 and a.std() > 0 and b.std() > 0:
+                                if mm.sum() >= MIN_PAIR_N and a.std() > 0 and b.std() > 0:
                                     phi = float(np.corrcoef(a, b)[0, 1])
                                 phi_rows.append({**tag, "mod1": m1, "mod2": m2, "emotion": EMO[e], "n": int(mm.sum()), "phi": phi,
                                                  "both_wrong": float(((a == 0) & (b == 0)).mean()) if mm.any() else np.nan,
@@ -630,26 +765,35 @@ def stage_c(args, out, prov):
                     # 対ごとの補い合い J_kl(f, g)．f は単モダリティと融合（none__<実行>__<K>）．g は other_m（f と別のモダリティ），pF，poe0，ref，ref0
                     for st in mods + [run]:
                         S = np.asarray(z[f"none__{st}__{K}"])[keep]
+                        d_f = {}
+                        for p, (k, j) in enumerate(PAIRS):
+                            m = (yk == k) | (yk == j)
+                            d_f[p] = d_from_probs(S[m], yk[m], k, j) if m.sum() >= MIN_PAIR_N else np.nan
+                            anchor_rows.append({**tag, "student": st, "role": role_of(run, st), "pair": p, "pair_name": PAIR_NAME[p], "n_pair": int(m.sum()),
+                                                "d_f": d_f[p], "a_d0_f": 100 * float(ba(d_f[p], 0.0)) if np.isfinite(d_f[p]) else np.nan})
                         for name, G in preds.items():
                             if name == f"other_{st}":
                                 continue
                             for p, (k, j) in enumerate(PAIRS):
                                 m = (yk == k) | (yk == j)
-                                if m.sum() < 10:
+                                if m.sum() < MIN_PAIR_N:
                                     continue
                                 yy = yk[m]
                                 sdec = np.where(S[m, k] >= S[m, j], k, j)
                                 gdec = np.where(G[m, k] >= G[m, j], k, j)
                                 sr, gr = sdec == yy, gdec == yy
+                                d_g = d_from_probs(G[m], yy, k, j)
                                 rows.append({**tag, "student": st, "role": role_of(run, st), "g": name, "pair": p, "pair_name": PAIR_NAME[p], "n_pair": int(m.sum()),
                                              "acc_student": float(sr.mean()), "acc_g": float(gr.mean()),
                                              "J": 100 * float((gr & ~sr).mean() - (~gr & sr).mean()),
-                                             "g_right_s_wrong": float((gr & ~sr).mean()), "g_wrong_s_right": float((~gr & sr).mean())})
+                                             "g_right_s_wrong": float((gr & ~sr).mean()), "g_wrong_s_right": float((~gr & sr).mean()),
+                                             "J_dir": 100 * float(ba(d_g, 0.0) - ba(d_f[p], 0.0)) if np.isfinite(d_g) and np.isfinite(d_f[p]) else np.nan})
     J = pd.DataFrame(rows)
-    J.to_csv(out / "c_complementarity_units.csv", index=False)
-    pd.DataFrame(rec_rows).to_csv(out / "c_recall_units.csv", index=False)
-    pd.DataFrame(phi_rows).to_csv(out / "c_phi_units.csv", index=False)
-    return J, pd.DataFrame(rec_rows), pd.DataFrame(phi_rows)
+    write_csv(J, out / "c_complementarity_units.csv")
+    write_csv(pd.DataFrame(rec_rows), out / "c_recall_units.csv")
+    write_csv(pd.DataFrame(phi_rows), out / "c_phi_units.csv")
+    write_csv(pd.DataFrame(anchor_rows), out / "c_anchor_pairs.csv")
+    return J, pd.DataFrame(rec_rows), pd.DataFrame(phi_rows), pd.DataFrame(anchor_rows)
 
 
 # ---------------------------------------------------------------- まとめと予言の判定
@@ -661,107 +805,234 @@ def judgment_table(m, path):
     else:
         cnt = m.groupby(keys + ["judgment"]).size().unstack(fill_value=0)
         cnt = cnt.reindex(columns=JUDG_COLS, fill_value=0).reset_index()       # 列を固定する（I1）
-    cnt.to_csv(path, index=False)
+    write_csv(cnt, path)
     return cnt
 
 
-def perm_share_null(m, sel_pairs, n_perm, seed):
-    """割合の偶然の分布（S2）：コーパスの塊の中で対の名前を並べ替える（コーパスごとに 6 対の名前の並べ替えを 1 つ引き，その塊の全行に当てる）．
-    判定の列は固定．「減らした」行のうち sel_pairs の割合の分布を返す（n_perm,）．"""
-    rng = np.random.default_rng(seed)
-    pos = m.judgment.to_numpy() == "pos"
-    if not pos.any():
-        return np.full(n_perm, np.nan)
-    corpora = m.corpus.to_numpy()
-    pair = m.pair.to_numpy().astype(int)
-    cps = sorted(set(corpora))
+def exact_perm_p(m, cells, elig, sel_pairs, perm_maps, conditional):
+    """厳密な p（S10・D14）：コーパスごとに置換（perm_maps：感情の名前の置換 24 通りか，感度の列の対の名前の置換 720 通り）を 1 つ引いて塊の全行の対に当てる．
+    cells：数える行（減らした [かつ効果の出うるセル]）．conditional なら，各コーパスで cells のすべてを同じ単位の効果の出うるセルに移す置換だけから一様に引く．
+    コーパスの間は独立なので数の分布を畳み込む．戻り：観測した選んだ対の数，p ＝ P(数 ≥ 観測)，分布，置換を引けたコーパスの数．"""
     sel = np.zeros(6, bool)
     sel[list(sel_pairs)] = True
-    out = np.empty(n_perm)
-    for i in range(n_perm):
-        newpair = np.empty_like(pair)
-        for cp in cps:
-            perm = rng.permutation(6)
-            mk = corpora == cp
-            newpair[mk] = perm[pair[mk]]
-        out[i] = sel[newpair[pos]].mean()
-    return out
+    ukey = m.run.astype(str) + "|" + m.student.astype(str) + "|" + m.K.astype(str) + "|" + m.corpus.astype(str)
+    pair = m.pair.to_numpy().astype(int)
+    pmf, obs, n_random = np.array([1.0]), 0, 0
+    for cp in sorted(set(m.corpus)):
+        mk = (m.corpus == cp).to_numpy() & cells
+        if not mk.any():
+            continue
+        cu, cpair = ukey[mk].to_numpy(), pair[mk]
+        ek = elig & (m.corpus == cp).to_numpy()
+        elig_set = {(u, int(q)) for u, q in zip(ukey[ek], pair[ek])}
+        counts = []
+        for perm in perm_maps:
+            newp = perm[cpair]
+            if conditional and not all((u, int(q)) in elig_set for u, q in zip(cu, newp)):
+                continue
+            counts.append(int(sel[newp].sum()))
+        pmf_cp = np.bincount(counts, minlength=7) / len(counts)
+        if len(set(counts)) > 1:
+            n_random += 1
+        pmf = np.convolve(pmf, pmf_cp)
+        obs += int(sel[cpair].sum())
+    p = float(pmf[obs:].sum()) if cells.any() else np.nan
+    return obs, p, pmf, n_random
 
 
-def p3a_table(main, out, n_perm):
-    """族ごとの P3a の判定（3 節）．数は（コーパス，対）の塊で数え，土台は none の損が δ 以上の（単位，対）に条件づけた割合，割合の偶然の分布は並べ替え．"""
-    fam_rows, perm_store = [], {}
-    fams = (("audio", ["audio_wavlm"], ANGER_PAIRS, 0.5, "怒りを含む 3 対", True),
+def null_block_counts(m, rep_lookup):
+    """数の帰無（S10・S11）：保存した複製 b (B, 6) を点で引いて中心を 0 に寄せ，抽出ごとに「x* + (lo − x) > 0 かつ x* ≥ δ」を帰無の「減らした」とし，
+    （コーパス，対）の塊に畳んだ数の分布を返す．同じ (実行, コーパス) の中では抽出が f・K・対で共通なので相関が保たれる（世界の間は独立）．"""
+    hits, B = {}, None
+    for r_ in m.itertuples():
+        b = rep_lookup(r_)
+        if b is None or not (np.isfinite(r_.point) and np.isfinite(r_.lo) and np.isfinite(r_.delta_d_pair)):
+            continue
+        xs = b[:, int(r_.pair)].astype(np.float64) - r_.point
+        posn = (xs + (r_.lo - r_.point) > 0) & (xs >= r_.delta_d_pair)
+        B = len(posn)
+        k = (r_.corpus, int(r_.pair))
+        hits[k] = hits[k] | posn if k in hits else posn
+    if B is None:
+        return None
+    return np.sum(np.stack(list(hits.values())), 0) if hits else np.zeros(B)
+
+
+def p3a_eval(m, rep_lookup, sel_pairs, base, label, judged):
+    """1 つの族・1 つの版の P3a の判定（3 節）．m は（単位，対）の行（judgment・point・lo・delta_d_pair・none_dirloss・chosen・corpus・pair を持つ）．"""
+    ukey = ["run", "student", "K", "corpus"]
+    pos = (m.judgment == "pos").to_numpy()
+    elig = ((m.none_dirloss >= m.delta_d_pair) & (m.chosen != "none") & (m.judgment != "missing")).to_numpy()   # 効果の出うるセル（D14）
+    pos_elig = pos & elig
+    n_pos, n_pos_elig = int(pos.sum()), int(pos_elig.sum())
+    pairs_arr = m.pair.to_numpy().astype(int)
+    sel = np.zeros(6, bool)
+    sel[list(sel_pairs)] = True
+    blk = m.assign(is_pos=pos).groupby(["corpus", "pair"]).agg(pos_any=("is_pos", "any"), n=("is_pos", "size")).reset_index()
+    blk["pos_any"] = blk.pos_any.astype(bool)
+    n_blocks = len(blk)
+    n_pos_blocks = int(blk.pos_any.sum()) if n_blocks else 0
+    chance_anyof = float((1 - (1 - CHANCE) ** blk.n).sum()) if n_blocks else 0.0
+    null = null_block_counts(m, rep_lookup)
+    null_q95 = float(np.percentile(null, 95)) if null is not None else np.nan
+    null_mean = float(null.mean()) if null is not None else np.nan
+    thr = float(np.nanmax([null_q95, chance_anyof]))
+    c_count = bool(n_pos_blocks > thr)
+    sel_pos_elig = pos_elig & sel[pairs_arr]
+    n_corp_sel_elig = int(m.corpus[sel_pos_elig].nunique())
+    c_corp = bool(n_corp_sel_elig >= 2)
+    obs_c, p_cond, pmf_c, n_rand = exact_perm_p(m, pos_elig, elig, sel_pairs, CLASS_PERM_MAPS, True)
+    obs_u, p_class, _, _ = exact_perm_p(m, pos, elig, sel_pairs, CLASS_PERM_MAPS, False)
+    _, p_pairperm, _, _ = exact_perm_p(m, pos, elig, sel_pairs, PAIR_PERM_MAPS, False)
+    share_elig = obs_c / n_pos_elig if n_pos_elig else np.nan
+    share_all = obs_u / n_pos if n_pos else np.nan
+    base_cond = float(sel[pairs_arr[elig]].mean()) if elig.any() else np.nan
+    c_p = bool(np.isfinite(p_cond) and p_cond < P_ALPHA)
+    n_tests = len(m)
+    pos_rows = m[pos]
+    # cebd64b の規則（最初の設計）：減らした数 > 判定の数 × 0.025 かつ割合（全部の減らした）> 固定の土台
+    holds_old = bool(n_pos > CHANCE * n_tests and np.isfinite(share_all) and share_all > base)
+    return {"n_units": len(m[ukey].drop_duplicates()), "n_tests": n_tests, "n_tests_nonone": int((m.chosen != "none").sum()), "chance_pos": CHANCE * n_tests,
+            "n_pos": n_pos, "n_neg": int((m.judgment == "neg").sum()), "n_same": int((m.judgment == "same").sum()), "n_undet": int((m.judgment == "undet").sum()),
+            "n_missing": int((m.judgment == "missing").sum()), "n_same_by_definition": int((m.judgment == "same_by_definition").sum()),
+            "n_blocks": n_blocks, "n_pos_blocks": n_pos_blocks, "chance_pos_blocks_anyof": chance_anyof, "null_count_q95": null_q95, "null_count_mean": null_mean,
+            "count_threshold": thr, "cond_count": c_count,
+            "n_eligible": int(elig.sum()), "n_pos_elig": n_pos_elig, "n_pos_not_elig": n_pos - n_pos_elig, "n_pos_not_elig_selected": int((pos & ~elig & sel[pairs_arr]).sum()),
+            "n_pos_corpora": int(m.corpus[pos].nunique()), "n_pos_corpora_selected": int(m.corpus[pos & sel[pairs_arr]].nunique()),
+            "n_pos_corpora_selected_elig": n_corp_sel_elig, "cond_two_corpora": c_corp,
+            "pos_corpora": ";".join(f"{c}:{n}" for c, n in pos_rows.groupby("corpus").size().items()),
+            "selected_pairs": label, "n_selected_among_pos_elig": obs_c, "share_selected_among_pos_elig": share_elig, "p_class_perm_cond": p_cond,
+            "n_corpora_with_random_perm": n_rand, "cond_p": c_p,
+            "share_selected_among_pos": share_all, "base_share": base, "base_share_cond": base_cond, "p_class_perm_uncond": p_class, "p_pair_perm_uncond": p_pairperm,
+            "share_p3a_side_among_pos": float(pos_rows.pair.isin(P3A_SIDE_PAIRS).mean()) if n_pos else np.nan,
+            "share_p3b_side_among_pos": float(pos_rows.pair.isin(P3B_SIDE_PAIRS).mean()) if n_pos else np.nan,
+            "n_pos_happy_anger": int((pos_rows.pair == HAPPY_ANGER).sum()),
+            "share_arousal_pairs_among_pos": float(pos_rows.pair.isin(AROUSAL_PAIRS).mean()) if n_pos else np.nan, "base_arousal": 2 / 6,
+            "P3a_holds": bool(c_count and c_corp and c_p) if judged else None, "P3a_holds_cebd64b": holds_old if judged else None,
+            "pos_pairs": ";".join(f"{PAIR_NAME[p]}:{n}" for p, n in pos_rows.pair.value_counts().sort_index().items())}
+
+
+FAMILIES = (("audio", ["audio_wavlm"], ANGER_PAIRS, 0.5, "怒りを含む 3 対", True),
             ("video", ["video"], (NEU_ANG,), 1 / 6, "平静–怒り", False),
             ("text", ["text_roberta"], ANGER_PAIRS, 0.5, "怒りを含む 3 対（記述）", True),
             ("fused", list(RUNS), ANGER_PAIRS, 0.5, "怒りを含む 3 対（記述）", True))
-    for fam, stus, sel_pairs, base, label, main_with_md in fams:
+
+
+def p3a_table(rows, rep_lookup, tag, judged_comp=MAIN_COMP):
+    """族 × 印の有無の P3a の表．rows は 1 つの比較・1 つの感度の（単位，対）の行．"""
+    out = []
+    for fam, stus, sel_pairs, base, label, main_with_md in FAMILIES:
         for use_md in (True, False):
-            m = main[main.student.isin(stus)]
+            m = rows[rows.student.isin(stus)]
             if not use_md:
                 m = m[m.model_dependent != True]  # noqa: E712
-            ukey = ["run", "student", "K", "corpus"]
-            n_units = len(m[ukey].drop_duplicates())
-            n_tests = len(m)
-            m_nn = m[m.chosen != "none"]                                       # none を選んだ単位を除いた数（S4・D11）
-            n_units_nonone = len(m_nn[ukey].drop_duplicates())
-            n_tests_nonone = len(m_nn)
-            pos = m[m.judgment == "pos"]
-            n_pos = len(pos)
-            # 塊で数える（S1・S7・S4）：（コーパス，対）に畳む．どの世界・K かで 1 回でも減らせば 1
-            blk = m.assign(is_pos=(m.judgment == "pos")).groupby(["corpus", "pair"]).agg(pos_any=("is_pos", "any"), n=("is_pos", "size")).reset_index()
-            blk["pos_any"] = blk.pos_any.astype(bool)
-            n_blocks = len(blk)
-            n_pos_blocks = int(blk.pos_any.sum()) if n_blocks else 0
-            chance_blocks = CHANCE * n_blocks
-            chance_blocks_anyof = float((1 - (1 - CHANCE) ** blk.n).sum())
-            pos_corp = pos.groupby("corpus").size()
-            n_pos_corpora = int((blk.groupby("corpus").pos_any.any()).sum())
-            share = float(pos.pair.isin(sel_pairs).mean()) if n_pos else np.nan
-            share_blk = float(blk[blk.pos_any].pair.isin(sel_pairs).mean()) if n_pos_blocks else np.nan
-            elig = m[(m.none_dirloss >= m.delta_d_pair) & (m.chosen != "none") & (m.judgment != "missing")]   # 条件つきの土台（D6・L1）
-            base_cond = float(elig.pair.isin(sel_pairs).mean()) if len(elig) else np.nan
-            null = perm_share_null(m, sel_pairs, n_perm, [PERM_SEED, zlib.crc32(fam.encode()), int(use_md)])
-            perm_store[f"{fam}|md{int(use_md)}"] = null.astype(np.float32)
-            q95 = float(np.nanpercentile(null, 95)) if np.isfinite(null).any() else np.nan
-            p_perm = float(np.nanmean(null >= share)) if (np.isfinite(null).any() and np.isfinite(share)) else np.nan
-            c_count = bool(n_pos_blocks > chance_blocks)
-            c_corp = bool(n_pos_corpora >= 2)
-            c_cond = bool(np.isfinite(share) and np.isfinite(base_cond) and share > base_cond)
-            c_fixed = bool(np.isfinite(share) and share > base)
-            c_perm = bool(np.isfinite(share) and np.isfinite(q95) and share > q95)
-            judged = fam in ("audio", "video")
-            fam_rows.append({"family": fam, "with_model_dependent": use_md, "is_main_version": use_md == main_with_md,
-                             "n_units": n_units, "n_tests": n_tests, "chance_pos": CHANCE * n_tests,
-                             "n_units_nonone": n_units_nonone, "n_tests_nonone": n_tests_nonone, "chance_pos_nonone": CHANCE * n_tests_nonone,
-                             "n_pos": n_pos, "n_neg": int((m.judgment == "neg").sum()), "n_same": int((m.judgment == "same").sum()),
-                             "n_undet": int((m.judgment == "undet").sum()), "n_missing": int((m.judgment == "missing").sum()),
-                             "n_same_by_definition": int((m.judgment == "same_by_definition").sum()),
-                             "n_blocks": n_blocks, "n_pos_blocks": n_pos_blocks, "chance_pos_blocks": chance_blocks, "chance_pos_blocks_anyof": chance_blocks_anyof,
-                             "n_pos_corpora": n_pos_corpora, "pos_corpora": ";".join(f"{c}:{n}" for c, n in pos_corp.items()),
-                             "selected_pairs": label, "share_selected_among_pos": share, "share_selected_among_pos_blocks": share_blk,
-                             "base_share": base, "base_share_cond": base_cond, "n_eligible_cond": len(elig),
-                             "perm_q95": q95, "perm_p": p_perm, "n_perm": n_perm,
-                             "share_p3a_side_among_pos": float(pos.pair.isin(P3A_SIDE_PAIRS).mean()) if n_pos else np.nan,
-                             "share_p3b_side_among_pos": float(pos.pair.isin(P3B_SIDE_PAIRS).mean()) if n_pos else np.nan,
-                             "n_pos_happy_anger": int((pos.pair == HAPPY_ANGER).sum()),
-                             "share_arousal_pairs_among_pos": float(pos.pair.isin(AROUSAL_PAIRS).mean()) if n_pos else np.nan, "base_arousal": 2 / 6,
-                             "cond_count_blocks": c_count, "cond_two_corpora": c_corp, "cond_share_gt_base_cond": c_cond, "cond_share_gt_base_fixed": c_fixed,
-                             "cond_share_gt_perm_q95": c_perm,
-                             "P3a_holds": bool(c_count and c_corp and c_cond and c_perm) if judged else None,
-                             "P3a_holds_base_fixed": bool(c_count and c_corp and c_fixed and c_perm) if judged else None,
-                             "pos_pairs": ";".join(f"{PAIR_NAME[p]}:{n}" for p, n in pos.pair.value_counts().sort_index().items())})
-    F = pd.DataFrame(fam_rows)
-    F.to_csv(out / "b_p3_checks.csv", index=False)
-    np.savez_compressed(out / "b_p3a_perm.npz", **perm_store)
-    return F
+            judged = fam in ("audio", "video") and (rows.comparison.iloc[0] == judged_comp if len(rows) else False)
+            out.append({"table": tag, "comparison": rows.comparison.iloc[0] if len(rows) else "", "family": fam, "with_model_dependent": use_md,
+                        "is_main_version": use_md == main_with_md, **p3a_eval(m, rep_lookup, sel_pairs, base, label, judged)})
+    return pd.DataFrame(out)
 
 
-def summarize(out, A_, U, J, R, Ph, n_perm):
+def direct_comparisons(U, boot_store, jk_store):
+    """手法どうしの直接の差（oursx − 相手．none は打ち消し合う）．同じ (実行, コーパス) の抽出が共通なので複製の差がそのまま複製になる（S14）．"""
+    main = U[U.sensitivity == "main"]
+    rows, store = [], {}
+    for comp_b, name in DIRECT:
+        A_ = main[main.comparison == MAIN_COMP].set_index(["run", "student", "K", "corpus", "pair"])
+        B_ = main[main.comparison == comp_b].set_index(["run", "student", "K", "corpus", "pair"])
+        for key in A_.index.intersection(B_.index):
+            ra, rb = A_.loc[key], B_.loc[key]
+            run, st, K, cp, pidx = key
+            x = ra.point - rb.point
+            lo = hi = np.nan
+            rule = "no_replicates"
+            ba_, bb_ = boot_store.get(ra.boot_key), boot_store.get(rb.boot_key)
+            skey = f"{name}|{run}|{st}|{K}|{cp}|main"
+            if ba_ is not None and bb_ is not None:
+                b = ba_.astype(np.float64) - bb_.astype(np.float64)
+                store[skey] = b.astype(np.float32)
+                lo, hi = np.nanpercentile(b[:, pidx], 2.5), np.nanpercentile(b[:, pidx], 97.5)
+                rule = "pct"
+                if ra.g_eff_min < GEFF_MIN:
+                    ta, tb = jk_store.get(ra.boot_key), jk_store.get(rb.boot_key)
+                    if ta is not None and tb is not None:
+                        th = ta.astype(np.float64) - tb.astype(np.float64)
+                        lj, hj = jk_interval(x, th[:, pidx], ra.g_eff_min)
+                        lo, hi = np.fmin(lo, lj), np.fmax(hi, hj)
+                        rule = "union_pct_jk"
+                    else:
+                        rule, lo, hi = "pct_jk_missing", np.nan, np.nan
+            both = (ra.chosen != "none") and (rb.chosen != "none")
+            rows.append({"comparison": name, "run": run, "role": ra.role, "student": st, "K": K, "corpus": cp, "n_groups": ra.n_groups, "metric": "dir", "pair": pidx,
+                         "pair_name": PAIR_NAME[pidx], "point": x, "lo": lo, "hi": hi, "interval_rule": rule, "g_eff_min": ra.g_eff_min, "delta_d_pair": ra.delta_d_pair,
+                         "sensitivity": "main", "boot_key": skey, "judgment": judge_unit(x, lo, hi, ra.delta_d_pair) if both else "same_by_definition",
+                         "model_dependent": np.nan, "none_dirloss": ra.none_dirloss, "chosen": "both" if both else "none", "chosen_a": ra.chosen, "chosen_b": rb.chosen,
+                         "both_chosen": both, "judgment_a": ra.judgment, "judgment_b": rb.judgment, "same_pos": bool(ra.judgment == "pos" and rb.judgment == "pos")})
+    return pd.DataFrame(rows), store
+
+
+def assumptions_table(A_, AR, U, anchors, out):
+    """E83 の仮定の表（define の D8）．基準は 3 節．"""
+    rows = []
+    main = U[(U.comparison == MAIN_COMP) & (U.sensitivity == "main")] if len(U) else U
+    if len(main):
+        g_flag = (main.point - main.point_auc).abs() > MODEL_UNIT_FRAC * main.delta_d_pair
+        e_flag = main.model_err_diff.abs() > MODEL_UNIT_FRAC * main.delta_d_pair
+        rows.append({"assumption": 1, "name": "z が各感情の中で正規（形）", "measure": "|g_対| > δ/2 の（単位，対）の数", "value": int(g_flag.sum()), "n": len(main), "criterion": "印（E79 の 1 行目）"})
+        rows.append({"assumption": 2, "name": "模型の誤差が none と手法で打ち消し合う", "measure": "|Δe_対| > δ/2 の（単位，対）の数", "value": int(e_flag.sum()), "n": len(main), "criterion": "印（E79 の 2 行目）"})
+        hw = (main.hi - main.lo) / 2
+        ratio = main.delta_d_pair / hw.where(hw > 0)
+        per_fam = ratio.groupby(main.student).median().to_dict()
+        rows.append({"assumption": 6, "name": "仮のターゲットの揺れを評価のターゲットの基準に移せる", "measure": "δ_d,対 ÷ 区間の半分の幅の中央値（f ごと）",
+                     "value": ";".join(f"{k}:{v:.2f}" for k, v in per_fam.items()), "n": int(ratio.notna().sum()), "criterion": "記述（比が 1 から大きく外れる族を書く）"})
+        near = (main.none_dirloss - main.delta_d_pair).abs() < 2
+        rows.append({"assumption": 5, "name": "D が最良の向きの近く（土台の境界）", "measure": "|none の向きの損 − δ_d,対| < 2 ポイントの（単位，対）の数",
+                     "value": int(near.sum()), "n": len(main), "criterion": "記述（(iii) の表に添える）"})
+    if len(AR):
+        neg = AR.groupby(["run", "student", "K", "pair_name"]).none_dirloss.apply(lambda x: int((x < 0).sum())).reset_index(name="n_neg")
+        write_csv(neg, out / "assumption5_negative_counts.csv")
+        rows.append({"assumption": 5, "name": "D が最良の向きの近く（負の対）", "measure": "none の向きの損が負の（ターゲット，反復，対）の数", "value": int((AR.none_dirloss < 0).sum()),
+                     "n": len(AR), "criterion": "記述（f × K × 対の内訳は assumption5_negative_counts.csv）"})
+        lv = AR.groupby(["run", "student", "K", "pair_name"]).agg(med_abs_err=("none_model_err", lambda x: float(x.abs().median())), med_dirloss=("none_dirloss", "median")).reset_index()
+        lv["ratio"] = lv.med_abs_err / lv.med_dirloss.where(lv.med_dirloss > 0)
+        lv["level_fit_ok"] = lv.ratio < 1 / 3
+        write_csv(lv, out / "assumption3_level_fit.csv")
+        rows.append({"assumption": 3, "name": "水準の当てはまり（対ごと）", "measure": "|acc_model − acc_actual| の中央値 ÷ none の向きの損の中央値 ≥ 1/3 の（f，K，対）の数",
+                     "value": int((~lv.level_fit_ok.fillna(False)).sum()), "n": len(lv), "criterion": "1/3 未満（E75 の決まり）．満たさない (f, 対) は (A) の表に注を付ける"})
+        vr = AR.dropna(subset=["none_var_ratio"])
+        if len(vr):
+            share = ((vr.none_var_ratio >= 0.5) & (vr.none_var_ratio <= 2)).groupby([vr.student, vr.pair_name]).mean().reset_index(name="share_in_0.5_2")
+            write_csv(share, out / "assumption4_var_ratio.csv")
+            rows.append({"assumption": 4, "name": "等分散（記述）", "measure": "v_k/v_l が [0.5, 2] に入る割合（全体）", "value": float(((vr.none_var_ratio >= 0.5) & (vr.none_var_ratio <= 2)).mean()),
+                         "n": len(vr), "criterion": "記述（E79 の 4 行目と同じ理由）"})
+    rows.append({"assumption": 7, "name": "6 対の名前は交換できない（4 感情の名前は交換できる）", "measure": "p_class_perm_cond（主）と p_pair_perm_uncond（感度）", "value": "b_p3_checks.csv",
+                 "n": "", "criterion": "感情の名前の置換を主にする"})
+    # 8：J の f が (B) の none の対ごとの弱さを写す（順位の一致）
+    if len(anchors) and len(A_):
+        wmap = {"fuse-audio-video-text": "avt", "fuse-audio-video": "av"}
+        cA = anchors.groupby(["world", "student", "K", "pseudo_corpus", "pair"]).a_d0_f.median().reset_index()
+        bB = A_[A_.run.isin(RUNS)].assign(world=lambda d: d.run.map(wmap), corpus=lambda d: d.target.map(corp), a_d0_none=lambda d: d.A_D0 - d.none_dirloss)
+        bB = bB.groupby(["world", "student", "K", "corpus", "pair"]).a_d0_none.mean().reset_index().rename(columns={"corpus": "pseudo_corpus"})
+        mm = cA.merge(bB, on=["world", "student", "K", "pseudo_corpus", "pair"])
+        rk = []
+        for key, g in mm.groupby(["world", "student", "K", "pseudo_corpus"]):
+            if len(g) == 6 and g.a_d0_f.notna().all():
+                rho = stats.spearmanr(g.a_d0_f, g.a_d0_none).correlation
+                rk.append({"world": key[0], "student": key[1], "K": key[2], "corpus": key[3], "spearman": float(rho)})
+        rk = pd.DataFrame(rk)
+        write_csv(rk, out / "assumption8_rank.csv")
+        if len(rk):
+            rows.append({"assumption": 8, "name": "J の f が (B) の none の対ごとの弱さを写す", "measure": "(C) の f の 6 対の A(d,0) と (B) の none の A(d_none,0) の順位相関の中央値（f ごと）",
+                         "value": ";".join(f"{k}:{v:.2f}" for k, v in rk.groupby("student").spearman.median().items()), "n": len(rk), "criterion": "記述（一致が低い族では P3c を読まない）"})
+    T_ = pd.DataFrame(rows)
+    write_csv(T_, out / "assumptions.csv")
+    return T_
+
+
+def summarize(out, A_, AR, U, RC, J, R, Ph, anchors, boot_store, jk_store):
     lines = ["# E83 のまとめ（台本が自動で書く．読み方は docs/exploratory-analyses.md の E83 3 節）", ""]
     # (A)
     if len(A_):
-        qs = {"A_D0": "A_D0", "none_dirloss": "none_dirloss", "none_dirloss_auc": "none_dirloss_auc", "none_model_err": "none_model_err", "none_posloss": "none_posloss"}
+        qs = ["A_D0", "none_dirloss", "none_dirloss_auc", "none_model_err", "none_posloss"]
         agg = {}
         for c in qs:
             agg[f"{c}_med"] = (c, "median")
@@ -769,101 +1040,200 @@ def summarize(out, A_, U, J, R, Ph, n_perm):
             agg[f"{c}_max"] = (c, "max")
             agg[f"{c}_q1"] = (c, lambda x: x.quantile(0.25))
             agg[f"{c}_q3"] = (c, lambda x: x.quantile(0.75))
-        a_all = A_.groupby(["run", "student", "K", "pair_name"]).agg(n_targets=("target", "nunique"), **agg).reset_index()
-        a_all.to_csv(out / "a_summary_by_K.csv", index=False)
+        a_all = A_.groupby(["run", "student", "K", "pair_name"]).agg(n_targets=("target", "nunique"), n_neg_targets=("none_dirloss", lambda x: int((x < 0).sum())),
+                                                                     n_neg_reps=("n_neg_reps", "sum"), **agg).reset_index()
+        write_csv(a_all, out / "a_summary_by_K.csv")
         a = a_all[a_all.K == "0"].drop(columns="K")
-        a.to_csv(out / "a_summary_K0.csv", index=False)
-        show = ["run", "student", "pair_name", "n_targets", "A_D0_med", "A_D0_min", "A_D0_max", "none_dirloss_med", "none_dirloss_min", "none_dirloss_max",
+        write_csv(a, out / "a_summary_K0.csv")
+        show = ["run", "student", "pair_name", "n_targets", "n_neg_targets", "A_D0_med", "A_D0_min", "A_D0_max", "none_dirloss_med", "none_dirloss_min", "none_dirloss_max",
                 "none_dirloss_auc_med", "none_model_err_med"]
-        lines += ["## (A) K=0 の none：対ごとの A(D,0) と向きの損（反復の平均のターゲットの中央値と範囲．d_AUC 版と模型の誤差も）", "", a[show].to_string(index=False), ""]
-    # (B) 判定の数
+        lines += ["## (A) K=0 の none：対ごとの A(D,0)（縮小 LDA の向き．最良の向きの推定値）と向きの損（反復の平均のターゲットの中央値と範囲．d_AUC 版・模型の誤差・負の数も）", "",
+                  a[show].to_string(index=False), ""]
+    # (B)
     if len(U):
+        def rep_lookup(r_):
+            return boot_store.get(r_.boot_key)
         main = U[(U.comparison == MAIN_COMP) & (U.sensitivity == "main")]
         cnt = judgment_table(main, out / "b_judgments_by_pair.csv")
         nomd = judgment_table(main[main.model_dependent != True], out / "b_judgments_by_pair_nomd.csv")  # noqa: E712
-        for sname in ("delta_half", "delta_double", "rev_order", "iemocap_impro_only"):
+        for sname in ("delta_half", "delta_double", "rev_order", "iemocap_impro_only", "session_jk"):
             judgment_table(U[(U.comparison == MAIN_COMP) & (U.sensitivity == sname)], out / f"b_judgments_by_pair_{sname}.csv")
-        for _, comp in COMPARISONS[1:]:                                        # kd・abl_own（補助．主の数え上げには入れない）
+        for _, comp in COMPARISONS[1:]:
             judgment_table(U[(U.comparison == comp) & (U.sensitivity == "main")], out / f"b_judgments_by_pair_{comp.split('-')[-1]}.csv")
         lines += ["## (B) 単位 × 対の判定の数（主：none − oursx．pos＝減らした，neg＝増やした，same＝同じ水準，undet＝判定できない）", "", cnt.to_string(index=False), ""]
         lines += ["## (B) 同じく，模型に依る対を除いた数", "", nomd.to_string(index=False), ""]
-        F = p3a_table(main, out, n_perm)
-        showF = ["family", "with_model_dependent", "is_main_version", "n_tests", "n_tests_nonone", "n_pos", "n_blocks", "n_pos_blocks", "chance_pos_blocks",
-                 "n_pos_corpora", "share_selected_among_pos", "base_share", "base_share_cond", "perm_q95", "P3a_holds", "P3a_holds_base_fixed", "pos_pairs"]
-        lines += ["## (B) 予言 P3a の判定（族ごと．数は（コーパス，対）の塊，土台は条件つき，割合の偶然は並べ替え）", "", F[showF].to_string(index=False), ""]
+        # 手法どうしの直接の差（S14・C8）
+        DU, dstore = direct_comparisons(U, boot_store, jk_store)
+        write_csv(DU, out / "b_units_direct.csv")
+        if len(dstore):
+            np.savez_compressed(out / "b_boot_direct.npz", **dstore)
+        for name in DU.comparison.unique() if len(DU) else []:
+            judgment_table(DU[DU.comparison == name], out / f"b_judgments_by_pair_{name}.csv")
+        # P3a：主の表，感度の表，比較相手ごとの表
+        F = p3a_table(main, rep_lookup, "main")
+        write_csv(F, out / "b_p3_checks.csv")
+        showF = ["family", "with_model_dependent", "is_main_version", "n_tests", "n_pos", "n_pos_elig", "n_blocks", "n_pos_blocks", "count_threshold", "null_count_q95",
+                 "n_pos_corpora_selected_elig", "share_selected_among_pos_elig", "base_share_cond", "p_class_perm_cond", "P3a_holds", "P3a_holds_cebd64b", "pos_pairs"]
+        lines += ["## (B) 予言 P3a の判定（族ごと．数は複製の帰無の 95% 点，広がりは怒りの対の減らしたが出たコーパス，偏りは条件つきの感情の名前の置換の厳密な p）", "",
+                  F[showF].to_string(index=False), ""]
+        sens = []
+        for sname in ("delta_half", "delta_double", "rev_order", "iemocap_impro_only"):
+            sens.append(p3a_table(U[(U.comparison == MAIN_COMP) & (U.sensitivity == sname)], rep_lookup, sname))
+        sj = U[(U.comparison == MAIN_COMP) & (U.sensitivity == "session_jk")]
+        if len(sj):
+            sens.append(p3a_table(pd.concat([main[~main.corpus.isin(set(sj.corpus))], sj]), rep_lookup, "session_jk"))
+        mc = main.copy()
+        mc["judgment"] = [("same_by_definition" if j == "same_by_definition" else judge_unit(x, lo, hi, dl)) for j, x, lo, hi, dl in zip(mc.judgment, mc.point, mc.lo, mc.hi, mc.delta_d_pair_corpus)]
+        mc["delta_d_pair"] = mc.delta_d_pair_corpus
+        sens.append(p3a_table(mc, rep_lookup, "delta_corpus"))
+        sens.append(p3a_table(main[~main.corpus.isin(EXCL_MA)], rep_lookup, "excl_mosei_afew"))
+        S_ = pd.concat(sens, ignore_index=True)
+        write_csv(S_, out / "b_p3_checks_sens.csv")
+        byc = [p3a_table(U[(U.comparison == comp) & (U.sensitivity == "main")], rep_lookup, "main") for _, comp in COMPARISONS[1:]]
+        if len(DU):
+            def dlookup(r_):
+                return dstore.get(r_.boot_key)
+            for name in DU.comparison.unique():
+                d_ = DU[DU.comparison == name]
+                byc.append(p3a_table(d_, dlookup, "direct_all"))
+                byc.append(p3a_table(d_[d_.both_chosen], dlookup, "direct_both_chosen"))
+        Bc = pd.concat(byc, ignore_index=True)
+        write_csv(Bc, out / "b_p3_checks_by_comparison.csv")
+        lines += ["## (B) 比較相手ごとの同じ表（groupB で P3a の 3 条件が成り立てば偏りは手法に特有とは書かない）", "",
+                  Bc[Bc.is_main_version][["table", "comparison", "family", "n_pos", "n_pos_elig", "n_pos_blocks", "count_threshold", "n_pos_corpora_selected_elig",
+                                          "share_selected_among_pos_elig", "p_class_perm_cond", "cond_count", "cond_two_corpora", "cond_p", "pos_pairs"]].to_string(index=False), ""]
+    # 再現率の差（UAR への橋）
+    if len(RC):
+        ru = RC.groupby(["comparison", "run", "student", "K", "target", "emotion"]).diff_recall.mean().reset_index()
+        ru["corpus"] = ru.target.map(corp)
+        ru = ru.groupby(["comparison", "run", "student", "K", "corpus", "emotion"]).diff_recall.mean().reset_index()
+        write_csv(ru, out / "b_recall_units.csv")
     # (C)
     if len(J):
-        Jc = J.groupby(["world", "student", "role", "K", "g", "pair_name", "pseudo_corpus"]).J.median().reset_index()      # コーパスの中央値を先に取る（S7）
-        Js = Jc.groupby(["world", "student", "role", "K", "g", "pair_name"]).agg(J_med=("J", "median"), J_q1=("J", lambda x: x.quantile(0.25)),
-                                                                                 J_q3=("J", lambda x: x.quantile(0.75)), n_corpora=("pseudo_corpus", "nunique")).reset_index()
-        Js.to_csv(out / "c_complementarity_summary.csv", index=False)
-        Jc.to_csv(out / "c_complementarity_by_corpus.csv", index=False)
-        lines += ["## (C) 対ごとの補い合い J_kl(f, g) の中央値（仮のターゲットのコーパスの中央値を取ってから中央値）", "",
+        def summ(Jx, name):
+            Jc = Jx.groupby(["world", "student", "role", "K", "g", "pair_name", "pseudo_corpus"])[["J", "J_dir"]].median().reset_index()   # コーパスの中央値を先に取る（S7）
+            Js = Jc.groupby(["world", "student", "role", "K", "g", "pair_name"]).agg(J_med=("J", "median"), J_q1=("J", lambda x: x.quantile(0.25)),
+                                                                                     J_q3=("J", lambda x: x.quantile(0.75)), J_dir_med=("J_dir", "median"),
+                                                                                     J_dir_q1=("J_dir", lambda x: x.quantile(0.25)), J_dir_q3=("J_dir", lambda x: x.quantile(0.75)),
+                                                                                     n_corpora=("pseudo_corpus", "nunique")).reset_index()
+            write_csv(Js, out / f"c_complementarity_summary{name}.csv")
+            write_csv(Jc, out / f"c_complementarity_by_corpus{name}.csv")
+            return Jc, Js
+        Jc, Js = summ(J, "")
+        Jc_ns, _ = summ(J[J.pseudo != "IEMOCAP-script"], "_noscript")          # 仮のターゲットの IEMOCAP 台本を除いた版（L6）
+        lines += ["## (C) 対ごとの補い合い J_kl(f, g)（切片を含む）と向きだけの J_dir の中央値（仮のターゲットのコーパスの中央値を取ってから中央値）", "",
                   Js[Js.g.isin(["pF", "ref", "poe0"])].to_string(index=False), ""]
-        # P3c：(B) で減った対について，同じコーパスを仮のターゲットにした J(f, ref) の中央値が正か（単モダリティと融合の f．none を選んだ単位と J の無い行は除く）
+        # P3c（記述．判定はしない）：(B) で減った対と，同じコーパスを仮のターゲットにした J（g = ref と，oursx がその単位で選んだ教師）
         if len(U):
             main = U[(U.comparison == MAIN_COMP) & (U.sensitivity == "main")]
             wmap = {"fuse-audio-video-text": "avt", "fuse-audio-video": "av"}
-            jref = Jc[Jc.g == "ref"].set_index(["world", "student", "K", "pair_name", "pseudo_corpus"]).J
+            jix = Jc.set_index(["world", "student", "K", "g", "pair_name", "pseudo_corpus"])
+            jix_ns = Jc_ns.set_index(["world", "student", "K", "g", "pair_name", "pseudo_corpus"])
             rows = []
             for r in main.itertuples():
-                key = (wmap[r.run], r.student, r.K, r.pair_name, r.corpus)
+                w = wmap[r.run]
+                teacher = r.chosen.split("|")[2].split(":")[0] if r.chosen != "none" else ""
+                gt = TEACHER_G.get(teacher)
+                def jget(ix, g, col):
+                    try:
+                        return float(ix.loc[(w, r.student, r.K, g, r.pair_name, r.corpus), col])
+                    except KeyError:
+                        return np.nan
                 rows.append({"run": r.run, "role": r.role, "student": r.student, "K": r.K, "corpus": r.corpus, "pair_name": r.pair_name, "judgment": r.judgment,
-                             "model_dependent": r.model_dependent, "chosen": r.chosen, "J_ref_same_corpus": float(jref.get(key, np.nan))})
+                             "model_dependent": r.model_dependent, "chosen": r.chosen, "teacher": teacher, "teacher_g": gt or "missing",
+                             "elig": bool(r.none_dirloss >= r.delta_d_pair and r.chosen != "none" and r.judgment != "missing"),
+                             "J_ref_same_corpus": jget(jix, "ref", "J"), "J_dir_ref_same_corpus": jget(jix, "ref", "J_dir"),
+                             "J_teacher_same_corpus": jget(jix, gt, "J") if gt else np.nan, "J_dir_teacher_same_corpus": jget(jix, gt, "J_dir") if gt else np.nan,
+                             "J_ref_same_corpus_noscript": jget(jix_ns, "ref", "J")})
             Q = pd.DataFrame(rows)
-            Q.to_csv(out / "b_c_p3c_rows.csv", index=False)
-            n_all = len(Q)
-            Qk = Q[(Q.chosen != "none") & Q.J_ref_same_corpus.notna()]
+            write_csv(Q, out / "b_c_p3c_rows.csv")
             p3c_rows = []
-            for scope, Qs in (("all", Qk), ("uni", Qk[Qk.role == "uni"]), ("fused", Qk[Qk.role == "fused"]), ("nomd", Qk[Qk.model_dependent != True])):  # noqa: E712
-                base = float((Qs.J_ref_same_corpus > 0).mean()) if len(Qs) else np.nan
-                red = Qs[Qs.judgment == "pos"]
-                share = float((red.J_ref_same_corpus > 0).mean()) if len(red) else np.nan
-                p3c_rows.append({"scope": scope, "n_rows_all": n_all, "n_rows_used": len(Qs), "n_excluded_none_chosen": int((Q.chosen == "none").sum()),
-                                 "n_excluded_J_nan": int(Q.J_ref_same_corpus.isna().sum()), "base_share_J_pos": base, "n_reduced": len(red),
-                                 "share_J_pos_among_reduced": share, "P3c_holds": bool(len(red) and np.isfinite(share) and share > base)})
+            for jcol in ("J_ref_same_corpus", "J_dir_ref_same_corpus", "J_teacher_same_corpus", "J_dir_teacher_same_corpus", "J_ref_same_corpus_noscript"):
+                Qk = Q[(Q.chosen != "none") & Q[jcol].notna()]
+                for scope, Qs in (("all", Qk), ("elig", Qk[Qk.elig]), ("uni", Qk[Qk.role == "uni"]), ("fused", Qk[Qk.role == "fused"]), ("nomd", Qk[Qk.model_dependent != True])):  # noqa: E712
+                    red = Qs[Qs.judgment == "pos"]
+                    strata = Qs.groupby(["run", "student", "K"])[jcol].apply(lambda x: float((x > 0).mean()))
+                    wbase = float(np.mean([strata.get((a, b, c), np.nan) for a, b, c in zip(red.run, red.student, red.K)])) if len(red) else np.nan
+                    p3c_rows.append({"J_column": jcol, "scope": scope, "n_rows_all": len(Q), "n_rows_used": len(Qs), "n_excluded_none_chosen": int((Q.chosen == "none").sum()),
+                                     "n_excluded_J_nan": int(Q[jcol].isna().sum()), "base_share_J_pos": float((Qs[jcol] > 0).mean()) if len(Qs) else np.nan,
+                                     "base_share_J_pos_stratified": wbase, "n_reduced": len(red),
+                                     "share_J_pos_among_reduced": float((red[jcol] > 0).mean()) if len(red) else np.nan, "descriptive_only": True})
             P3c = pd.DataFrame(p3c_rows)
-            P3c.to_csv(out / "b_c_p3c.csv", index=False)
-            lines += ["## P3c：減った対のうち J(f, ref) > 0 の割合と土台（主は scope = all）", "", P3c.to_string(index=False), ""]
+            write_csv(P3c, out / "b_c_p3c.csv")
+            lines += ["## P3c（記述．判定はしない）：減った対のうち J > 0 の割合と土台（全体と（世界，f，K）の層で重みづけた土台）", "", P3c.to_string(index=False), ""]
     if len(R):
         Rc = R.groupby(["world", "model", "emotion", "pseudo_corpus"]).recall.median().reset_index()
-        Rs = Rc.groupby(["world", "model", "emotion"]).recall.median().unstack("emotion").reset_index()
-        Rs.to_csv(out / "c_recall_summary.csv", index=False)
-        lines += ["## (C) 感情ごとの再現率の中央値（モダリティの分類器と予測モデル）", "", Rs.to_string(index=False), ""]
+        Rs = Rc.groupby(["world", "model", "emotion"]).agg(recall_med=("recall", "median"), recall_q1=("recall", lambda x: x.quantile(0.25)),
+                                                            recall_q3=("recall", lambda x: x.quantile(0.75)), n_corpora=("pseudo_corpus", "nunique")).reset_index()
+        write_csv(Rs, out / "c_recall_summary.csv")
+        lines += ["## (C) 感情ごとの再現率の中央値と四分位（モダリティの分類器と予測モデル）", "", Rs.to_string(index=False), ""]
     if len(Ph):
         Pc = Ph.groupby(["world", "mod1", "mod2", "emotion", "pseudo_corpus"])[["phi", "both_wrong", "indep_both_wrong"]].median().reset_index()
-        Ps = Pc.groupby(["world", "mod1", "mod2", "emotion"])[["phi", "both_wrong", "indep_both_wrong"]].median().reset_index()
-        Ps.to_csv(out / "c_phi_summary.csv", index=False)
-        lines += ["## (C) 誤りの φ（感情ごと）", "", Ps.to_string(index=False), ""]
+        Ps = Pc.groupby(["world", "mod1", "mod2", "emotion"]).agg(phi_med=("phi", "median"), phi_q1=("phi", lambda x: x.quantile(0.25)), phi_q3=("phi", lambda x: x.quantile(0.75)),
+                                                                  both_wrong_med=("both_wrong", "median"), indep_both_wrong_med=("indep_both_wrong", "median"),
+                                                                  n_corpora=("pseudo_corpus", "nunique")).reset_index()
+        write_csv(Ps, out / "c_phi_summary.csv")
+        lines += ["## (C) 誤りの φ（感情ごと．中央値と四分位）", "", Ps.to_string(index=False), ""]
+    T_ = assumptions_table(A_, AR, U, anchors, out)
+    if len(T_):
+        lines += ["## 仮定の表（3 節．基準は値を見る前に決めた）", "", T_.to_string(index=False), ""]
     (out / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def snapshot_code(out, stamp):
+    """実行したコードの写しと git diff HEAD を results/e83/code/<開始時刻>/ に置く（methods.md 6.3）．"""
+    dest = out / "code" / stamp
+    dest.mkdir(parents=True, exist_ok=True)
+    for rel in SCRIPT_DEPS:
+        (dest / Path(rel).parent).mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / rel, dest / rel)
+    diff = subprocess.run(["git", "diff", "HEAD", "--"] + list(SCRIPT_DEPS), cwd=ROOT, capture_output=True, text=True).stdout
+    (dest / "git_diff_HEAD.patch").write_text(diff, encoding="utf-8")
+    return dest
+
+
 def main():
+    global HEADER
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=ROOT / "results" / "e83")
     ap.add_argument("--boot", type=int, default=1000)
-    ap.add_argument("--perm", type=int, default=1000, help="P3a の割合の並べ替えの回数")
     ap.add_argument("--seed", type=int, default=0)                             # E79 と同じ種
     ap.add_argument("--targets", nargs="+", help="試走用．評価のターゲットを限る")
     ap.add_argument("--stages", nargs="+", default=["ab", "c"], choices=["ab", "c"])
-    ap.add_argument("--smoke", action="store_true", help="試走（--boot 50・--perm 100 と同じ扱い．provenance に残す）")
+    ap.add_argument("--smoke", action="store_true", help="試走（--boot 50 と同じ扱い．provenance に残す）")
     args = ap.parse_args()
     if args.smoke:
         args.boot = min(args.boot, 50)
-        args.perm = min(args.perm, 100)
-    out = args.out
+    out = args.out.resolve()
+    partial = bool(args.smoke or args.targets or sorted(args.stages) != ["ab", "c"])
+    if partial and out.is_relative_to(ROOT / "results"):
+        raise SystemExit("試走（--smoke，--targets，--stages の一部）の出力は results/ の下に書かない．--out を checks/E83/ か scratchpad にする（I8）")
+    if not partial and (out / "provenance.json").exists():
+        raise SystemExit(f"{out} に前の本番の出力がある．消すか別の --out にしてから流す（上書きで出所が消えないように）")
     out.mkdir(parents=True, exist_ok=True)
+    started = dt.datetime.now()
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = subprocess.run(["git", "status", "--porcelain", "exp", "measure"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    prov = {"commit": commit, "dirty_exp_measure": bool(dirty), "script_sha256": sha256(Path(__file__)), "args": vars(args) | {"out": str(out)},
-            "comparisons": [c for _, c in COMPARISONS], "main_comparison": MAIN_COMP, "perm_seed": PERM_SEED,
-            "started": dt.datetime.now().isoformat(timespec="seconds"), "inputs": {}}
-    A_ = U = J = R = Ph = pd.DataFrame()
+    dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--"] + list(SCRIPT_DEPS), cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    untracked = [l_[3:] for l_ in subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "exp", "measure"], cwd=ROOT, capture_output=True, text=True).stdout.splitlines()
+                 if l_.startswith("??")]
+    HEADER = f"E83 commit={commit} dirty_deps={bool(dirty)} script_sha256={sha256(Path(__file__))[:16]} boot={args.boot} seed={args.seed} smoke={args.smoke} targets={args.targets} stages={args.stages} started={started.isoformat(timespec='seconds')}"
+    prov = {"commit": commit, "dirty_deps": bool(dirty), "dirty_deps_status": dirty, "untracked_exp_measure": untracked, "script_sha256": sha256(Path(__file__)),
+            "deps_sha256": {rel: sha256(ROOT / rel) for rel in SCRIPT_DEPS}, "args": vars(args) | {"out": str(out)},
+            "constants": {"GEFF_MIN": GEFF_MIN, "MODEL_UNIT_FRAC": MODEL_UNIT_FRAC, "CHANCE": CHANCE, "DELTA_SCALES": list(DELTA_SCALES), "P_ALPHA": P_ALPHA,
+                          "MIN_PAIR_N": MIN_PAIR_N, "REPS": list(REPS), "PSEUDO_REPS": list(PSEUDO_REPS), "KS": list(KS), "delta_rule": "2 × median_(T,c) SD_r(100·A(d_none,0))/√10",
+                          "ANGER_PAIRS": [PAIR_NAME[p] for p in ANGER_PAIRS], "P3A_SIDE_PAIRS": [PAIR_NAME[p] for p in P3A_SIDE_PAIRS],
+                          "P3B_SIDE_PAIRS": [PAIR_NAME[p] for p in P3B_SIDE_PAIRS], "VIDEO_PAIR": PAIR_NAME[NEU_ANG], "SEEDED": sorted(SEEDED), "EXCL_MA": list(EXCL_MA),
+                          "class_perms": int(len(CLASS_PERM_MAPS)), "pair_perms_sensitivity": int(len(PAIR_PERM_MAPS)), "TEACHER_G": TEACHER_G},
+            "comparisons": [c for _, c in COMPARISONS], "direct": [n for _, n in DIRECT], "main_comparison": MAIN_COMP,
+            "started": started.isoformat(timespec="seconds"), "inputs": {}}
+    prov["code_snapshot"] = str(snapshot_code(out, started.strftime("%Y%m%d-%H%M%S")).relative_to(out))
+    A_ = AR = U = RC = J = R = Ph = AN = pd.DataFrame()
+    boot_store, jk_store = {}, {}
     if "ab" in args.stages:
-        A_, U = stage_ab(args, out, prov)
+        A_, AR, U, RC, boot_store, jk_store = stage_ab(args, out, prov)
     if "c" in args.stages:
-        J, R, Ph = stage_c(args, out, prov)
-    summarize(out, A_, U, J, R, Ph, args.perm)
+        J, R, Ph, AN = stage_c(args, out, prov)
+    summarize(out, A_, AR, U, RC, J, R, Ph, AN, boot_store, jk_store)
     prov["finished"] = dt.datetime.now().isoformat(timespec="seconds")
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")
     print(out)
