@@ -95,8 +95,10 @@ def fit_soft(Z, Qs, lam, Zte_list):
 
 
 def pair_a(P, y):
-    """確率 P（n×4）とラベルから，対ごとの a = 100·Φ(d/2)（2 つの山の模型．切片を最良に直した 2 感情の正解率）．"""
-    L = np.log(np.clip(P, 1e-12, 1))
+    """確率 P（n×4）とラベルから，対ごとの a = 100·Φ(d/2)（2 つの山の模型．切片を最良に直した 2 感情の正解率）．
+    単位ファイルの none_te__* は log_softmax（負の値）で保存されているので，負なら対数のまま使う．"""
+    P = np.asarray(P, dtype=np.float64)
+    L = P if P.min() < 0 else np.log(np.clip(P, 1e-12, 1))
     out = []
     for p, (k, j) in enumerate(PAIRS):
         zk, zj = L[y == k, k] - L[y == k, j], L[y == j, k] - L[y == j, j]
