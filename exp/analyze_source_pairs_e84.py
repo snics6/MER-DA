@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import itertools
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -87,6 +88,19 @@ def log_scores(kind, s, t):
         return np.log(np.clip(p, 1e-12, 1.0)), sorted(z["src_names"].tolist())
     z = np.load(ROOT / "results" / f"shift_{kind}" / "logits" / f"{s}.npz")
     return z[f"t_{t}"].astype(np.float64), None
+
+
+def check_mixture_rows(kind, t, y, logp):
+    """合併の点数 p_tgt_all の行がターゲットの発話一覧の順と合うか：保存されたテストの添字でラベルと argmax を照合する（反復 0〜9）．"""
+    z = np.load(ROOT / "results" / f"multisource_scores_{kind}" / f"{t}.npz")
+    for r in range(10):
+        if f"test_idx_r{r}" not in z.files:
+            continue
+        ix = z[f"test_idx_r{r}"]
+        if not np.array_equal(y[ix], z[f"y_test_r{r}"]):
+            raise SystemExit(f"{kind} {t} r{r}：合併のテストのラベルが発話一覧と合わない")
+        if not np.array_equal(logp[ix].argmax(1), z[f"s_all_r{r}"].argmax(1)):
+            raise SystemExit(f"{kind} {t} r{r}：合併のテストの argmax が p_tgt_all の行と合わない")
 
 
 def make_splits(df, target, seeds):
@@ -199,6 +213,8 @@ class Block:
                 raise SystemExit(f"{kind} {s}→{t}：点数 {len(L)} 行と発話 {n} 本が合わない")
             if s == ALL and names != sources_for(kind, t):
                 raise SystemExit(f"{kind} {t}：合併のソース {names} が候補 {sources_for(kind, t)} と合わない")
+            if s == ALL and idx is None:
+                check_mixture_rows(kind, t, self.y, L)
             self.P[s] = L
             self.Z[s] = np.stack([L[:, k] - L[:, j] for k, j in PAIRS], 1)
         self.masks = [(self.y == k, self.y == j) for k, j in PAIRS]
@@ -344,13 +360,15 @@ def gain_for_block(blk, n_boot, rng):
             if star is not None:
                 picks.append((B, star, [ALL] * NP))
     lo, hi, nb = boot_gain(blk, picks, n_boot, rng) if picks else (np.nan, np.nan, 0)
-    # δ_u：この単位の (分け方, ソース, 対) での |a_h0 − a_h1| の中央値
-    diffs = []
+    # δ_u：この単位の (分け方, ソース, 対) での |a_h0 − a_h1| の中央値．a_AUC 版も
+    diffs, diffs_auc = [], []
     for name, half, _ in blk.splits:
         for s in blk.srcs:
             c0, c1 = blk.cells(s, half == 0), blk.cells(s, half == 1)
             diffs += [abs(c0[p]["a"] - c1[p]["a"]) for p in range(NP) if np.isfinite(c0[p]["a"]) and np.isfinite(c1[p]["a"])]
+            diffs_auc += [abs(c0[p]["a_auc"] - c1[p]["a_auc"]) for p in range(NP) if np.isfinite(c0[p]["a_auc"]) and np.isfinite(c1[p]["a_auc"])]
     delta_u = float(np.median(diffs)) if diffs else np.nan
+    delta_u_auc = float(np.median(diffs_auc)) if diffs_auc else np.nan
     # 全発話で選んで全発話で測った値（上限ではない）
     allm = np.ones(len(blk.y), bool)
     _, sf, _ = select_eval(blk, allm, allm)
@@ -361,7 +379,7 @@ def gain_for_block(blk, n_boot, rng):
                 G_best=g.G_best.mean(), G_all_auc=g.G_all_auc.mean(), G_emp_all=g.G_emp_all.mean(), G_UAR=g.G_UAR.mean(),
                 uar_vote_star=g.uar_vote_star.mean(), uar_vote_all=g.uar_vote_all.mean(), uar_all_raw=g.uar_all_raw.mean(),
                 uar_vote_circ=g.uar_vote_circ.mean(), uar_circ_uar_raw=g.uar_circ_uar_raw.mean(),
-                G_full_all=sf["G_all"], G_full_best=sf["G_best"], delta_u=delta_u, n_distinct_star_full=sf["n_distinct_star"])
+                G_full_all=sf["G_all"], G_full_best=sf["G_best"], delta_u=delta_u, delta_u_auc=delta_u_auc, n_distinct_star_full=sf["n_distinct_star"])
     return prow, grow, unit
 
 
@@ -423,10 +441,9 @@ def summarize_kind(kind, units, prow, best, p1):
                n_units_G_all_ge_delta=int((u.G_all >= u.delta_u).sum()), n_units_G_all_pos=int((u.G_all > 0).sum()),
                binom_majority_pos=binom_majority(n), G_all_median=float(u.G_all.median()), delta_u_median=float(u.delta_u.median()),
                R1_room=bool((u.G_all >= u.delta_u).sum() > n / 2),
-               n_units_G_all_auc_ge_delta=int((u.G_all_auc >= u.delta_u).sum()), G_UAR_median=float(u.G_UAR.median()),
-               n_units_G_UAR_pos=int((u.G_UAR > 0).sum()), G_emp_all_median=float(u.G_emp_all.median()))
-    # 副（cebd64b の規則）：相手は最良の 1 ソース，δ は kind 全体で 1 つ
-    delta_g = float(np.nanmedian(np.abs(best[(best.kind == kind)].gap_best.to_numpy()))) if False else np.nan  # 旧 δ は半分の差で作る（下）
+               n_units_G_all_auc_ge_delta=int((u.G_all_auc >= u.delta_u_auc).sum()), n_units_G_emp_ge_delta=int((u.G_emp_all >= u.delta_u).sum()),
+               G_UAR_median=float(u.G_UAR.median()), n_units_G_UAR_pos=int((u.G_UAR > 0).sum()), G_emp_all_median=float(u.G_emp_all.median()))
+    # 副：相手を最良の 1 ソースにした G_best（δ_u で数える）．cebd64b の規則そのものの値は凍結した台本 analyze_source_pairs_e84_cebd64b.py の出力で並べる
     out.update(old_G_best_median=float(u.G_best.median()), old_n_units_G_best_ge_delta_u=int((u.G_best >= u.delta_u).sum()))
     # P84-1：全発話（E13 の d の再集計）と，外の半分で確かめた版（gap_best ≥ δ_u の s* ≠ s°）
     b = best[(best.kind == kind) & (best.unit != "IEMOCAP(script)")]
@@ -437,7 +454,7 @@ def summarize_kind(kind, units, prow, best, p1):
     out.update(p1_full_share_ne_anger=float(sh.get(True, np.nan)), p1_full_share_ne_other=float(sh.get(False, np.nan)),
                p1_oos_share_ne_ge_delta_anger=float(sh2.get(True, np.nan)), p1_oos_share_ne_ge_delta_other=float(sh2.get(False, np.nan)),
                agree_auc_share=float(b.agree_auc.mean()), **p1)
-    return out, delta_g
+    return out
 
 
 # ---------------------------------------------------------------- (C) 世界ごとのモダリティ
@@ -490,16 +507,27 @@ def world_rows(world, seeds, restrict, n_boot, rng):
                     continue
                 aA = {k: [cA[k][circA[k]][p]["a"] for p in range(NP)] for k in kinds}
                 aB = {k: [cB[k][circA[k]][p]["a"] for p in range(NP)] for k in kinds}
-                mstar = [argmax_name({k: aA[k][p] for k in singles}) for p in range(NP)]
+                aucB = {k: [cB[k][circA[k]][p]["a_auc"] for p in range(NP)] for k in kinds}
+
+                def emp_B(k, p):   # 半分 A の中点の閾値を，半分 B で測る
+                    c = cA[k][circA[k]][p]
+                    b = blocks[k]
+                    return thr_acc(b.Z[circA[k]][:, p], base.masks[p][0] & B, base.masks[p][1] & B, (c["mean_k"] + c["mean_l"]) / 2)
+                empB = {k: [emp_B(k, p) for p in range(NP)] for k in kinds}
+                mstar = [argmax_name({k: aA[k][p] for k in singles}) for p in range(NP)]        # 単モダリティの最良（R_oos 用）
+                mstar_all = [argmax_name({k: aA[k][p] for k in kinds}) for p in range(NP)]      # 融合を含む最良（P84-2 用．cebd64b と同じ候補）
                 r_oos = [aB[mstar[p]][p] - aB[fused][p] for p in range(NP)]
-                # cebd64b の規則：測る半分 B で単モダリティの最良を選び，0 で切る
+                r_oos_auc = [aucB[mstar[p]][p] - aucB[fused][p] for p in range(NP)]
+                r_oos_emp = [empB[mstar[p]][p] - empB[fused][p] for p in range(NP)]
+                # cebd64b の規則の近似：測る半分 B で単モダリティの最良を選び，0 で切る（向きごと．cebd64b そのものの値は凍結した台本で別に出す）
                 r_old = [max(0.0, max(aB[k][p] for k in singles) - aB[fused][p]) for p in range(NP)]
                 for p in range(NP):
                     srow.append(dict(world=world, version=ver, target=t, unit=unit_of(t), split=name, dir=f"{hs}>{he}", pair=PAIR_NAMES[p],
-                                     m_star_A=mstar[p], r_oos=r_oos[p], r_old=r_old[p], a_B_fused=aB[fused][p],
+                                     m_star_A=mstar[p], m_star_all_A=mstar_all[p], r_oos=r_oos[p], r_oos_auc=r_oos_auc[p], r_oos_emp=r_oos_emp[p],
+                                     r_old=r_old[p], a_B_fused=aB[fused][p],
                                      **{f"a_B_{k}": aB[k][p] for k in singles}, **{f"s_circ_A_{k}": circA[k] for k in kinds},
                                      audio_weak_pair=PAIR_NAMES[p] in AUDIO_WEAK, n_common=n_common))
-                rrows.append(dict(R_oos=np.mean(r_oos), R_old=np.mean(r_old)))
+                rrows.append(dict(R_oos=np.mean(r_oos), R_oos_auc=np.mean(r_oos_auc), R_oos_emp=np.mean(r_oos_emp), R_old=np.mean(r_old)))
                 picks.append((B, [(mstar[p], circA[mstar[p]]) for p in range(NP)], circA[fused]))
         # ブートストラップ（測る半分の塊を復元抽出）
         draws = []
@@ -519,20 +547,23 @@ def world_rows(world, seeds, restrict, n_boot, rng):
             draws.append(np.nanmean(vals) if np.isfinite(vals).any() else np.nan)
         d = np.array(draws)
         d = d[np.isfinite(d)]
-        # δ_u：世界の全 kind の (分け方, ソース, 対) での |a_h0 − a_h1| の中央値（共通の発話の上）
-        diffs = []
+        # δ_u：世界の全 kind（その版の候補のソース）の (分け方, ソース, 対) での |a_h0 − a_h1| の中央値（共通の発話の上）．a_AUC 版も
+        diffs, diffs_auc = [], []
         for k in kinds:
             b = blocks[k]
             for name, half, _ in b.splits:
                 for s in b.srcs:
                     c0, c1 = b.cells(s, half == 0), b.cells(s, half == 1)
                     diffs += [abs(c0[p]["a"] - c1[p]["a"]) for p in range(NP) if np.isfinite(c0[p]["a"]) and np.isfinite(c1[p]["a"])]
+                    diffs_auc += [abs(c0[p]["a_auc"] - c1[p]["a_auc"]) for p in range(NP) if np.isfinite(c0[p]["a_auc"]) and np.isfinite(c1[p]["a_auc"])]
         rr = pd.DataFrame(rrows)
         urow.append(dict(world=world, version=ver, target=t, unit=unit_of(t), main=t != SCRIPT, n_common=n_common,
                          n_splits=len(base.splits), n_distinct_splits=len({g0 for _, _, g0 in base.splits}),
                          R_oos=rr.R_oos.mean() if len(rr) else np.nan, R_oos_lo=float(np.percentile(d, 2.5)) if len(d) else np.nan,
-                         R_oos_hi=float(np.percentile(d, 97.5)) if len(d) else np.nan, R_old=rr.R_old.mean() if len(rr) else np.nan,
-                         delta_u=float(np.median(diffs)) if diffs else np.nan,
+                         R_oos_hi=float(np.percentile(d, 97.5)) if len(d) else np.nan, n_boot=len(d),
+                         R_oos_auc=rr.R_oos_auc.mean() if len(rr) else np.nan, R_oos_emp=rr.R_oos_emp.mean() if len(rr) else np.nan,
+                         R_old=rr.R_old.mean() if len(rr) else np.nan,
+                         delta_u=float(np.median(diffs)) if diffs else np.nan, delta_u_auc=float(np.median(diffs_auc)) if diffs_auc else np.nan,
                          **{f"n_src_{k}": len(blocks[k].srcs) for k in kinds}))
     return crow, srow, urow
 
@@ -542,14 +573,18 @@ def summarize_world(world, ver, srow, urow):
     u = urow[(urow.world == world) & (urow.version == ver) & urow.main]
     n = len(u)
     s = srow[(srow.world == world) & (srow.version == ver) & (srow.unit != "IEMOCAP(script)")]
-    sh = s.assign(is_audio=s.m_star_A == "audio_wavlm").groupby(["unit", "pair", "audio_weak_pair"]).is_audio.mean().reset_index().groupby("audio_weak_pair").is_audio.mean()
+    # P84-2：融合を含む候補の中で音声が最良になった割合（半分 A で選んだ m*_all）
+    sh = s.assign(is_audio=s.m_star_all_A == "audio_wavlm").groupby(["unit", "pair", "audio_weak_pair"]).is_audio.mean().reset_index().groupby("audio_weak_pair").is_audio.mean()
+    sh1 = s.assign(is_audio=s.m_star_A == "audio_wavlm").groupby(["unit", "pair", "audio_weak_pair"]).is_audio.mean().reset_index().groupby("audio_weak_pair").is_audio.mean()
     return dict(world=world, version=ver, n_units=n, units="|".join(u.unit),
                 n_units_R_oos_ge_delta=int((u.R_oos >= u.delta_u).sum()), n_units_R_oos_pos=int((u.R_oos > 0).sum()),
                 binom_majority_pos=binom_majority(n), R_oos_median=float(u.R_oos.median()) if n else np.nan,
-                R2_room=bool((u.R_oos >= u.delta_u).sum() > n / 2), old_R_median=float(u.R_old.median()) if n else np.nan,
-                old_n_units_R_ge_delta_u=int((u.R_old >= u.delta_u).sum()),
+                R2_room=bool((u.R_oos >= u.delta_u).sum() > n / 2),
+                n_units_R_oos_auc_ge_delta=int((u.R_oos_auc >= u.delta_u_auc).sum()), n_units_R_oos_emp_ge_delta=int((u.R_oos_emp >= u.delta_u).sum()),
+                old_R_median=float(u.R_old.median()) if n else np.nan, old_n_units_R_ge_delta_u=int((u.R_old >= u.delta_u).sum()),
                 p2_share_audio_best_weak=float(sh.get(True, np.nan)), p2_share_audio_best_other=float(sh.get(False, np.nan)),
-                p2_chance_share=1 / len(singles))
+                p2_chance_share=1 / (len(singles) + 1),
+                p2_singles_share_audio_best_weak=float(sh1.get(True, np.nan)), p2_singles_share_audio_best_other=float(sh1.get(False, np.nan)))
 
 
 # ---------------------------------------------------------------- main
@@ -568,14 +603,17 @@ def main():
     ap.add_argument("--seeds", type=int, default=5, help="IEMOCAP 以外の話者の分け方の数（IEMOCAP はセッションの 10 通り）")
     ap.add_argument("--boot", type=int, default=500)
     ap.add_argument("--perm", type=int, default=1000)
-    ap.add_argument("--smoke", action="store_true", help="試走（seed 1，boot 50，perm 100，音声だけ，世界は AVT だけ．出力は --out か results/e84_smoke）")
+    ap.add_argument("--smoke", action="store_true", help="試走（seed 1，boot 50，perm 100，音声だけ，世界は AVT だけ．出力は --out か checks/E84/code_run/smoke）")
     args = ap.parse_args()
     if args.smoke:
         args.seeds, args.boot, args.perm, args.kinds, args.worlds = 1, 50, 100, ["audio_wavlm"], ["AVT"]
         if args.out == "results/e84":
-            args.out = "results/e84_smoke"
+            args.out = "checks/E84/code_run/smoke"
     out = ROOT / args.out
+    if out.exists() and any(out.glob("*.csv")):
+        raise SystemExit(f"{out} に古い出力がある．消してから流す")
     out.mkdir(parents=True, exist_ok=True)
+    shutil.copy(Path(__file__), out / "script_copy.py")
     seeds = list(range(args.seeds))
     rng = np.random.default_rng(84)
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
@@ -625,7 +663,7 @@ def main():
     summs = []
     for kind in args.kinds:
         p1 = perm_p1(full_tabs[kind], args.perm, rng)
-        sm, _ = summarize_kind(kind, units, prow, best, p1)
+        sm = summarize_kind(kind, units, prow, best, p1)
         summs.append(sm)
     write(pd.DataFrame(summs), out / "summary_kind.csv", header)
     if "audio_wavlm" in args.kinds:
