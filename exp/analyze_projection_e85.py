@@ -1,21 +1,34 @@
 """E85：配備する分類器は，疑似ラベルを「自分の特徴から予測できる分」だけ学ぶか．表せる分の上限と，手法が受け取った得を並べる（仮のターゲットだけ）．
 
-設計：docs/exploratory-analyses.md の E85（規則は値を見る前に書いた）．下調べ（仮のターゲットの候補とテスト．評価のターゲットのラベルは使わない）．
+設計：docs/exploratory-analyses.md の E85（規則は値を見る前に書いた．関門 1 の直しは checks/E85/fix_applied.md）．
+下調べ（仮のターゲットの候補とテスト．評価のターゲットのラベルは使わない）．
 
 入力（保存済み）
-  - E80 の単位ファイル results/e80/<world>/units/<fused>/<T>/<c>_r<r>.npz：候補の行番号 cand，テストの行番号 te，ラベル y・yte，
-    候補の上の各モデルの確率（P__<kind>：ソースだけの出発点，ref__K・ref0__K：学び直して掛けたモデル，poe0，none__<f>__K：K 本で学び直した配備する分類器，
-    none_te__<f>__K：同じくテストの上）
-  - E77 の仮のターゲットの成績 results/e77_<fused>/<T>_pseudo.csv：行 (pseudo=c, rep, student=f, method, param, meff, K, uar)．
-    method=none（出発点＋K 本），teacher（疑似ラベルのモデルそのもの．param=pF・pFK・poe0・ref・ref0），dist（手法．param="<g>:<重み>"，meff）
-  - 特徴：measure/data.load_any(c, <fused>) の行を cand・te で引き，配備する分類器のモダリティのブロックだけを使う
-新しい学習：候補の上で，疑似ラベル q を自分の特徴 z だけから当てる線形 softmax（柔らかい交差エントロピー，弱い L2）．GPU（torch，L-BFGS）．
+  - E80 の単位ファイル <e80>/<world>/units/<fused>/<T>/<c>_r<r>.npz：候補の行番号 cand，テストの行番号 te，ラベル y・yte，
+    候補の上の各モデルの確率（P__<kind>：ソースだけの出発点，ref__K：学び直して掛けたモデル，poe0：出発点の確率の積，
+    none__<f>__K：K 本で学び直した配備する分類器，none_te__<f>__K：同じくテストの上．log_softmax）
+  - E77 の仮のターゲットの成績 <e77>_<fused>/<T>_pseudo.csv：行 (pseudo=c, rep, student=f, method, param, meff, K, uar)．
+    method=none（出発点＋K 本），teacher（疑似ラベルのモデルそのもの．融合の student の下だけ），dist（手法．param="<g>:<重み>"，meff）
+  - 特徴：measure/data.load_any(c, <fused>) の行を cand・te で引き，配備する分類器 f のブロックだけを使う（融合の f は全部）
+新しい学習（proj）：候補の上で，疑似ラベル q を自分の特徴 z だけから当てる線形 softmax
+    min (1/n) Σ_i −q_iᵀ log softmax(W z_i + b) + λ/2 ‖W‖²
+  を exp/logreg.fit_batch（float64，問ごとに止める判定，勾配 1e−6）で解く．q は z を 4 回複製した 4n 行の重み（行 k·n+i に q_ik）として渡す
+  （exp/distill_belief.py の weak_rows と同じ形）．fit_batch の目的関数 (1/S)Σ w·CE + ‖W‖²/(2CS) は S = Σw = n なので C = 1/(λ n) で一致する．
+  λ ∈ {1e−3, 1e−2, 1e−1}．主の λ は，候補を話者で 2 分割し，片方で当てはめてもう片方で測った q への柔らかい交差エントロピー
+  （入れ替えて平均）が最小のもの（問ごと．ラベルは使わない）．感度として固定の 1e−3 も集計する．
 
 量（テストの上）：UAR_anchor（none_te），UAR_g（teacher の行），UAR_proj（当てはめた線形 softmax），UAR_method（dist の行）．
-  J = UAR_g − UAR_anchor，表せる分 r_rep = (UAR_proj − UAR_anchor)/J，受け取った分 r_m = (UAR_method − UAR_anchor)/J．
-候補の 2 分割（話者）でも同じ量を出す（teacher の無い g にも使える）．対ごとの a（2 感情の正解率．切片を最良に直した値）も出す．
+  J = UAR_g − UAR_anchor，表せる分の得 gain_proj = UAR_proj − UAR_anchor，手法の得 gain_method = UAR_method − UAR_anchor．
+  割合 r_rep = gain_proj/J，r_m = gain_method/J は，単位（c のコーパス．T と反復）で得と J を平均してから割る（summarize）．
+候補の 2 分割でも同じ量と，q への忠実さ（柔らかい交差エントロピー，argmax の一致率）を出す（teacher の無い g にも使える）．
+対ごとの a（2 感情の正解率．切片を最良に直した値）も出す．proj のテストの確率と W・b は fits/ に保存する．
 
-使い方：./.venv/bin/python exp/analyze_projection_e85.py [--out results/e85] [--worlds avt av] [--lam 1e-3] [--smoke]
+使い方：./.venv/bin/python exp/analyze_projection_e85.py --out results/e85/<名前> [--worlds avt av] [--targets T ...] [--rep-list 0 1 2] [--smoke]
+  本番（反復 0〜2．世界と T で 3 つに分けて同じ GPU で並行．設計 3 節）：
+    --worlds avt --out results/e85/avt
+    --worlds av --targets AFEW IEMOCAP-impro --out results/e85/av_a
+    --worlds av --targets MELD MOSEI CREMA-D --out results/e85/av_b
+  合わせて集計：--summarize-from results/e85/avt results/e85/av_a results/e85/av_b --out results/e85
 """
 import argparse
 import hashlib
@@ -23,6 +36,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -32,17 +46,33 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "exp"))
 sys.path.insert(0, str(ROOT / "measure"))
+import logreg  # noqa: E402
 from data import GROUP_SPEC, fused_parts, load_any, load_group  # noqa: E402
 from explore_pairs import PAIR_NAMES, PAIRS, ba  # noqa: E402
 from split import speaker_folds  # noqa: E402
 
 WORLDS = {"avt": "fuse-audio-video-text", "av": "fuse-audio-video"}
 KS = (0, 5, 25)
-G_OF_K = {0: ("pF", "ref"), 5: ("pF", "pFK", "ref"), 25: ("pF", "pFK", "ref")}   # teacher と dist（手法）の行がある g（poe0 は dist の行が無いので外す）
-WEIGHTS = ("raw", "bal")
+LAMS = (1e-3, 1e-2, 1e-1)        # λ の候補．主は候補の 2 分割で選ぶ（lam_sel）．ここ 1 か所で決める
+LAM_FIXED = 1e-3                 # 感度：固定の λ
+REPS_MAIN = [0, 1, 2]            # 本番で流す反復（所要のため．3・4 は --rep-list 3 4 で別に流して --summarize-from で合わせる）
+# 疑似ラベルのモデル g．self は f 自身の出発点（none__<f>__K．完全に表せる疑似ラベルの参照），oracle は候補の正解ラベルの one-hot（f の特徴で届く上限の参照）
+G_OF_K = {0: ("pF", "ref", "poe0", "self", "oracle"), 5: ("pF", "pFK", "ref", "poe0", "self", "oracle"), 25: ("pF", "pFK", "ref", "poe0", "self", "oracle")}
+G_TEACHER = {"pF": "pF", "pFK": "pFK", "ref": "ref", "poe0": "poe0"}       # E77 の teacher の行の param（self は anchor 自身，oracle は無い）
+G_DIST_SINGLE = ("pF", "pFK", "ref")     # 単モダリティの f に dist（手法）の行がある g（poe0 は無い → method の列は NaN）
+G_DIST_FUSED = ("ref", "poe0")           # 融合の f に dist の行がある g（pF・pFK は無い）
+WEIGHTS = ("raw", "bal", "hard0.5", "hard0.7", "hard0.9")
 MEFFS = ("n", "500", "100", "2000")
-TOL = 1e-6
-DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+MAIN_W, MAIN_M = "raw", "n"
+J_FLOOR = 1.0            # ポイント．単位の平均の J がこれ未満なら割合を読まない
+GAIN_FLOOR = 1.0         # ポイント．単位の平均の gain_proj がこれ未満なら Q1 を読まない
+Q1_FRAC = 0.8
+Q2_THR = 0.6
+PAIR_FLOOR = 2.0         # ポイント．対ごとの a_g − a_anchor がこれ未満なら方向の割合を読まない
+GRAD_OK = logreg.TOL     # 収束（勾配の最大絶対値）
+GRAD_NEAR = 1e-4         # これを超えた問は判定から外し，台本は出力を書いた後に異常終了する
+TOL_MATCH = 1e-3         # UAR の照合（ポイント）
+DEV = logreg.DEVICE
 
 
 def sha256(path):
@@ -61,37 +91,78 @@ def uar(pred, y):
     return 100 * float(np.mean([(pred[y == c] == c).mean() for c in range(4) if (y == c).any()]))
 
 
-def g_key(g, K, fused):
-    """単位ファイルの中の，疑似ラベルのモデル g の候補の上の確率の鍵．"""
-    return {"pF": f"P__{fused}", "pFK": f"none__{fused}__{K}", "ref": f"ref__{K}", "ref0": f"ref0__{K}", "poe0": "poe0"}[g]
+def q_name(g, K, f, fused):
+    """当てはめを共有する名前（K に依らない g は K を落とす）．self の K = 0 は P__<f> と同じ配列（Unit で確かめる）．"""
+    if g == "self":
+        return f"P__{f}" if K == 0 else f"none__{f}__{K}"
+    return {"pF": f"P__{fused}", "pFK": f"none__{fused}__{K}", "ref": f"ref__{K}", "poe0": "poe0", "oracle": "oracle"}[g]
 
 
-def fit_soft(Z, Qs, lam, Zte_list):
-    """柔らかい交差エントロピーの線形 softmax を，同じ特徴 Z の上の P 個の問（疑似ラベル Qs[j]）についてまとめて解く．
-    問 j：min (1/n) Σ_i −q_ijᵀ log softmax(W_j z_i + b_j) + lam/2 ‖W_j‖²．損失は問ごとに分かれているので，和を 1 つの L-BFGS で解いても各問の最適解は同じ．
-    戻り値：outs[j][k] = 問 j の分類器を Zte_list[k] に当てた確率．GPU では float32（float64 は A5000 で約 30 倍遅い）．"""
-    DT = torch.float32 if DEV.type == "cuda" else torch.float64
-    P = len(Qs)
-    Zt = torch.tensor(Z, dtype=DT, device=DEV)
-    Qt = torch.tensor(np.stack(Qs, 1), dtype=DT, device=DEV)          # n × P × 4
-    d = Z.shape[1]
-    W = torch.zeros(d, 4 * P, dtype=DT, device=DEV, requires_grad=True)
-    b = torch.zeros(4 * P, dtype=DT, device=DEV, requires_grad=True)
-    opt = torch.optim.LBFGS([W, b], lr=1, max_iter=400, tolerance_grad=1e-5, tolerance_change=1e-9, history_size=20, line_search_fn="strong_wolfe")
+def soft_ce(P, Q):
+    """柔らかい交差エントロピー −Σ q log p の平均（nat）．"""
+    return float(-(Q * np.log(np.clip(P, 1e-12, 1))).sum(1).mean())
+
+
+def fit_many(Z, Qs, lams, rows=None):
+    """同じ特徴 Z（標準化済み，n×d）の上で，疑似ラベル Qs[j]（n×4，行の和 1）× λ の全問を logreg.fit_batch で束ねて解く．
+    rows：学習に使う行（真偽，長さ n．None なら全行）．出発点は 0（温め直しは半分の当てはめで 17% しか縮めなかったので使わない）．
+    戻り値 out[j][lam] = dict(W (4×d), b (4,), n_iter, grad, loss)．loss は設計の目的関数（(1/n_fit) Σ −qᵀlog softmax + λ/2‖W‖²）．"""
+    n, d = Z.shape
+    rows = np.ones(n, bool) if rows is None else np.asarray(rows, bool)
+    n_fit = int(rows.sum())
+    Zt = logreg.to_device(Z)
+    X = Zt.repeat(4, 1)                                                     # 4n × d（行 k·n+i は発話 i，感情 k）
+    y = torch.arange(4, device=DEV).repeat_interleave(n)
+    mask = np.tile(rows, 4)
+    weights = []
+    for Q in Qs:
+        w = torch.as_tensor(np.ascontiguousarray(Q.T.reshape(-1)), dtype=logreg.DTYPE, device=DEV)
+        S = float(w[torch.as_tensor(mask, device=DEV)].sum())
+        if abs(S - n_fit) > 1e-6 * n_fit:
+            raise SystemExit(f"疑似ラベルの行の和が 1 でない（S={S}, n_fit={n_fit}）")
+        weights.append(w)
+    Cs = tuple(1.0 / (lam * n_fit) for lam in lams)                        # λ = 1/(C·S)，S = n_fit
+    zero, one = torch.zeros(d, dtype=logreg.DTYPE, device=DEV), torch.ones(d, dtype=logreg.DTYPE, device=DEV)
+    fits = logreg.fit_batch(X, y, [mask] * len(Qs), Cs, stats=(zero, one), weights=weights)
+    out = []
+    Zf = Zt[torch.as_tensor(rows, device=DEV)]
+    for Q, ft in zip(Qs, fits):
+        Qf = torch.as_tensor(Q, dtype=logreg.DTYPE, device=DEV)[torch.as_tensor(rows, device=DEV)]
+        o = {}
+        for lam, C in zip(lams, Cs):
+            W, b = ft.W[C], ft.b[C]
+            with torch.no_grad():
+                loss = float(-(Qf * torch.log_softmax(Zf @ W.T + b, 1)).sum(1).mean() + lam / 2 * (W * W).sum())
+            o[lam] = dict(W=W.cpu().numpy(), b=b.cpu().numpy(), n_iter=ft.n_iter[C], grad=ft.grad[C], loss=loss)
+        out.append(o)
+    del X, Zt, Zf
+    return out
+
+
+def fit_single_f64(Z, Q, lam, max_iter=3000, tol=1e-9):
+    """検算用：1 問を torch の L-BFGS（float64）で解く．戻り値 (W (4×d), b, n_iter, grad, loss)．"""
+    Zt = torch.tensor(Z, dtype=torch.float64, device=DEV)
+    Qt = torch.tensor(Q, dtype=torch.float64, device=DEV)
+    W = torch.zeros(Z.shape[1], 4, dtype=torch.float64, device=DEV, requires_grad=True)
+    b = torch.zeros(4, dtype=torch.float64, device=DEV, requires_grad=True)
+    opt = torch.optim.LBFGS([W, b], lr=1, max_iter=max_iter, tolerance_grad=tol, tolerance_change=1e-14, history_size=20, line_search_fn="strong_wolfe")
 
     def closure():
         opt.zero_grad()
-        logp = torch.log_softmax((Zt @ W + b).view(-1, P, 4), 2)
-        loss = -(Qt * logp).sum(2).mean(0).sum() + lam / 2 * (W * W).sum()
+        loss = -(Qt * torch.log_softmax(Zt @ W + b, 1)).sum(1).mean() + lam / 2 * (W * W).sum()
         loss.backward()
         return loss
     opt.step(closure)
-    with torch.no_grad():
-        outs = []
-        for j in range(P):
-            Wj, bj = W[:, 4 * j:4 * j + 4], b[4 * j:4 * j + 4]
-            outs.append([torch.softmax(torch.tensor(Zte, dtype=DT, device=DEV) @ Wj + bj, 1).double().cpu().numpy() for Zte in Zte_list])
-    return outs
+    loss = float(closure().detach())
+    g = max(float(W.grad.abs().max()), float(b.grad.abs().max()))
+    return W.detach().T.cpu().numpy(), b.detach().cpu().numpy(), int(opt.state[opt._params[0]]["n_iter"]), g, loss
+
+
+def predict(W, b, Z):
+    A = Z @ W.T + b
+    A = A - A.max(1, keepdims=True)
+    P = np.exp(A)
+    return P / P.sum(1, keepdims=True)
 
 
 def pair_a(P, y):
@@ -111,10 +182,10 @@ def pair_a(P, y):
 
 
 class Unit:
-    def __init__(self, world, T, c, r, feats):
+    def __init__(self, world, T, c, r, feats, e80, e77):
         fused = WORLDS[world]
         self.world, self.T, self.c, self.r, self.fused = world, T, c, r, fused
-        self.z = np.load(ROOT / "results" / "e80" / world / "units" / fused / T / f"{c}_r{r}.npz")
+        self.z = np.load(e80 / world / "units" / fused / T / f"{c}_r{r}.npz")
         self.cand, self.te = self.z["cand"], self.z["te"]
         self.y, self.yte = self.z["y"], self.z["yte"]
         df, X, blocks = feats
@@ -122,21 +193,41 @@ class Unit:
             raise SystemExit(f"{world} {T} {c} r{r}：候補・テストの行番号が発話一覧と合わない")
         if not np.array_equal(df.label_4.to_numpy()[self.cand], self.y) or not np.array_equal(df.label_4.to_numpy()[self.te], self.yte):
             raise SystemExit(f"{world} {T} {c} r{r}：ラベルが発話一覧と合わない")
+        if len(set(self.cand) & set(self.te)):
+            raise SystemExit(f"{world} {T} {c} r{r}：候補とテストの行が重なる")
         self.X, self.blocks, self.df = X, blocks, df
-        self.pseudo = pd.read_csv(ROOT / "results" / f"e77_{fused}" / f"{T}_pseudo.csv", comment="#")
-        self.pseudo = self.pseudo[(self.pseudo.pseudo == c) & (self.pseudo.rep == r)]
+        p = pd.read_csv(Path(f"{e77}_{fused}") / f"{T}_pseudo.csv", comment="#")
+        self.pseudo = p[(p.pseudo == c) & (p.rep == r)].copy()
+        for col in ("K", "meff", "param"):
+            self.pseudo[col] = self.pseudo[col].astype(str)
+        for f in list(fused_parts(fused)[1]) + [fused]:                    # self の K = 0 は出発点そのもの
+            if np.abs(self.z[f"none__{f}__0"] - self.z[f"P__{f}"]).max() > 1e-6:
+                raise SystemExit(f"{world} {T} {c} r{r}：none__{f}__0 が P__{f} と違う")
 
     def feat(self, f, rows):
         lo, hi = self.blocks[f]
         return self.X[rows, lo:hi]
 
-    def ps(self, f, K, method, param, meff=None):
-        q = self.pseudo[(self.pseudo.student == f) & (self.pseudo.K.astype(str) == str(K)) & (self.pseudo.method == method) & (self.pseudo.param.astype(str) == param)]
+    def ps(self, f, K, method, param, meff=None, required=True):
+        """E77 の成績の 1 行（ポイント）．required なら無いときに止まる．重複は常に止まる．"""
+        q = self.pseudo[(self.pseudo.student == f) & (self.pseudo.K == str(K)) & (self.pseudo.method == method) & (self.pseudo.param == param)]
         if meff is not None:
-            q = q[q.meff.astype(str) == str(meff)]
-        if len(q) != 1:
+            q = q[q.meff == str(meff)]
+        if len(q) > 1:
+            raise SystemExit(f"{self.world} {self.T} {self.c} r{self.r}：pseudo.csv の行が重複（{f} K={K} {method} {param} {meff}：{len(q)} 行）")
+        if len(q) == 0:
+            if required:
+                raise SystemExit(f"{self.world} {self.T} {self.c} r{self.r}：pseudo.csv に行が無い（{f} K={K} {method} {param} {meff}）")
             return np.nan
         return 100 * float(q.uar.iloc[0])       # pseudo.csv の uar は割合（0〜1）．ポイントにそろえる
+
+    def q_array(self, name, f):
+        if name == "oracle":
+            return np.eye(4)[self.y]
+        Q = self.z[name].astype(np.float64)
+        if Q.min() < 0:                          # log_softmax で保存された配列（none_te__*．候補の上の配列は確率）
+            Q = np.exp(Q)
+        return Q / Q.sum(1, keepdims=True)
 
 
 def feats_for(c, fused):
@@ -144,7 +235,7 @@ def feats_for(c, fused):
     mods, kinds = fused_parts(fused)
     dims = [load_group(c, kd)[1].shape[1] for kd in kinds]
     blocks, lo = {}, 0
-    for kd, dm in zip(kinds, dims):
+    for kd, dm in zip(kinds, dims):              # 連結の順は融合の名前のモダリティの順（audio, video, text）
         blocks[kd] = (lo, lo + dm)
         lo += dm
     blocks[fused] = (0, lo)
@@ -153,107 +244,265 @@ def feats_for(c, fused):
     return df, X, blocks
 
 
-def run_unit(u, singles, lams, rows_u, rows_p, chk):
+def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
     fused = u.fused
     fs = tuple(singles) + (fused,)
-    sp = pd.read_csv(ROOT / "results" / "e80" / u.world / "units" / fused / f"samples_{u.c}.csv")
+    sp = pd.read_csv(e80 / u.world / "units" / fused / f"samples_{u.c}.csv")
     if not np.array_equal(sp.sample_id.to_numpy(), u.df.sample_id.to_numpy()):
         raise SystemExit(f"{u.world} {u.c}：samples の sample_id が発話一覧と合わない")
     grp = sp.speaker_group.iloc[u.cand].reset_index(drop=True)
+    gte = set(sp.speaker_group.iloc[u.te].dropna())
+    if gte & set(grp.dropna()):
+        raise SystemExit(f"{u.world} {u.T} {u.c} r{u.r}：候補とテストで話者が重なる")
     fold = speaker_folds(grp, k=2, seed=0).to_numpy()
-    for f in singles:                       # 配備する分類器は単モダリティだけ（融合の f に融合の g を当てるのは自明なので外す）
+    n_fold_neg = int((fold < 0).sum())
+    sid_te = sp.sample_id.to_numpy()[u.te]
+    # 照合（単位ファイルごと．合わなければその場で止まる）：none_te の UAR と E77 の none の行，none_te の融合と teacher の pF・pFK の行
+    anc_uar = {}
+    for f in fs:
+        for K in KS:
+            anc_uar[f, K] = uar(u.z[f"none_te__{f}__{K}"].argmax(1), u.yte)
+            d = u.ps(f, K, "none", "-") - anc_uar[f, K]
+            rows_chk.append(dict(world=u.world, T=u.T, c=u.c, r=u.r, f=f, K=K, what="none_te vs pseudo.csv none", diff=d))
+            if abs(d) > TOL_MATCH:
+                raise SystemExit(f"{u.world} {u.T} {u.c} r{u.r} {f} K={K}：none_te の UAR が pseudo.csv の none の行と合わない（差 {d:.4f}）")
+    for K in KS:
+        for g, Kk in (("pF", 0), ("pFK", K)):
+            if g == "pFK" and K == 0:
+                continue
+            d = u.ps(fused, K, "teacher", g) - anc_uar[fused, Kk]
+            rows_chk.append(dict(world=u.world, T=u.T, c=u.c, r=u.r, f=fused, K=K, what=f"teacher {g} vs none_te__{fused}__{Kk}", diff=d))
+            if abs(d) > TOL_MATCH:
+                raise SystemExit(f"{u.world} {u.T} {u.c} r{u.r} K={K}：teacher の {g} の行が none_te__{fused}__{Kk} の UAR と合わない（差 {d:.4f}）")
+    fit_check = []
+    for f in fs:
         Zc, Zte = u.feat(f, u.cand), u.feat(f, u.te)
         mu, sd = Zc.mean(0), Zc.std(0) + 1e-8
         Zc, Zte = (Zc - mu) / sd, (Zte - mu) / sd
-        # 問の一覧（K, g, λ）を作り，同じ λ の問はまとめて 1 回で解く
-        probs = []
+        n, d = Zc.shape
+        names = []
+        for K in KS:
+            for g in G_OF_K[K]:
+                nm = q_name(g, K, f, fused)
+                if nm not in names:
+                    names.append(nm)
+        Qs = [u.q_array(nm, f) for nm in names]
+        t0 = time.time()
+        full = fit_many(Zc, Qs, LAMS)                                       # テスト用：全候補で当てはめ
+        # 候補の 2 分割：fold a で当てはめ，fold b で q への忠実さと UAR を測る（入れ替えて平均）
+        half = {nm: {lam: [] for lam in LAMS} for nm in names}
+        Pc = {nm: {lam: np.full((n, 4), np.nan) for lam in LAMS} for nm in names}
+        for a_, b_ in ((0, 1), (1, 0)):
+            ra, rb = fold == a_, fold == b_
+            fa = fit_many(Zc, Qs, LAMS, rows=ra)
+            for nm, Q, o in zip(names, Qs, fa):
+                Qb = Q[rb]
+                Hq = soft_ce(Qb, Qb)
+                for lam in LAMS:
+                    Pb = predict(o[lam]["W"], o[lam]["b"], Zc[rb])
+                    Pc[nm][lam][rb] = Pb
+                    half[nm][lam].append(dict(uar_proj=uar(Pb.argmax(1), u.y[rb]), uar_g=uar(Qb.argmax(1), u.y[rb]), ce=soft_ce(Pb, Qb), H=Hq,
+                                              agree=float((Pb.argmax(1) == Qb.argmax(1)).mean()), n_iter=o[lam]["n_iter"], grad=o[lam]["grad"],
+                                              n_fit=int(ra.sum()), rb=rb))
+        t_fit = time.time() - t0
+        lam_sel = {nm: min(LAMS, key=lambda l: (np.mean([h["ce"] for h in half[nm][l]]), l)) for nm in names}
+        # 保存：テストの確率（float16）・W・b・標準化・2 分割の保留側の確率
+        save = dict(sample_id_te=sid_te, yte=u.yte, mu=mu.astype(np.float32), sd=sd.astype(np.float32), names=np.array(names), lams=np.array(LAMS),
+                    lam_sel=np.array([lam_sel[nm] for nm in names]), fold=fold, sample_id_cand=sp.sample_id.to_numpy()[u.cand])
+        Pte = {}
+        for nm, o in zip(names, full):
+            for lam in LAMS:
+                Pte[nm, lam] = predict(o[lam]["W"], o[lam]["b"], Zte)
+                save[f"P_te|{nm}|{lam:g}"] = Pte[nm, lam].astype(np.float16)
+                save[f"P_cand_heldout|{nm}|{lam:g}"] = Pc[nm][lam].astype(np.float16)
+                save[f"W|{nm}|{lam:g}"] = o[lam]["W"].astype(np.float32)
+                save[f"b|{nm}|{lam:g}"] = o[lam]["b"]
+        fdir = out_fits / u.world / u.T
+        fdir.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(fdir / f"{u.c}_r{u.r}__{f}.npz", **save)
+        # 検算（世界ごとに最初の単位ファイルだけ）：束ねた解と 1 問ずつ float64（勾配 1e−8）で解いた解の一致（K = 0 の ref と oracle，固定の λ）
+        if do_fit_check:
+            for nm, Q, o in zip(names, Qs, full):
+                if nm not in (q_name("ref", 0, f, fused), "oracle"):
+                    continue
+                W1, b1, it1, g1, l1 = fit_single_f64(Zc, Q, LAM_FIXED, max_iter=2000, tol=1e-8)
+                P1 = predict(W1, b1, Zte)
+                P0 = Pte[nm, LAM_FIXED]
+                fit_check.append(dict(world=u.world, T=u.T, c=u.c, r=u.r, f=f, q=nm, lam=LAM_FIXED, n_cand=n, d=d,
+                                      n_iter_batch=o[LAM_FIXED]["n_iter"], grad_batch=o[LAM_FIXED]["grad"], loss_batch=o[LAM_FIXED]["loss"],
+                                      n_iter_single=it1, grad_single=g1, loss_single=l1,
+                                      d_uar_te=uar(P0.argmax(1), u.yte) - uar(P1.argmax(1), u.yte), maxabs_dP_te=float(np.abs(P0 - P1).max()),
+                                      n_argmax_disagree=int((P0.argmax(1) != P1.argmax(1)).sum()), maxabs_dW=float(np.abs(o[LAM_FIXED]["W"] - W1).max())))
+        # 行（K × g × λ）
         for K in KS:
             anc_te = u.z[f"none_te__{f}__{K}"]
-            u_anchor_te = uar(anc_te.argmax(1), u.yte)
-            ps_none = u.ps(f, K, "none", "-")
-            if np.isfinite(ps_none) and abs(ps_none - u_anchor_te) > 1e-3:
-                chk.append(dict(world=u.world, T=u.T, c=u.c, r=u.r, f=f, K=K, what="none_te vs pseudo.csv", diff=ps_none - u_anchor_te))
+            u_anchor_te = anc_uar[f, K]
+            anc_c = u.q_array(f"none__{f}__{K}", f)
+            a_anchor_te = pair_a(anc_te, u.yte)
             for g in G_OF_K[K]:
-                key = g_key(g, K, fused)
-                if key not in u.z.files:
-                    continue
-                Q = u.z[key].astype(np.float64)
-                Q = Q / Q.sum(1, keepdims=True)
-                for lam in lams:
-                    if lam != lams[0] and K != 0:
-                        continue          # λ の感度は K = 0 だけ
-                    probs.append(dict(K=K, g=g, lam=lam, Q=Q, u_anchor_te=u_anchor_te, anc_te=anc_te))
-        for lam in lams:
-            group = [p for p in probs if p["lam"] == lam]
-            if not group:
-                continue
-            outs = fit_soft(Zc, [p["Q"] for p in group], lam, [Zte])
-            for p, o in zip(group, outs):
-                p["P_te"] = o[0]
-        # 候補の 2 分割（K = 0，主の λ だけ）：fold 0 で当てはめて fold 1 で測る（とその逆）．g ごとの問をまとめて解く
-        g0 = [p for p in probs if p["K"] == 0 and p["lam"] == lams[0]]
-        for p in g0:
-            p["cand_outs"] = []
-        for a_, b_ in ((0, 1), (1, 0)):
-            outs = fit_soft(Zc[fold == a_], [p["Q"][fold == a_] for p in g0], lams[0], [Zc[fold == b_]])
-            anc_c = u.z[f"none__{f}__0"]
-            for p, o in zip(g0, outs):
-                Pb = o[0]
-                p["cand_outs"].append((uar(Pb.argmax(1), u.y[fold == b_]), uar(p["Q"][fold == b_].argmax(1), u.y[fold == b_]), uar(anc_c[fold == b_].argmax(1), u.y[fold == b_])))
-        for p in probs:
-            K, g, lam, Q = p["K"], p["g"], p["lam"], p["Q"]
-            u_anchor_te = p["u_anchor_te"]
-            u_g_te = u.ps(fused, K, "teacher", g)        # teacher の行は融合の student の下にだけある（g のテストの UAR は f に依らない）
-            u_proj_te = uar(p["P_te"].argmax(1), u.yte)
-            if "cand_outs" in p:
-                co = p["cand_outs"]
-                u_proj_cand, u_g_cand_b, u_anchor_cand_b = (float(np.mean([o[i] for o in co])) for i in range(3))
-            else:
-                u_proj_cand = u_g_cand_b = u_anchor_cand_b = np.nan
-            row = dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, lam=lam, n_cand=len(u.cand), n_te=len(u.te),
-                       uar_anchor_te=u_anchor_te, uar_g_te=u_g_te, uar_proj_te=u_proj_te,
-                       J_te=u_g_te - u_anchor_te, gain_proj_te=u_proj_te - u_anchor_te,
-                       uar_anchor_cand=u_anchor_cand_b, uar_g_cand=u_g_cand_b, uar_proj_cand=u_proj_cand,
-                       J_cand=u_g_cand_b - u_anchor_cand_b, gain_proj_cand=u_proj_cand - u_anchor_cand_b, uar_g_cand_all=uar(Q.argmax(1), u.y))
-            for w in WEIGHTS:
-                for m in MEFFS:
-                    um = u.ps(f, K, "dist", f"{g}:{w}", m)
-                    row[f"uar_method_{w}_{m}"] = um
-                    row[f"gain_method_{w}_{m}"] = um - u_anchor_te
-            rows_u.append(row)
-            # 対ごと（テスト）：g の確率はテストに無いので pF・pFK だけ none_te の融合で代用．proj と anchor は全 g で
-            a_proj = pair_a(p["P_te"], u.yte)
-            a_anchor_te = pair_a(p["anc_te"], u.yte)
-            a_g = pair_a(u.z[f"none_te__{fused}__{K}"], u.yte) if g in ("pF", "pFK") else [np.nan] * len(PAIRS)
-            for pi, name in enumerate(PAIR_NAMES):
-                rows_p.append(dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, lam=lam, pair=name,
-                                   a_anchor=a_anchor_te[pi], a_g=a_g[pi], a_proj=a_proj[pi]))
+                nm = q_name(g, K, f, fused)
+                j = names.index(nm)
+                o = full[j]
+                Q = Qs[j]
+                if g in G_TEACHER:
+                    u_g_te = u.ps(fused, K, "teacher", G_TEACHER[g])       # teacher の行は融合の student の下だけ（g の UAR は f に依らない）
+                elif g == "self":
+                    u_g_te = u_anchor_te
+                else:
+                    u_g_te = np.nan                                         # oracle：テストの上の teacher は無い
+                has_dist = g in (G_DIST_FUSED if f == fused else G_DIST_SINGLE)
+                for lam in LAMS:
+                    P_te = Pte[nm, lam]
+                    u_proj_te = uar(P_te.argmax(1), u.yte)
+                    hs = half[nm][lam]
+                    anc_cand_b = [uar(anc_c[h["rb"]].argmax(1), u.y[h["rb"]]) for h in hs]
+                    row = dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, q=nm, lam=lam, lam_sel=lam_sel[nm], is_main=(lam == lam_sel[nm]),
+                               n_cand=n, n_te=len(u.te), d=d, n_over_d=n / d,
+                               uar_anchor_te=u_anchor_te, uar_g_te=u_g_te, uar_proj_te=u_proj_te,
+                               J_te=u_g_te - u_anchor_te, gain_proj_te=u_proj_te - u_anchor_te,
+                               n_iter=o[lam]["n_iter"], grad_max=o[lam]["grad"], loss=o[lam]["loss"],
+                               stop_reason=("grad" if o[lam]["grad"] <= GRAD_OK else ("max_iter" if o[lam]["n_iter"] >= logreg.MAX_ITER else "stalled")),
+                               fit_ok=bool(o[lam]["grad"] <= GRAD_NEAR),
+                               uar_anchor_cand=float(np.mean(anc_cand_b)), uar_g_cand=float(np.mean([h["uar_g"] for h in hs])), uar_proj_cand=float(np.mean([h["uar_proj"] for h in hs])),
+                               ce_q_cand=float(np.mean([h["ce"] for h in hs])), H_q_cand=float(np.mean([h["H"] for h in hs])), agree_q_cand=float(np.mean([h["agree"] for h in hs])),
+                               n_half_min=min(h["n_fit"] for h in hs), n_half_over_d=min(h["n_fit"] for h in hs) / d, n_fold_neg=n_fold_neg,
+                               n_iter_cand_max=max(h["n_iter"] for h in hs), grad_max_cand=max(h["grad"] for h in hs), fit_ok_cand=bool(max(h["grad"] for h in hs) <= GRAD_NEAR),
+                               uar_g_cand_all=uar(Q.argmax(1), u.y))
+                    row["J_cand"] = row["uar_g_cand"] - row["uar_anchor_cand"]
+                    row["gain_proj_cand"] = row["uar_proj_cand"] - row["uar_anchor_cand"]
+                    for w in WEIGHTS:
+                        for m in MEFFS:
+                            um = u.ps(f, K, "dist", f"{g}:{w}", m, required=True) if has_dist else np.nan
+                            row[f"uar_method_{w}_{m}"] = um
+                            row[f"gain_method_{w}_{m}"] = um - u_anchor_te
+                    rows_u.append(row)
+                    # 対ごと（テスト）：g の確率はテストに無いので pF・pFK（融合の none_te）と self（anchor 自身）だけ．proj と anchor は全 g
+                    a_proj = pair_a(P_te, u.yte)
+                    if g == "pF":
+                        a_g = pair_a(u.z[f"none_te__{fused}__0"], u.yte)   # pF は K に依らない
+                    elif g == "pFK":
+                        a_g = pair_a(u.z[f"none_te__{fused}__{K}"], u.yte)
+                    elif g == "self":
+                        a_g = a_anchor_te
+                    else:
+                        a_g = [np.nan] * len(PAIRS)
+                    for pi, name in enumerate(PAIR_NAMES):
+                        rows_p.append(dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, lam=lam, is_main=(lam == lam_sel[nm]), pair=name,
+                                           a_anchor=a_anchor_te[pi], a_g=a_g[pi], a_proj=a_proj[pi]))
+        print(f"  {f}: {len(names)} q × {len(LAMS)} λ × 3 当てはめ {t_fit:.0f}s", flush=True)
+    return fit_check
 
 
-def summarize(U, lam_main):
-    u = U[U.lam == lam_main].copy()
-    u["r_rep_te"] = u.gain_proj_te / u.J_te
-    u["r_m_te"] = u["gain_method_raw_n"] / u.J_te
-    u["r_m_best_te"] = u[[c for c in u.columns if c.startswith("gain_method_")]].max(1) / u.J_te
-    u["r_rep_cand"] = u.gain_proj_cand / u.J_cand
-    # 単位（c のコーパス）ごとに反復と T を平均してから，kind・K・g ごとに中央値
-    per = u.groupby(["world", "f", "K", "g", "unit"]).agg(J_te=("J_te", "mean"), gain_proj_te=("gain_proj_te", "mean"), gain_m=("gain_method_raw_n", "mean"),
-                                                         r_rep_te=("r_rep_te", "mean"), r_m_te=("r_m_te", "mean"), r_m_best_te=("r_m_best_te", "mean"),
-                                                         J_cand=("J_cand", "mean"), r_rep_cand=("r_rep_cand", "mean"), n=("r", "size")).reset_index()
+# ---------------------------------------------------------------- 集計（規則は E85 4 節）
+
+def per_unit_table(U, mode):
+    """単位（c のコーパス）ごとに，得と J を T と反復で平均してから割る．mode は sel（行ごとに選んだ λ）か fixed（λ = LAM_FIXED）．"""
+    rows = U[U.is_main] if mode == "sel" else U[np.isclose(U.lam, LAM_FIXED)]
+    rows = rows.copy()
+    rows["J_le0"] = rows.J_te <= 0
+    rows["absJ_lt1"] = rows.J_te.abs() < J_FLOOR
+    rows["not_ok"] = ~rows.fit_ok
+    rows = rows[rows.fit_ok]                                                  # 収束しなかった問（勾配 > GRAD_NEAR）は判定から外す
+    gcols = [c for c in U.columns if c.startswith("gain_method_")]
+    agg = dict(n_rows=("r", "size"), n_rows_J_le0=("J_le0", "sum"), n_rows_absJ_lt1=("absJ_lt1", "sum"),
+               J_te=("J_te", "mean"), J_te_min=("J_te", "min"), J_te_max=("J_te", "max"),
+               gain_proj_te=("gain_proj_te", "mean"), gain_proj_te_min=("gain_proj_te", "min"), gain_proj_te_max=("gain_proj_te", "max"),
+               gain_m_min=(f"gain_method_{MAIN_W}_{MAIN_M}", "min"), gain_m_max=(f"gain_method_{MAIN_W}_{MAIN_M}", "max"),
+               J_cand=("J_cand", "mean"), gain_proj_cand=("gain_proj_cand", "mean"), ce_q_cand=("ce_q_cand", "mean"), H_q_cand=("H_q_cand", "mean"),
+               agree_q_cand=("agree_q_cand", "mean"), n_over_d=("n_over_d", "mean"), n_half_over_d=("n_half_over_d", "mean"),
+               n_iter_max=("n_iter", "max"), grad_max=("grad_max", "max"), lam_sel_mean=("lam", "mean"))
+    agg.update({c: (c, "mean") for c in gcols})
+    per = rows.groupby(["world", "f", "K", "g", "unit"]).agg(**agg).reset_index()
+    per["mode"] = mode
+    n_unfit = U[(U.is_main if mode == "sel" else np.isclose(U.lam, LAM_FIXED)) & ~U.fit_ok].groupby(["world", "f", "K", "g", "unit"]).size().rename("n_rows_not_converged")
+    per = per.merge(n_unfit.reset_index(), on=["world", "f", "K", "g", "unit"], how="left")
+    per["n_rows_not_converged"] = per.n_rows_not_converged.fillna(0).astype(int)
+    gm = per[f"gain_method_{MAIN_W}_{MAIN_M}"]
+    okJ = per.J_te >= J_FLOOR
+    per["r_rep_te"] = np.where(okJ, per.gain_proj_te / per.J_te, np.nan)
+    per["r_m_te"] = np.where(okJ, gm / per.J_te, np.nan)
+    per["gain_m_best"] = per[gcols].max(axis=1)                               # 変種ごとに平均してから最大（仮のターゲットのテストで選んだ上限）
+    has = per[gcols].notna().any(axis=1)                                      # 手法の行が無い g（単モダリティの poe0，self，oracle など）は NaN
+    per["best_variant"] = pd.Series(np.nan, index=per.index, dtype=object)
+    if has.any():
+        per.loc[has, "best_variant"] = per.loc[has, gcols].idxmax(axis=1)
+    per["r_m_best_te"] = np.where(okJ, per.gain_m_best / per.J_te, np.nan)
+    per["r_rep_cand"] = np.where(per.J_cand >= J_FLOOR, per.gain_proj_cand / per.J_cand, np.nan)
+    per["q1_readable"] = (per.gain_proj_te >= GAIN_FLOOR) & gm.notna()
+    per["ratio_m_over_proj"] = np.where(per.q1_readable, gm / per.gain_proj_te, np.nan)
+    per["q1_true"] = per.q1_readable & (gm >= Q1_FRAC * per.gain_proj_te)
+    per["proj_ge_method"] = np.where(gm.notna(), per.gain_proj_te >= gm, np.nan)
+    return per
+
+
+def summary_table(per):
     out = []
-    for key, g in per.groupby(["world", "f", "K", "g"]):
-        pos = g[g.J_te > 0]       # J が正の単位だけで割合を読む（J ≤ 0 では割合に意味が無い）
-        out.append(dict(world=key[0], f=key[1], K=key[2], g=key[3], n_units=len(g), n_units_Jpos=len(pos),
-                        J_te_median=g.J_te.median(), gain_proj_te_median=g.gain_proj_te.median(), gain_m_median=g.gain_m.median(),
-                        r_rep_te_median=pos.r_rep_te.median() if len(pos) else np.nan, r_m_te_median=pos.r_m_te.median() if len(pos) else np.nan,
-                        r_m_best_te_median=pos.r_m_best_te.median() if len(pos) else np.nan,
-                        n_units_proj_ge_method=int((g.gain_proj_te >= g.gain_m).sum()),
-                        J_cand_median=g.J_cand.median(), r_rep_cand_median=g[g.J_cand > 0].r_rep_cand.median() if (g.J_cand > 0).any() else np.nan))
-    S = pd.DataFrame(out)
-    # 判定（値を見る前に書いた規則．E85 4 節）
-    S["no_loss_in_learning"] = S.r_m_te_median >= 0.8 * S.r_rep_te_median      # 手法は表せる分をほぼ受け取っている
-    S["unrepresentable_dominates"] = S.r_rep_te_median < 0.6                      # 表せない分が主因
-    return per, S
+    for key, g in per.groupby(["world", "f", "K", "g", "mode"]):
+        pos = g[g.J_te >= J_FLOOR]
+        q1 = g[g.q1_readable]
+        n_q1 = len(q1)
+        n_q1_true = int(q1.q1_true.sum())
+        rec = dict(world=key[0], f=key[1], K=key[2], g=key[3], mode=key[4], n_units=len(g), n_units_J_ge1=len(pos), n_units_J_le0=int((g.J_te <= 0).sum()),
+                   n_units_q1_readable=n_q1, n_units_q1_true=n_q1_true,
+                   J_te_median=g.J_te.median(), gain_proj_te_median=g.gain_proj_te.median(), gain_m_median=g[f"gain_method_{MAIN_W}_{MAIN_M}"].median(),
+                   r_rep_te_median=pos.r_rep_te.median() if len(pos) else np.nan, r_rep_te_min=pos.r_rep_te.min() if len(pos) else np.nan, r_rep_te_max=pos.r_rep_te.max() if len(pos) else np.nan,
+                   r_m_te_median=pos.r_m_te.median() if len(pos) else np.nan, r_m_best_te_median=pos.r_m_best_te.median() if len(pos) else np.nan,
+                   ratio_m_over_proj_median=q1.ratio_m_over_proj.median() if n_q1 else np.nan,
+                   n_units_proj_ge_method=int(g.proj_ge_method.fillna(False).astype(bool).sum()), n_units_method_known=int(g.proj_ge_method.notna().sum()),
+                   J_cand_median=g.J_cand.median(), r_rep_cand_median=g[g.J_cand >= J_FLOOR].r_rep_cand.median() if (g.J_cand >= J_FLOOR).any() else np.nan,
+                   ce_q_cand_median=g.ce_q_cand.median(), agree_q_cand_median=g.agree_q_cand.median(), n_over_d_min=g.n_over_d.min(), n_half_over_d_min=g.n_half_over_d.min(),
+                   n_rows_not_converged=int(g.n_rows_not_converged.sum()), grad_max=g.grad_max.max(),
+                   is_main_cell=(key[2] == 0 and key[3] in ("pF", "ref")))
+        # 判定（値を見る前に書いた規則．E85 4 節）．読める単位が 2 未満なら判定不能（NaN）
+        rec["Q1_no_loss"] = (n_q1_true > n_q1 / 2) if n_q1 >= 2 else np.nan                  # 手法は表せる分をほぼ受け取っている（過半の単位）
+        rec["Q2_unrepresentable"] = (rec["r_rep_te_median"] < Q2_THR) if len(pos) >= 2 else np.nan   # 表せない分が主因
+        rec["P85_1_true"] = (rec["n_units_proj_ge_method"] > rec["n_units_method_known"] / 2) if (key[2] == 0 and rec["n_units_method_known"] >= 2) else np.nan
+        rec["P85_2_true"] = (rec["r_rep_te_median"] <= 0.8) if (key[1].startswith("audio") and key[3] in ("pF", "pFK") and len(pos) >= 2) else np.nan
+        rec["cand_te_gap_ge02"] = (abs(rec["r_rep_cand_median"] - rec["r_rep_te_median"]) >= 0.2) if np.isfinite(rec["r_rep_cand_median"]) and np.isfinite(rec["r_rep_te_median"]) else np.nan
+        out.append(rec)
+    return pd.DataFrame(out)
+
+
+def answer_table(S):
+    """主のセル（K = 0，g ∈ {pF, ref}）の判定を数え上げて，世界ごと（と両方）の答えにする．"""
+    out = []
+    for mode in ("sel", "fixed"):
+        Sm = S[S["mode"] == mode]
+        for world in list(S.world.unique()) + ["both"]:
+            m = Sm[Sm.is_main_cell & ((Sm.world == world) if world != "both" else True)]
+            rec = dict(world=world, mode=mode, n_main_cells=len(m))
+            for q in ("Q1_no_loss", "Q2_unrepresentable"):
+                v = m[q].dropna().astype(bool)
+                rec[f"n_{q}_readable"] = len(v)
+                rec[f"n_{q}_true"] = int(v.sum())
+                rec[f"answer_{q}"] = ("yes" if v.sum() > len(v) / 2 else ("no" if v.sum() < len(v) / 2 else "split")) if len(v) >= 2 else "undetermined"
+            out.append(rec)
+    A = pd.DataFrame(out)
+    # λ の感度：選んだ λ と固定の λ で判定が変わったセルの数（主と副の全セル）
+    k = ["world", "f", "K", "g"]
+    j = S[S["mode"] == "sel"][k + ["Q1_no_loss", "Q2_unrepresentable"]].merge(S[S["mode"] == "fixed"][k + ["Q1_no_loss", "Q2_unrepresentable"]], on=k, suffixes=("_sel", "_fixed"))
+    for q in ("Q1_no_loss", "Q2_unrepresentable"):
+        ch = (j[f"{q}_sel"].astype(str) != j[f"{q}_fixed"].astype(str))
+        A[f"n_cells_{q}_changed_by_lam"] = int(ch.sum())
+        A[f"n_cells_{q}_compared"] = len(j)
+    return A
+
+
+def pairs_unit_table(Pp):
+    """対ごとの a を単位で平均し，方向の割合 (a_proj − a_anchor)/(a_g − a_anchor) を a_g − a_anchor ≥ PAIR_FLOOR の対で出す（内訳．判定には使わない）．"""
+    rows = Pp[Pp.is_main]
+    per = rows.groupby(["world", "f", "K", "g", "unit", "pair"]).agg(n_rows=("r", "size"), a_anchor=("a_anchor", "mean"), a_g=("a_g", "mean"), a_proj=("a_proj", "mean")).reset_index()
+    dg = per.a_g - per.a_anchor
+    per["dir_ratio"] = np.where(dg >= PAIR_FLOOR, (per.a_proj - per.a_anchor) / dg, np.nan)
+    return per
+
+
+def summarize(U, Pp):
+    per = pd.concat([per_unit_table(U, "sel"), per_unit_table(U, "fixed")], ignore_index=True)
+    S = summary_table(per)
+    A = answer_table(S)
+    PU = pairs_unit_table(Pp)
+    return per, S, A, PU
 
 
 def write(df, path, header):
@@ -262,63 +511,116 @@ def write(df, path, header):
         df.to_csv(fh, index=False)
 
 
+def summarize_from(dirs, out, header, prov):
+    """分けて流した出力（units.csv・pairs.csv）を合わせて集計だけを書く（例：世界ごと，反復ごとに並行して流した後）．"""
+    Us, Ps = [], []
+    for d in dirs:
+        d = ROOT / d
+        Us.append(pd.read_csv(d / "units.csv", comment="#"))
+        Ps.append(pd.read_csv(d / "pairs.csv", comment="#"))
+        pj = d / "provenance.json"
+        prov["sources"][str(d.relative_to(ROOT))] = json.loads(pj.read_text(encoding="utf-8")) if pj.exists() else None
+    U, Pp = pd.concat(Us, ignore_index=True), pd.concat(Ps, ignore_index=True)
+    key = ["world", "T", "c", "r", "f", "K", "g", "lam"]
+    if U.duplicated(key).any():
+        raise SystemExit("合わせた units の識別子が重複（同じ単位ファイルを 2 回流している）")
+    per, S, A, PU = summarize(U, Pp)
+    write(per, out / "per_unit.csv", header)
+    write(S, out / "summary.csv", header)
+    write(A, out / "answer.csv", header)
+    write(PU, out / "pairs_unit.csv", header)
+    prov["n_units_rows"] = len(U)
+    prov["n_fits_grad_above_near"] = int((~U.fit_ok).sum() + (~U.fit_ok_cand).sum())
+    (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("summarized", out, len(U), "rows from", len(dirs), "dirs")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="results/e85")
+    ap.add_argument("--e80", default="results/e80", help="E80 の単位ファイルの置き場")
+    ap.add_argument("--e77", default="results/e77", help="E77 の成績の置き場の接頭辞（<e77>_<fused>/<T>_pseudo.csv）")
     ap.add_argument("--worlds", nargs="*", default=list(WORLDS))
-    ap.add_argument("--lams", nargs="*", type=float, default=[1e-3, 1e-1])
-    ap.add_argument("--lam-main", type=float, default=1e-3)
-    ap.add_argument("--reps", type=int, default=3, help="反復 0〜reps−1（既定 3．計算量のため）")
-    ap.add_argument("--smoke", action="store_true", help="試走（avt の 1 ターゲット，反復 1，lam 1 つ．出力は --out か checks/E85/code_run/smoke）")
+    ap.add_argument("--rep-list", nargs="*", type=int, default=REPS_MAIN, help=f"流す反復（既定 {REPS_MAIN}．残りは別の --out に流し --summarize-from で合わせる）")
+    ap.add_argument("--targets", nargs="*", default=None, help="流す評価のターゲット T（既定は世界の全部．世界と T で処理を分けて並行して流すためのもの）")
+    ap.add_argument("--summarize-from", nargs="*", default=None, help="計算せず，これらの置き場の units.csv・pairs.csv を合わせて集計だけを --out に書く")
+    ap.add_argument("--smoke", action="store_true", help="試走（avt の 1 ターゲット，反復 0．出力は --out か checks/E85/code_run/smoke）")
     args = ap.parse_args()
     if args.smoke:
-        args.worlds, args.reps, args.lams = ["avt"], 1, [args.lam_main]
+        args.worlds, args.rep_list = ["avt"], [0]
         if args.out == "results/e85":
             args.out = "checks/E85/code_run/smoke"
     out = ROOT / args.out
+    e80, e77 = ROOT / args.e80, str(ROOT / args.e77)
     if out.exists() and any(out.glob("*.csv")):
         raise SystemExit(f"{out} に古い出力がある．消してから流す")
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(Path(__file__), out / "script_copy.py")
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     dirty = subprocess.run(["git", "status", "--porcelain", "exp", "measure", "data/metadata"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    header = f"E85 commit={commit} dirty={bool(dirty)} lams={args.lams} reps={args.reps} device={DEV}"
-    prov = {"commit": commit, "dirty": bool(dirty), "script_sha256": sha256(Path(__file__)), "args": vars(args) | {"out": str(out)}, "inputs": {}, "device": str(DEV)}
-    rows_u, rows_p, chk = [], [], []
+    header = f"E85 commit={commit} dirty={bool(dirty)} lams={list(LAMS)} lam_fixed={LAM_FIXED} reps={args.rep_list} device={DEV} solver=logreg.fit_batch(float64,tol={logreg.TOL})"
+    prov = {"commit": commit, "dirty": bool(dirty), "script_sha256": sha256(Path(__file__)), "args": vars(args) | {"out": str(out)}, "inputs": {}, "device": str(DEV),
+            "lams": list(LAMS), "lam_fixed": LAM_FIXED, "weights": list(WEIGHTS), "meffs": list(MEFFS), "J_floor": J_FLOOR, "gain_floor": GAIN_FLOOR, "q1_frac": Q1_FRAC, "q2_thr": Q2_THR,
+            "grad_ok": GRAD_OK, "grad_near": GRAD_NEAR, "time_per_unit_s": {}, "sources": {}}
+    if args.summarize_from:
+        summarize_from(args.summarize_from, out, header, prov)
+        return 0
+    rows_u, rows_p, rows_chk, fit_check = [], [], [], []
+    t_start = time.time()
     for world in args.worlds:
         fused = WORLDS[world]
         singles = fused_parts(fused)[1]
-        udir = ROOT / "results" / "e80" / world / "units" / fused
+        udir = e80 / world / "units" / fused
         Ts = sorted(p.name for p in udir.iterdir() if p.is_dir())
+        if args.targets:
+            missing = [T for T in args.targets if T not in Ts]
+            if missing:
+                raise SystemExit(f"{world}：--targets に無い T {missing}（ある T：{Ts}）")
+            Ts = [T for T in Ts if T in args.targets]
         if args.smoke:
             Ts = Ts[:1]
         feats = {}
+        first = True
         for T in Ts:
             files = sorted(udir.glob(f"{T}/*_r*.npz"))
             files = [f for f in files if not f.name.endswith("_agg.npz")]
             for fpath in files:
                 c, r = fpath.stem.rsplit("_r", 1)
                 r = int(r)
-                if r >= args.reps:
+                if r not in args.rep_list:
                     continue
                 if c not in feats:
                     feats[c] = feats_for(c, fused)
                 prov["inputs"][str(fpath.relative_to(ROOT))] = sha256(fpath)
-                u = Unit(world, T, c, r, feats[c])
-                run_unit(u, singles, args.lams, rows_u, rows_p, chk)
-                print(world, T, c, r, "done", flush=True)
-            prov["inputs"][f"e77_{fused}/{T}_pseudo.csv"] = sha256(ROOT / "results" / f"e77_{fused}" / f"{T}_pseudo.csv")
+                t0 = time.time()
+                u = Unit(world, T, c, r, feats[c], e80, e77)
+                fit_check += run_unit(u, singles, e80, out / "fits", rows_u, rows_p, rows_chk, do_fit_check=first)
+                first = False
+                prov["time_per_unit_s"][f"{world}/{T}/{c}_r{r}"] = round(time.time() - t0, 1)
+                print(world, T, c, r, f"done {time.time() - t0:.0f}s (total {(time.time() - t_start) / 60:.1f} min)", flush=True)
+            prov["inputs"][f"e77_{fused}/{T}_pseudo.csv"] = sha256(Path(f"{e77}_{fused}") / f"{T}_pseudo.csv")
     U, Pp = pd.DataFrame(rows_u), pd.DataFrame(rows_p)
-    if chk:
-        pd.DataFrame(chk).to_csv(out / "checks.csv", index=False)
-        raise SystemExit(f"none_te の UAR が pseudo.csv の none の行と合わない（{len(chk)} 件．checks.csv）")
+    key = ["world", "T", "c", "r", "f", "K", "g", "lam"]
+    if U.duplicated(key).any():
+        raise SystemExit("units の識別子が重複")
     write(U, out / "units.csv", header)
     write(Pp, out / "pairs.csv", header)
-    per, S = summarize(U, args.lam_main)
+    pd.DataFrame(rows_chk).to_csv(out / "checks.csv", index=False)
+    pd.DataFrame(fit_check).to_csv(out / "fit_check.csv", index=False)
+    per, S, A, PU = summarize(U, Pp)
     write(per, out / "per_unit.csv", header)
     write(S, out / "summary.csv", header)
+    write(A, out / "answer.csv", header)
+    write(PU, out / "pairs_unit.csv", header)
+    n_bad = int((~U.fit_ok).sum() + (~U.fit_ok_cand).sum())
+    n_not_conv = int((U.grad_max > GRAD_OK).sum() + (U.grad_max_cand > GRAD_OK).sum())
+    prov["n_fits_grad_above_ok"] = n_not_conv
+    prov["n_fits_grad_above_near"] = n_bad
+    prov["elapsed_s"] = round(time.time() - t_start, 1)
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")
-    print("wrote", out, len(U), "rows")
+    print("wrote", out, len(U), "rows", f"({(time.time() - t_start) / 60:.1f} min)", f"fits grad>{GRAD_OK:g}: {n_not_conv}, grad>{GRAD_NEAR:g}: {n_bad}")
+    if n_bad:
+        raise SystemExit(f"収束しなかった問（勾配 > {GRAD_NEAR:g}）が {n_bad} 件ある（units.csv の fit_ok・fit_ok_cand）．出力は書いた")
     return 0
 
 
