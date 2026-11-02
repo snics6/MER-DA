@@ -1,0 +1,7 @@
+world,K,100,2000,500,n
+fuse-audio-video,0,10,11,14,25
+fuse-audio-video,25,0,18,10,32
+fuse-audio-video,5,10,11,10,29
+fuse-audio-video-text,0,4,4,7,9
+fuse-audio-video-text,25,1,6,5,12
+fuse-audio-video-text,5,3,5,6,10
