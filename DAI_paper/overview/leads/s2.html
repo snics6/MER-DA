@@ -1,0 +1,32 @@
+<div class="lead">
+<p class="lead-claim">f が失う正解率を，境目の位置がずれている分（位置の損）と，境目の向きがずれている分（方向の損）に分けて測る．2 つの感情だけを取り出し，f の 2 つの感情の点数の差を 1 本の数直線に並べると，2 つの感情の発話は 2 つの山になり，正解率はこの 2 つの山と境目の位置関係で決まる．</p>
+
+<figure class="fig" id="hills">
+<div class="hills-ctl">
+<label for="hills-theta">境目の向きのずれ（角度）<output data-v="theta">36.9°</output></label>
+<input type="range" id="hills-theta" min="0" max="80" step="0.1" value="36.9">
+<label for="hills-o">境目の位置のずれ o<output data-v="o">0.80</output></label>
+<input type="range" id="hills-o" min="-2" max="2" step="0.05" value="0.8">
+<button type="button" id="hills-reset" class="toggle">数値例に戻す</button>
+</div>
+<div class="hills-panels">
+<div class="hills-plane"><!--SVG:plane--></div>
+<div class="hills-line"><!--SVG:line--></div>
+</div>
+<p class="hills-key"><span class="k a"></span>悲しみの発話　<span class="k b"></span>平静の発話　<span class="k hollow"></span>f が間違える発話　<span class="k cutk"></span>f の境目　<span class="k bestk"></span>最良の境目（右の図の破線の山は最良の向きで見た山）</p>
+<div class="hills-read">
+<p>2 つの山の離れ方 d ＝ D × <output data-v="e">0.80</output> ＝ <b><output data-v="d">3.20</output></b>（最良の向きでの離れ方 D は 4.0 に固定）</p>
+<p>f の正解率 A(d, o) ＝ <b><output data-v="a">89.0</output>%</b>．境目を真ん中に戻すと <output data-v="a0">94.5</output>%，さらに向きを最良にすると <output data-v="aD">97.7</output>%．</p>
+</div>
+<p class="hills-bar-title">失った正解率 <output data-v="lost">11.0</output> 点の内訳（2 つの感情の正解率の平均の点）</p>
+<div class="hills-bar"><!--SVG:bar--></div>
+<p class="hills-key"><span class="k pos"></span>位置の損 <b><output data-v="pos">5.5</output></b> 点　<span class="k dir"></span>方向の損 <b><output data-v="dir">3.2</output></b> 点　<span class="k rest"></span>最良の向きでも残る誤り <output data-v="rest">2.3</output> 点</p>
+<figcaption>図 2-1．2 つの山の模型．左は 2 次元の特徴の空間で，2 つの感情の散らばりが同じ丸い形の場合である．右は，左の点を f の向きに投影して数直線に並べたもので，2 つの感情の点数の差の分布になる．つまみで境目を動かすと，位置の損と方向の損がその場で変わる．最初の値は，d=3.2，o=0.8，D=4.0 の数値例である．実際の特徴は高次元だが，f の点数の差は 1 本の数直線に乗るので，右の図と同じ形で測れる．</figcaption>
+</figure>
+
+<p>図の 3 つの正解率は，次の式で計算する．</p>
+<p class="eq">\[A(d,o)=\tfrac12\left[\Phi\!\left(\tfrac d2+o\right)+\Phi\!\left(\tfrac d2-o\right)\right],\qquad \text{位置の損}=A(d,0)-A(d,o),\qquad \text{方向の損}=A(D,0)-A(d,0)\]</p>
+<p>\(\Phi\) は標準正規分布の累積分布関数である．位置の損は o の 2 乗にほぼ比例し，切片を動かすだけで 0 にできる．方向の損は重みの方向を変えて d を D に近づけないと減らない．4 感情の分類は，感情の対 6 つで同じ量を測って平均する．</p>
+<p class="lead-note">模型の限界：模型で測った位置の損は，模型の誤差（中央値 0.52〜0.85 点）と同じ大きさなので，位置についての主張には模型の値を使わず UAR の差を使う．方向の損は，V を除く 7 種類で誤差が損の 1/10 前後なので，模型で測ってよい．</p>
+</div>
+<!--JS:s2.js-->

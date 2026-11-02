@@ -1,0 +1,65 @@
+<div class="lead">
+<p class="lead-claim">配備する分類器 f（凍結したエンコーダの特徴の上に置く線形の分類器）が学習に使える情報を 4 種類（図の行）に分け，それぞれの情報が f の 2 種類の損（図の列）を減らすかを並べた．方向の損を大きく減らしたのは，ほかのモダリティを入力に含むモデルの予測を疑似ラベル（正解の代わりに付けるモデルの予測）にした行 4 だけである．</p>
+
+<figure class="fig" id="fig-0-1">
+<div class="mx" role="table" aria-label="f が使える情報 4 種類と，位置の損・方向の損を減らすかの対応．方向の損を大きく減らしたのは行 4 だけ">
+
+<div class="mx-corner" role="columnheader"><span class="mx-cap">f が使える情報</span></div>
+
+<div class="mx-ch" role="columnheader">
+<svg viewBox="0 0 140 84" role="img" aria-label="位置の損：境目の向きは合っているが位置がずれている" class="icon">
+<g class="dots-a"><circle cx="30" cy="30" r="3.2"/><circle cx="42" cy="22" r="3.2"/><circle cx="24" cy="46" r="3.2"/><circle cx="38" cy="40" r="3.2"/><circle cx="48" cy="54" r="3.2"/><circle cx="30" cy="62" r="3.2"/><circle cx="52" cy="36" r="3.2"/><circle cx="18" cy="34" r="3.2"/></g>
+<g class="dots-b"><circle cx="110" cy="30" r="3.2"/><circle cx="98" cy="22" r="3.2"/><circle cx="116" cy="46" r="3.2"/><circle cx="102" cy="40" r="3.2"/><circle cx="92" cy="54" r="3.2"/><circle cx="110" cy="62" r="3.2"/><circle cx="88" cy="36" r="3.2"/><circle cx="122" cy="34" r="3.2"/></g>
+<line x1="70" y1="6" x2="70" y2="80" class="best"/>
+<line x1="84" y1="6" x2="84" y2="80" class="cut-pos"/>
+<line x1="71" y1="8" x2="80" y2="8" class="arrow-pos" marker-end="url(#ah-pos)"/>
+<defs><marker id="ah-pos" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L6,3 L0,6 z" class="ah-pos"/></marker></defs>
+</svg>
+<p class="mx-h">位置の損</p>
+<p class="mx-def">境目の向きは合っていても，境目の位置（切片）がずれているために失う正解率．切片を動かせば取り戻せる．</p>
+</div>
+
+<div class="mx-ch" role="columnheader">
+<svg viewBox="0 0 140 84" role="img" aria-label="方向の損：境目の向きがずれている" class="icon">
+<g class="dots-a"><circle cx="30" cy="30" r="3.2"/><circle cx="42" cy="22" r="3.2"/><circle cx="24" cy="46" r="3.2"/><circle cx="38" cy="40" r="3.2"/><circle cx="48" cy="54" r="3.2"/><circle cx="30" cy="62" r="3.2"/><circle cx="52" cy="36" r="3.2"/><circle cx="18" cy="34" r="3.2"/></g>
+<g class="dots-b"><circle cx="110" cy="30" r="3.2"/><circle cx="98" cy="22" r="3.2"/><circle cx="116" cy="46" r="3.2"/><circle cx="102" cy="40" r="3.2"/><circle cx="92" cy="54" r="3.2"/><circle cx="110" cy="62" r="3.2"/><circle cx="88" cy="36" r="3.2"/><circle cx="122" cy="34" r="3.2"/></g>
+<line x1="70" y1="6" x2="70" y2="80" class="best"/>
+<line x1="48" y1="80" x2="92" y2="6" class="cut-dir"/>
+<path d="M70,22 A21,21 0 0 1 80.5,24.8" class="arc-dir"/>
+</svg>
+<p class="mx-h">方向の損</p>
+<p class="mx-def">境目の向き（重みの方向）がターゲットに合っていないために失う正解率．重みの方向を変えないと取り戻せない．</p>
+</div>
+
+<div class="mx-rh" role="rowheader"><span class="mx-n">行 1</span><b>ターゲットの K 本のラベル</b><span class="mx-sub">K は感情あたりの本数．K=5 なら 4 感情で 20 本</span></div>
+<div class="mx-c good" role="cell"><span class="vd">○ 直る</span><p>K=5 で切片だけを K 本で直すと，合併（ソースと K 本を混ぜて学ぶ）で得る上がり幅の 0.66〜0.91 倍を得る．</p><p class="mx-st">照合済み</p></div>
+<div class="mx-c mid" role="cell"><span class="vd">△ 遅い</span><p>K 本だけで学ぶと，感情どうしの離れ方は K を増やしてもゆっくりしか最良に近づかない．最良の 0.71 倍に届く K の中央値は，V 1.86，A 16.1，言葉 47.5〜51.5 本．</p><p class="mx-st">照合済み</p></div>
+
+<div class="mx-rh" role="rowheader"><span class="mx-n">行 2</span><b>ソースのコーパス</b><span class="mx-sub">ほかのコーパスのラベル付きの発話</span></div>
+<div class="mx-c bad" role="cell"><span class="vd">× ずれを持ち込む</span><p>ソースだけで学ぶと，境目の位置がターゲットからずれる．ソースを多く混ぜるほど，K 本がずれを直す割合が下がる．</p><p class="mx-st">照合済み</p></div>
+<div class="mx-c mid" role="cell"><span class="vd">△ 一部</span><p>1 つのソースは，ターゲットのラベル感情あたり 8.5〜11.8 本ぶんの方向の情報を持つ（A）．合併の得は A で K=1 +10.03 点，K=25 −1.69 点．</p><p class="mx-st">本数は関門の導入前，得は照合済み</p></div>
+
+<div class="mx-rh" role="rowheader"><span class="mx-n">行 3</span><b>ラベル無しのターゲットの発話</b><span class="mx-sub">f と同じモダリティの特徴だけを使う</span></div>
+<div class="mx-c good" role="cell"><span class="vd">○ 直る</span><p>ターゲットの平均を引く（中心化）と境目の位置が合う．アンカーの予測で感情ごとの総量をそろえると，A の K=0 で +0.85 点．</p><p class="mx-st">関門の導入前</p></div>
+<div class="mx-c bad" role="cell"><span class="vd">× 直らない</span>
+<div class="ub" role="img" aria-label="210 単位のうち，減らした 7，どちらとも言えない 124，増やした 79">
+<span class="ub-s down" style="flex-basis:3.33%" title="減らした 7 単位"></span><span class="ub-s flat" style="flex-basis:59.05%" title="どちらとも言えない 124 単位"></span><span class="ub-s up" style="flex-basis:37.62%" title="増やした 79 単位"></span>
+</div>
+<p class="ub-l"><span class="k down"></span>減らした 7　<span class="k up"></span>増やした 79　（210 単位中）</p>
+<p>ラベル無しの DA・半教師あり学習の 8 手法．差が 0 でも偶然に 5.25 単位は「減らした」に入る．</p><p class="mx-st">照合済み</p></div>
+
+<div class="mx-rh r4" role="rowheader"><span class="mx-n">行 4</span><b>ラベル無しのターゲットの発話 ＋ ほかのモダリティの予測</b><span class="mx-sub">ほかのモダリティを入力に含むモデルの予測を疑似ラベルにする</span></div>
+<div class="mx-c mid" role="cell"><span class="vd">△ 一部</span><p>方向の損を過半のコーパスで減らさなかった 1 例（AV の世界の音声の f，K=0）でも，UAR の得 +0.72〜+14.09 点のうち位置の分は 0.21〜1.43 点で，5 コーパス中 4 では方向の分の方が大きい．</p><p class="mx-st">照合済み</p></div>
+<div class="mx-c good key" role="cell"><span class="vd">○ 直る</span>
+<div class="ub" role="img" aria-label="81 単位のうち，減らした 38，どちらとも言えない 42，増やした 1">
+<span class="ub-s down" style="flex-basis:46.91%" title="減らした 38 単位"></span><span class="ub-s flat" style="flex-basis:51.85%" title="どちらとも言えない 42 単位"></span><span class="ub-s up" style="flex-basis:1.23%" title="増やした 1 単位"></span>
+</div>
+<p class="ub-l"><span class="k down"></span>減らした 38　<span class="k up"></span>増やした 1　（81 単位中）</p>
+<p>AVT・AV の世界．差が 0 でも偶然に 2.02 単位は「減らした」に入る．</p><p class="mx-st">照合済み</p></div>
+
+</div>
+<figcaption>図 0-1．f が使える情報（行）ごとに，位置の損と方向の損を減らすかを示した．○ は直る，△ は一部だけ直るか直り方が遅い，× は直らないかずれを持ち込む．行 3 と行 4 の方向の帯は，方向の損を減らした単位（緑），増やした単位（赤），どちらとも言えない単位（灰）の数である．1 単位は「評価のコーパス × f × K × 手法」の 1 つで，「減らした」は差の区間が 0 より上にあり，差が基準 δ（反復の揺れの約 2 倍）以上のときだけ数える．</figcaption>
+</figure>
+
+<p class="lead-note">図の数値のほとんどは，手法や定義を決めるときにも値を見た 7 群のターゲットで測った．値を見ていないコーパスでの確かめはしていない．</p>
+</div>
