@@ -889,34 +889,57 @@ def null_block_counts(m, rep_lookup):
     return np.sum(np.stack(list(hits.values())), 0) if hits else np.zeros(B)
 
 
-def p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, old_chance):
-    """1 つの族・1 つの版の P3a の判定（3 節）．m は（単位，対）の行（judgment・point・lo・delta_d_pair・none_dirloss(_rev)・chosen・corpus・pair を持つ）．"""
-    ukey_cols = ["run", "student", "K", "corpus"]
+def elig_and_keys(m):
+    """効果の出うるセル（D14）と単位の鍵．逆の順序は none の逆の順序の損で決める（D15）．"""
     metric = str(m.metric.iloc[0]) if len(m) and "metric" in m.columns else "dir"
-    loss = (m.none_dirloss_rev if (metric == "dir_rev" and "none_dirloss_rev" in m.columns) else m.none_dirloss).to_numpy(dtype=float)   # 逆の順序は none の逆の順序の損（D15）
+    loss = (m.none_dirloss_rev if (metric == "dir_rev" and "none_dirloss_rev" in m.columns) else m.none_dirloss).to_numpy(dtype=float)
     dl = m.delta_d_pair.to_numpy(dtype=float)
-    pos = (m.judgment == "pos").to_numpy()
     observable = (m.judgment != "same_by_definition").to_numpy()               # 観測で数えうる行（D19．両方が none の単位は入らない）
-    elig = (loss >= dl) & (m.chosen != "none").to_numpy() & (m.judgment != "missing").to_numpy() & observable   # 効果の出うるセル（D14）
+    elig = (loss >= dl) & (m.chosen != "none").to_numpy() & (m.judgment != "missing").to_numpy() & observable
+    ukey = (m.run.astype(str) + "|" + m.student.astype(str) + "|" + m.K.astype(str) + "|" + m.corpus.astype(str)).to_numpy()
+    full_units = {u for u in set(ukey) if int((ukey == u).sum()) == 6 and bool(elig[ukey == u].all())}   # 6 対すべてが効果の出うるセルの単位
+    return loss, dl, observable, elig, ukey, full_units
+
+
+def by_corpus_str(units):
+    c = pd.Series([u.split("|")[-1] for u in units]).value_counts().sort_index() if units else pd.Series(dtype=int)
+    return ";".join(f"{k}:{n}" for k, n in c.items())
+
+
+def p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, old_chance, m_ref=None):
+    """1 つの族・1 つの版の P3a の判定（3 節）．m は（単位，対）の行（judgment・point・lo・delta_d_pair・none_dirloss(_rev)・chosen・corpus・pair を持つ）．
+    m_ref は印を含む行（同じ族）：(iii) の対象の単位と到達しうる最小の p と judgeable はこれで決める（印は手法の結果から作る量なので．gate-stats の再検査 2）．
+    印を除く版（m が m_ref の部分集合）では，対象のうち印の付いた行を含まない単位で p を計算し，印で落ちた単位の数を出す．"""
+    ukey_cols = ["run", "student", "K", "corpus"]
+    if m_ref is None:
+        m_ref = m
+    loss, dl, observable, elig, ukey, full_units_used = elig_and_keys(m)
+    _, _, _, _, ukey_ref, full_units_ref = elig_and_keys(m_ref)
+    full_units_used = full_units_used & full_units_ref                         # 対象は印を含む行で決めた単位のうち，印を除いても 6 行そろう単位
+    pos = (m.judgment == "pos").to_numpy()
     pos_elig = pos & elig
     n_pos, n_pos_elig = int(pos.sum()), int(pos_elig.sum())
     pairs_arr = m.pair.to_numpy().astype(int)
     sel = np.zeros(6, bool)
     sel[list(sel_pairs)] = True
-    ukey = (m.run.astype(str) + "|" + m.student.astype(str) + "|" + m.K.astype(str) + "|" + m.corpus.astype(str)).to_numpy()
-    # (iii) の対象：6 対すべてが効果の出うるセルである単位（参照の置換の集合が「減らした」に依らない．S15）
-    full_units = {u for u in set(ukey) if int((ukey == u).sum()) == 6 and bool(elig[ukey == u].all())}
-    in_full = np.isin(ukey, list(full_units)) if full_units else np.zeros(len(m), bool)
-    mf = m[in_full]
-    ones = np.ones(int(in_full.sum()), bool)
-    if in_full.any():
-        obs_f, p_full, _, n_rand_f = exact_perm_p(mf, pos[in_full], ones, sel_pairs, CLASS_PERM_MAPS, False)
-        _, p_min, _, _ = exact_perm_p(mf, sel[pairs_arr[in_full]], ones, sel_pairs, CLASS_PERM_MAPS, False)
-    else:
-        obs_f, p_full, n_rand_f, p_min = 0, np.nan, 0, np.nan
+
+    def perm_on(mm, keys, units, cells_fn):
+        inu = np.isin(keys, list(units)) if units else np.zeros(len(mm), bool)
+        if not inu.any():
+            return 0, np.nan, 0, inu
+        mf = mm[inu]
+        obs_, p_, _, nr_ = exact_perm_p(mf, cells_fn(inu), np.ones(int(inu.sum()), bool), sel_pairs, CLASS_PERM_MAPS, False)
+        return obs_, p_, nr_, inu
+    # 到達しうる最小の p：印を含む行の対象の単位で（配置だけで決まる）
+    pairs_ref = m_ref.pair.to_numpy().astype(int)
+    _, p_min_ref, _, _ = perm_on(m_ref, ukey_ref, full_units_ref, lambda inu: sel[pairs_ref[inu]])
+    judgeable_ref = bool(np.isfinite(p_min_ref) and p_min_ref < P_ALPHA)
+    # 使う行（印を除く版なら印の無い単位）での p と，印の後の到達しうる最小の p
+    obs_f, p_full, n_rand_f, in_full = perm_on(m, ukey, full_units_used, lambda inu: pos[inu])
+    _, p_min_used, _, _ = perm_on(m, ukey, full_units_used, lambda inu: sel[pairs_arr[inu]])
+    judgeable_used = bool(np.isfinite(p_min_used) and p_min_used < P_ALPHA)
     n_pos_full = int(pos[in_full].sum())
-    judgeable = bool(np.isfinite(p_min) and p_min < P_ALPHA)
-    full_by_corpus = pd.Series([u.split("|")[-1] for u in full_units]).value_counts().sort_index() if full_units else pd.Series(dtype=int)
+    n_dropped = len(full_units_ref) - len(full_units_used)
     # (i) 数の帰無：観測で数えうる行の複製から
     mo = m[observable]
     blk = mo.assign(is_pos=pos[observable]).groupby(["corpus", "pair"]).agg(pos_any=("is_pos", "any"), n=("is_pos", "size")).reset_index()
@@ -933,7 +956,7 @@ def p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, old_chance):
     sel_pos_elig = pos_elig & sel[pairs_arr]
     n_corp_sel_elig = int(m.corpus[sel_pos_elig].nunique())
     c_corp = bool(n_corp_sel_elig >= 2)
-    c_p = bool(judgeable and np.isfinite(p_full) and p_full < P_ALPHA)
+    c_p = bool(judgeable_ref and judgeable_used and np.isfinite(p_full) and p_full < P_ALPHA)
     # 感度と記述：条件つきの置換（前の版の主），無条件の置換，対の名前の置換，固定と条件つきの土台
     obs_c, p_cond, _, n_rand = exact_perm_p(m, pos_elig, elig, sel_pairs, CLASS_PERM_MAPS, True)
     obs_u, p_class, _, _ = exact_perm_p(m, pos, elig, sel_pairs, CLASS_PERM_MAPS, False)
@@ -946,7 +969,7 @@ def p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, old_chance):
     n_tests = len(m)
     pos_rows = m[pos]
     holds_old = bool(n_pos > old_chance and np.isfinite(share_all) and share_all > base)   # cebd64b の規則（数の基準は族ごとに固定）
-    verdict = None if not judged else ("not_judgeable" if not judgeable else ("holds" if (c_count and c_corp and c_p) else "fails"))
+    verdict = None if not judged else ("not_judgeable" if not judgeable_ref else ("not_judgeable_by_flag" if not judgeable_used else ("holds" if (c_count and c_corp and c_p) else "fails")))
     return {"n_units": len(m[ukey_cols].drop_duplicates()), "n_tests": n_tests, "n_tests_observable": int(observable.sum()), "n_tests_nonone": int((m.chosen != "none").sum()),
             "chance_pos": CHANCE * n_tests, "cebd64b_chance": old_chance,
             "n_pos": n_pos, "n_neg": int((m.judgment == "neg").sum()), "n_same": int((m.judgment == "same").sum()), "n_undet": int((m.judgment == "undet").sum()),
@@ -959,10 +982,12 @@ def p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, old_chance):
             "n_pos_corpora_selected_elig": n_corp_sel_elig, "cond_two_corpora": c_corp,
             "pos_corpora": ";".join(f"{c}:{n}" for c, n in pos_rows.groupby("corpus").size().items()),
             "selected_pairs": label,
-            "n_units_full_elig": len(full_units), "full_elig_units_by_corpus": ";".join(f"{c}:{n}" for c, n in full_by_corpus.items()),
-            "n_pos_full_elig": n_pos_full, "n_pos_elig_not_full": int((pos_elig & ~in_full).sum()),
+            "n_units_full_elig": len(full_units_ref), "full_elig_units_by_corpus": by_corpus_str(full_units_ref),
+            "n_units_full_elig_used": len(full_units_used), "full_elig_units_by_corpus_used": by_corpus_str(full_units_used), "n_full_elig_dropped_by_flag": n_dropped,
+            "n_pos_full_elig": n_pos_full, "n_pos_elig_not_full": int((pos_elig & ~in_full).sum()), "n_pos_elig_not_full_selected": int((pos_elig & ~in_full & sel[pairs_arr]).sum()),
             "n_selected_among_pos_full_elig": obs_f, "share_selected_among_pos_full_elig": share_full, "p_class_perm_full_elig": p_full,
-            "n_corpora_with_random_perm_full_elig": n_rand_f, "p_min_attainable": p_min, "judgeable": judgeable, "cond_p": c_p,
+            "n_corpora_with_random_perm_full_elig": n_rand_f, "p_min_attainable": p_min_ref, "judgeable": judgeable_ref,
+            "p_min_attainable_after_flag": p_min_used, "judgeable_after_flag": judgeable_used, "cond_p": c_p,
             "n_selected_among_pos_elig": obs_c, "share_selected_among_pos_elig": share_elig, "p_class_perm_cond": p_cond, "n_corpora_with_random_perm": n_rand,
             "share_selected_among_pos": share_all, "base_share": base, "base_share_cond": base_cond, "p_class_perm_uncond": p_class, "p_pair_perm_uncond": p_pairperm,
             "share_p3a_side_among_pos": float(pos_rows.pair.isin(P3A_SIDE_PAIRS).mean()) if n_pos else np.nan,
@@ -984,12 +1009,11 @@ def p3a_table(rows, rep_lookup, tag, judged_comp=MAIN_COMP):
     out = []
     for fam, stus, sel_pairs, base, label, main_with_md in FAMILIES:
         for use_md in (True, False):
-            m = rows[rows.student.isin(stus)]
-            if not use_md:
-                m = m[m.model_dependent != True]  # noqa: E712
+            m_all = rows[rows.student.isin(stus)]                              # 印を含む行（(iii) の対象と最小の p はこれで決める）
+            m = m_all if use_md else m_all[m_all.model_dependent != True]  # noqa: E712
             judged = fam in ("audio", "video") and (rows.comparison.iloc[0] == judged_comp if len(rows) else False)
             out.append({"table": tag, "comparison": rows.comparison.iloc[0] if len(rows) else "", "family": fam, "with_model_dependent": use_md,
-                        "is_main_version": use_md == main_with_md, **p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, CEBD64B_CHANCE[fam])})
+                        "is_main_version": use_md == main_with_md, **p3a_eval(m, rep_lookup, sel_pairs, base, label, judged, CEBD64B_CHANCE[fam], m_ref=m_all)})
     return pd.DataFrame(out)
 
 
@@ -1161,8 +1185,8 @@ def summarize(out, A_, AR, U, RC, J, R, Ph, anchors, boot_store, jk_store):
         F = p3a_table(main, rep_lookup, "main")
         write_csv(F, out / "b_p3_checks.csv")
         showF = ["family", "with_model_dependent", "is_main_version", "n_tests", "n_pos", "n_pos_elig", "n_pos_blocks", "count_threshold", "null_count_q95",
-                 "n_pos_corpora_selected_elig", "n_units_full_elig", "n_pos_full_elig", "share_selected_among_pos_full_elig", "p_class_perm_full_elig", "p_min_attainable",
-                 "judgeable", "P3a_verdict", "P3a_holds_cebd64b", "pos_pairs"]
+                 "n_pos_corpora_selected_elig", "n_units_full_elig", "n_full_elig_dropped_by_flag", "n_pos_full_elig", "share_selected_among_pos_full_elig", "p_class_perm_full_elig",
+                 "p_min_attainable", "judgeable", "judgeable_after_flag", "P3a_verdict", "P3a_holds_cebd64b", "pos_pairs"]
         lines += ["## (B) 予言 P3a の判定（族ごと．数は複製の帰無の 95% 点，広がりは怒りの対の減らしたが出たコーパス，偏りは 6 対すべてが効果の出うるセルの単位での感情の名前の置換の厳密な p）", "",
                   F[showF].to_string(index=False), ""]
         sens = []
