@@ -1046,7 +1046,7 @@ def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main"
                 reps.append(x0 + r * (b0 - x0))
             else:                                                              # 包絡：判定に不利な側の点の限りのまわりで同じ倍率．L ＝ pt_up ＋ r·(LB − pt_up)，U ＝ pt_lo ＋ r·(UB − pt_lo)
                 xc = cd[c]["pt_up"] if env == "L" else cd[c]["pt_lo"]
-                xc = x0 if abs(xc) >= BIG / 2 else xc
+                xc = x0 if abs(xc) >= BIG / 8 else xc                              # 点の限りに上の打ち切り（1e6）が混ざった平均（群 × 世界で最大 4 つ → 2.5e5 以上）は中心にできないので x₀
                 reps.append(xc + r * (cd[c][bkey] - xc))
             if cd[c]["readable"] and cd[c]["mask"] is not None:
                 masks.append(cd[c]["mask"])
