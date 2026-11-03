@@ -1,4 +1,4 @@
-"""E87：疑似ラベルのモデルの価値（ターゲットのラベル何本ぶん）を，向きの分と位置の分に分ける（第 3 版．関門 1 の第 2 版の指摘で直した）．
+"""E87：疑似ラベルのモデルの価値（ターゲットのラベル何本ぶん）を，向きの分と位置の分に分ける（第 4 版．関門 1 の第 2 版と第 3 版の指摘で直した）．
 
 設計：docs/exploratory-analyses.md の E87（規則は値を見る前に書いた）．評価のターゲットの値で判定するので本番（関門 1 は 5 体）．
 
@@ -9,7 +9,8 @@
   単位：（比較，世界，配備する分類器，K，コーパス）．抽出の種は（種，コーパス）だけで，世界と比較相手で共有する．
   コーパスの値：世界の平均（複製も平均）．区間は百分位と，G_eff < 20 なら jackknife の t 区間との和集合．
   族：読めるコーパスの中央値．複製は，G_eff < 20 のコーパスの複製を jackknife の幅まで広げてから中央値．抽出の中の打ち切りが 2.5% を超える区間は使わない．
-  判定：予言ごとに当たり・外れ・判定できない（P87-2 は負も）．読めるコーパスの版と全コーパスの版（打ち切りは端に置く）の両方で同じ側に出たときだけ当たり・外れにする．
+  判定：予言ごとに当たり・外れ・判定できない（P87-2 は負も）．読めるコーパスの版，全コーパスの版（打ち切りは端に置く），極端の版（読めないコーパスを分かっている向きの極端に置く）
+       の 3 つで同じ側に出たときだけ当たり・外れにする．抽出の中の印は種類別に残し，基準は上の打ち切りとあいまいに当てる．
 
 使い方：./.venv/bin/python exp/analyze_value_split_e87.py [--out results/e87] [--curve-root results/e87_tgtonly] [--boot 1000] [--runs ...] [--targets ...] [--smoke]
   試走（--smoke，--targets，--runs）の出力は results/ の下に書けない．本番は既定の引数で 1 回で流す．CSV の先頭の # の行は JSON（コミットと設定）．pd.read_csv(..., comment="#") で読む．
@@ -71,6 +72,13 @@ EXCL_MA = ("MOSEI", "AFEW")
 NOMINAL = {"audio": 5, "video": 5, "text": 3, "fused:fuse-audio-video-text": 3, "fused:fuse-audio-video": 5}   # 族の名目のコーパス数（判定の下限の分母）
 VARIANTS = ("readable", "all", "readable_excl_mosei_afew", "readable_impro_only")
 SIGN_AGREE_LOW = 0.75                                                          # 仮定 3・4：符号の一致率がこれ未満なら別の座標の版を並べる
+MASK_KINDS = ("lo_none", "hi_none", "amb_none", "lo_method", "hi_method", "amb_method")   # 抽出の中の読みの印（下の打ち切り・上の打ち切り・あいまい × none・手法）
+MASK_BIT = {k: 1 << i for i, k in enumerate(MASK_KINDS)}
+MAIN_MASK = ("hi_none", "amb_none", "hi_method", "amb_method")                 # 主の基準に数える事象：上の打ち切り（区間を狭める）とあいまい．下の打ち切りの誤りは 1 本未満
+SENS_MASK = ("hi_none", "hi_method")                                           # 感度 (o)：あいまいを数えない
+FIXED_COMPS = tuple(c for _, c in FIXED)
+DIR_QUANTS = ("dir", "dir_auc", "dir_bfix", "dS_dir")                          # saerens・massbal で定義から none と同じになる量
+BIG = 1e6                                                                      # all_extreme の版で読めないコーパスを置く極端の値（本数）
 HEADER = {}
 SCRIPT_DEPS = ("exp/analyze_value_split_e87.py", "exp/relearn_tgtonly_e87.py", "exp/analyze_pairs_e83.py", "exp/explore_pairs.py", "exp/explore_synergy.py",
                "exp/pair_table.py", "exp/multimodal_distill.py", "measure/data.py", "measure/split.py")
@@ -208,6 +216,8 @@ def load_one(root, run, st, T, yall, te, prov, kgrid):
     z = np.load(f)
     meta = json.loads(str(z["_meta"]))
     prov.setdefault("yardstick_meta", {})[f"{root.name}|{run}|{st}|{T}"] = {k: meta.get(k) for k in ("commit", "code_hash", "code_dirty", "started")}
+    if meta.get("code_dirty"):
+        raise SystemExit(f"{run} {st} {T}：物差し（{root.name}）がコミットしていないコードで作られている（code_dirty）")
     st_ = meta["settings"]
     if list(st_["K"]) != list(kgrid) or [float(c) for c in st_["C_grid"]] != list(C_GRID) or list(st_["reps"]) != list(REPS):
         raise SystemExit(f"{run} {st} {T}：物差し（{root.name}）の K・C・反復の並びが台本の約束と違う")
@@ -215,6 +225,16 @@ def load_one(root, run, st, T, yall, te, prov, kgrid):
         raise SystemExit(f"{run} {st} {T}：物差し（{root.name}）の y が load_any のラベルと違う")
     csv = pd.read_csv(fc, comment="#", dtype={"K": str, "rep": int})
     tg = csv[csv.method == "tgt_only"]
+    fe = root / run / st / f"{T}_e76_check.csv"
+    if fe.exists():                                                            # I14：発話の集合が同じ組では K 本の発話が一致しなければ止める（C・argmax・点数の差は記録だけ）
+        chk = pd.read_csv(fe)
+        cmp_ = chk[chk.status == "compared"]
+        if "kidx_equal" in cmp_.columns and (~cmp_.kidx_equal.astype(bool)).any():
+            raise SystemExit(f"{run} {st} {T}：物差し（{root.name}）の K 本の発話が E76 の ① と違う反復がある（I14）")
+        prov.setdefault("e76_check", {})[f"{root.name}|{run}|{st}|{T}"] = {"status": chk.status.value_counts().to_dict(),
+                                                                          "argmax_agree_min": float(cmp_.argmax_agree_min.min()) if len(cmp_) else None,
+                                                                          "max_abs_logit_diff": float(cmp_.max_abs_logit_diff.max()) if len(cmp_) else None,
+                                                                          "n_C_differs": int((~cmp_.C_equal.astype(bool)).sum()) if len(cmp_) else None}
     out = {}
     for r in REPS:
         idx = np.asarray(z[f"test_idx_r{r}"]).ravel()
@@ -391,7 +411,11 @@ def run_all(args, out, prov):
             sid = {s: i for i, s in enumerate(speakers)}
             nls = len(speakers)
             C, A = corpus_draws(cp, speakers, args.boot, args.seed, len(REPS))
-            prov.setdefault("speakers_crc32", {})[f"{run}|{cp}"] = zlib.crc32("\n".join(speakers).encode())   # 世界の間で同じ並びか（抽出の共有の前提）を後で確かめられるように
+            crc = zlib.crc32("\n".join(speakers).encode())
+            for other, v in prov.get("speakers_crc32", {}).items():            # 同じコーパスの別の世界と話者の並びが違えば抽出を共有できないので止める
+                if other.split("|")[1] == cp and v != crc:
+                    raise SystemExit(f"{run} {cp}：話者の並びが {other} と違う（抽出を共有できない）")
+            prov.setdefault("speakers_crc32", {})[f"{run}|{cp}"] = crc
             Wj = np.ones((nls, nls)) - np.eye(nls)
             sess, Wj_s = None, None
             if cp == "IEMOCAP":
@@ -494,7 +518,9 @@ def method_scores(run, T, p, X, chT, st, K, comp, nls, C, Wj, need_jk, Wj_s, che
             if mx > 1e-6 or mism:
                 raise SystemExit(f"{run} {T} {st} K{K} r{r} {comp}：対数の確率から計算し直した d・o が pairs の表と合わない（最大 {mx:.2e}，NaN {mism}）")
             bfix_ref = p["bf"].get((wave, r, int(xo.row_id.iloc[0])))                   # rows_*.csv.gz の uar_bfix は 0〜100 の尺度
-            if bfix_ref is not None and np.isfinite(bfix_ref) and abs(float(bfix_ref) - sc["dir_bfix"]) > 1e-6:
+            if bfix_ref is None or not np.isfinite(bfix_ref):
+                out["n_bfix_unchecked"] = out.get("n_bfix_unchecked", 0) + 1
+            elif abs(float(bfix_ref) - sc["dir_bfix"]) > 1e-6:
                 raise SystemExit(f"{run} {T} {st} K{K} r{r} {comp}：計算し直した uar_bfix が rows の表と合わない（{sc['dir_bfix']:.6f} 対 {float(bfix_ref):.6f}）")
             if not sc["bfix_ok"]:
                 out["n_bfix_fail"] += 1
@@ -520,9 +546,10 @@ def method_scores(run, T, p, X, chT, st, K, comp, nls, C, Wj, need_jk, Wj_s, che
 
 
 def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_s, val_rows, check_rows, seed_rows):
-    """1 群：反復で平均した曲線に，反復で平均した none と手法の値を当てて読む．点，複製（B）と打ち切りの印，jackknife（J，S），反復ごとの読み（直す前の規則）．"""
+    """1 群：反復で平均した曲線に，反復で平均した none と手法の値を当てて読む．点，複製（B）と打ち切りの印（種類別），jackknife（J，S），反復ごとの読み（直す前の規則）．"""
     X = p["X"]
-    res = {"n_seeds": 0, "pt": {}, "pt_nomono": {}, "flag": {}, "readable": {}, "B": {}, "mask": {}, "J": {}, "S": {}, "cens": {}, "rep": {}, "dS": {}, "dS_B": {}, "dS_J": {}, "dS_S": {}}
+    res = {"n_seeds": 0, "pt": {}, "pt_nomono": {}, "pt_6pt": {}, "flag": {}, "readable": {}, "B": {}, "mask": {}, "J": {}, "S": {}, "cens": {}, "rep": {}, "dS": {}, "dS_B": {}, "dS_mask": {}, "dS_J": {}, "dS_S": {},
+           "KB": {}, "SB": {}}
     N = method_scores(run, T, p, X, None, st, K, comp, nls, C, Wj, need_jk, Wj_s, check_rows, seed_rows)
     if N is None:
         return None
@@ -530,6 +557,7 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
     if Mth is None:
         return None
     is_none = chT is None
+    fixed_dir = comp in FIXED_COMPS                                               # saerens・massbal：向きの座標は定義から none と同じ（n = 0）
     res["n_seeds"] = len(Mth["seeds"])
     pt_n = {q: float(np.mean([a[q] for a in N["pt"]])) for q in QUANTS_B + QUANTS_PT}
     pt_m = {q: float(np.mean([a[q] for a in Mth["pt"]])) for q in QUANTS_B + QUANTS_PT}
@@ -539,30 +567,44 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
     J_m = {q: rep_mean([a[q] for a in Mth["J"]]) for q in QUANTS_B} if need_jk else None
     S_n = {q: rep_mean([a[q] for a in N["S"]]) for q in QUANTS_B} if Wj_s is not None else None
     S_m = {q: rep_mean([a[q] for a in Mth["S"]]) for q in QUANTS_B} if Wj_s is not None else None
-    base = {"comparison": comp, "run": run, "target": T, "student": st, "K": K, "chosen": Mth["chosen"], "n_seeds": res["n_seeds"], "n_bfix_fail": N["n_bfix_fail"] + Mth["n_bfix_fail"]}
+    base = {"comparison": comp, "run": run, "target": T, "student": st, "K": K, "chosen": Mth["chosen"], "n_seeds": res["n_seeds"], "n_bfix_fail": N["n_bfix_fail"] + Mth["n_bfix_fail"],
+            "n_bfix_unchecked": N.get("n_bfix_unchecked", 0) + (0 if is_none else Mth.get("n_bfix_unchecked", 0))}
     row = dict(base)
     for q in QUANTS_B + QUANTS_PT:
         row[f"S_{q}_none"], row[f"S_{q}_method"] = pt_n[q], pt_m[q]
+    zero_flags = {k: False for k in MASK_KINDS}
+    zero_cens = {k: 0.0 for k in MASK_KINDS}
     for rule in KALL_RULES:
         logk = cv["logk"][rule]
         for q in QUANTS_B + QUANTS_PT:
+            defn_zero = is_none or (fixed_dir and q in DIR_QUANTS)
             Kn, lo_n, hi_n, am_n = read_K(cv["pt"][q], logk, pt_n[q], BETTER_HIGH[q])
             Km, lo_m, hi_m, am_m = read_K(cv["pt"][q], logk, pt_m[q], BETTER_HIGH[q])
             Kn2 = read_K(cv["pt"][q], logk, pt_n[q], BETTER_HIGH[q], adjust=False)[0]
             Km2 = read_K(cv["pt"][q], logk, pt_m[q], BETTER_HIGH[q], adjust=False)[0]
-            n = 0.0 if is_none else float(Km - Kn)
+            n = 0.0 if defn_zero else float(Km - Kn)
             res["pt"][(rule, q)] = n
-            res["pt_nomono"][(rule, q)] = 0.0 if is_none else float(Km2 - Kn2)
-            fl = {"cens_lo_none": bool(lo_n), "cens_hi_none": bool(hi_n), "amb_none": bool(am_n), "cens_lo_method": bool(lo_m), "cens_hi_method": bool(hi_m), "amb_method": bool(am_m)}
+            res["pt_nomono"][(rule, q)] = 0.0 if defn_zero else float(Km2 - Kn2)
+            fl = dict(zero_flags) if defn_zero else {"lo_none": bool(lo_n), "hi_none": bool(hi_n), "amb_none": bool(am_n), "lo_method": bool(lo_m), "hi_method": bool(hi_m), "amb_method": bool(am_m)}
             res["flag"][(rule, q)] = fl
-            res["readable"][(rule, q)] = True if is_none else not any(fl.values())      # none を選んだ群は定義から 0（読める）
+            res["readable"][(rule, q)] = True if defn_zero else not any(fl.values())      # none を選んだ群と定義から 0 の量は読める
+            if len(cv["labels"]) > len(K_GRID):                                   # 感度：K = 100 を外した 6 点の曲線での読み（点だけ）
+                sub = np.array([i for i, l in enumerate(cv["labels"]) if l in K_GRID])
+                Kn6 = read_K(cv["pt"][q][sub], logk[sub], pt_n[q], BETTER_HIGH[q])[0]
+                Km6 = read_K(cv["pt"][q][sub], logk[sub], pt_m[q], BETTER_HIGH[q])[0]
+                res["pt_6pt"][(rule, q)] = 0.0 if defn_zero else float(Km6 - Kn6)
+            else:
+                res["pt_6pt"][(rule, q)] = res["pt"][(rule, q)]
             row.update({f"K_{q}_none_{rule}": float(Kn), f"K_{q}_method_{rule}": float(Km), f"n_{q}_{rule}": n, f"n_{q}_nomono_{rule}": res["pt_nomono"][(rule, q)],
-                        f"readable_{q}_{rule}": res["readable"][(rule, q)], **{f"{k}_{q}_{rule}": v for k, v in fl.items()}})
+                        f"n_{q}_6pt_{rule}": res["pt_6pt"][(rule, q)], f"readable_{q}_{rule}": res["readable"][(rule, q)], **{f"cens_{k}_{q}_{rule}": v for k, v in fl.items()}})
             if q in QUANTS_B:
-                if is_none:
+                if defn_zero:
                     res["B"][(rule, q)] = np.zeros(len(C))
-                    res["mask"][(rule, q)] = np.zeros(len(C), bool)
-                    res["cens"][(rule, q)] = {k: 0.0 for k in ("lo_none", "hi_none", "amb_none", "lo_method", "hi_method", "amb_method")}
+                    res["KB"][(rule, q)] = None
+                    if rule == MAIN_RULE:
+                        res["SB"][q] = (B_n[q], B_m[q]) if not is_none else (B_n[q], B_n[q])
+                    res["mask"][(rule, q)] = np.zeros(len(C), np.uint8)
+                    res["cens"][(rule, q)] = dict(zero_cens)
                     if need_jk:
                         res["J"][(rule, q)] = np.zeros(nls)
                     if Wj_s is not None:
@@ -571,7 +613,10 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
                     KBn, lo1, hi1, a1 = read_K(cv["B"][q], logk, B_n[q], BETTER_HIGH[q])
                     KBm, lo2, hi2, a2 = read_K(cv["B"][q], logk, B_m[q], BETTER_HIGH[q])
                     res["B"][(rule, q)] = KBm - KBn
-                    res["mask"][(rule, q)] = lo1 | hi1 | a1 | lo2 | hi2 | a2
+                    res["KB"][(rule, q)] = (KBn, KBm)                                  # K'(none)・K'(手法) の複製（後から区間を出せるように保存）
+                    if rule == MAIN_RULE:
+                        res["SB"][q] = (B_n[q], B_m[q])                                # S_x そのものの複製
+                    res["mask"][(rule, q)] = pack_mask({"lo_none": lo1, "hi_none": hi1, "amb_none": a1, "lo_method": lo2, "hi_method": hi2, "amb_method": a2})
                     res["cens"][(rule, q)] = {"lo_none": float(np.mean(lo1)), "hi_none": float(np.mean(hi1)), "amb_none": float(np.mean(a1)),
                                               "lo_method": float(np.mean(lo2)), "hi_method": float(np.mean(hi2)), "amb_method": float(np.mean(a2))}
                     if need_jk:
@@ -584,37 +629,52 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
             res["pt"][(rule, dq)] = res["pt"][(rule, "dir")] - res["pt"][(rule, pq)]
             res["pt_nomono"][(rule, dq)] = res["pt_nomono"][(rule, "dir")] - res["pt_nomono"][(rule, pq)]
             res["readable"][(rule, dq)] = res["readable"][(rule, "dir")] and res["readable"][(rule, pq)]
-            res["flag"][(rule, dq)] = {k: (res["flag"][(rule, "dir")][k] or res["flag"][(rule, pq)][k]) for k in res["flag"][(rule, "dir")]}
+            res["flag"][(rule, dq)] = {k: (res["flag"][(rule, "dir")][k] or res["flag"][(rule, pq)][k]) for k in MASK_KINDS}
             res["B"][(rule, dq)] = res["B"][(rule, "dir")] - res["B"][(rule, pq)]
             res["mask"][(rule, dq)] = res["mask"][(rule, "dir")] | res["mask"][(rule, pq)]
-            res["cens"][(rule, dq)] = {k: max(res["cens"][(rule, "dir")][k], res["cens"][(rule, pq)][k]) for k in res["cens"][(rule, "dir")]}
+            res["cens"][(rule, dq)] = {k: max(res["cens"][(rule, "dir")][k], res["cens"][(rule, pq)][k]) for k in MASK_KINDS}
             if need_jk:
                 res["J"][(rule, dq)] = res["J"][(rule, "dir")] - res["J"][(rule, pq)]
             if Wj_s is not None:
                 res["S"][(rule, dq)] = res["S"][(rule, "dir")] - res["S"][(rule, pq)]
             row[f"n_{dq}_{rule}"] = res["pt"][(rule, dq)]
-    # 反復ごとの読み（直す前の規則 563188d：反復ごとの 6 点の曲線（K = 100 を除く）に反復ごとの値を当て，右端は n_tgt_r/4）
+    # 反復ごとの読み（直す前の規則 563188d：反復ごとの 6 点の曲線（K = 100 を除く）に反復ごとの値を当て，右端は n_tgt_r/4．none を選んだ群は読める）
     sub6 = np.array([i for i, l in enumerate(cv["labels"]) if l in K_GRID])
     for q in QUANTS_B + QUANTS_PT:
+        defn_zero = is_none or (fixed_dir and q in DIR_QUANTS)
         ns, cens = [], []
         for ri, r in enumerate(REPS):
             crv, lk = cv["pt_rep"][q][ri][sub6], cv["logk_rep"][ri][sub6]
             Kn, lo_n, hi_n, _ = read_K(crv, lk, N["pt"][ri][q], BETTER_HIGH[q])
             Km, lo_m, hi_m, _ = read_K(crv, lk, Mth["pt"][ri][q], BETTER_HIGH[q])
-            ns.append(0.0 if is_none else float(Km - Kn))
-            cens.append(bool(lo_n or hi_n) or (not is_none and bool(lo_m or hi_m)))
+            ns.append(0.0 if defn_zero else float(Km - Kn))
+            cens.append(False if defn_zero else bool(lo_n or hi_n or lo_m or hi_m))
         res["rep"][q] = {"n_mean": float(np.mean(ns)), "frac_cens": float(np.mean(cens))}
         row[f"n_{q}_rep"], row[f"frac_cens_{q}_rep"] = res["rep"][q]["n_mean"], res["rep"][q]["frac_cens"]
     for q in DS:                                                               # 換算する前の差（右端の置き方に依らない）
-        res["dS"][q] = 0.0 if is_none else pt_m[q] - pt_n[q]
-        res["dS_B"][q] = np.zeros(len(C)) if is_none else B_m[q] - B_n[q]
+        defn_zero = is_none or (fixed_dir and f"dS_{q}" in DIR_QUANTS)
+        res["dS"][q] = 0.0 if defn_zero else pt_m[q] - pt_n[q]
+        res["dS_B"][q] = np.zeros(len(C)) if defn_zero else B_m[q] - B_n[q]
+        res["dS_mask"][q] = np.zeros(len(C), np.uint8)                           # ΔS は曲線を読まないので打ち切りは無い
         if need_jk:
-            res["dS_J"][q] = np.zeros(nls) if is_none else J_m[q] - J_n[q]
+            res["dS_J"][q] = np.zeros(nls) if defn_zero else J_m[q] - J_n[q]
         if Wj_s is not None:
-            res["dS_S"][q] = np.zeros(Wj_s.shape[0]) if is_none else S_m[q] - S_n[q]
+            res["dS_S"][q] = np.zeros(Wj_s.shape[0]) if defn_zero else S_m[q] - S_n[q]
         row[f"dS_{q}"] = res["dS"][q]
     val_rows.append(row)
     return res
+
+
+def pack_mask(d):
+    m = np.zeros(len(next(iter(d.values()))), np.uint8)
+    for k, v in d.items():
+        m |= (np.asarray(v, bool) * MASK_BIT[k]).astype(np.uint8)
+    return m
+
+
+def mask_frac(m, kinds):
+    bits = sum(MASK_BIT[k] for k in kinds)
+    return float(((m & bits) > 0).mean()) if m is not None and len(m) else 0.0
 
 
 def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_sess, all_none, meta, unit_rows, boot_store, jk_store):
@@ -625,37 +685,43 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
 
     def stack_mean(key, qq):
         return np.mean(np.stack([per_T[T][key][qq] for T in Ts_use]), 0) if all(qq in per_T[T][key] for T in Ts_use) else None
+
+    def stack_or(key, qq):
+        return np.bitwise_or.reduce(np.stack([per_T[T][key][qq] for T in Ts_use]), 0) if all(qq in per_T[T][key] for T in Ts_use) else None
     for rule, q in items:
         is_ds = q.startswith("dS_")
         qq = q[3:] if is_ds else q
+        defn_zero = all_none or (comp in FIXED_COMPS and q in DIR_QUANTS)
         mask = None
         rep_n = rep_cens = np.nan
+        x_6 = np.nan
         if is_ds:
             x = float(np.mean([per_T[T]["dS"][qq] for T in Ts_use]))
             x_nm = np.nan
             readable = True
-            flags = {}
+            flags = {k: False for k in MASK_KINDS}
             b, th, ths = stack_mean("dS_B", qq), stack_mean("dS_J", qq), stack_mean("dS_S", qq)
-            cens = {}
+            mask = stack_or("dS_mask", qq)
+            cens = {k: 0.0 for k in MASK_KINDS}
         else:
             x = float(np.mean([per_T[T]["pt"][(rule, q)] for T in Ts_use]))
             x_nm = float(np.mean([per_T[T]["pt_nomono"][(rule, q)] for T in Ts_use]))
+            x_6 = float(np.mean([per_T[T]["pt_6pt"][(rule, q)] for T in Ts_use])) if all((rule, q) in per_T[T]["pt_6pt"] for T in Ts_use) else np.nan
             readable = all(per_T[T]["readable"][(MAIN_RULE, q)] for T in Ts_use)                  # 読めるかは主の右端の置き方で決める
-            flags = {k: any(per_T[T]["flag"][(rule, q)][k] for T in Ts_use) for k in per_T[Ts_use[0]]["flag"][(rule, q)]}
+            flags = {k: any(per_T[T]["flag"][(rule, q)][k] for T in Ts_use) for k in MASK_KINDS}
             has_b = q in QUANTS_B or q in DIFFS
             b = stack_mean("B", (rule, q)) if has_b else None
             th = stack_mean("J", (rule, q)) if has_b else None
             ths = stack_mean("S", (rule, q)) if has_b else None
-            if has_b:
-                mask = np.any(np.stack([per_T[T]["mask"][(rule, q)] for T in Ts_use]), 0)
-            cens = {k: float(np.mean([per_T[T]["cens"][(rule, q)][k] for T in Ts_use])) for k in per_T[Ts_use[0]]["cens"][(rule, q)]} if has_b else {}
+            mask = stack_or("mask", (rule, q)) if has_b else None
+            cens = {k: float(np.mean([per_T[T]["cens"][(rule, q)][k] for T in Ts_use])) for k in MASK_KINDS} if has_b else {}
             if q in QUANTS_B + QUANTS_PT:
                 rep_n = float(np.mean([per_T[T]["rep"][q]["n_mean"] for T in Ts_use]))
                 rep_cens = float(np.mean([per_T[T]["rep"][q]["frac_cens"] for T in Ts_use]))
         lo = hi = lo_j = hi_j = lo_s = hi_s = np.nan
         rule_i, nvalid = "point_only", 0
-        frac_mask = float(mask.mean()) if mask is not None else 0.0
-        interval_ok = bool(frac_mask <= CENS_DRAW_MAX)
+        frac_main, frac_sens, frac_any = mask_frac(mask, MAIN_MASK), mask_frac(mask, SENS_MASK), mask_frac(mask, MASK_KINDS)
+        interval_ok, interval_ok_sens = bool(frac_main <= CENS_DRAW_MAX), bool(frac_sens <= CENS_DRAW_MAX)
         if b is not None:
             lo, hi = pct(b, 2.5), pct(b, 97.5)
             nvalid = int(np.isfinite(b).sum())
@@ -677,9 +743,15 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
             boot_store[key] = b.astype(np.float32)
         if mask is not None:
             boot_store[key + "|mask"] = mask.astype(np.uint8)
+        if not is_ds and q in QUANTS_B and all(per_T[T]["KB"].get((rule, q)) is not None for T in Ts_use):
+            boot_store[key + "|Kn"] = np.mean(np.stack([per_T[T]["KB"][(rule, q)][0] for T in Ts_use]), 0).astype(np.float32)
+            boot_store[key + "|Km"] = np.mean(np.stack([per_T[T]["KB"][(rule, q)][1] for T in Ts_use]), 0).astype(np.float32)
+        if not is_ds and q in QUANTS_B and rule == MAIN_RULE and all(q in per_T[T]["SB"] for T in Ts_use):
+            boot_store[key + "|Sn"] = np.mean(np.stack([per_T[T]["SB"][q][0] for T in Ts_use]), 0).astype(np.float32)
+            boot_store[key + "|Sm"] = np.mean(np.stack([per_T[T]["SB"][q][1] for T in Ts_use]), 0).astype(np.float32)
         if th is not None:
             jk_store[key] = th.astype(np.float32)
-        if all_none:
+        if defn_zero:
             jd = "same_by_definition"
         elif b is None:
             jd = "point_only"
@@ -694,11 +766,11 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
         else:
             jd = "undet"
         unit_rows.append({"comparison": comp, "run": run, "role": E.role_of(run, st), "student": st, "family": family_of(st), "K": K, "corpus": cp, "n_groups": len(Ts_use),
-                          "groups": ";".join(Ts_use), "sensitivity": stag, "kall_rule": rule, "quantity": q, "point": x, "point_nomono": x_nm, "lo": lo, "hi": hi,
+                          "groups": ";".join(Ts_use), "sensitivity": stag, "kall_rule": rule, "quantity": q, "point": x, "point_nomono": x_nm, "point_6pt": x_6, "lo": lo, "hi": hi,
                           "lo_jk": lo_j, "hi_jk": hi_j, "lo_session_jk": lo_s, "hi_session_jk": hi_s, "interval_rule": rule_i, "g_eff_min": gmin, "n_boot_valid": nvalid,
-                          "is_readable": bool(readable), **{f"flag_{k}": v for k, v in flags.items()}, **{f"frac_cens_{k}": v for k, v in cens.items()},
-                          "frac_draw_cens_any": frac_mask, "interval_ok": interval_ok, "point_rep": rep_n, "frac_cens_rep": rep_cens,
-                          "judgment": jd, "boot_key": key, **meta})
+                          "is_readable": bool(readable), "same_by_definition": bool(defn_zero), **{f"flag_{k}": v for k, v in flags.items()}, **{f"frac_cens_{k}": v for k, v in cens.items()},
+                          "frac_draw_cens_main": frac_main, "frac_draw_cens_hi_only": frac_sens, "frac_draw_cens_any": frac_any, "interval_ok": interval_ok, "interval_ok_hi_only": interval_ok_sens,
+                          "point_rep": rep_n, "frac_cens_rep": rep_cens, "judgment": jd, "boot_key": key, **meta})
 
 
 # ---------------------------------------------------------------- 直接の差，コーパスの値，族，判定
@@ -714,15 +786,21 @@ def direct_units(U, boot_store, jk_store):
             x = float(ra.point - rb.point)
             ba_, bb = boot_store.get(ra.boot_key), boot_store.get(rb.boot_key)
             lo = hi = lo_j = hi_j = np.nan
-            jd, rule_i, frac_mask = "point_only", "point_only", 0.0
+            jd, rule_i = "point_only", "point_only"
+            frac_main = frac_any = 0.0
             key = f"{name}|{'|'.join(map(str, idx))}"
+            flags = {k: bool(ra.get(f"flag_{k}", False) or rb.get(f"flag_{k}", False)) for k in MASK_KINDS}
             if ba_ is not None and bb is not None:
                 d = ba_.astype(np.float64) - bb.astype(np.float64)
                 store[key] = d.astype(np.float32)
                 ma, mb = boot_store.get(ra.boot_key + "|mask"), boot_store.get(rb.boot_key + "|mask")
-                mask = ((ma if ma is not None else 0) | (mb if mb is not None else 0)).astype(np.uint8) if (ma is not None or mb is not None) else np.zeros(len(d), np.uint8)
+                mask = np.zeros(len(d), np.uint8)
+                if ma is not None:
+                    mask |= ma
+                if mb is not None:
+                    mask |= mb
                 store[key + "|mask"] = mask
-                frac_mask = float(mask.mean())
+                frac_main, frac_any = mask_frac(mask, MAIN_MASK), mask_frac(mask, MASK_KINDS)
                 lo, hi = pct(d, 2.5), pct(d, 97.5)
                 rule_i = "pct"
                 ja, jb = jk_store.get(ra.boot_key), jk_store.get(rb.boot_key)
@@ -736,7 +814,7 @@ def direct_units(U, boot_store, jk_store):
                     rule_i, lo, hi = "pct_jk_missing", np.nan, np.nan
                 if not (np.isfinite(lo) and np.isfinite(hi)):
                     jd = "missing"
-                elif frac_mask > CENS_DRAW_MAX:
+                elif frac_main > CENS_DRAW_MAX:
                     jd = "cens_interval"
                 else:
                     jd = "pos" if lo > 0 else ("neg" if hi < 0 else "undet")
@@ -744,8 +822,19 @@ def direct_units(U, boot_store, jk_store):
             rows.append({"comparison": name, "run": run, "role": E.role_of(run, st), "student": st, "family": family_of(st), "K": K, "corpus": cp, "n_groups": int(ra.n_groups), "groups": ra.groups,
                          "sensitivity": stag, "kall_rule": rule, "quantity": q, "point": x, "point_nomono": float(ra.point_nomono - rb.point_nomono) if np.isfinite(ra.point_nomono) and np.isfinite(rb.point_nomono) else np.nan,
                          "lo": lo, "hi": hi, "lo_jk": lo_j, "hi_jk": hi_j, "interval_rule": rule_i, "g_eff_min": float(ra.g_eff_min), "is_readable": bool(ra.is_readable and rb.is_readable),
-                         "frac_draw_cens_any": frac_mask, "interval_ok": bool(frac_mask <= CENS_DRAW_MAX), "judgment": jd, "boot_key": key})
+                         "same_by_definition": bool(ra.same_by_definition and rb.same_by_definition), **{f"flag_{k}": v for k, v in flags.items()},
+                         "frac_draw_cens_main": frac_main, "frac_draw_cens_any": frac_any, "interval_ok": bool(frac_main <= CENS_DRAW_MAX), "judgment": jd, "boot_key": key})
     return pd.DataFrame(rows), store, jstore
+
+
+def true_direction(fl):
+    """点の読みの印から，本当の本数が記録した本数のどちら側にあるか．+：大きい（手法が上に外れた／none が下に外れた），−：小さい，0：読めた，?：決まらない（あいまい，または両向き）．"""
+    plus = fl.get("hi_method", False) or fl.get("lo_none", False)
+    minus = fl.get("lo_method", False) or fl.get("hi_none", False)
+    amb = fl.get("amb_method", False) or fl.get("amb_none", False)
+    if amb or (plus and minus):
+        return "?"
+    return "+" if plus else ("-" if minus else "0")
 
 
 def corpus_level(U, store, jstore):
@@ -768,7 +857,7 @@ def corpus_level(U, store, jstore):
                 js = [jstore[k] for k in gc.boot_key if k in jstore]
                 x = float(gc.point.mean())
                 cb = np.mean(np.stack(bs), 0).astype(np.float64) if len(bs) == len(gc) else None
-                cm = np.any(np.stack(ms), 0) if len(ms) == len(gc) and ms else (np.zeros(len(cb), bool) if cb is not None else None)
+                cm = np.bitwise_or.reduce(np.stack(ms), 0) if (len(ms) == len(gc) and ms) else (np.zeros(len(cb), np.uint8) if cb is not None else None)
                 geff = float(gc.g_eff_min.min())
                 lo, hi = (pct(cb, 2.5), pct(cb, 97.5)) if cb is not None else (np.nan, np.nan)
                 lo_j = hi_j = np.nan
@@ -781,9 +870,11 @@ def corpus_level(U, store, jstore):
                         rule_i = "union_pct_jk"
                     else:
                         rule_i, lo, hi = "pct_jk_missing", np.nan, np.nan
-                frac_mask = float(cm.mean()) if cm is not None else 0.0
-                ok = bool(frac_mask <= CENS_DRAW_MAX) and bool(gc.interval_ok.all()) if "interval_ok" in gc.columns else bool(frac_mask <= CENS_DRAW_MAX)
-                if (gc.judgment == "same_by_definition").all():
+                fr = {k: mask_frac(cm, (k,)) for k in MASK_KINDS}
+                frac_main, frac_sens, frac_any = mask_frac(cm, MAIN_MASK), mask_frac(cm, SENS_MASK), mask_frac(cm, MASK_KINDS)
+                ok, ok_sens = bool(frac_main <= CENS_DRAW_MAX), bool(frac_sens <= CENS_DRAW_MAX)
+                defn = bool(gc.same_by_definition.all()) if "same_by_definition" in gc.columns else bool((gc.judgment == "same_by_definition").all())
+                if defn:
                     jd = "same_by_definition"
                 elif cb is None:
                     jd = "point_only"
@@ -793,54 +884,80 @@ def corpus_level(U, store, jstore):
                     jd = "cens_interval"
                 else:
                     jd = "pos" if lo > 0 else ("neg" if hi < 0 else "undet")
-                fl = {k: bool(gc[f"flag_{k}"].any()) for k in ("cens_lo_none", "cens_hi_none", "amb_none", "cens_lo_method", "cens_hi_method", "amb_method") if f"flag_{k}" in gc.columns}
-                cd[cp] = {"point": x, "point_nomono": float(gc.point_nomono.mean()) if "point_nomono" in gc.columns else np.nan, "B": cb, "mask": cm, "geff": geff,
-                          "lo": lo, "hi": hi, "lo_jk": lo_j, "hi_jk": hi_j, "ok": ok, "frac_mask": frac_mask, "judgment": jd, "readable": bool(gc.is_readable.all()),
-                          "n_units": len(gc), "flags": fl, "point_rep": float(gc.point_rep.mean()) if "point_rep" in gc.columns else np.nan}
+                fl = {k: bool(gc[f"flag_{k}"].any()) for k in MASK_KINDS if f"flag_{k}" in gc.columns}
+                readable = bool(gc.is_readable.all())
+                cd[cp] = {"point": x, "point_nomono": float(gc.point_nomono.mean()) if "point_nomono" in gc.columns else np.nan, "point_6pt": float(gc.point_6pt.mean()) if "point_6pt" in gc.columns else np.nan,
+                          "B": cb, "mask": cm, "geff": geff,
+                          "lo": lo, "hi": hi, "lo_jk": lo_j, "hi_jk": hi_j, "ok": ok, "ok_sens": ok_sens, "frac_main": frac_main, "frac_sens": frac_sens, "frac_any": frac_any,
+                          "judgment": jd, "readable": readable, "dir": "0" if readable else true_direction(fl), "n_units": len(gc), "flags": fl, "defn": defn,
+                          "point_rep": float(gc.point_rep.mean()) if "point_rep" in gc.columns else np.nan}
                 if uv == "main":
                     rows.append({"comparison": comp, "family": fam, "K": K, "kall_rule": rule, "quantity": q, "corpus": cp, "n_units": len(gc), "runs": ";".join(sorted(gc.run)),
-                                 "point": x, "point_nomono": cd[cp]["point_nomono"], "lo": lo, "hi": hi, "lo_jk": lo_j, "hi_jk": hi_j, "interval_rule": rule_i, "g_eff_min": geff,
-                                 "frac_draw_cens_any": frac_mask, "interval_ok": ok, "judgment": jd, "is_readable": cd[cp]["readable"], **{f"flag_{k}": v for k, v in fl.items()},
-                                 "n_unit_pos": int((gc.judgment == "pos").sum()), "n_unit_neg": int((gc.judgment == "neg").sum())})
+                                 "point": x, "point_nomono": cd[cp]["point_nomono"], "point_6pt": cd[cp]["point_6pt"], "lo": lo, "hi": hi, "lo_jk": lo_j, "hi_jk": hi_j, "interval_rule": rule_i, "g_eff_min": geff,
+                                 **{f"frac_draw_{k}": v for k, v in fr.items()}, "frac_draw_cens_main": frac_main, "frac_draw_cens_hi_only": frac_sens, "frac_draw_cens_any": frac_any,
+                                 "interval_ok": ok, "interval_ok_hi_only": ok_sens, "judgment": jd, "is_readable": readable, "true_direction": cd[cp]["dir"],
+                                 **{f"flag_{k}": v for k, v in fl.items()}, "n_unit_pos": int((gc.judgment == "pos").sum()), "n_unit_neg": int((gc.judgment == "neg").sum())})
             CORP[(comp, fam, K, rule, q, uv)] = cd
     return CORP, pd.DataFrame(rows)
 
 
-def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX):
+def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main", extreme=False):
     """族の統計量：cps の中央値．複製は，G_eff < 20 のコーパスの複製を点の値のまわりで jackknife の幅まで広げてから，複製ごとに中央値．
-    打ち切り・あいまいの複製がどれかのコーパスにある割合が cens_max を超えれば区間は使わない（ok = False）．コーパスの ok は単位の規則（2.5%）のまま．"""
+    区間が使える（ok）のは，読めるコーパスのそれぞれで，抽出の中の印（mask_kind：main ＝ 上の打ち切りとあいまい，hi_only ＝ 上の打ち切りだけ）の割合が cens_max 以下のとき．
+    extreme：読めないコーパスを，本当の本数が分かっている向きの極端（±BIG）に置く（向きが決まらないコーパスがあれば unknown_dir）．"""
     out = {"n_used": len(cps), "corpora": ";".join(cps), "median": np.nan, "median_nomono": np.nan, "lo": np.nan, "hi": np.nan, "ok": False, "frac_mask": np.nan, "b": None,
-           "n_pos": int(sum(cd[c]["judgment"] == "pos" for c in cps)), "n_neg": int(sum(cd[c]["judgment"] == "neg" for c in cps)), "inflation": ""}
+           "n_pos": int(sum(cd[c]["judgment"] == "pos" for c in cps)), "n_neg": int(sum(cd[c]["judgment"] == "neg" for c in cps)), "inflation": "", "unknown_dir": False,
+           "n_readable": int(sum(cd[c]["readable"] for c in cps)), "n_extreme_plus": 0, "n_extreme_minus": 0}
     if not cps:
         return out
-    out["median"] = float(np.median([cd[c]["point"] for c in cps]))
-    out["median_nomono"] = float(np.median([cd[c]["point_nomono"] for c in cps]))
-    out["median_rep"] = float(np.median([cd[c]["point_rep"] for c in cps]))
-    if len(cps) > 1:
-        loo = {c: float(np.median([cd[d]["point"] for d in cps if d != c])) for c in cps}
-        out["loo_medians"] = ";".join(f"{c}:{v:.3f}" for c, v in loo.items())
-        out["loo_min"], out["loo_max"] = min(loo.values()), max(loo.values())
-    if all(cd[c]["B"] is not None for c in cps):
-        reps, infl = [], []
-        for c in cps:
-            b, x = cd[c]["B"], cd[c]["point"]
+    vals, nm, reps, infl, masks = [], [], [], [], []
+    fkey = "frac_main" if mask_kind == "main" else "frac_sens"
+    all_b = all(cd[c]["B"] is not None for c in cps)
+    for c in cps:
+        x, b = cd[c]["point"], cd[c]["B"]
+        x_nm = cd[c]["point_nomono"]
+        if extreme and not cd[c]["readable"]:
+            d = cd[c]["dir"]
+            if d == "+":
+                x, x_nm, b = BIG, BIG, (None if b is None else np.full_like(b, BIG))
+                out["n_extreme_plus"] += 1
+            elif d == "-":
+                x, x_nm, b = -BIG, -BIG, (None if b is None else np.full_like(b, -BIG))
+                out["n_extreme_minus"] += 1
+            else:
+                out["unknown_dir"] = True
+        vals.append(x)
+        nm.append(x_nm)
+        if all_b:
             r = 1.0
-            if inflate and cd[c]["geff"] < GEFF_MIN and np.isfinite(cd[c]["lo_jk"]) and np.isfinite(cd[c]["hi_jk"]):
+            if inflate and not (extreme and not cd[c]["readable"]) and cd[c]["geff"] < GEFF_MIN and np.isfinite(cd[c]["lo_jk"]) and np.isfinite(cd[c]["hi_jk"]):
                 pw = (pct(b, 97.5) - pct(b, 2.5)) / 2
                 jw = (cd[c]["hi_jk"] - cd[c]["lo_jk"]) / 2
                 r = max(1.0, jw / pw) if pw > 0 else 1.0
             infl.append(f"{c}:{r:.2f}")
             reps.append(x + r * (b - x))
+            if cd[c]["readable"] and cd[c]["mask"] is not None:
+                masks.append(cd[c]["mask"])
+    out["median"] = float(np.median(vals))
+    out["median_nomono"] = float(np.median(nm))
+    out["median_rep"] = float(np.median([cd[c]["point_rep"] for c in cps]))
+    out["median_6pt"] = float(np.median([cd[c].get("point_6pt", np.nan) for c in cps]))
+    if len(cps) > 1:
+        loo = {c: float(np.median([v for d_, v in zip(cps, vals) if d_ != c])) for c in cps}
+        out["loo_medians"] = ";".join(f"{c}:{v:.3f}" for c, v in loo.items())
+        out["loo_min"], out["loo_max"] = min(loo.values()), max(loo.values())
+    if all_b:
         fb = np.nanmedian(np.stack(reps), 0)
-        masks = [cd[c]["mask"] for c in cps if cd[c]["mask"] is not None]
-        fm = np.any(np.stack(masks), 0) if masks else np.zeros(len(fb), bool)
+        bits = sum(MASK_BIT[k] for k in (MAIN_MASK if mask_kind == "main" else SENS_MASK))
+        fm = np.any(np.stack([(m & bits) > 0 for m in masks]), 0) if masks else np.zeros(len(fb), bool)
+        readable_ok = all(cd[c][fkey] <= cens_max for c in cps if cd[c]["readable"])
         out.update({"b": fb, "mask": fm, "lo": pct(fb, 2.5), "hi": pct(fb, 97.5), "frac_mask": float(fm.mean()), "inflation": ";".join(infl),
-                    "ok": bool(fm.mean() <= cens_max) and all(cd[c]["frac_mask"] <= cens_max for c in cps)})
+                    "ok": bool(readable_ok and out["n_readable"] >= 1 and not out["unknown_dir"])})
     return out
 
 
 def corpora_for(cd, variant):
-    if variant == "all":
+    if variant in ("all", "all_extreme"):
         return sorted(cd)
     if variant == "readable_excl_mosei_afew":
         return sorted(c for c in cd if cd[c]["readable"] and c not in EXCL_MA)
@@ -850,24 +967,23 @@ def corpora_for(cd, variant):
 def family_table(CORP, fstore):
     rows = []
     for (comp, fam, K, rule, q, uv), cd in CORP.items():
-        for variant in VARIANTS:
+        for variant in VARIANTS + ("all_extreme",):
             if (variant == "readable_impro_only") != (uv == "impro_only"):
                 continue
             cps = corpora_for(cd, variant)
-            for inflate in (True, False):
-                fs = family_stats(cd, cps, inflate)
-                key = f"{comp}|{fam}|{K}|{rule}|{q}|{variant}|{'infl' if inflate else 'noinfl'}"
+            for inflate, mask_kind in ((True, "main"), (False, "main"), (True, "hi_only")):
+                fs = family_stats(cd, cps, inflate, CENS_DRAW_MAX, mask_kind, extreme=(variant == "all_extreme"))
+                key = f"{comp}|{fam}|{K}|{rule}|{q}|{variant}|{'infl' if inflate else 'noinfl'}|{mask_kind}"
                 if fs["b"] is not None:
                     fstore[key] = fs["b"].astype(np.float32)
-                rows.append({"comparison": comp, "family": fam, "K": K, "kall_rule": rule, "quantity": q, "variant": variant, "jk_inflation": inflate, "n_corpora_nominal": nominal_of(fam, variant),
-                             "n_corpora_present": len(cd), "n_corpora_used": fs["n_used"], "corpora_used": fs["corpora"], "judgeable": bool(fs["n_used"] >= need_of(fam, variant)),
-                             "median": fs["median"], "median_nomono": fs["median_nomono"], "median_rep": fs.get("median_rep", np.nan), "lo": fs["lo"], "hi": fs["hi"],
-                             "interval_ok": fs["ok"], "frac_draw_cens_any": fs["frac_mask"], "inflation": fs["inflation"], "n_corp_pos": fs["n_pos"], "n_corp_neg": fs["n_neg"],
+                rows.append({"comparison": comp, "family": fam, "K": K, "kall_rule": rule, "quantity": q, "variant": variant, "jk_inflation": inflate, "mask_kind": mask_kind,
+                             "n_corpora_nominal": nominal_of(fam, variant), "n_corpora_present": len(cd), "n_corpora_used": fs["n_used"], "n_corpora_readable": fs["n_readable"],
+                             "corpora_used": fs["corpora"], "judgeable": bool(fs["n_used"] >= need_of(fam, variant)),
+                             "median": fs["median"], "median_nomono": fs["median_nomono"], "median_rep": fs.get("median_rep", np.nan), "median_6pt": fs.get("median_6pt", np.nan), "lo": fs["lo"], "hi": fs["hi"],
+                             "interval_ok": fs["ok"], "frac_draw_cens_union": fs["frac_mask"], "inflation": fs["inflation"], "n_corp_pos": fs["n_pos"], "n_corp_neg": fs["n_neg"],
+                             "unknown_dir": fs["unknown_dir"], "n_extreme_plus": fs["n_extreme_plus"], "n_extreme_minus": fs["n_extreme_minus"],
                              "loo_medians": fs.get("loo_medians", ""), "loo_median_min": fs.get("loo_min", np.nan), "loo_median_max": fs.get("loo_max", np.nan),
-                             "n_corp_cens_hi_method": int(sum(cd[c]["flags"].get("cens_hi_method", False) for c in cd)),
-                             "n_corp_cens_lo_method": int(sum(cd[c]["flags"].get("cens_lo_method", False) for c in cd)),
-                             "n_corp_cens_none": int(sum(cd[c]["flags"].get("cens_lo_none", False) or cd[c]["flags"].get("cens_hi_none", False) for c in cd)),
-                             "n_corp_amb": int(sum(cd[c]["flags"].get("amb_none", False) or cd[c]["flags"].get("amb_method", False) for c in cd)),
+                             **{f"n_corp_{k}": int(sum(cd[c]["flags"].get(k, False) for c in cd)) for k in MASK_KINDS},
                              "boot_key": key if fs["b"] is not None else ""})
     return pd.DataFrame(rows)
 
@@ -876,14 +992,16 @@ def status3(hold, fail):
     return "holds" if hold else ("fails" if fail else "undet")
 
 
-def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac", cens_max=CENS_DRAW_MAX):
-    """1 つの（比較，族，右端の置き方，版，座標の組）について P87-1〜3 と対比の条件を判定する．戻りは列の辞書．"""
+def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac", cens_max=CENS_DRAW_MAX, mask_kind="main", inflate=True):
+    """1 つの（比較，族，右端の置き方，版，座標の組，帯，打ち切りの基準）について P87-1〜3 と対比の条件を判定する．戻りは列の辞書．
+    variant が all_extreme のときは，読めないコーパスを分かっている向きの極端に置く．"""
     uv = "impro_only" if variant == "readable_impro_only" else "main"
     need = need_of(fam, variant)
     pointonly = dirq in QUANTS_PT or posq in QUANTS_PT
+    extreme = variant == "all_extreme"
 
     def FS(cd_, cps_):
-        return family_stats(cd_, cps_, cens_max=cens_max)
+        return family_stats(cd_, cps_, inflate=inflate, cens_max=cens_max, mask_kind=mask_kind, extreme=extreme)
 
     def cd_of(q, K):
         return CORP.get((comp, fam, K, rule, q, uv))
@@ -894,7 +1012,12 @@ def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac"
             return None, None, []
         cps = sorted(set(corpora_for(c1, variant)) & set(corpora_for(c2, variant)))
         return c1, c2, cps
-    rec = {"family": fam, "comparison": comp, "kall_rule": rule, "variant": variant, "coordinates": f"{dirq}/{posq}/{uarq}", "band": band_mode, "cens_max": cens_max}
+
+    def not_j(fs_list):
+        if any(f["unknown_dir"] for f in fs_list):
+            return "not_judgeable_unknown_dir"
+        return "not_judgeable_cens"
+    rec = {"family": fam, "comparison": comp, "kall_rule": rule, "variant": variant, "coordinates": f"{dirq}/{posq}/{uarq}", "band": band_mode, "cens_max": cens_max, "mask_kind": mask_kind, "jk_inflation": inflate}
     # ---- P87-1：向きの分は K によらず残る
     c0, c25, cps = common(dirq, "0", "25")
     rec["P87_1_n_corpora"] = len(cps)
@@ -908,7 +1031,7 @@ def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac"
             rec["P87_1_status"] = "point_only"
             rec["P87_1_point_holds"] = bool(f0["median"] > 0 and f25["median"] >= HOLD_RATIO * f0["median"])
         elif not (f0["ok"] and f25["ok"]):
-            rec["P87_1_status"] = "not_judgeable_cens"
+            rec["P87_1_status"] = not_j([f0, f25])
         else:
             diff = f25["b"] - HOLD_RATIO * f0["b"]
             lo0, hi0, lod, hid = pct(f0["b"], 2.5), pct(f0["b"], 97.5), pct(diff, 2.5), pct(diff, 97.5)
@@ -928,16 +1051,17 @@ def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac"
             band = POS_RES_FRAC * float(K_)
         elif band_mode == "fixed":
             band = POS_BAND_FIXED
-        else:                                                                  # "half_dir"：向きの分の中央値の半分（同じコーパスの集合）
+        else:                                                                  # "half_dir"：向きの分の中央値の半分（向きが読めるコーパスだけ）
             cdK = cd_of(dirq, K_)
-            fd = FS(cdK, [c for c in cps_K if c in cdK]) if cdK is not None else None
-            band = 0.5 * fd["median"] if fd is not None and np.isfinite(fd["median"]) and fd["median"] > 0 else np.nan
+            cps_d = [c for c in cps_K if c in cdK and (cdK[c]["readable"] or variant in ("all", "all_extreme"))] if cdK is not None else []
+            fd = FS(cdK, cps_d) if cps_d else None
+            band = 0.5 * fd["median"] if fd is not None and np.isfinite(fd["median"]) and fd["median"] > 0 and abs(fd["median"]) < BIG / 2 else np.nan
         parts.update({f"P87_2_med_pos_K{K_}": fK["median"], f"P87_2_band_K{K_}": band, f"P87_2_npos_K{K_}": fK["n_pos"], f"P87_2_corpora_K{K_}": ";".join(cps_K)})
         if pointonly or fK["b"] is None:
             parts[f"P87_2_point_K{K_}"] = bool(abs(fK["median"]) <= band) if np.isfinite(band) else None
             st2.append("point_only")
         elif not fK["ok"] or not np.isfinite(band):
-            st2.append("not_judgeable_cens" if not fK["ok"] else "not_judgeable")
+            st2.append(not_j([fK]) if not fK["ok"] else "not_judgeable")
         else:
             lo, hi = pct(fK["b"], 2.5), pct(fK["b"], 97.5)
             parts.update({f"P87_2_lo_K{K_}": lo, f"P87_2_hi_K{K_}": hi})
@@ -953,8 +1077,10 @@ def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac"
         rec["P87_2_status"] = "holds"
     elif all(s in ("holds", "point_only") for s in st2) and "point_only" in st2:
         rec["P87_2_status"] = "point_only"
+    elif any(s == "not_judgeable_unknown_dir" for s in st2):
+        rec["P87_2_status"] = "not_judgeable_unknown_dir"
     elif any(s.startswith("not_judgeable") for s in st2):
-        rec["P87_2_status"] = "not_judgeable"
+        rec["P87_2_status"] = "not_judgeable_cens" if "not_judgeable_cens" in st2 else "not_judgeable"
     else:
         rec["P87_2_status"] = "undet"
     c0p = cd_of(posq, "0")
@@ -983,19 +1109,18 @@ def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac"
             rec["P87_3_status"] = "point_only"
             rec["P87_3_point_holds"] = bool(f0["median"] > 0 and f25["median"] < HOLD_RATIO * f0["median"])
         elif not (f0["ok"] and f25["ok"]):
-            rec["P87_3_status"] = "not_judgeable_cens"
+            rec["P87_3_status"] = not_j([f0, f25])
         else:
             diff = f25["b"] - HOLD_RATIO * f0["b"]
             lo0, hi0, lod, hid = pct(f0["b"], 2.5), pct(f0["b"], 97.5), pct(diff, 2.5), pct(diff, 97.5)
             rec.update({"P87_3_lo_K0": lo0, "P87_3_hi_K0": hi0, "P87_3_lo_diff": lod, "P87_3_hi_diff": hid,
                         "P87_3_status": status3(lo0 > 0 and hid < 0, hi0 <= 0 or lod >= 0)})
-    # ---- 対比の条件 (A)(B)(C)：「向きは残り，位置は消える」と書けるか
+    # ---- 対比の条件 (A)(B)(C)：「向きは残り，位置は消える」と書けるか（許可そのものは最終の区分で judge が決める）
     p0, p25, cps_p = common(posq, "0", "25")
     if p0 is not None and len(cps_p) >= need and not pointonly:
         f0, f25 = FS(p0, cps_p), FS(p25, cps_p)
         if f0["b"] is not None and f25["b"] is not None and f0["ok"] and f25["ok"]:
-            condA = bool(pct(f0["b"], 2.5) > 0 and pct(f25["b"] - HOLD_RATIO * f0["b"], 97.5) < 0)
-            rec["contrast_A_pos_present_then_drops"] = condA
+            rec["contrast_A_pos_present_then_drops"] = bool(pct(f0["b"], 2.5) > 0 and pct(f25["b"] - HOLD_RATIO * f0["b"], 97.5) < 0)
     d25 = cd_of(dirq, "25")
     p25b = cd_of(posq, "25")
     if d25 is not None and p25b is not None:
@@ -1004,50 +1129,53 @@ def judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band_mode="frac"
             fd, fp = FS(d25, cps_d), FS(p25b, cps_pp)
             rec["contrast_B_counts"] = bool(fd["n_pos"] * 2 >= len(cps_d) and fp["n_pos"] * 2 < len(cps_pp))
     rec["contrast_C_dir_gt_pos"] = bool(rec.get("C_dir_minus_pos_ok", False) and np.isfinite(rec.get("C_dir_minus_pos_lo_K25", np.nan)) and rec.get("C_dir_minus_pos_lo_K25", np.nan) > 0)
-    rec["contrast_allowed"] = bool(rec.get("P87_1_status") == "holds" and rec.get("P87_2_status") == "holds" and rec.get("contrast_A_pos_present_then_drops") is True
-                                   and rec.get("contrast_B_counts") is True and rec["contrast_C_dir_gt_pos"])
     return rec
+
+
+DECISIVE = ("holds", "fails", "neg")
 
 
 def judge(CORP, CORP_d):
     rows = []
-    combos = {c[:2] for c in CORP}
     for fam, comp in sorted(set((c[1], c[0]) for c in CORP)):
         for rule in KALL_RULES:
-            for variant in VARIANTS:
-                if not any(k[0] == comp and k[1] == fam and k[3] == rule and (k[5] == ("impro_only" if variant == "readable_impro_only" else "main")) for k in CORP):
+            for variant in VARIANTS + ("all_extreme",):
+                uv = "impro_only" if variant == "readable_impro_only" else "main"
+                if not any(k[0] == comp and k[1] == fam and k[3] == rule and k[5] == uv for k in CORP):
                     continue
                 coord_sets = [("dir", "pos", "uar", "main")]
-                if comp == MAIN_COMP and variant == "readable":
+                if comp == MAIN_COMP:
                     coord_sets += [("dir", "posloss", "uar", "posloss_as_position"), ("dir_bfix", "pos_bfix", "uar", "bfix_point"), ("dir_auc", "pos", "uar", "dir_auc_point")]
                 for dirq, posq, uarq, vname in coord_sets:
-                    is_main_set = (vname == "main" and comp == MAIN_COMP and variant in ("readable", "all"))
-                    settings = [("frac", CENS_DRAW_MAX)]
-                    if is_main_set:
-                        settings += [("fixed", CENS_DRAW_MAX), ("half_dir", CENS_DRAW_MAX), ("frac", CENS_DRAW_MAX_SENS)]
-                    for band, cmax in settings:
-                        rec = judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band, cmax)
+                    settings = [("frac", CENS_DRAW_MAX, "main", True)]
+                    if vname == "main" and comp == MAIN_COMP and variant in ("readable", "all", "all_extreme"):
+                        settings += [("fixed", CENS_DRAW_MAX, "main", True), ("half_dir", CENS_DRAW_MAX, "main", True), ("frac", CENS_DRAW_MAX_SENS, "main", True),
+                                     ("frac", CENS_DRAW_MAX, "hi_only", True), ("frac", CENS_DRAW_MAX, "main", False)]
+                    for band, cmax, mk, infl in settings:
+                        rec = judge_one(CORP, comp, fam, rule, variant, dirq, posq, uarq, band, cmax, mk, infl)
                         rec["coord_set"] = vname
-                        rec["is_main_judgment"] = bool(fam == "audio" and comp == MAIN_COMP and rule == MAIN_RULE and variant == "readable" and vname == "main" and band == "frac" and cmax == CENS_DRAW_MAX)
-                        # 教師に帰す規則（主の比較だけ）：その K で oursx − abl_ownK の n_dir の族の区間が 0 より上，族が判定できる，区間が使える
-                        if comp == MAIN_COMP and vname == "main" and band == "frac" and cmax == CENS_DRAW_MAX:
+                        is_main_setting = (band == "frac" and cmax == CENS_DRAW_MAX and mk == "main" and infl)
+                        rec["is_main_judgment"] = bool(fam == "audio" and comp == MAIN_COMP and rule == MAIN_RULE and variant == "readable" and vname == "main" and is_main_setting)
+                        # 教師に帰す規則（主の比較だけ）：その K で oursx − abl_ownK の n_dir の族が判定できて（下限以上・区間が使える），lo > 0
+                        if comp == MAIN_COMP and vname == "main" and is_main_setting:
                             for K_ in KS:
                                 for name in ("oursx-abl_ownK", "abl_refb-abl_ownK", "abl_ref0-abl_ownK"):
-                                    cdd = CORP_d.get((name, fam, K_, rule, dirq, "impro_only" if variant == "readable_impro_only" else "main"))
+                                    cdd = CORP_d.get((name, fam, K_, rule, dirq, uv))
                                     if cdd is None:
                                         continue
                                     cps = corpora_for(cdd, variant)
-                                    fs = family_stats(cdd, cps)
+                                    fs = family_stats(cdd, cps, extreme=(variant == "all_extreme"))
                                     tag = {"oursx-abl_ownK": "teacher", "abl_refb-abl_ownK": "refb_vs_ownK", "abl_ref0-abl_ownK": "ref0_vs_ownK"}[name]
                                     rec[f"{tag}_med_K{K_}"] = fs["median"]
                                     rec[f"{tag}_lo_K{K_}"] = pct(fs["b"], 2.5) if fs["b"] is not None else np.nan
                                     rec[f"{tag}_judgeable_K{K_}"] = bool(len(cps) >= need_of(fam, variant) and fs["ok"] and fs["b"] is not None)
+                                    rec[f"{tag}_positive_K{K_}"] = bool(rec[f"{tag}_judgeable_K{K_}"] and rec[f"{tag}_lo_K{K_}"] > 0)
                                     if name == "oursx-abl_ownK":
-                                        rec[f"teacher_attrib_K{K_}"] = bool(rec[f"{tag}_judgeable_K{K_}"] and rec[f"{tag}_lo_K{K_}"] > 0)
+                                        rec[f"teacher_attrib_K{K_}"] = rec[f"{tag}_positive_K{K_}"]
                         rows.append(rec)
     J = pd.DataFrame(rows)
-    # 最終の区分：readable の版と all の版（打ち切りは端に置く）の両方で同じ側に出たときだけ holds / fails / neg．右端の置き方で変わるかも付ける
-    keys = ["family", "comparison", "coord_set", "band", "cens_max", "kall_rule", "variant"]
+    # 最終の区分：readable・all（打ち切りを端に置く）・all_extreme（分かっている向きの極端に置く）の 3 つで同じ側に出たときだけ holds / fails / neg．右端の置き方で変わるかも付ける
+    keys = ["family", "comparison", "coord_set", "band", "cens_max", "mask_kind", "jk_inflation", "kall_rule", "variant"]
     for p in ("P87_1", "P87_2", "P87_3"):
         col = f"{p}_status"
         if col not in J.columns:
@@ -1055,27 +1183,37 @@ def judge(CORP, CORP_d):
         lookup = {tuple(k): v for k, v in zip(J[keys].itertuples(index=False), J[col])}
         fin, sens = [], []
         for k in J[keys].itertuples(index=False):
-            fam, comp, cs, band, cm, rule, variant = k
-            s_r, s_a = lookup.get((fam, comp, cs, band, cm, rule, "readable")), lookup.get((fam, comp, cs, band, cm, rule, "all"))
+            fam, comp, cs, band, cm, mk, infl, rule, variant = k
+            base = (fam, comp, cs, band, cm, mk, infl, rule)
+            s_r, s_a, s_e = lookup.get(base + ("readable",)), lookup.get(base + ("all",)), lookup.get(base + ("all_extreme",))
             if variant != "readable":
                 fin.append("")
-            elif s_r in ("holds", "fails", "neg"):
-                fin.append(s_r if s_r == s_a else "undet_censored_version")
-            else:
+            elif s_r not in DECISIVE:
                 fin.append(s_r if s_r is not None else "")
-            s_m, s_n = lookup.get((fam, comp, cs, band, cm, "mean", variant)), lookup.get((fam, comp, cs, band, cm, "min", variant))
+            elif s_a == s_r and s_e == s_r:
+                fin.append(s_r)
+            elif (s_a in DECISIVE and s_a != s_r) or (s_e in DECISIVE and s_e != s_r):
+                fin.append("undet_side_changed")
+            elif s_e == "not_judgeable_unknown_dir" or s_a == "not_judgeable_unknown_dir":
+                fin.append("undet_censoring_direction_unknown")
+            else:
+                fin.append("undet_censored_version_undet")
+            s_m, s_n = lookup.get((fam, comp, cs, band, cm, mk, infl, "mean", variant)), lookup.get((fam, comp, cs, band, cm, mk, infl, "min", variant))
             sens.append(bool(s_m != s_n))
         J[f"{p}_final"] = fin
         J[f"{p}_rule_sensitive"] = sens
+    if "P87_1_final" in J.columns:
+        J["contrast_allowed"] = [bool(r.variant == "readable" and r.P87_1_final == "holds" and r.P87_2_final == "holds" and r.get("contrast_A_pos_present_then_drops") is True
+                                      and r.get("contrast_B_counts") is True and bool(r.get("contrast_C_dir_gt_pos"))) for r in J.itertuples(index=False)] if len(J) else []
     return J
 
 
 def judge_dS(CORP):
-    """換算する前の差 ΔS で P87-1（dS_dir）と P87-3（dS_uar）の比の判定（感度）．P87-2 は当てない（o の単位に帯が無い）．"""
+    """換算する前の差 ΔS で P87-1（dS_dir）と P87-3（dS_uar）の比の判定と対比の条件 (A)（dS_pos．小さいほど良いので符号が逆）．P87-2 は当てない（o の単位に帯が無い）."""
     rows = []
     for fam, comp in sorted(set((c[1], c[0]) for c in CORP)):
         rec = {"family": fam, "comparison": comp}
-        for p, q in (("P87_1", "dS_dir"), ("P87_3", "dS_uar")):
+        for p, q in (("P87_1", "dS_dir"), ("P87_3", "dS_uar"), ("contrast_A", "dS_pos")):
             c0, c25 = CORP.get((comp, fam, "0", "-", q, "main")), CORP.get((comp, fam, "25", "-", q, "main"))
             if c0 is None or c25 is None:
                 rec[f"{p}_status"] = "not_judgeable"
@@ -1089,6 +1227,11 @@ def judge_dS(CORP):
             if f0["b"] is None or f25["b"] is None:
                 rec[f"{p}_status"] = "point_only"
                 continue
+            if p == "contrast_A":                                               # 位置の改善は ΔS_pos < 0．(A)：K = 0 で改善があり，K = 25 で半分未満に縮む
+                diff = f25["b"] - HOLD_RATIO * f0["b"]
+                rec.update({f"{p}_hi_K0": pct(f0["b"], 97.5), f"{p}_lo_diff": pct(diff, 2.5)})
+                rec[f"{p}_status"] = "holds" if (pct(f0["b"], 97.5) < 0 and pct(diff, 2.5) > 0) else "undet"
+                continue
             diff = f25["b"] - HOLD_RATIO * f0["b"]
             lo0, hi0, lod, hid = pct(f0["b"], 2.5), pct(f0["b"], 97.5), pct(diff, 2.5), pct(diff, 97.5)
             rec.update({f"{p}_lo_K0": lo0, f"{p}_lo_diff": lod, f"{p}_hi_diff": hid})
@@ -1098,14 +1241,15 @@ def judge_dS(CORP):
 
 
 def judge_563188d(U):
-    """直す前の規則（コミット 563188d）を第 2 版以後の推定量に当てる．
-    563188d の規則：族は音声＝audio_wavlm の全単位（AVT 3 + AV 5 = 8），ほかは (役, 分類器, 世界) ごと．単位の点は反復ごとの読みの平均（反復ごとの曲線，右端 n_tgt_r/4），
-    読めない単位＝打ち切りの反復が半数以上，判定できる＝読めない単位が半数以下．P1：med0 > 0 かつ med25 ≥ 0.5·med0（点の中央値．全単位）．
-    P2：K = 5・25 で区分「正」の単位が半数未満（区分は第 3 版の単位の区間から取る．563188d の抽出とは違う）．P3：med0 > 0 かつ med25 < 0.5·med0．"""
+    """直す前の規則（コミット 563188d）を第 3 版以後の推定量に当てる．
+    563188d の規則：族は音声＝audio_wavlm の全単位（AVT 3 + AV 5 = 8），ほかは (役, 分類器, 世界) ごと．単位の点は反復ごとの読みの平均（反復ごとの 6 点の曲線，右端 n_tgt_r/4），
+    読めない単位＝打ち切りの反復が半数を超える（ちょうど半数は読める），判定できる＝読めない単位が半数以下．P1：med0 > 0 かつ med25 ≥ 0.5·med0（点の中央値．全単位）．
+    P2：K = 5・25 で区分「正」の単位が半数未満（区分は区間の上下だけで決める．563188d に無かった「区間が使えない」の規則は当てない）．P3：med0 > 0 かつ med25 < 0.5·med0．"""
     rows = []
     U = U[(U.sensitivity == "main") & (U.kall_rule == MAIN_RULE)].copy()
     U["fam_v1"] = ["audio" if s == "audio_wavlm" else f"{ro}:{s}:{ru}" for s, ro, ru in zip(U.student, U.role, U.run)]
-    U["readable_v1"] = U.frac_cens_rep.fillna(1.0) < NOT_READABLE_FRAC_563188d
+    U["readable_v1"] = U.frac_cens_rep.fillna(0.0) <= NOT_READABLE_FRAC_563188d
+    U["judg_v1"] = ["pos" if (np.isfinite(lo) and lo > 0) else ("neg" if (np.isfinite(hi) and hi < 0) else "undet") for lo, hi in zip(U.lo, U.hi)]
     for (comp, fam), g in U.groupby(["comparison", "fam_v1"]):
         def grp(q, K):
             return g[(g.quantity == q) & (g.K == K)]
@@ -1122,8 +1266,8 @@ def judge_563188d(U):
         else:
             rec["P87_1_status"] = "not_judgeable"
         if judgeable(p5, p25):
-            rec.update({"P87_2_npos_K5": int((p5.judgment == "pos").sum()), "P87_2_n_K5": len(p5), "P87_2_npos_K25": int((p25.judgment == "pos").sum()), "P87_2_n_K25": len(p25),
-                        "P87_2_holds": bool((p5.judgment == "pos").sum() * 2 < len(p5) and (p25.judgment == "pos").sum() * 2 < len(p25)), "P87_2_status": "judged"})
+            rec.update({"P87_2_npos_K5": int((p5.judg_v1 == "pos").sum()), "P87_2_n_K5": len(p5), "P87_2_npos_K25": int((p25.judg_v1 == "pos").sum()), "P87_2_n_K25": len(p25),
+                        "P87_2_holds": bool((p5.judg_v1 == "pos").sum() * 2 < len(p5) and (p25.judg_v1 == "pos").sum() * 2 < len(p25)), "P87_2_status": "judged"})
         else:
             rec["P87_2_status"] = "not_judgeable"
         if judgeable(u0, u25):
@@ -1153,9 +1297,9 @@ def assumptions(out, Cv, U, V, Cp, prov):
             s = g[col].to_numpy(dtype=np.float64) if col in g.columns else np.array([])
             return float(np.nanmedian(s)) if np.isfinite(s).any() else np.nan
         rows.append({"assumption": 2, "what": "readable_units", "comparison": comp, "family": fam, "K": K, "kall_rule": rule, "quantity": q, "n_units": len(g), "n_not_readable": int((~g.is_readable).sum()),
-                     "n_cens_hi_method": cnt("flag_cens_hi_method"), "n_cens_lo_method": cnt("flag_cens_lo_method"), "n_cens_hi_none": cnt("flag_cens_hi_none"), "n_cens_lo_none": cnt("flag_cens_lo_none"),
-                     "n_amb": cnt("flag_amb_none") + cnt("flag_amb_method"), "n_interval_not_ok": int((~g.interval_ok).sum()) if "interval_ok" in g.columns else 0,
-                     "median_frac_draw_cens_any": nanmed("frac_draw_cens_any"), "median_frac_cens_hi_method": nanmed("frac_cens_hi_method"), "median_frac_cens_none": float(np.nanmax([nanmed("frac_cens_lo_none"), nanmed("frac_cens_hi_none")]))})
+                     **{f"n_{k}": cnt(f"flag_{k}") for k in MASK_KINDS}, "n_interval_not_ok": int((~g.interval_ok).sum()) if "interval_ok" in g.columns else 0,
+                     "n_interval_not_ok_hi_only": int((~g.interval_ok_hi_only).sum()) if "interval_ok_hi_only" in g.columns else 0,
+                     "median_frac_draw_cens_main": nanmed("frac_draw_cens_main"), **{f"median_frac_draw_{k}": nanmed(f"frac_cens_{k}") for k in MASK_KINDS}})
     # 3・4：符号の一致率（コーパスごと．定義から 0 の単位と読めないコーパスを除く）
     for (comp, fam, K, rule), g in Cp.groupby(["comparison", "family", "K", "kall_rule"]):
         def sign_agree(qa, qb):
@@ -1167,16 +1311,16 @@ def assumptions(out, Cv, U, V, Cp, prov):
             ag, n = sign_agree(qa, qb)
             rows.append({"assumption": n_, "what": f"sign_agreement_{qa}_vs_{qb}", "comparison": comp, "family": fam, "K": K, "kall_rule": rule, "n_corpora": n, "agreement": ag,
                          "ok": bool(ag >= SIGN_AGREE_LOW) if np.isfinite(ag) else None})
-    rows.append({"assumption": 4, "what": "E75_position_model_fit", "note": "E75 7 節：位置の側の 2 つの山の模型は 8 種類とも基準 1/3 を満たさなかった（S_pos_bfix を並べる）"})
-    # 5：右端の置き方と，手法の読みが K = 50 と全件の間の補間に入ったコーパスの数
+    rows.append({"assumption": 4, "what": "E75_position_model_fit", "note": "E75 7 節：位置の側の 2 つの山の模型は 8 種類とも基準 1/3 を満たさなかった（S_pos_bfix を並べる．none・手法の行の当てはまりはこの回では測っていない）"})
+    # 5：右端の置き方と，手法と none の読みが K = 50・100 より右の補間に入った群の数（族ごと）
     if len(V):
+        V2 = V.copy()
+        V2["family"] = [family_of(s) for s in V2.student]
         for rule in KALL_RULES:
             for q in ("dir", "uar", "pos"):
                 col = f"K_{q}_method_{rule}"
-                vm = V[V.comparison == MAIN_COMP]
-                for K in KS:
-                    s = vm[vm.K == K]
-                    rows.append({"assumption": 5, "what": "method_reading_in_long_segments", "quantity": q, "kall_rule": rule, "K": K, "n_groups": int(s[col].notna().sum()),
+                for (fam, K), s in V2[V2.comparison == MAIN_COMP].groupby(["family", "K"]):
+                    rows.append({"assumption": 5, "what": "method_reading_in_long_segments", "family": fam, "quantity": q, "kall_rule": rule, "K": K, "n_groups": int(s[col].notna().sum()),
                                  "n_above_50": int((s[col] > 50).sum()), "n_above_100": int((s[col] > 100).sum()),
                                  "n_none_above_50": int((s[f"K_{q}_none_{rule}"] > 50).sum()), "n_none_above_100": int((s[f"K_{q}_none_{rule}"] > 100).sum())})
     for (fam, rule), g in Cv2[Cv2.K_label == "all"].groupby(["family", "kall_rule"]):
@@ -1194,7 +1338,7 @@ def assumptions(out, Cv, U, V, Cp, prov):
 
 def write_summary_md(out, Fm, J, Jd):
     lines = ["# E87 の出力の表（解釈は書かない）", ""]
-    sub = Fm[(Fm.variant == "readable") & (Fm.kall_rule == MAIN_RULE) & (Fm.jk_inflation)]
+    sub = Fm[(Fm.variant == "readable") & (Fm.kall_rule.isin([MAIN_RULE, "-"])) & (Fm.jk_inflation) & (Fm.mask_kind == "main")]
     for comp in sorted(sub.comparison.unique()):
         lines.append(f"## {comp}")
         for fam in sorted(sub.family.unique()):
@@ -1207,12 +1351,13 @@ def write_summary_md(out, Fm, J, Jd):
             for r_ in s2.sort_values(["quantity", "K"]).itertuples():
                 lines.append(f"| {r_.quantity} | {r_.K} | {r_.n_corpora_used}/{r_.n_corpora_nominal} | {r_.median:.2f} | {r_.lo:.2f} | {r_.hi:.2f} | {r_.interval_ok} | {r_.n_corp_pos} |")
             lines.append("")
-    lines.append("## 判定")
+    lines.append("## 判定（readable の行．final は readable・all・all_extreme の 3 つで同じ側のときだけ）")
     if len(J):
-        cols = [c for c in ("family", "comparison", "kall_rule", "variant", "coord_set", "band", "P87_1_status", "P87_1_final", "P87_2_status", "P87_2_final", "P87_3_status", "P87_3_final", "contrast_allowed") if c in J.columns]
+        cols = [c for c in ("family", "comparison", "kall_rule", "coord_set", "band", "cens_max", "mask_kind", "P87_1_status", "P87_1_final", "P87_2_status", "P87_2_final", "P87_3_status", "P87_3_final", "contrast_allowed") if c in J.columns]
+        Jr = J[J.variant == "readable"]
         lines.append("| " + " | ".join(cols) + " |")
         lines.append("|" + "---|" * len(cols))
-        for r_ in J[cols].itertuples(index=False):
+        for r_ in Jr[cols].itertuples(index=False):
             lines.append("| " + " | ".join("" if (isinstance(v, float) and np.isnan(v)) else str(v) for v in r_) + " |")
     lines.append("")
     lines.append("## ΔS での比の判定（感度）")
@@ -1272,13 +1417,16 @@ def main():
                           "K_all_rule": {"mean": "n_tgt/4（反復の平均．E65 と同じ）", "min": "学習プールで最も少ない感情の本数（反復の平均）"},
                           "interpolation": "log K について線形．平らな区間では届く最小の K．K=1 の値より悪い（等号を含まない）→ 1 に置いて下の打ち切り．全件の値より良い → 全件に置いて上の打ち切り．整える前の曲線が値を 2 回以上横切れば「あいまい」",
                           "monotone": "S_uar・S_dir・S_dir_* は累積の最大，S_pos・S_posloss・S_pos_bfix は累積の最小（反復で平均した曲線に当てる）",
-                          "readable": "主の右端の置き方で，none と手法の読みがどの群でも打ち切りでもあいまいでもない（none を選んだ群は定義から 0 で読める）",
+                          "readable": "主の右端の置き方で，none と手法の読みがどの群でも打ち切りでもあいまいでもない（none を選んだ群と，saerens・massbal の向きの座標は定義から 0 で読める）",
+                          "draw_censoring": "抽出の中の読みの印を種類別（下・上・あいまい × none・手法）に保存．区間が使える基準（2.5%）は上の打ち切りとあいまいに当てる（感度 (o)：上の打ち切りだけ）．族は読めるコーパスのそれぞれに当てる",
+                          "final_status": "readable・all（打ち切りを端に置く）・all_extreme（読めないコーパスを分かっている向きの ±1e6 本に置く）の 3 つで同じ側のときだけ holds / fails / neg",
                           "draws": "種は (seed, crc32(コーパス))．話者の多項分布 (B, nls) と反復の多項分布 (B, R)．世界と比較相手で共有",
                           "corpus_value": "世界の単位の平均（複製・jackknife も平均）．区間は百分位と，G_eff < 20 なら jackknife の t 区間の和集合",
                           "family": "読めるコーパスの中央値．複製は G_eff < 20 のコーパスの複製を点のまわりで jackknife の幅まで広げてから複製ごとに中央値．打ち切り・あいまいの複製がどれかのコーパスにある割合が CENS_DRAW_MAX を超えれば区間は使わない",
-                          "judgment": "予言ごとに holds / fails / undet（P87-2 は neg も）．final は readable と all（打ち切りを端に置く）の両方で同じ側のときだけ holds / fails",
+                          "judgment": "予言ごとに holds / fails / undet（P87-2 は neg も）．final は上の final_status の規則",
                           "QUANTS_B": list(QUANTS_B), "QUANTS_PT": list(QUANTS_PT), "DIFFS": list(DIFFS), "DS": list(DS), "BETTER_HIGH": BETTER_HIGH, "KS": list(KS), "REPS": list(REPS),
-                          "SEEDED": sorted(E.SEEDED), "PARTIAL_SELECTORS": E.PARTIAL_SELECTORS, "EXCL_MA": list(EXCL_MA), "family_min_readable": "max(2, ceil(名目のコーパス数/2))"},
+                          "SEEDED": sorted(E.SEEDED), "PARTIAL_SELECTORS": E.PARTIAL_SELECTORS, "EXCL_MA": list(EXCL_MA), "family_min_readable": "max(2, ceil(名目のコーパス数/2))",
+                          "MASK_KINDS": list(MASK_KINDS), "MAIN_MASK": list(MAIN_MASK), "SENS_MASK": list(SENS_MASK), "BIG": BIG, "CENS_DRAW_MAX_SENS": CENS_DRAW_MAX_SENS},
             "comparisons": [c for _, c in COMPARISONS], "direct": [n for _, _, n in DIRECT], "main_comparison": MAIN_COMP, "started": started.isoformat(timespec="seconds"), "inputs": {}}
     prov["code_snapshot"] = str(snapshot_code(out, started.strftime("%Y%m%d-%H%M%S")).relative_to(out))
     Cv, Cr, V, U, Ch, Sd, boot_store, jk_store = run_all(args, out, prov)
