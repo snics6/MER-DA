@@ -225,7 +225,7 @@ MOSEI の生データには話者の注釈が無い．
 ### AFEW の書き起こし `afew_transcript_whisper.csv`
 
 AFEW には人の書き起こしが無いので，`features/build_transcript_afew.py` が Whisper large-v3 で書き起こした（2026-11-04．研究者の指示．`docs/researchvision.md` 6.1 節）．
-Ryumina ほか（2025，Pattern Recognition Letters 190）も，4 コーパスのうち AFEW だけを Whisper で書き起こしている．
+Ryumina ほか（2025，Pattern Recognition Letters 190）が公開した MER のリポジトリには，AFEW を Whisper で書き起こす台本（`get_text_AFEW.py`）がある．論文本文で AFEW の書き起こしをどう書いているかは，まだ原文で確かめていない（2026-11-04 の感情認識の査読想定の指摘 A5．`DAI/checks/計画_2026-11-04/review_affect.md`）．
 
 - 対象は発話一覧の全 1,156 行（4 クラスに入らない行を含む）である．
 - 音声は音声の特徴と同じく ffmpeg で 16kHz モノラルにし（`build_audio.decode`），正規化しない．

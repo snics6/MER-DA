@@ -1,8 +1,8 @@
 """AFEW の書き起こしを Whisper large-v3 で作る（2026-11-04）。
 
 AFEW には人が書いた書き起こしが無い。言葉の特徴を作るために，音声認識で書き起こす。
-Ryumina ほか（2025，Pattern Recognition Letters 190）も，4 コーパスのうち AFEW だけを
-Whisper で書き起こしている（ほかの 3 つは人の書き起こし）。
+Ryumina ほか（2025，Pattern Recognition Letters 190）が公開した MER のリポジトリにも，
+AFEW を Whisper で書き起こす台本（get_text_AFEW.py）がある（論文本文での記述は未確認）。
 
     動画 → ffmpeg で 16kHz モノラルの波形（`build_audio.decode` と同じ）
          → Whisper large-v3（英語に固定・書き起こし・ビーム幅 5・サンプリングなし）
