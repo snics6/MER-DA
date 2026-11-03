@@ -45,7 +45,9 @@ def others(c: str) -> list[str]:
 AFEW_ALIAS = {"AFEW_Bradely_Cooper": "AFEW_Bradley_Cooper"}          # 公式の注釈の綴りの誤り（同じ俳優）
 MELD_ALIAS = {"Joey/Drake": "Joey", "Rachel/actress": "Rachel", "Phoebe/Waitress": "Phoebe", "Phoebe_Sr.": "Phoebe_Sr",
               "Dr._Drake_Remoray": "Joey",                              # Joey が劇中で演じる役（漏れの検査 L5 の 2 回目）
-              "Ursula": "Phoebe"}                                       # Phoebe と同じ俳優が演じる双子の姉
+              "Ursula": "Phoebe",                                       # Phoebe と同じ俳優が演じる双子の姉
+              "Jessica_Lockhart": "Cecilia",                            # Cecilia が劇中で演じる役（感情認識の査読者の a19）
+              "Helena": "Mr._Bing"}                                     # Chandler の父の舞台名 Helena Handbasket（同）
 MELD_MULTI = {"All", "Both", "The_Guys"}                               # 誰の声か決まらないので発話ごと落とす（`_and_` と同じ扱い）
 
 

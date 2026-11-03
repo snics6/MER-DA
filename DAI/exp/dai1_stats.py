@@ -180,7 +180,8 @@ def effect_stats(cellA: dict, cellB: dict, g_eff: float, rng) -> dict:
             dm = np.nanmean(ua - ub, axis=0)                                # 種は引き直さず平均する
             ok = np.isfinite(dm)
             boots[ok] += dm[ok]; nval[ok] += 1
-        boots = boots / np.maximum(nval, 1)
+        boots = np.where(nval > 0, boots / np.maximum(nval, 1), np.nan)   # 全分割が無効の回は除く（N9）
+        boots = boots[np.isfinite(boots)]
         v_cl = float(np.var(boots, ddof=1))
         se = float(np.sqrt(v_cl + v_seed))
         p, ident = pval(est, se, None)

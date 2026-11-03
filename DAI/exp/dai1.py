@@ -227,7 +227,7 @@ def pass1(u: Unit, store: dict, rows: list) -> None:
         store[f"p1_{kind}_W"], store[f"p1_{kind}_b"] = f32(res["W"]), f32(res["b"])
         store[f"p1_{kind}_pred"] = pred8(Z)
         store[f"p1_{kind}_items"] = np.array([f"{K}|{cw}|{cb}" for K, cw, cb in items])
-        rows.append(dict(stage=1, method="_conv", kind=kind, grad_max=res["grad_max"], n_iter=res["n_iter"]))
+        rows.append(dict(stage=1, method="_conv", kind=kind, grad_max=res["grad_max"], n_iter=res["n_iter"], n_stalled=res["stalled"]))
         if kind not in DD.STUDENTS:
             continue
         # 出発点の W のまま K 本で切片だけ（C_b は 1 と 10）
@@ -289,7 +289,7 @@ def pass2(u: Unit, p1, store: dict, rows: list, tether: dict) -> None:
             store[f"p2_K{K}_ret_{m}_W"], store[f"p2_K{K}_ret_{m}_b"] = f32(res["W"][0]), f32(res["b"][0])
             tk[f"ret_{m}"] = (probs(u.Xp[m], res["W"][0], res["b"][0]), probs(u.Xt[m], res["W"][0], res["b"][0]))
             rows.append(dict(stage=2, method="_conv", kind=f"ret_{m}", K=K, grad_max=res["grad_max"], n_iter=res["n_iter"],
-                             finite=bool(res["finite_p"].all())))
+                             n_stalled=res["stalled"], finite=bool(res["finite_p"].all())))
         Lp = torch.stack([tk[f"ret_{m}"][0].clamp(min=1e-12).log() for m in "AVT"])
         Lt = torch.stack([tk[f"ret_{m}"][1].clamp(min=1e-12).log() for m in "AVT"])
         nk = np.setdiff1d(np.arange(u.n), u.kpos[K])                      # K 本を除いた候補（m35）
@@ -355,7 +355,7 @@ def cotrain(u: Unit, tk: dict, K: int, tether: dict, store: dict, rows: list) ->
                 store[f"p3c_K{K}_{m}_W"], store[f"p3c_K{K}_{m}_b"] = f32(res["W"]), f32(res["b"])
                 store[f"p3c_K{K}_{m}_pred"] = pred8(S.logits(u.Xt[m], res["W"], res["b"]))   # 並びは RHO_GRID
             rows.append(dict(stage=3, method="_conv_cotrain", kind=m, K=K, round=rnd, grad_max=res["grad_max"],
-                             finite=bool(res["finite_p"].all())))
+                             n_stalled=res["stalled"], finite=bool(res["finite_p"].all())))
     return cur
 
 
@@ -458,7 +458,7 @@ def solve_items(u: Unit, s: str, K: int, specs: list, Cw, Cb, W0, b0, rows: list
     store[f"{key}_W"], store[f"{key}_b"] = f32(res["W"]), f32(res["b"])
     store[f"{key}_items"] = np.array([json.dumps(it, sort_keys=True) for it, *_ in specs])
     rows.append(dict(stage=3, method="_conv", student=s, K=K, key=key, grad_max=res["grad_max"], n_iter=res["n_iter"],
-                     stalled=res["stalled"]))
+                     n_stalled=res["stalled"]))
 
 
 def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, fsel: dict | None = None) -> None:
@@ -574,7 +574,8 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, 
                 rows.append(dict(stage=3, student=s, K=K, method="rolesep", uar=v, grad=float(max(gp, ga)), finite=bool(fn),
                                  S=float(4 * K * it["a"]), **it))
             store[f"p3r_{s}_K{K}_bb"] = f32(rb["b"])
-            rows.append(dict(stage=3, method="_conv_rolesep", student=s, K=K, grad_max=max(ra["grad_max"], rb["grad_max"])))
+            rows.append(dict(stage=3, method="_conv_rolesep", student=s, K=K, grad_max=max(ra["grad_max"], rb["grad_max"]),
+                             n_stalled=ra["stalled"] + rb["stalled"], finite=bool(ra["finite_p"].all() and rb["finite_p"].all())))
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -612,6 +613,21 @@ EVAL_REQUIRED = [                                                   # 評価の�
 ]
 
 
+APPROVAL_ROLES = ("review_ml", "review_affect", "stats", "leak", "compare", "define", "code")
+
+
+def latest_report(folder: Path, role: str) -> str:
+    """`<役>.md`（第 1 版），`<役>_v2.md`，`<役>_v3.md` … のうち最も新しい版の名前。"""
+    best, name = 0, ""
+    for f in folder.glob(f"{role}*.md"):
+        m = re.fullmatch(re.escape(role) + r"(?:_v(\d+))?\.md", f.name)
+        if m:
+            v = int(m.group(1) or 1)
+            if v > best:
+                best, name = v, f.name
+    return name
+
+
 def check_eval_gate(frozen_rel: str) -> str:
     """評価の回を流す条件（ML の査読者の M15，漏れの検査 L8）：`DAI/frozen/eval_gate.json` がコミット済みで，
     そこに並べたファイル（実験 1 の固定のファイル，実験 2・3 の設計，種の数と検出できる差の表，査読の OK の報告など）が
@@ -628,15 +644,19 @@ def check_eval_gate(frozen_rel: str) -> str:
         fp = ROOT / rel
         if not fp.exists() or sha(fp) != h or not committed_clean(fp):
             sys.exit(f"eval_gate.json の {rel} が無いか，sha256 が違うか，コミットされていない")
-    # 実験 1〜3 のそれぞれで，ML と感情認識の査読者の最新の報告が「判定：OK」であること（DAI/CLAUDE.md の規則）
+    # 実験 1〜3 のそれぞれで，査読者 2 人と関門 5 体の「最新の版の」報告が OK・通すであること（DAI/CLAUDE.md の規則．m64）
     for exp_name, files in gate["approvals"].items():
-        for role in ("review_ml", "review_affect"):
+        for role in APPROVAL_ROLES:
             fp = ROOT / files[role]
             if fp.as_posix() not in {(ROOT / r).as_posix() for r in req}:
                 sys.exit(f"{exp_name} の {role} の報告が required に無い")
+            latest = latest_report(fp.parent, role)
+            if latest != fp.name:
+                sys.exit(f"{exp_name} の {role} は新しい版 {latest} がある（{fp.name} を並べている）")
             head = "\n".join(open(fp, encoding="utf-8").read().splitlines()[:5])
-            if not re.search(r"^判定[：:]\s*\**OK", head, re.M):
-                sys.exit(f"{exp_name} の {role} の報告（{files[role]}）が「判定：OK」でない")
+            ok = r"^判定[：:]\s*\**OK" if role.startswith("review_") else r"^判定[：:]\s*\**通す"
+            if not re.search(ok, head, re.M):
+                sys.exit(f"{exp_name} の {role} の報告（{files[role]}）が「判定：OK」（関門は「判定：通す」）でない")
     if set(gate["approvals"]) != {"DAI-1", "DAI-2", "DAI-3"}:
         sys.exit("eval_gate.json の approvals は DAI-1・DAI-2・DAI-3 の 3 つが要る")
     return sha(gp)
@@ -656,10 +676,16 @@ def run_pass(out, tag, T, c, srcs, f, r, which, tether=None, wsel=None, fsel=Non
         bad = str(old["commit"].iloc[0]) != RUN["commit"] or (tag == "eval" and str(old["frozen_sha256"].iloc[0]) != RUN["frozen_sha256"])
         bad |= tag_t is not None and ("tether" not in z or list(z["tether"]) != list(tag_t))      # I12
         bad |= tag_w is not None and ("wsel" not in z or list(z["wsel"]) != list(tag_w))
+        if "finite" in old and (old["finite"].astype(str) == "False").any():
+            bad = True                                                 # 再開の経路でも非有限の単位を通さない（N3）
         if bad:
-            sys.exit(f"保存済みの単位 {rpath.name} のコミット・固定のファイル・引き戻し・指数のどれかが今の実行と違う（消してから流し直す）")
+            sys.exit(f"保存済みの単位 {rpath.name} のコミット・固定のファイル・引き戻し・指数・有限のどれかが今の実行と違う（消してから流し直す）")
         return old
     path.parent.mkdir(parents=True, exist_ok=True)
+    for prev in range(1, which):                                         # 前の段の保存のコミットを照合（N2）
+        z = np.load(f"{base}_p{prev}.npz")
+        if str(z["commit"]) != RUN["commit"]:
+            sys.exit(f"{base.name} の段 {prev} の保存のコミット {z['commit']} が今の実行と違う")
     u = Unit(out, T, c, srcs, f, r)
     store, rows = {}, []
     t0 = time.time()
@@ -672,24 +698,22 @@ def run_pass(out, tag, T, c, srcs, f, r, which, tether=None, wsel=None, fsel=Non
     elif which == 2:
         p1 = np.load(f"{base}_p1.npz")
         pass2(u, p1, store, rows, tether)
-        store["tether"] = tag_t
     else:
         p1, p2 = np.load(f"{base}_p1.npz"), np.load(f"{base}_p2.npz")
         pass3(u, store, rows, tether, build_tk(u, p1, p2, tether), wsel, fsel)
-        store["tether"], store["wsel"] = tag_t, tag_w
     if tag_t is not None:                                                # 渡された引き戻しと指数は段に関わらず残す（再開の照合．m54）
         store["tether"] = tag_t
     if tag_w is not None:
         store["wsel"] = tag_w
     store.update(commit=np.array(RUN["commit"]), dirty=np.array(RUN["dirty"]), frozen_sha256=np.array(RUN["frozen_sha256"]),
                  gate_sha256=np.array(RUN["gate_sha256"]))
+    if any(("finite" in r and r["finite"] is False) for r in rows):              # 保存の前に確かめる（N3）
+        sys.exit(f"{rpath.name}: 勾配か解に NaN・Inf の問がある（計算の失敗として止める．保存しない．I11，N3）")
     np.savez_compressed(path, **{k: np.asarray(v) for k, v in store.items()})
     df = pd.DataFrame(rows).assign(T=T, c=cname, fold=f, seed=r, sec=time.time() - t0, commit=RUN["commit"],
                                    dirty=RUN["dirty"], frozen_sha256=RUN["frozen_sha256"], gpu=RUN["gpu"],
                                    gate_sha256=RUN["gate_sha256"])
     df.to_csv(rpath, index=False)
-    if "finite" in df and (~df["finite"].fillna(True).astype(bool)).any():
-        sys.exit(f"{rpath.name}: 勾配か解に NaN・Inf の問がある（計算の失敗として止める．I11）")
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     print(f"{tag} {base.name} 段 {which}: {time.time()-t0:.0f} 秒", flush=True)
@@ -742,7 +766,9 @@ def main() -> None:
     ap.add_argument("--targets", nargs="*", default=list(DD.CORPORA))
     ap.add_argument("--folds", nargs="*", type=int, default=list(range(DD.N_FOLDS)))
     ap.add_argument("--seeds", nargs="*", type=int, default=None, help="既定は pseudo で 0 1，eval で固定のファイルの n_seeds_eval")
-    ap.add_argument("--pass", dest="passes", default="all", choices=("1", "23", "all"))
+    ap.add_argument("--pass", dest="passes", default="all", choices=("1", "2", "3", "23", "all"),
+                    help="pseudo の段を分けて回す：1（--folds の単位），2（全単位の段 1 から引き戻しを選び，全単位の段 2 と指数を選んで tether_w.json），"
+                         "3（tether_w.json を読み，--folds の単位の段 3）．2 は全部の分割と種の段 1 がそろっているときだけ動く")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--encoder", type=int, default=1, choices=(1, 2), help="1：WavLM・ResNet-50・RoBERTa，2：HuBERT・CLIP・DeBERTa")
     args = ap.parse_args()
@@ -785,14 +811,27 @@ def main() -> None:
             if args.passes in ("1", "all"):
                 for c, s, f, r in us:
                     run_pass(out, "pseudo", T, c, s, f, r, 1)
-            if args.passes in ("23", "all"):
+            if args.passes in ("2", "23", "all"):
+                if args.passes == "2" and sorted(args.folds) != list(range(DD.N_FOLDS)):
+                    sys.exit("--pass 2 は全部の分割で流す（引き戻しと指数は全単位で選ぶ）")
                 r1 = pd.concat([pd.read_csv(out / "pseudo" / "units" / f"{T}_{c}_f{f}_r{r}_p1.csv") for c, _, f, r in us])
+                if set(r1.commit.astype(str)) != {RUN["commit"]}:
+                    sys.exit(f"{T}: 段 1 の行のコミットが今の実行と違う")
                 teth = select_tether(r1)
                 r2 = pd.concat([run_pass(out, "pseudo", T, c, s, f, r, 2, tether=teth) for c, s, f, r in us])
                 w = select_w(r2)
                 json.dump({"tether": {f"{k[0]}|{k[1]}": v for k, v in teth.items()}, "w": {str(k): v for k, v in w.items()},
                            "units": [f"{c}_f{f}_r{r}" for c, _, f, r in us], "commit": RUN["commit"]},
                           open(out / "pseudo" / f"{T}_tether_w.json", "w"), indent=1)
+            if args.passes in ("3", "23", "all"):
+                tw = json.load(open(out / "pseudo" / f"{T}_tether_w.json"))
+                if tw["commit"] != RUN["commit"]:
+                    sys.exit(f"{T}: tether_w.json のコミットが今の実行と違う")
+                full = [f"{c}_f{f}_r{r}" for c, _, f, r in units_for(T, "pseudo", range(DD.N_FOLDS), seeds)]
+                if sorted(tw["units"]) != sorted(full):
+                    sys.exit(f"{T}: tether_w.json の単位が全部の分割と種でない")
+                teth = {(k.split("|")[0], int(k.split("|")[1])): tuple(v) for k, v in tw["tether"].items()}
+                w = {int(k): tuple(v) for k, v in tw["w"].items()}
                 for c, s, f, r in us:
                     run_pass(out, "pseudo", T, c, s, f, r, 3, tether=teth, wsel=w)
         return
