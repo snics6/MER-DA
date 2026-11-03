@@ -25,9 +25,11 @@ for f in sorted(set(fa) & set(fb)):
     neq = 0
     if same_rows:
         for c in cols:
+            if c in ("commit", "dirty"):
+                continue
             x, y = ca[c], cb[c]
-            if x.dtype.kind in "fc" and y.dtype.kind in "fc":
-                neq += int((~(np.isclose(x, y, rtol=0, atol=0) | (x.isna() & y.isna()))).sum())
-            else:
-                neq += int((x.astype(str) != y.astype(str)).sum())
+            xn, yn = pd.to_numeric(x, errors="coerce").to_numpy(float), pd.to_numeric(y, errors="coerce").to_numpy(float)
+            xs, ys = x.fillna("<NA>").astype(str).to_numpy(), y.fillna("<NA>").astype(str).to_numpy()
+            eq = np.where(np.isfinite(xn) | np.isfinite(yn), xn == yn, xs == ys)
+            neq += int((~eq).sum())
     print(f, "鍵", len(ka), len(kb), "鍵の差", sorted(ka ^ kb)[:5], "配列の違い", len(diff), diff[:5], "csv 行", len(ca), len(cb), "セルの違い", neq if same_rows else "列か行が違う")

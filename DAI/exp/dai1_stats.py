@@ -94,7 +94,7 @@ class UnitPreds:
         return self.p3[f"p3c_K{K}_{s}_pred"][list(dai1.RHO_GRID).index(float(rho))]
 
     def coreg(self, s: str, K: int, rho) -> np.ndarray:
-        return self.p3[f"p3g_K{K}_{s}_pred"][list(dai1.RHO_GRID).index(float(rho))]
+        return self.p3[f"p3g_K{K}_{s}_pred"][list(dai1.COREG_RHO).index(float(rho))]
 
     def rolesep(self, s: str, K: int, teacher: str, rho, a) -> np.ndarray:
         ja = [(tv, r) for tv in ("sel", "one") for r in dai1.RHO_GRID].index((teacher, float(rho)))
@@ -381,6 +381,7 @@ def detect(out: Path, targets=DD.CORPORA) -> None:
         print(f"{X}: 種 {n_seeds}，δ {delta:.2f}，記述に回すセル {len(det['descriptive_cells'])}，同じ水準を出しうるセル "
               f"{len(det['same_level_cells'])}", flush=True)
     frozen["_meta"]["detect"] = "dai1_stats.py detect（統計の検査 S2 と 2 回目）"
+    frozen["_meta"]["detect_commit"], frozen["_meta"]["detect_dirty"] = dai1.git_commit()      # M6
     json.dump(frozen, open(fzp, "w"), indent=1, ensure_ascii=False)
     if out.resolve().parent == (dai1.ROOT / "results").resolve():
         shutil.copy(fzp, dai1.ROOT / "DAI" / "frozen" / f"{out.name}_frozen.json")
@@ -413,7 +414,8 @@ def evaluate(out: Path) -> None:
             rows += res
         print(f"{T}: 単位 {len(units)}，実効の数 {g_eff:.1f}，照合の食い違い {mism}/{total}", flush=True)
     (out / "stats").mkdir(exist_ok=True)
-    pd.DataFrame(rows).to_csv(out / "stats" / "families.csv", index=False)
+    cm, dt = dai1.git_commit()
+    pd.DataFrame(rows).assign(commit=cm, dirty=dt).to_csv(out / "stats" / "families.csv", index=False)   # M6
     print("書いた:", out / "stats" / "families.csv")
 
 

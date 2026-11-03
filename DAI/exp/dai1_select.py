@@ -29,7 +29,7 @@ GRIDS = {
     "agree": [("tau", dai1.AG_TAU), ("f", dai1.AG_F)],
     "mix": [("alpha", dai1.MIX_ALPHA), ("f", dai1.MIX_F)],
     "cotrain": [("rho", dai1.RHO_GRID)],
-    "coreg": [("rho", dai1.RHO_GRID)],
+    "coreg": [("rho", dai1.COREG_RHO)],
     "tgtonly": [("C", dai1.TGT_C)],
     "kbias": [("Cb", (1.0, 10.0))],
     "joint_scratch": [("C", dai1.TGT_C)],
@@ -141,7 +141,10 @@ def select_T(tw: dict, p1: pd.DataFrame, p2: pd.DataFrame, p3: pd.DataFrame, n_u
         gm = "joint" if meth == "joint_a1" else meth
         if gm not in GRIDS:
             continue
-        hit = any(num(ch[k]) in (float(min(v)), float(max(v))) for k, v in GRIDS[gm] if len(v) > 1 and k in ch)
+        keys = [(k, v) for k, v in GRIDS[gm] if len(v) > 2 and k in ch and not (meth == "joint_a1" and k == "a")]   # 2 点の格子と固定のつまみは数えない（M5）
+        if not keys:
+            continue
+        hit = any(num(ch[k]) in (float(min(v)), float(max(v))) for k, v in keys)
         edge.setdefault(meth, [0, 0])
         edge[meth][0] += int(hit); edge[meth][1] += 1
     return dict(dsel=dsel, select=select, main=main_ver, partner=partner, tie_family=tie_family, tie_extra=tie_extra,
@@ -168,6 +171,8 @@ def main(out: Path, targets=DD.CORPORA) -> None:
         if len(commits) != 1 or commits != {str(tw.get("commit", ""))}:
             sys.exit(f"{T}: 段 1〜3 の行のコミットが 1 つでない {commits}（比較の検査 C6）")
         n_units = len(tw["units"])
+        if n_units != 3 * DD.N_FOLDS * 2 and "partial_targets" not in frozen["_meta"]:
+            sys.exit(f"{T}: 単位の数 {n_units} が設計の 30 でない（M7）")
         r = select_T(tw, p1, p2, p3, n_units)
         # 指数を分割を 1 つずつ除いて選び直したときの一致（定義の検査 D13）
         agree_w = {}

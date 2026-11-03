@@ -76,4 +76,4 @@ for m in "AVT":
 # (5) 台本の n_iter と grad の記録
 import pandas as pd
 d = pd.read_csv(base + "_p3.csv", low_memory=False)
-print(d[d.method == "_conv_coreg"][["K", "rho", "grad_max", "n_iter", "finite"]].to_string(index=False))
+print(d[d.method == "_conv_coreg"][["K", "grad_max", "n_iter", "n_stalled", "finite"]].to_string(index=False))

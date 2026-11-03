@@ -14,6 +14,8 @@ _others = DD.others
 DD.others = lambda c: ["AFEW", "IEMOCAP"] if c == "MOSEI" else _others(c)
 import dai1  # noqa: E402
 dai1.ROOT = REAL
+if os.environ.get('FIXCOMMIT'):                    # 確かめの間に HEAD が動いても照合が止まらないよう，コミットを固定する
+    dai1.git_commit = lambda: (os.environ['FIXCOMMIT'], True)
 dai1.KS_ALL = (0,) + DD.KS
 dai1.RHO_GRID = (0.25, 1.0); dai1.A_GRID = (1, 4)
 dai1.TETHER = [(0.01, 1.0), (0.01, 10.0), (0.1, 1.0), (0.1, 10.0)]

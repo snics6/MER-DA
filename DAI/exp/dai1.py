@@ -53,6 +53,7 @@ MIX_ALPHA = (0.2, 0.5, 0.8)                                          # 混ぜる
 MIX_TAU = 0.9                                                        # 同．混ぜた確率の最大がこれを超える発話だけに硬いラベル（原論文 4.2 節の値で固定）
 MIX_F = (0.25, 1, 4)                                                 # 同．その硬いラベル 1 本あたりの重み
 CT_ROUNDS = 3                                                        # 柔らかい共訓練の巡の数
+COREG_RHO = (0.0, 0.0625, 0.25, 1.0, 4.0)                            # 共正則化の一致の重み．0 は「使わない」（前の実験 E61 の調整版が選んだ．gate-code の 3 回目 M9）
 TGT_C = C_GRID                                                       # K 本だけでゼロから学ぶ版の C
 W_EXP = (0.0, 0.5, 1.0, 2.0)                                         # 積のモデルのモダリティの指数
 W_GRID = [w for w in itertools.product(W_EXP, repeat=3) if any(w)]
@@ -370,22 +371,22 @@ def coreg(u: Unit, K: int, tether: dict, store: dict, rows: list) -> None:
     mods = "AVT"
     tw = [tether[(m, max(K, 1))] for m in mods]
     res = S.fit_coreg([u.Xp[m] for m in mods], gk, [u.start[m][0] for m in mods], [u.start[m][1] for m in mods],
-                      [x[0] for x in tw], [x[1] for x in tw], list(RHO_GRID))
+                      [x[0] for x in tw], [x[1] for x in tw], list(COREG_RHO))
     Zsum = 0
     for i, m in enumerate(mods):
         W, b = res["Ws"][i], res["bs"][i]
         Zt = S.logits(u.Xt[m], W, b)                                     # (P, n_test, 4)
         Zsum = Zsum + Zt
         pr = pred8(Zt)
-        store[f"p3g_K{K}_{m}_pred"] = pr                                 # 並びは RHO_GRID
+        store[f"p3g_K{K}_{m}_pred"] = pr                                 # 並びは COREG_RHO
         store[f"p3g_K{K}_{m}_W"], store[f"p3g_K{K}_{m}_b"] = f32(W), f32(b)
-        for j, rho in enumerate(RHO_GRID):
+        for j, rho in enumerate(COREG_RHO):
             rows.append(dict(stage=3, student=m, K=K, method="coreg", teacher="cr", rho=rho, grad=float(res["grad_p"][j]),
                              stalled=bool(res["stalled_p"][j]), finite=bool(res["finite_p"][j]), S=float(res["S"][j]),
                              uar=100 * S.uar(u.ytest, pr[j].astype(int))))
     prs = pred8(Zsum)
     store[f"p3g_K{K}_AVT_pred"] = prs
-    for j, rho in enumerate(RHO_GRID):
+    for j, rho in enumerate(COREG_RHO):
         rows.append(dict(stage=3, student="AVT", K=K, method="coreg", teacher="cr", rho=rho, grad=float(res["grad_p"][j]),
                          stalled=bool(res["stalled_p"][j]), finite=bool(res["finite_p"][j]), S=float(res["S"][j]),
                          uar=100 * S.uar(u.ytest, prs[j].astype(int))))
@@ -644,11 +645,11 @@ def check_eval_gate(frozen_rel: str) -> str:
             # 関門の書式「## 判定」の次の行が「通す」で始まる形も認める（m92）
             shared = "DAI-2_3" in files[role]
             if shared:                                                  # 共有の報告は実験ごとの行「判定（DAI-2）：…」だけを読む（m102）
-                ok = rf"^判定（{re.escape(exp_name)}）[：:]\s*\**{word}(?:\**)?(?:$|[．。（\s])"
+                ok = rf"^判定（{re.escape(exp_name)}）[：:]\s*\**{word}(?:\**)?(?:$|[．。（])"
                 sec = None
             else:
-                ok = rf"^判定(?:（{re.escape(exp_name)}）)?[：:]\s*\**{word}(?:\**)?(?:$|[．。（\s])"
-                sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（\s])", head, re.M)
+                ok = rf"^判定(?:（{re.escape(exp_name)}）)?[：:]\s*\**{word}(?:\**)?(?:$|[．。（])"
+                sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（])", head, re.M)   # 「OK でない」を通さない（M8）
             if not re.search(ok, head, re.M) and not sec:
                 sys.exit(f"{exp_name} の {role} の報告（{files[role]}）が「判定：OK」（関門は「判定：通す」）でない")
     if set(gate["approvals"]) != {"DAI-1", "DAI-2", "DAI-3"}:
@@ -680,6 +681,8 @@ def run_pass(out, tag, T, c, srcs, f, r, which, tether=None, wsel=None, fsel=Non
         z = np.load(f"{base}_p{prev}.npz")
         if str(z["commit"]) != RUN["commit"]:
             sys.exit(f"{base.name} の段 {prev} の保存のコミット {z['commit']} が今の実行と違う")
+        if prev == 2 and tag_t is not None and ("tether" not in z or list(z["tether"]) != list(tag_t)):
+            sys.exit(f"{base.name} の段 2 の保存の引き戻しが今の引き戻しと違う（gate-code の 3 回目 M3）")
     u = Unit(out, T, c, srcs, f, r)
     store, rows = {}, []
     t0 = time.time()
