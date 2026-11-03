@@ -895,7 +895,14 @@ def direct_units(U, boot_store, jk_store):
                 elif la is not None and ub_ is not None:
                     store[key + "|lo"] = (la.astype(np.float64) - ub_.astype(np.float64)).astype(np.float32)
                     store[key + "|up"] = (ua.astype(np.float64) - lb_.astype(np.float64)).astype(np.float32)
-                ma, mb = boot_store.get(ra.boot_key + "|mmask"), boot_store.get(rb.boot_key + "|mmask")   # 手法の読みだけの印（none の印は差で消える．none を選んだ群は none の読みの印を手法の側に写してある）
+                mbits = sum(MASK_BIT[k] for k in ("lo_method", "hi_method", "amb_method"))
+
+                def mmask_of(key_):                                             # 手法の読みだけの印（none の印は差で消える．none を選んだ群は none の読みの印を手法の側に写してある）．
+                    m = boot_store.get(key_ + "|mmask")                           # |mmask の無い量（向き − 位置，ΔS）は |mask の手法の 3 ビットを使う
+                    if m is None and boot_store.get(key_ + "|mask") is not None:
+                        m = (boot_store[key_ + "|mask"] & mbits).astype(np.uint8)
+                    return m
+                ma, mb = mmask_of(ra.boot_key), mmask_of(rb.boot_key)
                 mask = np.zeros(len(d), np.uint8)
                 if not both_none:
                     if ma is not None:
@@ -1028,7 +1035,7 @@ def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main"
         reps, infl, masks = [], [], []
         fkey = "frac_main" if mask_kind == "main" else "frac_sens"
         for c in cps:
-            b0, x0 = cd[c]["B"], cd[c]["point"]                                   # 記録した複製と点で広げ，限りのずれ（LB − B，UB − B）を足す
+            b0, x0 = cd[c]["B"], cd[c]["point"]                                   # 倍率 r は記録した複製と点で決める
             r = 1.0
             if inflate and cd[c]["geff"] < GEFF_MIN and np.isfinite(cd[c]["lo_jk"]) and np.isfinite(cd[c]["hi_jk"]):
                 pw = (pct(b0, 97.5) - pct(b0, 2.5)) / 2
@@ -1542,11 +1549,11 @@ def main():
                           "monotone": "S_uar・S_dir・S_dir_* は累積の最大，S_pos・S_posloss・S_pos_bfix は累積の最小（反復で平均した曲線に当てる）",
                           "readable": "主の右端の置き方で，none と手法の読みがどの群でも打ち切りでもあいまいでもない（none を選んだ群と，saerens・massbal の向きの座標は定義から 0 で読める．直接の差は手法の読みだけで決め，none を選んだ群は none の読みを手法の読みとして引き継ぐ）",
                           "draw_censoring": "抽出の中の読みの印を種類別（下・上・あいまい × none・手法）に保存．区間が使える基準（2.5%）は上の打ち切りとあいまいに当てる（感度 (o)：上の打ち切りだけ）．族は読めるコーパスのそれぞれに当てる",
-                          "bounds": "読みごとに本当の本数の下限（最初の読み．下に打ち切られていれば 0）と上限（最後の読み＝右から整えた曲線で読む．最初か最後が上に打ち切られていれば 1e6）．あいまいの印は 2 回以上横切るか最後の読みが最初より右．n の限りは lo(K'm) − up(K'n)，up(K'm) − lo(K'n)．向き − 位置は lo(A) − up(B)，up(A) − lo(B)．直接の差は手法の読みだけ：lo(K'm_A) − up(K'm_B)，up(K'm_A) − lo(K'm_B)",
+                          "bounds": "読みごとに本当の本数の下限（最初の読み．下に打ち切られていれば 0）と上限（最後の読み＝右から整えた曲線で読む．最初か最後が上に打ち切られていれば 1e6）．あいまいの印は 2 回以上横切るか最後の読みが最初より右．n の限りは lo(K'm) − up(K'n)，up(K'm) − lo(K'n)．向き − 位置は lo(A) − up(B)，up(A) − lo(B)．直接の差は手法の読みだけ：lo(K'm_A) − up(K'm_B)，up(K'm_A) − lo(K'm_B)（none を選んだ群は none の読みを手法の読みとして使う．両方が none なら 0）",
                           "final_status": "読めるコーパスの区分が当たり・外れ・負のとき，読めないコーパスも入れて各コーパス・各抽出を不等式ごとに不利な側の限りに置いても同じ側なら確定（*_final）．そうでなければ undet_censoring",
                           "draws": "種は (seed, crc32(コーパス))．話者の多項分布 (B, nls) と反復の多項分布 (B, R)．世界と比較相手で共有",
                           "corpus_value": "世界の単位の平均（複製・jackknife も平均）．区間は百分位と，G_eff < 20 なら jackknife の t 区間の和集合",
-                          "family": "読めるコーパスの中央値．複製は G_eff < 20 のコーパスの記録した複製を記録した点のまわりで jackknife の幅まで広げ（包絡は広げた後に限りのずれを足す），複製ごとに中央値．読めるコーパスのそれぞれで上の打ち切り・あいまいの割合が CENS_DRAW_MAX を超えれば区間は使わない",
+                          "family": "読めるコーパスの中央値．複製は G_eff < 20 のコーパスの記録した複製を記録した点のまわりで jackknife の幅まで広げ（倍率 r），複製ごとに中央値．包絡は不利な側の点の限りのまわりで同じ倍率で広げる（L ＝ pt_up ＋ r·(LB − pt_up)，U ＝ pt_lo ＋ r·(UB − pt_lo)）．読めるコーパスのそれぞれで上の打ち切り・あいまいの割合が CENS_DRAW_MAX を超えれば区間は使わない",
                           "judgment": "予言ごとに holds / fails / undet（P87-2 は neg も）．final は上の final_status の規則．外れは 1 つの条件が限りでも成り立つときだけ",
                           "QUANTS_B": list(QUANTS_B), "QUANTS_PT": list(QUANTS_PT), "DIFFS": list(DIFFS), "DS": list(DS), "BETTER_HIGH": BETTER_HIGH, "KS": list(KS), "REPS": list(REPS),
                           "SEEDED": sorted(E.SEEDED), "PARTIAL_SELECTORS": E.PARTIAL_SELECTORS, "EXCL_MA": list(EXCL_MA), "family_min_readable": "max(2, ceil(名目のコーパス数/2))",
