@@ -50,7 +50,8 @@ AG_TAU = (0.5, 0.7, 0.9)                                             # 一致し
 AG_F = (0.25, 1, 4)                                                  # その疑似ラベル 1 本あたりの重み
 W_EXP = (0.0, 0.5, 1.0, 2.0)                                         # 積のモデルのモダリティの指数
 W_GRID = [w for w in itertools.product(W_EXP, repeat=3) if any(w)]
-DEFAULTS = {"joint": {"m": "n", "a": 1}, "rolesep": {"m": "n", "a": 1}, "kd": {"T": 2, "m": "n"}, "agree": {"tau": 0.9, "f": 1}}
+DEFAULTS = {"joint": {"m": "n", "a": 1}, "rolesep": {"m": "n", "a": 1}, "kd": {"temp": 2, "m": "n"}, "agree": {"tau": 0.9, "f": 1},
+            "w": (1.0, 1.0, 1.0)}                                            # 選択なしの値（設計の文書の表．順 3 の前に固定）
 KS_ALL = (0,) + DD.KS
 
 
@@ -186,9 +187,9 @@ def pass1(u: Unit, store: dict, rows: list, tether_only: dict | None = None) -> 
         G = torch.stack([S.balanced_onehot(u.ypool, np.arange(u.n), u.n) if K == "all" else u.gK(K) for K, _, _ in items])
         res = S.fit(u.Xp[kind], G, W0, b0, Cw=[x[1] for x in items], Cb=[x[2] for x in items])
         ua = S.uar_batch(u.ytest, S.logits(u.Xt[kind], res["W"], res["b"]))
-        for (K, cw, cb), v in zip(items, ua):
+        for (K, cw, cb), v, gp, sv in zip(items, ua, res["grad_p"], G.sum((1, 2)).cpu().numpy()):
             rows.append(dict(stage=1, method="oracle" if K == "all" else "none", kind=kind, K=-1 if K == "all" else K,
-                             Cw=cw, Cb=cb, uar=v))
+                             Cw=cw, Cb=cb, uar=v, S=float(sv), grad=float(gp)))
         store[f"p1_{kind}_W"], store[f"p1_{kind}_b"] = res["W"].cpu().numpy(), res["b"].cpu().numpy()
         store[f"p1_{kind}_items"] = np.array([f"{K}|{cw}|{cb}" for K, cw, cb in items])
         rows.append(dict(stage=1, method="_conv", kind=kind, grad_max=res["grad_max"], n_iter=res["n_iter"]))
@@ -230,16 +231,17 @@ def pass2(u: Unit, p1, store: dict, rows: list, tether: dict) -> None:
             rows.append(dict(stage=2, method="_conv", kind=f"ret_{m}", K=K, grad_max=res["grad_max"], n_iter=res["n_iter"]))
         Lp = torch.stack([tk[f"ret_{m}"][0].clamp(min=1e-12).log() for m in "AVT"])
         Lt = torch.stack([tk[f"ret_{m}"][1].clamp(min=1e-12).log() for m in "AVT"])
+        nk = np.setdiff1d(np.arange(u.n), u.kpos[K])                      # K 本を除いた候補（m35）
         for w in W_GRID:
             wt = S.t(np.array(w))[:, None, None]
-            up = S.uar(u.ypool, (wt * Lp).sum(0).argmax(1).cpu().numpy()) * 100
+            up = S.uar(u.ypool[nk], (wt * Lp).sum(0).argmax(1).cpu().numpy()[nk]) * 100
             ut = S.uar(u.ytest, (wt * Lt).sum(0).argmax(1).cpu().numpy()) * 100
             rows.append(dict(stage=2, method="product", teacher=str(w), K=K, uar_pool=up, uar=ut))
         tk["poe_none"] = (poe(tk, "AVT", 0), poe(tk, "AVT", 1))
         for name in [f"none_{k}" for k in DD.KINDS] + [f"ret_{m}" for m in "AVT"] + ["poe_none"]:
             P, Q = tk[name]
             rows.append(dict(stage=2, method="teacher", teacher=name, K=K,
-                             uar_pool=S.uar(u.ypool, P.argmax(1).cpu().numpy()) * 100, uar=S.uar(u.ytest, Q.argmax(1).cpu().numpy()) * 100))
+                             uar_pool=S.uar(u.ypool[nk], P.argmax(1).cpu().numpy()[nk]) * 100, uar=S.uar(u.ytest, Q.argmax(1).cpu().numpy()) * 100))
             store[f"p2_K{K}_{name}_pool"], store[f"p2_K{K}_{name}_test"] = P.half().cpu().numpy(), Q.half().cpu().numpy()
 
 
@@ -283,22 +285,22 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict) 
                     for a in A_GRID:
                         items.append(dict(method="joint", teacher=tv, m=m, a=a))
                         Gs.append(a * gk + S.soft_rows(Q, mval(m, u.n)))
-            # 温度つき蒸留（同じ予測．K 本の倍率 1）
-            for Tt in KD_T:
-                Qt = torch.softmax(teach["sel"].clamp(min=1e-12).log() / Tt, -1)
-                for m in M_GRID:
-                    items.append(dict(method="kd", teacher="sel", T=Tt, m=m))
-                    Gs.append(gk + S.soft_rows(Qt, mval(m, u.n), balance=False))
-            # 一致した発話だけの疑似ラベル（予測と，生徒自身の none[K] の判定が一致し，確信度が τ 以上）
+            # 温度つき蒸留（同じ予測．K 本の倍率 1）．主の版は順 5 で決まるので両方の予測で回す（M14）
             own = tk[f"none_{s}"][0].argmax(1)
-            Q = teach["sel"]
-            for tau in AG_TAU:
-                keep = (Q.argmax(1) == own) & (Q.max(1).values >= tau)
-                H = torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
-                H[keep, Q.argmax(1)[keep]] = 1.0
-                for fw in AG_F:
-                    items.append(dict(method="agree", teacher="sel", tau=tau, f=fw, n_kept=int(keep.sum())))
-                    Gs.append(gk + fw * H)
+            for tv, Qv in teach.items():
+                for Tt in KD_T:
+                    Qt = torch.softmax(Qv.clamp(min=1e-12).log() / Tt, -1)
+                    for m in M_GRID:
+                        items.append(dict(method="kd", teacher=tv, temp=Tt, m=m))
+                        Gs.append(gk + S.soft_rows(Qt, mval(m, u.n), balance=False))
+                # 一致した発話だけの疑似ラベル（予測と，生徒自身の none[K] の判定が一致し，確信度が τ 以上）
+                for tau in AG_TAU:
+                    keep = (Qv.argmax(1) == own) & (Qv.max(1).values >= tau)
+                    H = torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
+                    H[keep, Qv.argmax(1)[keep]] = 1.0
+                    for fw in AG_F:
+                        items.append(dict(method="agree", teacher=tv, tau=tau, f=fw, n_kept=int(keep.sum())))
+                        Gs.append(gk + fw * H)
             # 予測を付ける側の種類（選択なしの値 m = n，a = 1．記述の比べ）
             tts = {f"single_{m}": tk[f"none_{m}"][0] for m in "AVT" if m != s or s == "AVT"}
             tts.update({f"pair_{k}": tk[f"none_{k}"][0] for k in ("AV", "AT", "VT")})
@@ -311,8 +313,9 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict) 
             G = torch.stack(Gs)
             res = S.fit(X, G, W0, b0, Cw=cw, Cb=cb)
             ua = S.uar_batch(u.ytest, S.logits(Xt, res["W"], res["b"]))
-            for it, v in zip(items, ua):
-                rows.append(dict(stage=3, student=s, K=K, uar=v, **it))
+            Ssum = G.sum((1, 2)).cpu().numpy()
+            for it, v, sv, gp in zip(items, ua, Ssum, res["grad_p"]):
+                rows.append(dict(stage=3, student=s, K=K, uar=v, S=float(sv), grad=float(gp), **it))
             store[f"p3_{s}_K{K}_W"], store[f"p3_{s}_K{K}_b"] = res["W"].cpu().numpy(), res["b"].cpu().numpy()
             store[f"p3_{s}_K{K}_items"] = np.array([json.dumps(it, sort_keys=True) for it in items])
             rows.append(dict(stage=3, method="_conv", student=s, K=K, grad_max=res["grad_max"], n_iter=res["n_iter"]))
@@ -406,7 +409,8 @@ def select_w(rows: pd.DataFrame) -> dict:
         m = g.groupby("teacher")["uar_pool"].mean()
         best = m.max()
         cands = [eval(w) for w in m.index[m >= best - 1e-9]]
-        out[int(K)] = min(cands, key=lambda w: sum(abs(x - 1) for x in w))
+        # 同点は (1,1,1) からの差の絶対値の和が最小，それも同じなら最大の指数が 1 に近いもの，それも同じなら辞書順（m34）
+        out[int(K)] = min(cands, key=lambda w: (sum(abs(x - 1) for x in w), abs(max(w) - 1), w))
     return out
 
 
