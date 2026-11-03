@@ -23,12 +23,10 @@
 候補の 2 分割でも同じ量と，q への忠実さ（柔らかい交差エントロピー，argmax の一致率）を出す（teacher の無い g にも使える）．
 対ごとの a（2 感情の正解率．切片を最良に直した値）も出す．proj のテストの確率と W・b は fits/ に保存する．
 
-使い方：./.venv/bin/python exp/analyze_projection_e85.py --out results/e85/<名前> [--worlds avt av] [--targets T ...] [--rep-list 0 1 2] [--smoke]
-  本番（反復 0〜2．世界と T で 3 つに分けて同じ GPU で並行．設計 3 節）：
-    --worlds avt --out results/e85/avt
-    --worlds av --targets AFEW IEMOCAP-impro --out results/e85/av_a
-    --worlds av --targets MELD MOSEI CREMA-D --out results/e85/av_b
-  合わせて集計：--summarize-from results/e85/avt results/e85/av_a results/e85/av_b --out results/e85
+使い方：./.venv/bin/python exp/analyze_projection_e85.py [--out results/e85] [--worlds avt av] [--targets T ...] [--rep-list 0 1 2] [--smoke]
+  本番（反復 0〜2，1 つの処理で avt → av の順．約 5.3 時間．同じ GPU で処理を分けて並行しても速くならない（再検査の実測）．設計 3 節）：
+    tmux の mer-da で  ./.venv/bin/python exp/analyze_projection_e85.py --out results/e85
+  分けて流したときは --summarize-from <置き場>... --out <まとめ先> で units・pairs・checks・fit_check を合わせて集計だけを書く
 """
 import argparse
 import hashlib
@@ -53,9 +51,12 @@ from split import speaker_folds  # noqa: E402
 
 WORLDS = {"avt": "fuse-audio-video-text", "av": "fuse-audio-video"}
 KS = (0, 5, 25)
-LAMS = (1e-3, 1e-2, 1e-1)        # λ の候補．主は候補の 2 分割で選ぶ（lam_sel）．ここ 1 か所で決める
+LAMS = (1e-3, 1e-2, 1e-1, 1.0, 10.0)   # λ の候補（再検査で 1・10 を足した：AFEW の主のセルで保留側の交差エントロピーが 1 で最小）．主は候補の 2 分割で選ぶ（lam_sel）．ここ 1 か所で決める
 LAM_FIXED = 1e-3                 # 感度：固定の λ
-REPS_MAIN = [0, 1, 2]            # 本番で流す反復（所要のため．3・4 は --rep-list 3 4 で別に流して --summarize-from で合わせる）
+REPS_MAIN = [0, 1, 2]            # 本番の反復．主の答えはこの 3 反復で読む（反復 3・4 は範囲の外．設計 3 節）
+DELTA_FLOOR = 1.0                # ポイント．Q1 の 3 区分の δ の下限（δ ＝ max(これ, 単位の中の行ごとの gain_proj の標準偏差)）
+DP_TOL = 1e-2                    # fit_check：束ねた解と 1 問ずつの解のテストの確率の最大差の基準（n < d で λ が小さいと損失が平らな向きがあり，勾配 1e−6 の止め方では未知の行で 1e−3 ほど違う）
+ARGMAX_FRAC = 0.002              # fit_check：argmax の不一致の本数の基準 max(1, この割合 × テストの本数)．どちらかを超えれば止まる
 # 疑似ラベルのモデル g．self は f 自身の出発点（none__<f>__K．完全に表せる疑似ラベルの参照），oracle は候補の正解ラベルの one-hot（f の特徴で届く上限の参照）
 G_OF_K = {0: ("pF", "ref", "poe0", "self", "oracle"), 5: ("pF", "pFK", "ref", "poe0", "self", "oracle"), 25: ("pF", "pFK", "ref", "poe0", "self", "oracle")}
 G_TEACHER = {"pF": "pF", "pFK": "pFK", "ref": "ref", "poe0": "poe0"}       # E77 の teacher の行の param（self は anchor 自身，oracle は無い）
@@ -280,40 +281,55 @@ def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
         mu, sd = Zc.mean(0), Zc.std(0) + 1e-8
         Zc, Zte = (Zc - mu) / sd, (Zte - mu) / sd
         n, d = Zc.shape
-        names = []
+        names, name_Ks = [], {}
         for K in KS:
             for g in G_OF_K[K]:
                 nm = q_name(g, K, f, fused)
                 if nm not in names:
                     names.append(nm)
+                name_Ks.setdefault(nm, [])
+                if K not in name_Ks[nm]:
+                    name_Ks[nm].append(K)
         Qs = [u.q_array(nm, f) for nm in names]
+        labmask = {}                                                        # K 本のラベルの行（候補の中の位置）．K ≥ 5 の保留側の測定から除く
+        for K in KS:
+            m = np.zeros(n, bool)
+            lab = u.z[f"lab__{K}"].astype(int)
+            if len(lab) and (lab.min() < 0 or lab.max() >= n):
+                raise SystemExit(f"{u.world} {u.T} {u.c} r{u.r}：lab__{K} が候補の範囲の外")
+            m[lab] = True
+            labmask[K] = m
         t0 = time.time()
         full = fit_many(Zc, Qs, LAMS)                                       # テスト用：全候補で当てはめ
         # 候補の 2 分割：fold a で当てはめ，fold b で q への忠実さと UAR を測る（入れ替えて平均）
-        half = {nm: {lam: [] for lam in LAMS} for nm in names}
+        half = {(nm, K): {lam: [] for lam in LAMS} for nm in names for K in name_Ks[nm]}
         Pc = {nm: {lam: np.full((n, 4), np.nan) for lam in LAMS} for nm in names}
         for a_, b_ in ((0, 1), (1, 0)):
             ra, rb = fold == a_, fold == b_
             fa = fit_many(Zc, Qs, LAMS, rows=ra)
             for nm, Q, o in zip(names, Qs, fa):
-                Qb = Q[rb]
-                Hq = soft_ce(Qb, Qb)
                 for lam in LAMS:
-                    Pb = predict(o[lam]["W"], o[lam]["b"], Zc[rb])
-                    Pc[nm][lam][rb] = Pb
-                    half[nm][lam].append(dict(uar_proj=uar(Pb.argmax(1), u.y[rb]), uar_g=uar(Qb.argmax(1), u.y[rb]), ce=soft_ce(Pb, Qb), H=Hq,
-                                              agree=float((Pb.argmax(1) == Qb.argmax(1)).mean()), n_iter=o[lam]["n_iter"], grad=o[lam]["grad"],
-                                              n_fit=int(ra.sum()), rb=rb))
+                    Pb_all = predict(o[lam]["W"], o[lam]["b"], Zc[rb])
+                    Pc[nm][lam][rb] = Pb_all
+                    for K in name_Ks[nm]:
+                        rbe = rb & ~labmask[K]                              # 保留側から，その K の学習に使った行を除く（K = 0 では該当なし）
+                        Pb, Qb = Pb_all[rbe[rb]], Q[rbe]
+                        half[nm, K][lam].append(dict(uar_proj=uar(Pb.argmax(1), u.y[rbe]), uar_g=uar(Qb.argmax(1), u.y[rbe]), ce=soft_ce(Pb, Qb), H=soft_ce(Qb, Qb),
+                                                     agree=float((Pb.argmax(1) == Qb.argmax(1)).mean()), n_iter=o[lam]["n_iter"], grad=o[lam]["grad"],
+                                                     n_fit=int(ra.sum()), n_eval=int(rbe.sum()), n_excl=int((rb & labmask[K]).sum()), rbe=rbe))
         t_fit = time.time() - t0
-        lam_sel = {nm: min(LAMS, key=lambda l: (np.mean([h["ce"] for h in half[nm][l]]), l)) for nm in names}
+        # λ の選択：(q, K) ごとに，保留側（入れ替えて平均）の q への柔らかい交差エントロピーが最小の λ（同点なら小さい方）
+        lam_sel = {key: min(LAMS, key=lambda l: (np.mean([h["ce"] for h in half[key][l]]), l)) for key in half}
         # 保存：テストの確率（float16）・W・b・標準化・2 分割の保留側の確率
-        save = dict(sample_id_te=sid_te, yte=u.yte, mu=mu.astype(np.float32), sd=sd.astype(np.float32), names=np.array(names), lams=np.array(LAMS),
-                    lam_sel=np.array([lam_sel[nm] for nm in names]), fold=fold, sample_id_cand=sp.sample_id.to_numpy()[u.cand])
+        save = dict(sample_id_te=sid_te.astype(str), yte=u.yte, mu=mu.astype(np.float32), sd=sd.astype(np.float32), names=np.array(names, dtype=str), lams=np.array(LAMS),
+                    fold=fold, sample_id_cand=sp.sample_id.to_numpy()[u.cand].astype(str))
+        for (nm, K), lam in lam_sel.items():
+            save[f"lam_sel|{nm}|{K}"] = np.float64(lam)
         Pte = {}
         for nm, o in zip(names, full):
             for lam in LAMS:
                 Pte[nm, lam] = predict(o[lam]["W"], o[lam]["b"], Zte)
-                save[f"P_te|{nm}|{lam:g}"] = Pte[nm, lam].astype(np.float16)
+                save[f"P_te|{nm}|{lam:g}"] = Pte[nm, lam].astype(np.float32)   # テストの確率は float32（float16 では argmax が同点になり UAR を作り直せない）
                 save[f"P_cand_heldout|{nm}|{lam:g}"] = Pc[nm][lam].astype(np.float16)
                 save[f"W|{nm}|{lam:g}"] = o[lam]["W"].astype(np.float32)
                 save[f"b|{nm}|{lam:g}"] = o[lam]["b"]
@@ -332,7 +348,12 @@ def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
                                       n_iter_batch=o[LAM_FIXED]["n_iter"], grad_batch=o[LAM_FIXED]["grad"], loss_batch=o[LAM_FIXED]["loss"],
                                       n_iter_single=it1, grad_single=g1, loss_single=l1,
                                       d_uar_te=uar(P0.argmax(1), u.yte) - uar(P1.argmax(1), u.yte), maxabs_dP_te=float(np.abs(P0 - P1).max()),
-                                      n_argmax_disagree=int((P0.argmax(1) != P1.argmax(1)).sum()), maxabs_dW=float(np.abs(o[LAM_FIXED]["W"] - W1).max())))
+                                      n_argmax_disagree=int((P0.argmax(1) != P1.argmax(1)).sum()), maxabs_dW=float(np.abs(o[LAM_FIXED]["W"] - W1).max()),
+                                      n_te=len(u.te), n_argmax_tol=max(1, int(ARGMAX_FRAC * len(u.te))),
+                                      agree_ok=bool(np.abs(P0 - P1).max() <= DP_TOL and int((P0.argmax(1) != P1.argmax(1)).sum()) <= max(1, int(ARGMAX_FRAC * len(u.te))))))
+            bad = [r for r in fit_check if r["f"] == f and not r["agree_ok"]]
+            if bad:
+                raise SystemExit(f"{u.world} {u.T} {u.c} r{u.r} {f}：束ねた解と 1 問ずつの解が合わない（確率の最大差 ≤ {DP_TOL:g} かつ argmax の不一致 ≤ max(1, {ARGMAX_FRAC:g}·n_te）の基準）：{[(r['q'], r['maxabs_dP_te'], r['n_argmax_disagree']) for r in bad]}")
         # 行（K × g × λ）
         for K in KS:
             anc_te = u.z[f"none_te__{f}__{K}"]
@@ -351,12 +372,14 @@ def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
                 else:
                     u_g_te = np.nan                                         # oracle：テストの上の teacher は無い
                 has_dist = g in (G_DIST_FUSED if f == fused else G_DIST_SINGLE)
+                ls = lam_sel[nm, K]
                 for lam in LAMS:
                     P_te = Pte[nm, lam]
                     u_proj_te = uar(P_te.argmax(1), u.yte)
-                    hs = half[nm][lam]
-                    anc_cand_b = [uar(anc_c[h["rb"]].argmax(1), u.y[h["rb"]]) for h in hs]
-                    row = dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, q=nm, lam=lam, lam_sel=lam_sel[nm], is_main=(lam == lam_sel[nm]),
+                    hs = half[nm, K][lam]
+                    anc_cand_b = [uar(anc_c[h["rbe"]].argmax(1), u.y[h["rbe"]]) for h in hs]
+                    row = dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, q=nm, lam=lam, lam_sel=ls, is_main=(lam == ls),
+                               lam_edge=("lo" if ls == min(LAMS) else ("hi" if ls == max(LAMS) else "in")),
                                n_cand=n, n_te=len(u.te), d=d, n_over_d=n / d,
                                uar_anchor_te=u_anchor_te, uar_g_te=u_g_te, uar_proj_te=u_proj_te,
                                J_te=u_g_te - u_anchor_te, gain_proj_te=u_proj_te - u_anchor_te,
@@ -366,6 +389,7 @@ def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
                                uar_anchor_cand=float(np.mean(anc_cand_b)), uar_g_cand=float(np.mean([h["uar_g"] for h in hs])), uar_proj_cand=float(np.mean([h["uar_proj"] for h in hs])),
                                ce_q_cand=float(np.mean([h["ce"] for h in hs])), H_q_cand=float(np.mean([h["H"] for h in hs])), agree_q_cand=float(np.mean([h["agree"] for h in hs])),
                                n_half_min=min(h["n_fit"] for h in hs), n_half_over_d=min(h["n_fit"] for h in hs) / d, n_fold_neg=n_fold_neg,
+                               n_heldout_eval_min=min(h["n_eval"] for h in hs), n_heldout_excl=sum(h["n_excl"] for h in hs),
                                n_iter_cand_max=max(h["n_iter"] for h in hs), grad_max_cand=max(h["grad"] for h in hs), fit_ok_cand=bool(max(h["grad"] for h in hs) <= GRAD_NEAR),
                                uar_g_cand_all=uar(Q.argmax(1), u.y))
                     row["J_cand"] = row["uar_g_cand"] - row["uar_anchor_cand"]
@@ -387,7 +411,7 @@ def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
                     else:
                         a_g = [np.nan] * len(PAIRS)
                     for pi, name in enumerate(PAIR_NAMES):
-                        rows_p.append(dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, lam=lam, is_main=(lam == lam_sel[nm]), pair=name,
+                        rows_p.append(dict(world=u.world, T=u.T, c=u.c, unit=corp(u.c), r=u.r, f=f, K=K, g=g, lam=lam, is_main=(lam == ls), pair=name,
                                            a_anchor=a_anchor_te[pi], a_g=a_g[pi], a_proj=a_proj[pi]))
         print(f"  {f}: {len(names)} q × {len(LAMS)} λ × 3 当てはめ {t_fit:.0f}s", flush=True)
     return fit_check
@@ -397,24 +421,27 @@ def run_unit(u, singles, e80, out_fits, rows_u, rows_p, rows_chk, do_fit_check):
 
 def per_unit_table(U, mode):
     """単位（c のコーパス）ごとに，得と J を T と反復で平均してから割る．mode は sel（行ごとに選んだ λ）か fixed（λ = LAM_FIXED）．"""
-    rows = U[U.is_main] if mode == "sel" else U[np.isclose(U.lam, LAM_FIXED)]
-    rows = rows.copy()
+    sel = U.is_main if mode == "sel" else np.isclose(U.lam, LAM_FIXED)
+    rows = U[sel].copy()
     rows["J_le0"] = rows.J_te <= 0
     rows["absJ_lt1"] = rows.J_te.abs() < J_FLOOR
-    rows["not_ok"] = ~rows.fit_ok
-    rows = rows[rows.fit_ok]                                                  # 収束しなかった問（勾配 > GRAD_NEAR）は判定から外す
+    rows["lam_lo"] = rows.lam_edge == "lo"
+    rows["lam_hi"] = rows.lam_edge == "hi"
+    rows["q1_diff"] = rows[f"gain_method_{MAIN_W}_{MAIN_M}"] - Q1_FRAC * rows.gain_proj_te   # 行ごとの判定の差（符号がそろうか）
+    rows = rows[rows.fit_ok & rows.fit_ok_cand]                              # 収束しなかった問（勾配 > GRAD_NEAR．全候補か 2 分割）は判定から外す
     gcols = [c for c in U.columns if c.startswith("gain_method_")]
-    agg = dict(n_rows=("r", "size"), n_rows_J_le0=("J_le0", "sum"), n_rows_absJ_lt1=("absJ_lt1", "sum"),
+    agg = dict(n_rows=("r", "size"), n_rows_J_le0=("J_le0", "sum"), n_rows_absJ_lt1=("absJ_lt1", "sum"), n_rows_lam_lo=("lam_lo", "sum"), n_rows_lam_hi=("lam_hi", "sum"),
                J_te=("J_te", "mean"), J_te_min=("J_te", "min"), J_te_max=("J_te", "max"),
-               gain_proj_te=("gain_proj_te", "mean"), gain_proj_te_min=("gain_proj_te", "min"), gain_proj_te_max=("gain_proj_te", "max"),
+               gain_proj_te=("gain_proj_te", "mean"), gain_proj_te_min=("gain_proj_te", "min"), gain_proj_te_max=("gain_proj_te", "max"), gain_proj_te_sd=("gain_proj_te", "std"),
                gain_m_min=(f"gain_method_{MAIN_W}_{MAIN_M}", "min"), gain_m_max=(f"gain_method_{MAIN_W}_{MAIN_M}", "max"),
+               q1_diff_min=("q1_diff", "min"), q1_diff_max=("q1_diff", "max"),
                J_cand=("J_cand", "mean"), gain_proj_cand=("gain_proj_cand", "mean"), ce_q_cand=("ce_q_cand", "mean"), H_q_cand=("H_q_cand", "mean"),
                agree_q_cand=("agree_q_cand", "mean"), n_over_d=("n_over_d", "mean"), n_half_over_d=("n_half_over_d", "mean"),
                n_iter_max=("n_iter", "max"), grad_max=("grad_max", "max"), lam_sel_mean=("lam", "mean"))
     agg.update({c: (c, "mean") for c in gcols})
     per = rows.groupby(["world", "f", "K", "g", "unit"]).agg(**agg).reset_index()
     per["mode"] = mode
-    n_unfit = U[(U.is_main if mode == "sel" else np.isclose(U.lam, LAM_FIXED)) & ~U.fit_ok].groupby(["world", "f", "K", "g", "unit"]).size().rename("n_rows_not_converged")
+    n_unfit = U[sel & ~(U.fit_ok & U.fit_ok_cand)].groupby(["world", "f", "K", "g", "unit"]).size().rename("n_rows_not_converged")
     per = per.merge(n_unfit.reset_index(), on=["world", "f", "K", "g", "unit"], how="left")
     per["n_rows_not_converged"] = per.n_rows_not_converged.fillna(0).astype(int)
     gm = per[f"gain_method_{MAIN_W}_{MAIN_M}"]
@@ -428,9 +455,14 @@ def per_unit_table(U, mode):
         per.loc[has, "best_variant"] = per.loc[has, gcols].idxmax(axis=1)
     per["r_m_best_te"] = np.where(okJ, per.gain_m_best / per.J_te, np.nan)
     per["r_rep_cand"] = np.where(per.J_cand >= J_FLOOR, per.gain_proj_cand / per.J_cand, np.nan)
+    # Q1 の 3 区分（E85 4 節）：δ ＝ max(DELTA_FLOOR, 単位の中の行ごとの gain_proj の標準偏差)
+    per["delta"] = np.maximum(DELTA_FLOOR, per.gain_proj_te_sd.fillna(0.0))
     per["q1_readable"] = (per.gain_proj_te >= GAIN_FLOOR) & gm.notna()
     per["ratio_m_over_proj"] = np.where(per.q1_readable, gm / per.gain_proj_te, np.nan)
-    per["q1_true"] = per.q1_readable & (gm >= Q1_FRAC * per.gain_proj_te)
+    cls = np.where(gm < Q1_FRAC * per.gain_proj_te, "loss", np.where(gm <= per.gain_proj_te + per.delta, "received", "above"))
+    per["q1_class"] = np.where(per.q1_readable, cls, "unreadable")
+    per["q1_true"] = per.q1_class == "received"                               # 「受け取った」（0.8 gain_proj 以上，gain_proj + δ 以下）
+    per["q1_sign_consistent"] = np.where(per.q1_readable, (per.q1_diff_min >= 0) | (per.q1_diff_max < 0), np.nan)   # 行ごとの gain_method − 0.8 gain_proj の符号がそろう
     per["proj_ge_method"] = np.where(gm.notna(), per.gain_proj_te >= gm, np.nan)
     return per
 
@@ -441,41 +473,74 @@ def summary_table(per):
         pos = g[g.J_te >= J_FLOOR]
         q1 = g[g.q1_readable]
         n_q1 = len(q1)
-        n_q1_true = int(q1.q1_true.sum())
+        n_cls = {c: int((q1.q1_class == c).sum()) for c in ("loss", "received", "above")}
+        n_known = int(g.proj_ge_method.notna().sum())
+        n_ge = int(g.proj_ge_method.fillna(False).astype(bool).sum())
+        n_cons = int(q1.q1_sign_consistent.fillna(False).astype(bool).sum())
         rec = dict(world=key[0], f=key[1], K=key[2], g=key[3], mode=key[4], n_units=len(g), n_units_J_ge1=len(pos), n_units_J_le0=int((g.J_te <= 0).sum()),
-                   n_units_q1_readable=n_q1, n_units_q1_true=n_q1_true,
+                   n_units_q1_readable=n_q1, n_units_q1_loss=n_cls["loss"], n_units_q1_received=n_cls["received"], n_units_q1_above=n_cls["above"],
+                   n_units_q1_sign_consistent=n_cons,
                    J_te_median=g.J_te.median(), gain_proj_te_median=g.gain_proj_te.median(), gain_m_median=g[f"gain_method_{MAIN_W}_{MAIN_M}"].median(),
+                   delta_median=g.delta.median(),
                    r_rep_te_median=pos.r_rep_te.median() if len(pos) else np.nan, r_rep_te_min=pos.r_rep_te.min() if len(pos) else np.nan, r_rep_te_max=pos.r_rep_te.max() if len(pos) else np.nan,
                    r_m_te_median=pos.r_m_te.median() if len(pos) else np.nan, r_m_best_te_median=pos.r_m_best_te.median() if len(pos) else np.nan,
                    ratio_m_over_proj_median=q1.ratio_m_over_proj.median() if n_q1 else np.nan,
-                   n_units_proj_ge_method=int(g.proj_ge_method.fillna(False).astype(bool).sum()), n_units_method_known=int(g.proj_ge_method.notna().sum()),
+                   n_units_proj_ge_method=n_ge, n_units_method_known=n_known,
                    J_cand_median=g.J_cand.median(), r_rep_cand_median=g[g.J_cand >= J_FLOOR].r_rep_cand.median() if (g.J_cand >= J_FLOOR).any() else np.nan,
                    ce_q_cand_median=g.ce_q_cand.median(), agree_q_cand_median=g.agree_q_cand.median(), n_over_d_min=g.n_over_d.min(), n_half_over_d_min=g.n_half_over_d.min(),
+                   n_rows=int(g.n_rows.sum()), n_rows_lam_lo=int(g.n_rows_lam_lo.sum()), n_rows_lam_hi=int(g.n_rows_lam_hi.sum()),
                    n_rows_not_converged=int(g.n_rows_not_converged.sum()), grad_max=g.grad_max.max(),
-                   is_main_cell=(key[2] == 0 and key[3] in ("pF", "ref")))
+                   is_main_cell=(key[2] == 0 and key[3] in ("pF", "ref")),
+                   is_main_cell_p85_1=(key[2] == 0 and key[1].startswith("audio") and key[3] in ("pF", "ref")),
+                   is_main_cell_p85_2=(key[2] == 0 and key[1].startswith("audio") and key[3] == "pF"))
         # 判定（値を見る前に書いた規則．E85 4 節）．読める単位が 2 未満なら判定不能（NaN）
-        rec["Q1_no_loss"] = (n_q1_true > n_q1 / 2) if n_q1 >= 2 else np.nan                  # 手法は表せる分をほぼ受け取っている（過半の単位）
-        rec["Q2_unrepresentable"] = (rec["r_rep_te_median"] < Q2_THR) if len(pos) >= 2 else np.nan   # 表せない分が主因
-        rec["P85_1_true"] = (rec["n_units_proj_ge_method"] > rec["n_units_method_known"] / 2) if (key[2] == 0 and rec["n_units_method_known"] >= 2) else np.nan
+        if n_q1 >= 2:
+            maj = [c for c, v in n_cls.items() if v > n_q1 / 2]
+            rec["Q1_class_majority"] = maj[0] if maj else "split"
+        else:
+            rec["Q1_class_majority"] = np.nan
+        rec["Q1_no_loss"] = (rec["Q1_class_majority"] == "received") if n_q1 >= 2 else np.nan        # 「受け取った」が過半のときに限る
+        rec["Q1_within_noise"] = ((n_q1 - n_cons) > n_q1 / 2) if n_q1 >= 2 else np.nan                 # 符号がそろわない単位が過半なら「ばらつきの中」
+        rec["ceiling_ok"] = (n_ge > n_known / 2) if n_known >= 2 else np.nan                           # proj が手法の得の上限として働くか（過半の単位で gain_proj ≥ gain_method）
+        rec["P85_1_true"] = rec["ceiling_ok"] if key[2] == 0 else np.nan                               # 予言としては K = 0 だけ
+        if len(pos) >= 2 and rec["ceiling_ok"] is True:
+            rec["Q2_unrepresentable"] = bool(rec["r_rep_te_median"] < Q2_THR)                          # 表せない分が主因（上限が働くセルに限る）
+            rec["Q2_reason"] = "read"
+        else:
+            rec["Q2_unrepresentable"] = np.nan
+            rec["Q2_reason"] = "J<1 units" if len(pos) < 2 else ("proj not ceiling" if rec["ceiling_ok"] is False else "ceiling undetermined")
         rec["P85_2_true"] = (rec["r_rep_te_median"] <= 0.8) if (key[1].startswith("audio") and key[3] in ("pF", "pFK") and len(pos) >= 2) else np.nan
         rec["cand_te_gap_ge02"] = (abs(rec["r_rep_cand_median"] - rec["r_rep_te_median"]) >= 0.2) if np.isfinite(rec["r_rep_cand_median"]) and np.isfinite(rec["r_rep_te_median"]) else np.nan
         out.append(rec)
     return pd.DataFrame(out)
 
 
+def _verdict(v):
+    """真偽の列（NaN を除いた後）を 1 つの当否にする：過半で yes，過半が偽で no，同数で split，2 未満で undetermined．"""
+    v = v.dropna().astype(bool)
+    if len(v) < 2:
+        return len(v), int(v.sum()), "undetermined"
+    return len(v), int(v.sum()), ("yes" if v.sum() > len(v) / 2 else ("no" if v.sum() < len(v) / 2 else "split"))
+
+
 def answer_table(S):
-    """主のセル（K = 0，g ∈ {pF, ref}）の判定を数え上げて，世界ごと（と両方）の答えにする．"""
+    """主のセルの判定を数え上げて，世界ごと（と両方）の答えにする．Q1・Q2 は K = 0 の g ∈ {pF, ref}，P85-1 は K = 0 の音声の f × {pF, ref}，P85-2 は K = 0 の音声の f × pF．"""
     out = []
     for mode in ("sel", "fixed"):
         Sm = S[S["mode"] == mode]
         for world in list(S.world.unique()) + ["both"]:
-            m = Sm[Sm.is_main_cell & ((Sm.world == world) if world != "both" else True)]
+            w = Sm if world == "both" else Sm[Sm.world == world]
+            m = w[w.is_main_cell]
             rec = dict(world=world, mode=mode, n_main_cells=len(m))
             for q in ("Q1_no_loss", "Q2_unrepresentable"):
-                v = m[q].dropna().astype(bool)
-                rec[f"n_{q}_readable"] = len(v)
-                rec[f"n_{q}_true"] = int(v.sum())
-                rec[f"answer_{q}"] = ("yes" if v.sum() > len(v) / 2 else ("no" if v.sum() < len(v) / 2 else "split")) if len(v) >= 2 else "undetermined"
+                rec[f"n_{q}_readable"], rec[f"n_{q}_true"], rec[f"answer_{q}"] = _verdict(m[q])
+            rec["n_Q1_above_cells"] = int((m.Q1_class_majority == "above").sum())              # proj が上限として働かないセル
+            rec["n_Q1_within_noise_cells"] = int(m.Q1_within_noise.fillna(False).astype(bool).sum())
+            rec["n_main_rows_lam_hi"], rec["n_main_rows_lam_lo"], rec["n_main_rows"] = int(m.n_rows_lam_hi.sum()), int(m.n_rows_lam_lo.sum()), int(m.n_rows.sum())
+            m1 = w[w.is_main_cell_p85_1]
+            rec["n_P85_1_readable"], rec["n_P85_1_true"], rec["answer_P85_1"] = _verdict(m1.P85_1_true)
+            m2 = w[w.is_main_cell_p85_2]
+            rec["n_P85_2_readable"], rec["n_P85_2_true"], rec["answer_P85_2"] = _verdict(m2.P85_2_true)
             out.append(rec)
     A = pd.DataFrame(out)
     # λ の感度：選んだ λ と固定の λ で判定が変わったセルの数（主と副の全セル）
@@ -513,14 +578,21 @@ def write(df, path, header):
 
 def summarize_from(dirs, out, header, prov):
     """分けて流した出力（units.csv・pairs.csv）を合わせて集計だけを書く（例：世界ごと，反復ごとに並行して流した後）．"""
-    Us, Ps = [], []
+    Us, Ps, Cs_, Fs = [], [], [], []
     for d in dirs:
-        d = ROOT / d
+        d = (ROOT / d).resolve()
         Us.append(pd.read_csv(d / "units.csv", comment="#"))
         Ps.append(pd.read_csv(d / "pairs.csv", comment="#"))
+        for lst, name in ((Cs_, "checks.csv"), (Fs, "fit_check.csv")):
+            if (d / name).exists() and (d / name).stat().st_size > 1:
+                lst.append(pd.read_csv(d / name).assign(source=str(d)))
         pj = d / "provenance.json"
-        prov["sources"][str(d.relative_to(ROOT))] = json.loads(pj.read_text(encoding="utf-8")) if pj.exists() else None
+        prov["sources"][str(d)] = json.loads(pj.read_text(encoding="utf-8")) if pj.exists() else None
     U, Pp = pd.concat(Us, ignore_index=True), pd.concat(Ps, ignore_index=True)
+    if Cs_:
+        pd.concat(Cs_, ignore_index=True).to_csv(out / "checks.csv", index=False)
+    if Fs:
+        pd.concat(Fs, ignore_index=True).to_csv(out / "fit_check.csv", index=False)
     key = ["world", "T", "c", "r", "f", "K", "g", "lam"]
     if U.duplicated(key).any():
         raise SystemExit("合わせた units の識別子が重複（同じ単位ファイルを 2 回流している）")
@@ -530,6 +602,7 @@ def summarize_from(dirs, out, header, prov):
     write(A, out / "answer.csv", header)
     write(PU, out / "pairs_unit.csv", header)
     prov["n_units_rows"] = len(U)
+    prov["n_fits_grad_above_ok"] = int((U.grad_max > GRAD_OK).sum() + (U.grad_max_cand > GRAD_OK).sum())
     prov["n_fits_grad_above_near"] = int((~U.fit_ok).sum() + (~U.fit_ok_cand).sum())
     (out / "provenance.json").write_text(json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")
     print("summarized", out, len(U), "rows from", len(dirs), "dirs")
@@ -557,7 +630,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(Path(__file__), out / "script_copy.py")
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = subprocess.run(["git", "status", "--porcelain", "exp", "measure", "data/metadata"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git", "status", "--porcelain", "--", "exp/analyze_projection_e85.py", "exp/logreg.py", "exp/explore_pairs.py", "measure/data.py", "measure/split.py", "data/metadata"],
+                           cwd=ROOT, capture_output=True, text=True).stdout.strip()          # E85 が読むファイルに限る（ほかの実験の未コミットの変更で真にしない）
     header = f"E85 commit={commit} dirty={bool(dirty)} lams={list(LAMS)} lam_fixed={LAM_FIXED} reps={args.rep_list} device={DEV} solver=logreg.fit_batch(float64,tol={logreg.TOL})"
     prov = {"commit": commit, "dirty": bool(dirty), "script_sha256": sha256(Path(__file__)), "args": vars(args) | {"out": str(out)}, "inputs": {}, "device": str(DEV),
             "lams": list(LAMS), "lam_fixed": LAM_FIXED, "weights": list(WEIGHTS), "meffs": list(MEFFS), "J_floor": J_FLOOR, "gain_floor": GAIN_FLOOR, "q1_frac": Q1_FRAC, "q2_thr": Q2_THR,
