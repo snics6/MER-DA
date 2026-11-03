@@ -6,6 +6,8 @@ PDF はすべて arXiv か学会の公開版である．出版社の最終版と
 
 ## 問い 1：別モダリティからの蒸留はなぜ効くか
 
+5 本の要点（本文と付録を全部読んで書いた）：`要点_問い1_別モダリティ蒸留.md`
+
 | ファイル | 書誌 | 取得元 |
 |---|---|---|
 | `2023_Xue_ModalityFocusingHypothesis_ICLR.pdf` | Xue, Gao, Ren, Zhao. The Modality Focusing Hypothesis: Towards Understanding Crossmodal Knowledge Distillation. ICLR 2023 | arXiv 2206.06487 |
