@@ -30,6 +30,8 @@ PDF はすべて arXiv か学会の公開版である．出版社の最終版と
 
 ## 問い 3：同じ設定の研究（少数ラベル，感情，コーパス間）
 
+4 本の要点（本文を全部読んで書いた）：`要点_問い3_同じ設定の研究.md`
+
 | ファイル | 書誌 | 取得元 |
 |---|---|---|
 | `2023_Feng_Chaspari_FewShotSERTransfer_TAC.pdf` | Feng, Chaspari. Few-shot Learning in Emotion Recognition of Spontaneous Speech Using a Siamese Neural Network with Adaptive Sample Pair Formation. IEEE TAC | arXiv 2109.02915 |
