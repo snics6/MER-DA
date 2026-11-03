@@ -50,8 +50,9 @@
    **DAI の実験（`DAI/`．2026-11-04〜）だけは，塊を作る前にさらに次を直す**（感情認識の査読者の指摘 A1．`DAI/exp/dai_data.py` の `AFEW_ALIAS`・`MELD_ALIAS`・`MELD_MULTI`）．
    `measure/split.py` は変えない（前の実験の分割を保つため）ので，前の実験の分割にはこの別名が残っている．
    - AFEW：`AFEW_Bradely_Cooper`（公式の注釈の綴りの誤り．Hangover の 5 発話）を `AFEW_Bradley_Cooper` にまとめる．
-   - MELD：同じ俳優の別名 `Joey/Drake`→`Joey`，`Rachel/actress`→`Rachel`，`Phoebe/Waitress`→`Phoebe`，`Phoebe_Sr.`→`Phoebe_Sr` をまとめる．
+   - MELD：同じ俳優の別名 `Joey/Drake`・`Dr._Drake_Remoray`（Joey が劇中で演じる役）→`Joey`，`Rachel/actress`→`Rachel`，`Phoebe/Waitress`・`Ursula`（Phoebe と同じ俳優が演じる双子の姉）→`Phoebe`，`Phoebe_Sr.`→`Phoebe_Sr` をまとめる．
      誰の声か決まらない `All`（38 発話），`Both`（1），`The_Guys`（2）は `_and_` と同じく発話ごと落とす（MELD の 3 モダリティの集合は 11,308 → 11,267 発話）．
+     複数の人の声のラベルのうち AFEW の `AFEW_Group`（2 発話）と MELD の `Her-Friends`（1 発話）は残す．どちらも関係する人物と同じ分割にあり，漏れは生まない（2026-11-04 に数えた）．
 6. **IEMOCAP は即興（`IEMOCAP-impro`）と台本（`IEMOCAP-script`）を別の群として扱う．**
    台本の場面では 10 人全員が同じ台詞を読むので，言葉の分類器は台詞を覚えるだけで当たってしまう．`load_group` はマニフェストの `dialog_type` で絞り込む．
 7. **K はクラスあたりの本数で数える．**K=25 なら 4 クラス × 25 = 100 本である．

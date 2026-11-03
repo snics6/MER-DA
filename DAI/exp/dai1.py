@@ -26,6 +26,7 @@ import json
 import math
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -48,13 +49,15 @@ A_GRID = (1, 4, 16)                                                  # K 本の�
 KD_T = (1, 2, 4)                                                     # 温度つき蒸留の温度
 AG_TAU = (0.5, 0.7, 0.9)                                             # 一致した発話だけの疑似ラベルの確信度のしきい値
 AG_F = (0.25, 1, 4)                                                  # その疑似ラベル 1 本あたりの重み
-MIX_ALPHA = (0.2, 0.5, 0.8)                                          # 混ぜる手（Zhang ほか 2021）の自分の予測の割合
+MIX_ALPHA = (0.2, 0.5, 0.8)                                          # 混ぜる手（Zhang ほか 2021 の式 (8)・(9)）の生徒自身の予測の重み α
+MIX_TAU = 0.9                                                        # 同．混ぜた確率の最大がこれを超える発話だけに硬いラベル（原論文 4.2 節の値で固定）
+MIX_F = (0.25, 1, 4)                                                 # 同．その硬いラベル 1 本あたりの重み
 CT_ROUNDS = 3                                                        # 柔らかい共訓練の巡の数
 TGT_C = C_GRID                                                       # K 本だけでゼロから学ぶ版の C
 W_EXP = (0.0, 0.5, 1.0, 2.0)                                         # 積のモデルのモダリティの指数
 W_GRID = [w for w in itertools.product(W_EXP, repeat=3) if any(w)]
 DEFAULTS = {"joint": {"rho": 1.0, "a": 1}, "rolesep": {"rho": 1.0, "a": 1}, "kd": {"temp": 2, "rho": 1.0},
-            "agree": {"tau": 0.9, "f": 1}, "mix": {"alpha": 0.2, "rho": 1.0}, "cotrain": {"rho": 1.0}, "tgtonly": {"C": 1.0},
+            "agree": {"tau": 0.9, "f": 1}, "mix": {"alpha": 0.2, "f": 1}, "cotrain": {"rho": 1.0}, "coreg": {"rho": 1.0}, "tgtonly": {"C": 1.0},
             "w": (1.0, 1.0, 1.0)}                                            # 選択なしの値（設計の文書 7 節の表．順 3 の前に固定）
 KS_ALL = (0,) + DD.KS
 
@@ -65,7 +68,8 @@ def mval(rho, n):
 
 def git_commit() -> tuple[str, bool]:
     c = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "DAI/exp", "measure", "features"],
+    dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "DAI/exp", "DAI/splits", "measure", "features",
+                                 "data/metadata"],
                                 cwd=ROOT, capture_output=True, text=True).stdout.strip())     # 未追跡のファイルも数える（I9）
     return c, dirty
 
@@ -343,6 +347,8 @@ def cotrain(u: Unit, tk: dict, K: int, tether: dict, store: dict, rows: list) ->
                 L = sum(cur[rho][o][0].clamp(min=1e-12).log() for o in "AVT" if o != m)
                 G.append(gk + S.soft_rows(torch.softmax(L, -1), mval(rho, u.n)))
             res = S.fit(u.Xp[m], torch.stack(G), W0, b0, Cw=cw, Cb=cb)
+            if rnd == CT_ROUNDS - 1:                                    # 最後の巡の疑似ラベル（重みの集まりを後で数えるため．D11）
+                store[f"p3c_K{K}_{m}_pseudo"] = torch.stack([x - gk for x in G]).half().cpu().numpy()
             for jr, rho in enumerate(RHO_GRID):
                 cur[rho][m] = (probs(u.Xp[m], res["W"][jr], res["b"][jr]), probs(u.Xt[m], res["W"][jr], res["b"][jr]))
             if rnd == CT_ROUNDS - 1:
@@ -351,6 +357,62 @@ def cotrain(u: Unit, tk: dict, K: int, tether: dict, store: dict, rows: list) ->
             rows.append(dict(stage=3, method="_conv_cotrain", kind=m, K=K, round=rnd, grad_max=res["grad_max"],
                              finite=bool(res["finite_p"].all())))
     return cur
+
+
+def coreg(u: Unit, K: int, tether: dict, store: dict, rows: list) -> None:
+    """共正則化（Sindhwani & Rosenberg 2008 の多視点の考え．前の実験 E61 の coreg と同じ問）．ρ ごとに A・V・T の識別器を同時に解く：
+      Σ_m [K 本の交差エントロピー ＋ ‖W_m − W0_m‖²/(2C′_m) ＋ ‖b_m − b0_m‖²/(2C_b,m)] ＋ (ρ/2) Σ_i Σ_{m<m'} ‖c_m,i − c_m',i‖²
+    （c は感情の平均を引いた点数）を S = 3ΣG_K ＋ ρn で割ったもの．凸．単一の生徒はその識別器，AVT の生徒は 3 つの点数の和
+    （つないだ特徴の上の線形の識別器と同じ形）．判定と W・b を保存し，行を足す。"""
+    gk = u.gK(K) if K else torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
+    preds = {m: [] for m in "AVT"} | {"AVT": []}
+    Ws = {m: [] for m in "AVT"}
+    for rho in RHO_GRID:
+        par = {}
+        for m in "AVT":
+            W0, b0 = u.start[m]
+            par[m] = (W0.clone().requires_grad_(True), b0.clone().requires_grad_(True))
+        Ssum = 3 * float(gk.sum()) + mval(rho, u.n)
+        opt = torch.optim.LBFGS([x for m in "AVT" for x in par[m]], lr=1.0, max_iter=20000, max_eval=40000, tolerance_grad=1e-7,
+                                tolerance_change=1e-15, history_size=10, line_search_fn="strong_wolfe")
+
+        def closure():
+            opt.zero_grad()
+            tot = 0.0
+            cen = []
+            for m in "AVT":
+                W, b = par[m]
+                W0, b0 = u.start[m]
+                cw, cb = tether[(m, max(K, 1))]
+                Z = u.Xp[m] @ W.T + b
+                tot = tot - (gk * torch.log_softmax(Z, 1)).sum() + ((W - W0) ** 2).sum() / (2 * cw) + ((b - b0) ** 2).sum() / (2 * cb)
+                cen.append(Z - Z.mean(1, keepdim=True))
+            dis = sum(((cen[a] - cen[c]) ** 2).sum() for a in range(3) for c in range(a + 1, 3))
+            f = (tot + 0.5 * float(rho) * dis) / Ssum
+            f.backward()
+            return f
+        opt.step(closure)
+        gmax = max(float(x.grad.abs().max()) for m in "AVT" for x in par[m])
+        fin = all(bool(torch.isfinite(x).all()) for m in "AVT" for x in par[m])
+        rows.append(dict(stage=3, method="_conv_coreg", K=K, rho=rho, grad_max=gmax, finite=fin,
+                         n_iter=int(opt.state[opt._params[0]].get("n_iter", -1))))
+        with torch.no_grad():
+            Zt_sum = 0
+            for m in "AVT":
+                W, b = par[m]
+                Zt = u.Xt[m] @ W.T + b
+                Zt_sum = Zt_sum + Zt
+                preds[m].append(Zt.argmax(1).to(torch.int8).cpu().numpy())
+                Ws[m].append((f32(W.detach()), f32(b.detach())))
+                rows.append(dict(stage=3, student=m, K=K, method="coreg", teacher="cr", rho=rho, grad=gmax, finite=fin, S=Ssum,
+                                 uar=100 * S.uar(u.ytest, Zt.argmax(1).cpu().numpy())))
+            preds["AVT"].append(Zt_sum.argmax(1).to(torch.int8).cpu().numpy())
+            rows.append(dict(stage=3, student="AVT", K=K, method="coreg", teacher="cr", rho=rho, grad=gmax, finite=fin, S=Ssum,
+                             uar=100 * S.uar(u.ytest, Zt_sum.argmax(1).cpu().numpy())))
+    for k, v in preds.items():
+        store[f"p3g_K{K}_{k}_pred"] = np.stack(v)                       # 並びは RHO_GRID
+    for m in "AVT":
+        store[f"p3g_K{K}_{m}_W"] = np.stack([w for w, _ in Ws[m]]); store[f"p3g_K{K}_{m}_b"] = np.stack([b for _, b in Ws[m]])
 
 
 def make_G(u: Unit, method: str, tv_Q, own, gk, it: dict):
@@ -369,9 +431,14 @@ def make_G(u: Unit, method: str, tv_Q, own, gk, it: dict):
         H[keep, Q.argmax(1)[keep]] = 1.0
         it["n_kept"] = int(keep.sum())
         return gk + float(it["f"]) * H, zero, 1.0
-    if method == "mix":
+    if method == "mix":                                               # Zhang ほか 2021 の式 (8)・(9)：混ぜた確率の argmax を，最大が τ を超える発話だけに
         al = float(it["alpha"])
-        return gk + S.soft_rows(al * own + (1 - al) * Q, mval(it["rho"], u.n), balance=False), zero, 1.0
+        M = al * own + (1 - al) * Q
+        keep = M.max(1).values > MIX_TAU
+        H = torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
+        H[keep, M.argmax(1)[keep]] = 1.0
+        it["n_kept"] = int(keep.sum())
+        return gk + float(it["f"]) * H, zero, 1.0
     raise ValueError(method)
 
 
@@ -411,6 +478,7 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, 
                              uar_pool=S.uar(u.ypool[nk], Q.argmax(1).cpu().numpy()[nk]) * 100,
                              **{f"colsum_{k}": float(colsum[k]) for k in range(4)}, **{f"neff_{k}": float(neff[k]) for k in range(4)}))
         ct = cotrain(u, tk, K, tether, store, rows)
+        coreg(u, K, tether, store, rows)
         for s in DD.STUDENTS:
             W0, b0 = u.start[s]
             cw, cb = tether[(s, max(K, 1))]
@@ -420,7 +488,7 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, 
                 grid = ([dict(method="joint", teacher=tv, rho=r, a=a) for r in RHO_GRID for a in A_GRID] +
                         [dict(method="kd", teacher=tv, temp=T_, rho=r) for T_ in KD_T for r in RHO_GRID] +
                         [dict(method="agree", teacher=tv, tau=ta, f=fw) for ta in AG_TAU for fw in AG_F] +
-                        [dict(method="mix", teacher=tv, alpha=al, rho=r) for al in MIX_ALPHA for r in RHO_GRID])
+                        [dict(method="mix", teacher=tv, alpha=al, f=fw) for al in MIX_ALPHA for fw in MIX_F])
                 for it in grid:
                     specs.append((it, *make_G(u, it["method"], Q, own, gk, it)))
             # 予測を付ける側の種類（記述の比べ．ρ = 1，a = 1）．生徒自身のモダリティの none[K] は入れない（計画 4.3 節）
@@ -436,6 +504,11 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, 
             for name, Qx in tts.items():
                 it = dict(method="tt", teacher=name, rho=1.0, a=1)
                 specs.append((it, *make_G(u, "tt", Qx, own, gk, it)))
+                Wt = S.soft_rows(Qx, float(u.n))                            # 重みの集まり（D11．予測を付ける側の種類にも）
+                neff = ((Wt.sum(0) ** 2) / (Wt ** 2).sum(0).clamp(min=1e-30)).cpu().numpy()
+                rows.append(dict(stage=3, method="_teacher_stats", student=s, teacher=f"tt:{name}", K=K, maxp=float(Qx.max(1).values.mean()),
+                                 uar_pool=S.uar(u.ypool[nk], Qx.argmax(1).cpu().numpy()[nk]) * 100,
+                                 **{f"neff_{k}": float(neff[k]) for k in range(4)}))
             # 共訓練：AVT の生徒は，共訓練した 3 つの確率の積を疑似ラベルにして学ぶ（単一の生徒は共訓練の識別器そのもの）
             if s == "AVT":
                 for rho in RHO_GRID:
@@ -447,9 +520,9 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, 
                 for rho in RHO_GRID:
                     v = 100 * S.uar(u.ytest, ct[rho][s][1].argmax(1).cpu().numpy())
                     rows.append(dict(stage=3, student=s, K=K, method="cotrain", teacher="ct", rho=rho, uar=v))
-            # 引き戻しの感度（R4）：提案の選択なしの点（両方の版．ρ=1，a=1）を引き戻しの格子の全点で．評価の回は固定した点も
+            # 引き戻しの曲線（R4．評価の回だけ）：固定した提案の点と族 3 の相手の点を引き戻しの格子の全点で解く．選び直さない（設計 9.3 節）
             spec_t, cws, cbs = [], [], []
-            pts = [dict(method="joint_tether", teacher=tv, rho=1.0, a=1) for tv in teach]
+            pts = []                                                       # 評価の回だけ（設計 9.3 節．相手と同じ扱い．定義の検査 D1・D4）
             if fsel is not None:
                 pts += [dict(fsel[(s, K)]["prop"], method="joint_tether", tag="prop_sel")]
                 pp = fsel[(s, K)]["partner"]
@@ -521,13 +594,22 @@ def units_for(T: str, mode: str, folds, seeds):
                 yield T, srcs, f, r
 
 
-RUN = {"commit": "", "dirty": False, "frozen_sha256": "", "gpu": ""}       # main が埋める
+RUN = {"commit": "", "dirty": False, "frozen_sha256": "", "gpu": "", "gate_sha256": ""}   # main が埋める
 
 
 def committed_clean(path: Path) -> bool:
     tracked = subprocess.run(["git", "ls-files", "--error-unmatch", str(path)], cwd=ROOT, capture_output=True).returncode == 0
     clean = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", str(path)], cwd=ROOT).returncode == 0
     return tracked and clean
+
+
+EVAL_REQUIRED = [                                                   # 評価の回の前にコミットしてあるべきファイル（台本の側に固定．m51）
+    "DAI/docs/実験1_設計.md", "DAI/docs/実験2_設計.md", "DAI/docs/実験3_設計.md", "DAI/docs/計画_2026-11-04.tex",
+    "DAI/frozen/dai2_frozen.json", "DAI/frozen/subsets.csv",
+    "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py", "DAI/exp/dai1_select.py", "DAI/exp/dai1_stats.py",
+    "DAI/exp/dai_subsets.py", "DAI/exp/dai2.py", "DAI/exp/dai2_grad.py", "DAI/exp/dai3.py",
+    "DAI_paper/reviews/comparison-design/proposal_v8.md", "exp/compare_dai.py", "exp/compare_dai2.py",
+]
 
 
 def check_eval_gate(frozen_rel: str) -> str:
@@ -539,12 +621,24 @@ def check_eval_gate(frozen_rel: str) -> str:
         sys.exit("DAI/frozen/eval_gate.json が無いかコミットされていない（実験 2・3 の固定の前に評価の回は流さない）")
     gate = json.load(open(gp))
     req = gate["required"]
-    if frozen_rel not in req:
-        sys.exit("eval_gate.json に実験 1 の固定のファイルが無い")
+    missing = [r for r in EVAL_REQUIRED + [frozen_rel] if r not in req]
+    if missing:
+        sys.exit(f"eval_gate.json に必須のファイルが無い：{missing}（必須の一覧は台本の EVAL_REQUIRED．m51，a13，比較の検査 C20）")
     for rel, h in req.items():
         fp = ROOT / rel
         if not fp.exists() or sha(fp) != h or not committed_clean(fp):
             sys.exit(f"eval_gate.json の {rel} が無いか，sha256 が違うか，コミットされていない")
+    # 実験 1〜3 のそれぞれで，ML と感情認識の査読者の最新の報告が「判定：OK」であること（DAI/CLAUDE.md の規則）
+    for exp_name, files in gate["approvals"].items():
+        for role in ("review_ml", "review_affect"):
+            fp = ROOT / files[role]
+            if fp.as_posix() not in {(ROOT / r).as_posix() for r in req}:
+                sys.exit(f"{exp_name} の {role} の報告が required に無い")
+            head = "\n".join(open(fp, encoding="utf-8").read().splitlines()[:5])
+            if not re.search(r"^判定[：:]\s*\**OK", head, re.M):
+                sys.exit(f"{exp_name} の {role} の報告（{files[role]}）が「判定：OK」でない")
+    if set(gate["approvals"]) != {"DAI-1", "DAI-2", "DAI-3"}:
+        sys.exit("eval_gate.json の approvals は DAI-1・DAI-2・DAI-3 の 3 つが要る")
     return sha(gp)
 
 
@@ -583,10 +677,16 @@ def run_pass(out, tag, T, c, srcs, f, r, which, tether=None, wsel=None, fsel=Non
         p1, p2 = np.load(f"{base}_p1.npz"), np.load(f"{base}_p2.npz")
         pass3(u, store, rows, tether, build_tk(u, p1, p2, tether), wsel, fsel)
         store["tether"], store["wsel"] = tag_t, tag_w
-    store.update(commit=np.array(RUN["commit"]), dirty=np.array(RUN["dirty"]), frozen_sha256=np.array(RUN["frozen_sha256"]))
+    if tag_t is not None:                                                # 渡された引き戻しと指数は段に関わらず残す（再開の照合．m54）
+        store["tether"] = tag_t
+    if tag_w is not None:
+        store["wsel"] = tag_w
+    store.update(commit=np.array(RUN["commit"]), dirty=np.array(RUN["dirty"]), frozen_sha256=np.array(RUN["frozen_sha256"]),
+                 gate_sha256=np.array(RUN["gate_sha256"]))
     np.savez_compressed(path, **{k: np.asarray(v) for k, v in store.items()})
     df = pd.DataFrame(rows).assign(T=T, c=cname, fold=f, seed=r, sec=time.time() - t0, commit=RUN["commit"],
-                                   dirty=RUN["dirty"], frozen_sha256=RUN["frozen_sha256"], gpu=RUN["gpu"])
+                                   dirty=RUN["dirty"], frozen_sha256=RUN["frozen_sha256"], gpu=RUN["gpu"],
+                                   gate_sha256=RUN["gate_sha256"])
     df.to_csv(rpath, index=False)
     if "finite" in df and (~df["finite"].fillna(True).astype(bool)).any():
         sys.exit(f"{rpath.name}: 勾配か解に NaN・Inf の問がある（計算の失敗として止める．I11）")
@@ -606,7 +706,7 @@ def frozen_points(fz: dict) -> dict:
             part = fz["partner"][f"{s}|{K}"]
             pm, pv = part["method"], part["version"]
             pp = None
-            if pm != "cotrain":
+            if pm not in ("cotrain", "coreg"):                              # 共訓練と共正則化は引き戻しの曲線を解かない
                 pp = {k: x for k, x in fz["select"][f"{s}|{K}|{pm}|{pv}"].items() if k != "pseudo_uar"} | dict(method=pm, teacher=pv)
             out[(s, K)] = {"prop": dict(teacher=v, rho=j["rho"], a=j["a"]), "partner": pp}
     return out
@@ -652,6 +752,8 @@ def main() -> None:
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     commit, dirty = git_commit()
+    if dirty and args.stage in ("select", "eval"):
+        sys.exit("選ぶ段と評価の段は未コミットの変更があると流さない（--allow-dirty も受け付けない．m51）")
     if dirty and not args.allow_dirty and args.stage not in ("selftest",):
         sys.exit("DAI/exp・measure・features に未コミットの変更がある（試しは --allow-dirty）")
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, host=platform.node(),
@@ -662,7 +764,9 @@ def main() -> None:
                 features_sha256={p.name: sha(p) for p in sorted((ROOT / "data" / "cache").glob("*.npz"))
                                  if p.stem.split("_")[-1] in DD.CORPORA and any(p.stem.startswith(k + "_") for k in ENC["enc"].values())},
                 encoder=ENC["enc"],
-                afew_transcript_sha256=sha(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv"))
+                afew_transcript_sha256=sha(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv"),
+                metadata_sha256={p.name: sha(p) for p in sorted((ROOT / "data" / "metadata").glob("*.csv"))},   # m55
+                splits_sha256={p.name: sha(p) for p in sorted((ROOT / "DAI" / "splits").glob("*.csv"))})
     RUN["commit"], RUN["dirty"] = commit, dirty
     RUN["gpu"] = prov["gpu"]
     with open(out / "provenance_log.jsonl", "a") as fh:
@@ -703,6 +807,7 @@ def main() -> None:
         if not committed_clean(cp):
             sys.exit("固定のファイルの写しがコミットされていない（漏れの検査 L8）")
         gate_sha = check_eval_gate(f"DAI/frozen/{out.name}_frozen.json")
+        RUN["gate_sha256"] = gate_sha
         RUN["frozen_sha256"] = sha(fz)
         with open(out / "provenance_log.jsonl", "a") as fh:
             fh.write(json.dumps({"eval_gate_sha256": gate_sha, "frozen_sha256": RUN["frozen_sha256"]}) + "\n")
