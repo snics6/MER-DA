@@ -58,3 +58,10 @@ checks/*/code_run/
 
 # ---- DAI_paper/参照論文 の PDF（arXiv などから落とし直せる．一覧は同じフォルダの README.md） ----
 DAI_paper/参照論文/*.pdf
+
+# ---- DAI/（LaTeX の中間生成物．PDF は入れる） ----
+DAI/**/*.aux
+DAI/**/*.log
+DAI/**/*.out
+DAI/**/*.toc
+DAI/**/*.synctex.gz
