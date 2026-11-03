@@ -1,4 +1,4 @@
-"""E87：疑似ラベルのモデルの価値（ターゲットのラベル何本ぶん）を，向きの分と位置の分に分ける（第 6 版．関門 1 の第 2〜5 版の指摘で直した）．
+"""E87：疑似ラベルのモデルの価値（ターゲットのラベル何本ぶん）を，向きの分と位置の分に分ける（第 7 版．関門 1 の第 2〜6 版の指摘で直した）．
 
 設計：docs/exploratory-analyses.md の E87（規則は値を見る前に書いた）．評価のターゲットの値で判定するので本番（関門 1 は 5 体）．
 
@@ -575,14 +575,15 @@ def read_bounds(curve, logk, v_n, v_m, better_high):
     n_lo_b, n_up_b = bounds_of(Kn, Kn_l, lo_n, hi_n, hi_n_l)
     m_lo_b, m_up_b = bounds_of(Km, Km_l, lo_m, hi_m, hi_m_l)
     flags = {"lo_none": lo_n, "hi_none": hi_n, "amb_none": am_n, "lo_method": lo_m, "hi_method": hi_m, "amb_method": am_m}
-    return Kn, Km, Km - Kn, m_lo_b - n_up_b, m_up_b - n_lo_b, flags, (m_lo_b, m_up_b)
+    return Kn, Km, Km - Kn, m_lo_b - n_up_b, m_up_b - n_lo_b, flags, (m_lo_b, m_up_b), (n_lo_b, n_up_b)
 
 
 def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_s, val_rows, check_rows, seed_rows):
     """1 群：反復で平均した曲線に，反復で平均した none と手法の値を当てて読む．点と複製（B）の読みと，本当の本数の下限・上限（LB・UB），印，jackknife（J，S），反復ごとの読み（直す前の規則）．"""
     X = p["X"]
     res = {"n_seeds": 0, "pt": {}, "pt_nomono": {}, "pt_6pt": {}, "pt_lo": {}, "pt_up": {}, "pt_mlo": {}, "pt_mup": {}, "method_readable": {}, "flag": {}, "readable": {},
-           "B": {}, "LB": {}, "UB": {}, "MLB": {}, "MUB": {}, "mask": {}, "J": {}, "S": {}, "cens": {}, "rep": {}, "dS": {}, "dS_B": {}, "dS_J": {}, "dS_S": {}, "KB": {}, "SB": {}, "KJ": {}, "SJ": {}}
+           "B": {}, "LB": {}, "UB": {}, "MLB": {}, "MUB": {}, "mmask": {}, "mflag": {}, "mask": {}, "J": {}, "S": {}, "cens": {}, "rep": {}, "dS": {}, "dS_B": {}, "dS_J": {}, "dS_S": {},
+           "KB": {}, "SB": {}, "KJ": {}, "SJ": {}}
     N = method_scores(run, T, p, X, None, st, K, comp, nls, C, Wj, need_jk, Wj_s, check_rows, seed_rows)
     if N is None:
         return None
@@ -612,18 +613,22 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
         logk = cv["logk"][rule]
         for q in QUANTS_B + QUANTS_PT:
             defn_zero = is_none or (fixed_dir and q in DIR_QUANTS)
-            Kn, Km, n, n_lo, n_up, fl, (m_lo, m_up) = read_bounds(cv["pt"][q], logk, pt_n[q], pt_m[q], BETTER_HIGH[q])
+            Kn, Km, n, n_lo, n_up, fl, (m_lo, m_up), (nn_lo, nn_up) = read_bounds(cv["pt"][q], logk, pt_n[q], pt_m[q], BETTER_HIGH[q])
             Kn2 = read_K(cv["pt"][q], logk, pt_n[q], BETTER_HIGH[q], adjust=None)[0]
             Km2 = read_K(cv["pt"][q], logk, pt_m[q], BETTER_HIGH[q], adjust=None)[0]
             if defn_zero:
-                n, n_lo, n_up, m_lo, m_up = 0.0, 0.0, 0.0, float(Kn), float(Kn)
+                n, n_lo, n_up, m_lo, m_up = 0.0, 0.0, 0.0, float(nn_lo), float(nn_up)
+                none_fl = {k: bool(v) for k, v in fl.items()}
                 fl = dict(zero_flags)
+                res["method_readable"][(rule, q)] = not (none_fl["lo_none"] or none_fl["hi_none"] or none_fl["amb_none"])
+                res["mflag"][(rule, q)] = {"lo_method": none_fl["lo_none"], "hi_method": none_fl["hi_none"], "amb_method": none_fl["amb_none"]}
             else:
                 n, n_lo, n_up, m_lo, m_up = float(n), float(n_lo), float(n_up), float(m_lo), float(m_up)
                 fl = {k: bool(v) for k, v in fl.items()}
+                res["method_readable"][(rule, q)] = not (fl["lo_method"] or fl["hi_method"] or fl["amb_method"])
+                res["mflag"][(rule, q)] = {k: fl[k] for k in ("lo_method", "hi_method", "amb_method")}
             res["pt"][(rule, q)], res["pt_lo"][(rule, q)], res["pt_up"][(rule, q)] = n, n_lo, n_up
             res["pt_mlo"][(rule, q)], res["pt_mup"][(rule, q)] = m_lo, m_up
-            res["method_readable"][(rule, q)] = True if defn_zero else not (fl["lo_method"] or fl["hi_method"] or fl["amb_method"])
             res["pt_nomono"][(rule, q)] = 0.0 if defn_zero else float(Km2 - Kn2)
             res["flag"][(rule, q)] = fl
             res["readable"][(rule, q)] = True if defn_zero else not any(fl.values())      # none を選んだ群と定義から 0 の量は読める
@@ -640,7 +645,11 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
             if q in QUANTS_B:
                 if defn_zero:
                     res["B"][(rule, q)], res["LB"][(rule, q)], res["UB"][(rule, q)] = np.zeros(nB), np.zeros(nB), np.zeros(nB)
-                    res["MLB"][(rule, q)] = res["MUB"][(rule, q)] = None
+                    KBn, lo1, hi1, a1 = read_K(cv["B"][q], logk, B_n[q], BETTER_HIGH[q])     # 手法の読み ＝ none の読み：none の限りと印を手法の側に写す
+                    KBn_l, _, hi1_l, _ = read_K(cv["B"][q], logk, B_n[q], BETTER_HIGH[q], adjust="last")
+                    a1 = a1 | (KBn_l > KBn * (1 + 1e-9)) | (hi1_l & ~hi1)
+                    res["MLB"][(rule, q)], res["MUB"][(rule, q)] = bounds_of(KBn, KBn_l, lo1, hi1, hi1_l)
+                    res["mmask"][(rule, q)] = pack_mask({"lo_method": lo1, "hi_method": hi1, "amb_method": a1})
                     res["mask"][(rule, q)] = np.zeros(nB, np.uint8)
                     res["cens"][(rule, q)] = dict(zero_cens)
                     res["KB"][(rule, q)] = None
@@ -654,6 +663,7 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
                     KBn, KBm, nb, nb_lo, nb_up, flb, (mb_lo, mb_up) = read_bounds(cv["B"][q], logk, B_n[q], B_m[q], BETTER_HIGH[q])
                     res["B"][(rule, q)], res["LB"][(rule, q)], res["UB"][(rule, q)] = nb, nb_lo, nb_up
                     res["MLB"][(rule, q)], res["MUB"][(rule, q)] = mb_lo, mb_up                     # 手法の読みだけの限り（直接の差に使う）
+                    res["mmask"][(rule, q)] = pack_mask({k: flb[k] for k in ("lo_method", "hi_method", "amb_method")})
                     res["mask"][(rule, q)] = pack_mask(flb)
                     res["cens"][(rule, q)] = {k: float(np.mean(v)) for k, v in flb.items()}
                     res["KB"][(rule, q)] = (KBn, KBm)                                  # K'(none)・K'(手法) の複製（後から区間を出せるように保存）
@@ -743,7 +753,7 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
         mask = lb = ub = None
         rep_n = rep_cens = np.nan
         x_6 = x_mlo = x_mup = np.nan
-        m_readable = True
+        m_readable, mflags = True, {}
         if is_ds:
             x = float(np.mean([per_T[T]["dS"][qq] for T in Ts_use]))
             x_lo = x_up = x
@@ -761,6 +771,7 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
             x_6 = float(np.mean([per_T[T]["pt_6pt"][(rule, q)] for T in Ts_use]))
             readable = all(per_T[T]["readable"][(MAIN_RULE, q)] for T in Ts_use)                  # 読めるかは主の右端の置き方で決める
             m_readable = all(per_T[T]["method_readable"].get((MAIN_RULE, q), True) for T in Ts_use) if q in QUANTS_B + QUANTS_PT else readable
+            mflags = {k: any(per_T[T]["mflag"].get((rule, q), {}).get(k, False) for T in Ts_use) for k in ("lo_method", "hi_method", "amb_method")} if q in QUANTS_B + QUANTS_PT else {}
             if q in QUANTS_B + QUANTS_PT:
                 x_mlo = float(np.mean([per_T[T]["pt_mlo"][(rule, q)] for T in Ts_use]))
                 x_mup = float(np.mean([per_T[T]["pt_mup"][(rule, q)] for T in Ts_use]))
@@ -805,6 +816,7 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
         if not is_ds and q in QUANTS_B and all(per_T[T]["MLB"].get((rule, q)) is not None for T in Ts_use):
             boot_store[key + "|mlo"] = np.mean(np.stack([per_T[T]["MLB"][(rule, q)] for T in Ts_use]), 0).astype(np.float32)
             boot_store[key + "|mup"] = np.mean(np.stack([per_T[T]["MUB"][(rule, q)] for T in Ts_use]), 0).astype(np.float32)
+            boot_store[key + "|mmask"] = np.bitwise_or.reduce(np.stack([per_T[T]["mmask"][(rule, q)] for T in Ts_use]), 0).astype(np.uint8)
         if mask is not None:
             boot_store[key + "|mask"] = mask.astype(np.uint8)
         if not is_ds and q in QUANTS_B and all(per_T[T]["KB"].get((rule, q)) is not None for T in Ts_use):
@@ -837,7 +849,8 @@ def aggregate_unit(run, cp, st, K, comp, stag, jkkind, Ts_use, per_T, geff, n_se
             jd = "undet"
         unit_rows.append({"comparison": comp, "run": run, "role": E.role_of(run, st), "student": st, "family": family_of(st), "K": K, "corpus": cp, "n_groups": len(Ts_use),
                           "groups": ";".join(Ts_use), "sensitivity": stag, "kall_rule": rule, "quantity": q, "point": x, "point_lo_bound": x_lo, "point_up_bound": x_up,
-                          "point_m_lo_bound": x_mlo, "point_m_up_bound": x_mup, "method_readable": bool(m_readable), "point_nomono": x_nm, "point_6pt": x_6, "lo": lo, "hi": hi,
+                          "point_m_lo_bound": x_mlo, "point_m_up_bound": x_mup, "method_readable": bool(m_readable), **{f"mflag_{k}": v for k, v in mflags.items()},
+                          "point_nomono": x_nm, "point_6pt": x_6, "lo": lo, "hi": hi,
                           "lo_jk": lo_j, "hi_jk": hi_j, "lo_session_jk": lo_s, "hi_session_jk": hi_s, "interval_rule": rule_i, "g_eff_min": gmin, "n_boot_valid": nvalid,
                           "is_readable": bool(readable), "same_by_definition": bool(defn_zero), **{f"flag_{k}": v for k, v in flags.items()}, **{f"frac_cens_{k}": v for k, v in cens.items()},
                           "frac_draw_cens_main": frac_main, "frac_draw_cens_hi_only": frac_sens, "frac_draw_cens_any": frac_any, "interval_ok": interval_ok, "interval_ok_hi_only": interval_ok_sens,
@@ -865,7 +878,7 @@ def direct_units(U, boot_store, jk_store):
             jd, rule_i = "point_only", "point_only"
             frac_main = frac_any = 0.0
             key = f"{name}|{'|'.join(map(str, idx))}"
-            flags = {k: bool(ra.get(f"flag_{k}", False) or rb.get(f"flag_{k}", False)) for k in MASK_KINDS}
+            flags = {k: bool(ra.get(f"mflag_{k}", False) or rb.get(f"mflag_{k}", False)) if k.endswith("_method") else False for k in MASK_KINDS}
             if ba_ is not None and bb is not None:
                 d = ba_.astype(np.float64) - bb.astype(np.float64)
                 store[key] = d.astype(np.float32)
@@ -875,13 +888,12 @@ def direct_units(U, boot_store, jk_store):
                 if la is not None and ub_ is not None:
                     store[key + "|lo"] = (la.astype(np.float64) - ub_.astype(np.float64)).astype(np.float32)
                     store[key + "|up"] = (ua.astype(np.float64) - lb_.astype(np.float64)).astype(np.float32)
-                ma, mb = boot_store.get(ra.boot_key + "|mask"), boot_store.get(rb.boot_key + "|mask")
+                ma, mb = boot_store.get(ra.boot_key + "|mmask"), boot_store.get(rb.boot_key + "|mmask")   # 手法の読みだけの印（none の印は差で消える．none を選んだ群は none の読みの印を手法の側に写してある）
                 mask = np.zeros(len(d), np.uint8)
-                mbits = sum(MASK_BIT[k] for k in ("lo_method", "hi_method", "amb_method"))                 # none の印は差で消える
                 if ma is not None:
-                    mask |= (ma & mbits).astype(np.uint8)
+                    mask |= ma
                 if mb is not None:
-                    mask |= (mb & mbits).astype(np.uint8)
+                    mask |= mb
                 store[key + "|mask"] = mask
                 frac_main, frac_any = mask_frac(mask, MAIN_MASK), mask_frac(mask, MASK_KINDS)
                 lo, hi = pct(d, 2.5), pct(d, 97.5)
@@ -985,7 +997,7 @@ def corpus_level(U, store, jstore):
 
 def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main", env=None):
     """族の統計量：cps の中央値．複製は，G_eff < 20 のコーパスの複製を点の値のまわりで jackknife の幅まで広げてから，複製ごとに中央値．
-    env：None ＝ 記録した値，"L" ＝ 各コーパス・各抽出の本当の本数の下限，"U" ＝ 上限（判定に不利な側の包絡に使う）．
+    env：None ＝ 記録した値，"L" ＝ 各コーパス・各抽出の本当の本数の下限，"U" ＝ 上限（判定に不利な側の包絡に使う．記録した点のまわりで記録の複製と同じ倍率で広げる）．
     区間が使える（ok）のは，読めるコーパスのそれぞれで，抽出の中の印（mask_kind：main ＝ 上の打ち切りとあいまい，hi_only ＝ 上の打ち切りだけ）の割合が cens_max 以下のとき（env ＝ None のときだけ意味を持つ）．"""
     out = {"n_used": len(cps), "corpora": ";".join(cps), "median": np.nan, "median_nomono": np.nan, "lo": np.nan, "hi": np.nan, "ok": False, "frac_mask": np.nan, "b": None,
            "n_pos": int(sum(cd[c]["judgment"] == "pos" for c in cps)), "n_neg": int(sum(cd[c]["judgment"] == "neg" for c in cps)), "inflation": "",
@@ -1013,8 +1025,7 @@ def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main"
                 jw = (cd[c]["hi_jk"] - cd[c]["lo_jk"]) / 2
                 r = max(1.0, jw / pw) if pw > 0 else 1.0
             infl.append(f"{c}:{r:.2f}")
-            T_ = x0 + r * (b0 - x0)
-            reps.append(T_ if env is None else T_ + (cd[c][bkey] - b0))
+            reps.append(x0 + r * ((b0 if env is None else cd[c][bkey]) - x0))     # 包絡も記録した点のまわりで同じ倍率：L ＝ x₀ ＋ r·(LB − x₀)，U ＝ x₀ ＋ r·(UB − x₀)
             if cd[c]["readable"] and cd[c]["mask"] is not None:
                 masks.append(cd[c]["mask"])
         fb = np.nanmedian(np.stack(reps), 0)
@@ -1514,9 +1525,9 @@ def main():
                           "K_all_rule": {"mean": "n_tgt/4（反復の平均．E65 と同じ）", "min": "学習プールで最も少ない感情の本数（反復の平均）"},
                           "interpolation": "log K について線形．平らな区間では届く最小の K．K=1 の値より悪い（等号を含まない）→ 1 に置いて下の打ち切り．全件の値より良い → 全件に置いて上の打ち切り．整える前の曲線が値を 2 回以上横切れば「あいまい」",
                           "monotone": "S_uar・S_dir・S_dir_* は累積の最大，S_pos・S_posloss・S_pos_bfix は累積の最小（反復で平均した曲線に当てる）",
-                          "readable": "主の右端の置き方で，none と手法の読みがどの群でも打ち切りでもあいまいでもない（none を選んだ群と，saerens・massbal の向きの座標は定義から 0 で読める）",
+                          "readable": "主の右端の置き方で，none と手法の読みがどの群でも打ち切りでもあいまいでもない（none を選んだ群と，saerens・massbal の向きの座標は定義から 0 で読める．直接の差は手法の読みだけで決め，none を選んだ群は none の読みを手法の読みとして引き継ぐ）",
                           "draw_censoring": "抽出の中の読みの印を種類別（下・上・あいまい × none・手法）に保存．区間が使える基準（2.5%）は上の打ち切りとあいまいに当てる（感度 (o)：上の打ち切りだけ）．族は読めるコーパスのそれぞれに当てる",
-                          "bounds": "読みごとに本当の本数の下限と上限：下の打ち切り → K' ∈ [0, 1)，上の打ち切り → K' ≥ K_all（上限 1e6），あいまい → 最初の読みと最後の読み（右から整えた曲線）の間．n の限りは lo(K'm) − up(K'n)，up(K'm) − lo(K'n)．差の量は lo(A) − up(B)，up(A) − lo(B)",
+                          "bounds": "読みごとに本当の本数の下限（最初の読み．下に打ち切られていれば 0）と上限（最後の読み＝右から整えた曲線で読む．最初か最後が上に打ち切られていれば 1e6）．あいまいの印は 2 回以上横切るか最後の読みが最初より右．n の限りは lo(K'm) − up(K'n)，up(K'm) − lo(K'n)．向き − 位置は lo(A) − up(B)，up(A) − lo(B)．直接の差は手法の読みだけ：lo(K'm_A) − up(K'm_B)，up(K'm_A) − lo(K'm_B)",
                           "final_status": "読めるコーパスの区分が当たり・外れ・負のとき，読めないコーパスも入れて各コーパス・各抽出を不等式ごとに不利な側の限りに置いても同じ側なら確定（*_final）．そうでなければ undet_censoring",
                           "draws": "種は (seed, crc32(コーパス))．話者の多項分布 (B, nls) と反復の多項分布 (B, R)．世界と比較相手で共有",
                           "corpus_value": "世界の単位の平均（複製・jackknife も平均）．区間は百分位と，G_eff < 20 なら jackknife の t 区間の和集合",
