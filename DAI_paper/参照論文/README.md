@@ -18,6 +18,8 @@ PDF はすべて arXiv か学会の公開版である．出版社の最終版と
 
 ## 問い 2：どのソースのどのサンプルを，どの感情に使うか
 
+5 本の要点（本文を全部読んで書いた）：`要点_問い2_ソースの選び方.md`
+
 | ファイル | 書誌 | 取得元 |
 |---|---|---|
 | `2018_Guo_MultiSourceDAMixtureOfExperts_EMNLP.pdf` | Guo, Shah, Barzilay. Multi-Source Domain Adaptation with Mixture of Experts. EMNLP 2018 | arXiv 1809.02256 |
