@@ -869,7 +869,10 @@ def direct_units(U, boot_store, jk_store):
         for idx in Ua.index.intersection(Ub.index):
             ra, rb = Ua.loc[idx], Ub.loc[idx]
             x = float(ra.point - rb.point)
-            if np.isfinite(ra.point_m_lo_bound) and np.isfinite(rb.point_m_lo_bound):          # A − B = K'm_A − K'm_B（none は消える）：手法の読みだけの限り
+            both_none = bool(ra.same_by_definition and rb.same_by_definition)             # 両方が none（定義から 0）を選んだ群：差も定義から 0
+            if both_none:
+                x, x_lo, x_up = 0.0, 0.0, 0.0
+            elif np.isfinite(ra.point_m_lo_bound) and np.isfinite(rb.point_m_lo_bound):     # A − B = K'm_A − K'm_B（none は消える）：手法の読みだけの限り
                 x_lo, x_up = float(ra.point_m_lo_bound - rb.point_m_up_bound), float(ra.point_m_up_bound - rb.point_m_lo_bound)
             else:
                 x_lo, x_up = float(ra.point_lo_bound - rb.point_up_bound), float(ra.point_up_bound - rb.point_lo_bound)
@@ -878,22 +881,27 @@ def direct_units(U, boot_store, jk_store):
             jd, rule_i = "point_only", "point_only"
             frac_main = frac_any = 0.0
             key = f"{name}|{'|'.join(map(str, idx))}"
-            flags = {k: bool(ra.get(f"mflag_{k}", False) or rb.get(f"mflag_{k}", False)) if k.endswith("_method") else False for k in MASK_KINDS}
+            flags = {k: bool(ra.get(f"mflag_{k}", False) is True or rb.get(f"mflag_{k}", False) is True) if (k.endswith("_method") and not both_none) else False for k in MASK_KINDS}
             if ba_ is not None and bb is not None:
                 d = ba_.astype(np.float64) - bb.astype(np.float64)
+                if both_none:
+                    d = np.zeros_like(d)
                 store[key] = d.astype(np.float32)
                 sfx = ("|mlo", "|mup") if (ra.boot_key + "|mlo") in boot_store and (rb.boot_key + "|mlo") in boot_store else ("|lo", "|up")
                 la, ua = boot_store.get(ra.boot_key + sfx[0]), boot_store.get(ra.boot_key + sfx[1])
                 lb_, ub_ = boot_store.get(rb.boot_key + sfx[0]), boot_store.get(rb.boot_key + sfx[1])
-                if la is not None and ub_ is not None:
+                if both_none:
+                    store[key + "|lo"] = store[key + "|up"] = np.zeros_like(d, dtype=np.float32)
+                elif la is not None and ub_ is not None:
                     store[key + "|lo"] = (la.astype(np.float64) - ub_.astype(np.float64)).astype(np.float32)
                     store[key + "|up"] = (ua.astype(np.float64) - lb_.astype(np.float64)).astype(np.float32)
                 ma, mb = boot_store.get(ra.boot_key + "|mmask"), boot_store.get(rb.boot_key + "|mmask")   # 手法の読みだけの印（none の印は差で消える．none を選んだ群は none の読みの印を手法の側に写してある）
                 mask = np.zeros(len(d), np.uint8)
-                if ma is not None:
-                    mask |= ma
-                if mb is not None:
-                    mask |= mb
+                if not both_none:
+                    if ma is not None:
+                        mask |= ma
+                    if mb is not None:
+                        mask |= mb
                 store[key + "|mask"] = mask
                 frac_main, frac_any = mask_frac(mask, MAIN_MASK), mask_frac(mask, MASK_KINDS)
                 lo, hi = pct(d, 2.5), pct(d, 97.5)
@@ -907,7 +915,9 @@ def direct_units(U, boot_store, jk_store):
                     rule_i = "union_pct_jk"
                 elif ra.g_eff_min < GEFF_MIN:
                     rule_i, lo, hi = "pct_jk_missing", np.nan, np.nan
-                if not (np.isfinite(lo) and np.isfinite(hi)):
+                if both_none:
+                    jd = "same_by_definition"
+                elif not (np.isfinite(lo) and np.isfinite(hi)):
                     jd = "missing"
                 elif frac_main > CENS_DRAW_MAX:
                     jd = "cens_interval"
@@ -919,10 +929,10 @@ def direct_units(U, boot_store, jk_store):
                          "point_nomono": float(ra.point_nomono - rb.point_nomono) if np.isfinite(ra.point_nomono) and np.isfinite(rb.point_nomono) else np.nan,
                          "point_6pt": float(ra.point_6pt - rb.point_6pt) if np.isfinite(ra.point_6pt) and np.isfinite(rb.point_6pt) else np.nan,
                          "lo": lo, "hi": hi, "lo_jk": lo_j, "hi_jk": hi_j, "interval_rule": rule_i, "g_eff_min": float(ra.g_eff_min),
-                         "is_readable": bool(ra.method_readable and rb.method_readable) if ("method_readable" in ra.index) else bool(ra.is_readable and rb.is_readable),
-                         "same_by_definition": bool(ra.same_by_definition and rb.same_by_definition), **{f"flag_{k}": v for k, v in flags.items()},
+                         "is_readable": True if both_none else (bool(ra.method_readable and rb.method_readable) if ("method_readable" in ra.index) else bool(ra.is_readable and rb.is_readable)),
+                         "same_by_definition": both_none, **{f"flag_{k}": v for k, v in flags.items()},
                          "frac_draw_cens_main": frac_main, "frac_draw_cens_any": frac_any, "interval_ok": bool(frac_main <= CENS_DRAW_MAX), "judgment": jd, "boot_key": key,
-                         "point_rep": np.nan, "point_m_lo_bound": np.nan, "point_m_up_bound": np.nan, "method_readable": bool(ra.method_readable and rb.method_readable) if ("method_readable" in ra.index) else True})
+                         "point_rep": np.nan, "point_m_lo_bound": np.nan, "point_m_up_bound": np.nan, "method_readable": True if both_none else (bool(ra.method_readable and rb.method_readable) if ("method_readable" in ra.index) else True)})
     return pd.DataFrame(rows), store, jstore
 
 
@@ -997,7 +1007,7 @@ def corpus_level(U, store, jstore):
 
 def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main", env=None):
     """族の統計量：cps の中央値．複製は，G_eff < 20 のコーパスの複製を点の値のまわりで jackknife の幅まで広げてから，複製ごとに中央値．
-    env：None ＝ 記録した値，"L" ＝ 各コーパス・各抽出の本当の本数の下限，"U" ＝ 上限（判定に不利な側の包絡に使う．記録した点のまわりで記録の複製と同じ倍率で広げる）．
+    env：None ＝ 記録した値，"L" ＝ 各コーパス・各抽出の本当の本数の下限，"U" ＝ 上限（判定に不利な側の包絡に使う．不利な側の点の限りのまわりで記録の複製と同じ倍率で広げる）．
     区間が使える（ok）のは，読めるコーパスのそれぞれで，抽出の中の印（mask_kind：main ＝ 上の打ち切りとあいまい，hi_only ＝ 上の打ち切りだけ）の割合が cens_max 以下のとき（env ＝ None のときだけ意味を持つ）．"""
     out = {"n_used": len(cps), "corpora": ";".join(cps), "median": np.nan, "median_nomono": np.nan, "lo": np.nan, "hi": np.nan, "ok": False, "frac_mask": np.nan, "b": None,
            "n_pos": int(sum(cd[c]["judgment"] == "pos" for c in cps)), "n_neg": int(sum(cd[c]["judgment"] == "neg" for c in cps)), "inflation": "",
@@ -1025,7 +1035,12 @@ def family_stats(cd, cps, inflate=True, cens_max=CENS_DRAW_MAX, mask_kind="main"
                 jw = (cd[c]["hi_jk"] - cd[c]["lo_jk"]) / 2
                 r = max(1.0, jw / pw) if pw > 0 else 1.0
             infl.append(f"{c}:{r:.2f}")
-            reps.append(x0 + r * ((b0 if env is None else cd[c][bkey]) - x0))     # 包絡も記録した点のまわりで同じ倍率：L ＝ x₀ ＋ r·(LB − x₀)，U ＝ x₀ ＋ r·(UB − x₀)
+            if env is None:
+                reps.append(x0 + r * (b0 - x0))
+            else:                                                              # 包絡：判定に不利な側の点の限りのまわりで同じ倍率．L ＝ pt_up ＋ r·(LB − pt_up)，U ＝ pt_lo ＋ r·(UB − pt_lo)
+                xc = cd[c]["pt_up"] if env == "L" else cd[c]["pt_lo"]
+                xc = x0 if abs(xc) >= BIG / 2 else xc
+                reps.append(xc + r * (cd[c][bkey] - xc))
             if cd[c]["readable"] and cd[c]["mask"] is not None:
                 masks.append(cd[c]["mask"])
         fb = np.nanmedian(np.stack(reps), 0)
