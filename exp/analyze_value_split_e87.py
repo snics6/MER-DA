@@ -607,7 +607,12 @@ def summarize(out, U, V, adj):
                 lines.append(f"| {r_.quantity} | {r_.K} | {r_.n_units} | {r_.median:.2f} | {r_.q1:.2f} | {r_.q3:.2f} | {r_.n_pos} | {r_.n_neg} | {r_.n_undet} | {r_.n_not_readable} |")
             lines.append("")
     lines.append("## 判定")
-    lines.append(Jd.to_markdown(index=False) if hasattr(Jd, "to_markdown") else Jd.to_string())
+    if len(Jd):
+        cols = list(Jd.columns)
+        lines.append("| " + " | ".join(cols) + " |")
+        lines.append("|" + "---|" * len(cols))
+        for r_ in Jd.itertuples(index=False):
+            lines.append("| " + " | ".join("" if (isinstance(v, float) and np.isnan(v)) else (f"{v:.3f}" if isinstance(v, float) else str(v)) for v in r_) + " |")
     (out / "summary.md").write_text("\n".join(lines), encoding="utf-8")
     return S, Jd
 
