@@ -58,49 +58,11 @@ def soft_rows(P: torch.Tensor, total: float, balance: bool = True) -> torch.Tens
 HISTORY, ARMIJO, MAX_HALVING = 10, 1e-4, 50
 
 
-def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
-        Cw, Cb, fix_W: bool = False, max_iter: int = 20000, tol: float = 1e-6, G2=None, T2=None) -> dict:
-    """G: (P, n, 4)．W0: (P, 4, d) か (4, d)．b0: (P, 4) か (4,)．Cw, Cb: 長さ P か数．
-    問ごとに別々の履歴と歩幅を持つ L-BFGS（Armijo の後退）で，問ごとの勾配の最大絶対値が tol 以下になるまで解く
-    （`exp/logreg.py` の fit_batch と同じ方式．1 本の L-BFGS でまとめると，曲がり方の違う問が履歴と歩幅を共有して収束が遅れる）．
-    G2，T2 を渡すと，温度つき蒸留の項 T2² · Σ G2 · (−log softmax(z / T2)) を足す（Hinton ほか 2015．Albanie ほか 2018 は
-    教師と生徒の両方に温度 2）．S は G と G2 の重みの和．
-    戻り：W (P,4,d)，b (P,4)，n_iter（問ごとの反復の最大），grad_max（問ごとの勾配の最大絶対値の最大），grad_p（問ごと），
-    stalled（Armijo の後退を MAX_HALVING 回しても下がらなかったことがある問の数），stalled_p・n_iter_p（問ごと）。"""
-    X = t(X)
-    G = t(G)
-    P, n, k = G.shape
-    d = X.shape[1]
-    W0 = t(W0).expand(P, k, d).contiguous() if t(W0).dim() == 2 else t(W0)
-    b0 = t(b0).expand(P, k).contiguous() if t(b0).dim() == 1 else t(b0)
-    Cw = t(np.broadcast_to(np.asarray(Cw, float), (P,)).copy())
-    Cb = t(np.broadcast_to(np.asarray(Cb, float), (P,)).copy())
-    G2 = None if G2 is None else t(G2)
-    T2 = None if T2 is None else t(np.broadcast_to(np.asarray(T2, float), (P,)).copy())
-    S = (G.sum((1, 2)) + (0 if G2 is None else G2.sum((1, 2)))).clamp(min=1e-12)
-    lw = torch.where(torch.isinf(Cw), torch.zeros_like(Cw), 1.0 / (2 * Cw))
-    lb = torch.where(torch.isinf(Cb), torch.zeros_like(Cb), 1.0 / (2 * Cb))
-    kd = k * d
-
-    def f_and_g(th, ix=None):
-        sel = (lambda v: v) if ix is None else (lambda v: v[ix])
-        th = th.detach().requires_grad_(True)
-        Bx = th.shape[0]
-        W = sel(W0) if fix_W else th[:, :kd].view(Bx, k, d)
-        b = th[:, kd:]
-        Z = torch.einsum("nd,pkd->pnk", X, W) + b[:, None, :]
-        nll = -(sel(G) * torch.log_softmax(Z, 2)).sum((1, 2))
-        if G2 is not None:
-            tt2 = sel(T2)[:, None, None]
-            nll = nll - (sel(T2) ** 2) * (sel(G2) * torch.log_softmax(Z / tt2, 2)).sum((1, 2))
-        reg = sel(lw) * ((W - sel(W0)) ** 2).sum((1, 2)) + sel(lb) * ((b - sel(b0)) ** 2).sum(1)
-        f = (nll + reg) / sel(S)
-        (g,) = torch.autograd.grad(f.sum(), th)
-        if fix_W:
-            g[:, :kd] = 0.0
-        return f.detach(), g
-
-    theta = torch.cat([W0.reshape(P, kd), b0], 1).clone()
+def lbfgs_batch(theta: torch.Tensor, f_and_g, tol: float, max_iter: int):
+    """問ごとに別々の履歴と歩幅を持つ L-BFGS（Armijo の後退）の本体．theta: (P, D)．
+    f_and_g(th, ix) は問の部分集合 ix（None なら全部）の目的関数 (B,) と勾配 (B, D) を返す．
+    戻り：theta，f，grad，n_iter（問ごと），stalled（問ごと）。"""
+    P = theta.shape[0]
     D = theta.shape[1]
     Sh = torch.zeros(HISTORY, P, D, dtype=DT, device=DEV)
     Yh = torch.zeros(HISTORY, P, D, dtype=DT, device=DEV)
@@ -163,6 +125,53 @@ def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
         theta, f, grad = th_new, f_new, g_new
         n_iter += moved.long()
         active = moved & (grad.abs().amax(1) > tol)
+    return theta, f, grad, n_iter, stalled
+
+
+def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
+        Cw, Cb, fix_W: bool = False, max_iter: int = 20000, tol: float = 1e-6, G2=None, T2=None) -> dict:
+    """G: (P, n, 4)．W0: (P, 4, d) か (4, d)．b0: (P, 4) か (4,)．Cw, Cb: 長さ P か数．
+    問ごとに別々の履歴と歩幅を持つ L-BFGS（Armijo の後退）で，問ごとの勾配の最大絶対値が tol 以下になるまで解く
+    （`exp/logreg.py` の fit_batch と同じ方式．1 本の L-BFGS でまとめると，曲がり方の違う問が履歴と歩幅を共有して収束が遅れる）．
+    G2，T2 を渡すと，温度つき蒸留の項 T2² · Σ G2 · (−log softmax(z / T2)) を足す（Hinton ほか 2015．Albanie ほか 2018 は
+    教師と生徒の両方に温度 2）．S は G と G2 の重みの和．
+    戻り：W (P,4,d)，b (P,4)，n_iter（問ごとの反復の最大），grad_max（問ごとの勾配の最大絶対値の最大），grad_p（問ごと），
+    stalled（Armijo の後退を MAX_HALVING 回しても下がらなかったことがある問の数），stalled_p・n_iter_p（問ごと）。"""
+    X = t(X)
+    G = t(G)
+    P, n, k = G.shape
+    d = X.shape[1]
+    W0 = t(W0).expand(P, k, d).contiguous() if t(W0).dim() == 2 else t(W0)
+    b0 = t(b0).expand(P, k).contiguous() if t(b0).dim() == 1 else t(b0)
+    Cw = t(np.broadcast_to(np.asarray(Cw, float), (P,)).copy())
+    Cb = t(np.broadcast_to(np.asarray(Cb, float), (P,)).copy())
+    G2 = None if G2 is None else t(G2)
+    T2 = None if T2 is None else t(np.broadcast_to(np.asarray(T2, float), (P,)).copy())
+    S = (G.sum((1, 2)) + (0 if G2 is None else G2.sum((1, 2)))).clamp(min=1e-12)
+    lw = torch.where(torch.isinf(Cw), torch.zeros_like(Cw), 1.0 / (2 * Cw))
+    lb = torch.where(torch.isinf(Cb), torch.zeros_like(Cb), 1.0 / (2 * Cb))
+    kd = k * d
+
+    def f_and_g(th, ix=None):
+        sel = (lambda v: v) if ix is None else (lambda v: v[ix])
+        th = th.detach().requires_grad_(True)
+        Bx = th.shape[0]
+        W = sel(W0) if fix_W else th[:, :kd].view(Bx, k, d)
+        b = th[:, kd:]
+        Z = torch.einsum("nd,pkd->pnk", X, W) + b[:, None, :]
+        nll = -(sel(G) * torch.log_softmax(Z, 2)).sum((1, 2))
+        if G2 is not None:
+            tt2 = sel(T2)[:, None, None]
+            nll = nll - (sel(T2) ** 2) * (sel(G2) * torch.log_softmax(Z / tt2, 2)).sum((1, 2))
+        reg = sel(lw) * ((W - sel(W0)) ** 2).sum((1, 2)) + sel(lb) * ((b - sel(b0)) ** 2).sum(1)
+        f = (nll + reg) / sel(S)
+        (g,) = torch.autograd.grad(f.sum(), th)
+        if fix_W:
+            g[:, :kd] = 0.0
+        return f.detach(), g
+
+    theta = torch.cat([W0.reshape(P, kd), b0], 1).clone()
+    theta, f, grad, n_iter, stalled = lbfgs_batch(theta, f_and_g, tol, max_iter)
     gp = grad.abs().amax(1)
     finite = torch.isfinite(gp) & torch.isfinite(theta).all(1) & torch.isfinite(f)
     W = W0.clone() if fix_W else theta[:, :kd].view(P, k, d).clone()
@@ -171,6 +180,54 @@ def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
             "n_iter_p": n_iter.cpu().numpy(), "finite_p": finite.cpu().numpy(),
             "ok": bool(float(gp.max()) <= 10 * tol) and bool(finite.all())}
 
+
+
+def fit_coreg(Xs: list, G: torch.Tensor, W0s: list, b0s: list, cws: list, cbs: list, rhos, max_iter: int = 20000,
+              tol: float = 1e-6) -> dict:
+    """共正則化（Sindhwani & Rosenberg 2008 の多視点の考え）を，ρ の格子の問をまとめて lbfgs_batch で解く．
+    Xs：モダリティごとの標準化した特徴 (n, d_m)．G：K 本の正解 (n, 4)．W0s・b0s：出発点．cws・cbs：モダリティごとの引き戻し．
+    問 p の目的関数：[Σ_m (−Σ G·log softmax(Z_m) ＋ ‖W_m − W0_m‖²/(2C′_m) ＋ ‖b_m − b0_m‖²/(2C_b,m))
+                    ＋ (ρ_p/2) Σ_i Σ_{a<b} ‖c_a,i − c_b,i‖²] / S_p，c は発話ごとに 4 感情の平均を引いた点数，S_p = 3ΣG ＋ ρ_p n．
+    戻り：Ws・bs（モダリティごとに (P,4,d_m)・(P,4)），問ごとの勾配の最大，反復，行き詰まり，有限の印。"""
+    Xs = [t(X) for X in Xs]
+    G = t(G)
+    rh = t(np.asarray(rhos, float))
+    P, n = len(rhos), G.shape[0]
+    dims = [X.shape[1] for X in Xs]
+    S = (3 * G.sum() + rh * n).clamp(min=1e-12)
+    offs = np.cumsum([0] + [4 * dm + 4 for dm in dims])
+    W0s = [t(W) for W in W0s]
+    b0s = [t(b) for b in b0s]
+
+    def unpack(th, m):
+        a = offs[m]
+        dm = dims[m]
+        return th[:, a:a + 4 * dm].view(th.shape[0], 4, dm), th[:, a + 4 * dm:a + 4 * dm + 4]
+
+    def f_and_g(th, ix=None):
+        rr = rh if ix is None else rh[ix]
+        SS = S if ix is None else S[ix]
+        th = th.detach().requires_grad_(True)
+        tot = 0.0
+        cen = []
+        for m in range(len(Xs)):
+            W, b = unpack(th, m)
+            Z = torch.einsum("nd,pkd->pnk", Xs[m], W) + b[:, None, :]
+            tot = tot - (G[None] * torch.log_softmax(Z, 2)).sum((1, 2)) \
+                + ((W - W0s[m]) ** 2).sum((1, 2)) / (2 * cws[m]) + ((b - b0s[m]) ** 2).sum(1) / (2 * cbs[m])
+            cen.append(Z - Z.mean(2, keepdim=True))
+        dis = sum(((cen[a] - cen[c]) ** 2).sum((1, 2)) for a in range(len(Xs)) for c in range(a + 1, len(Xs)))
+        f = (tot + 0.5 * rr * dis) / SS
+        (g,) = torch.autograd.grad(f.sum(), th)
+        return f.detach(), g
+
+    theta = torch.cat([torch.cat([W0s[m].reshape(1, -1), b0s[m].reshape(1, -1)], 1) for m in range(len(Xs))], 1).repeat(P, 1)
+    theta, f, grad, n_iter, stalled = lbfgs_batch(theta, f_and_g, tol, max_iter)
+    gp = grad.abs().amax(1)
+    finite = torch.isfinite(gp) & torch.isfinite(theta).all(1) & torch.isfinite(f)
+    Ws, bs = zip(*[unpack(theta, m) for m in range(len(Xs))])
+    return {"Ws": [W.clone() for W in Ws], "bs": [b.clone() for b in bs], "grad_p": gp.cpu().numpy(), "n_iter_p": n_iter.cpu().numpy(),
+            "stalled_p": stalled.cpu().numpy(), "finite_p": finite.cpu().numpy(), "S": S.cpu().numpy()}
 
 def logits(X: torch.Tensor, W: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """(P,4,d),(P,4) → (P, n, 4)。W が (4,d) なら (n,4)。"""
@@ -230,6 +287,15 @@ def selftest() -> None:
     # 温度 2 でも許容の勾配まで収束する
     rc = fit(t(Xs), G1, W0, b0, Cw=0.3, Cb=1.0, G2=Q, T2=[2.0], tol=1e-9)
     assert rc["grad_max"] < 1e-8
+    # 共正則化：ρ = 0 なら各モダリティを別々に解いた解と一致する
+    Xa, Xb = t(Xs[:, :10]), t(Xs[:, 10:])
+    Gk = balanced_onehot(y, np.arange(80), n)
+    Wa0, Wb0 = torch.zeros(4, 10), torch.zeros(4, 10)
+    rc = fit_coreg([Xa, Xb], Gk, [Wa0, Wb0], [torch.zeros(4), torch.zeros(4)], [0.3, 0.3], [1.0, 1.0], [0.0, 1.0], tol=1e-9)
+    ra_ = fit(Xa, Gk[None], Wa0, torch.zeros(4), Cw=0.3, Cb=1.0, tol=1e-9)
+    dc = float((rc["Ws"][0][0] - ra_["W"][0]).abs().max())
+    print(f"共正則化 ρ=0 と別々の解の差の最大 {dc:.1e}，勾配の最大 {rc['grad_p'].max():.1e}")
+    assert dc < 1e-6 and rc["grad_p"].max() < 1e-8
     print("selftest: 通った")
 
 

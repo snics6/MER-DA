@@ -360,59 +360,37 @@ def cotrain(u: Unit, tk: dict, K: int, tether: dict, store: dict, rows: list) ->
 
 
 def coreg(u: Unit, K: int, tether: dict, store: dict, rows: list) -> None:
-    """共正則化（Sindhwani & Rosenberg 2008 の多視点の考え．前の実験 E61 の coreg と同じ問）．ρ ごとに A・V・T の識別器を同時に解く：
+    """共正則化（Sindhwani & Rosenberg 2008 の多視点の考え．前の実験 E61 の coreg と同じ問）．ρ の格子の問をまとめて
+    `dai_solver.fit_coreg`（共通の学習器と同じ問ごとの L-BFGS．tol 1e-6）で解く：
       Σ_m [K 本の交差エントロピー ＋ ‖W_m − W0_m‖²/(2C′_m) ＋ ‖b_m − b0_m‖²/(2C_b,m)] ＋ (ρ/2) Σ_i Σ_{m<m'} ‖c_m,i − c_m',i‖²
     （c は感情の平均を引いた点数）を S = 3ΣG_K ＋ ρn で割ったもの．凸．単一の生徒はその識別器，AVT の生徒は 3 つの点数の和
-    （つないだ特徴の上の線形の識別器と同じ形）．判定と W・b を保存し，行を足す。"""
+    （つないだ特徴の上の線形の識別器と同じ形）．判定と W・b を保存し，行を足す（第 3 版の torch の L-BFGS は 2 万反復でも
+    許容の勾配に届かず遅かったので替えた）。"""
     gk = u.gK(K) if K else torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
-    preds = {m: [] for m in "AVT"} | {"AVT": []}
-    Ws = {m: [] for m in "AVT"}
-    for rho in RHO_GRID:
-        par = {}
-        for m in "AVT":
-            W0, b0 = u.start[m]
-            par[m] = (W0.clone().requires_grad_(True), b0.clone().requires_grad_(True))
-        Ssum = 3 * float(gk.sum()) + mval(rho, u.n)
-        opt = torch.optim.LBFGS([x for m in "AVT" for x in par[m]], lr=1.0, max_iter=20000, max_eval=40000, tolerance_grad=1e-7,
-                                tolerance_change=1e-15, history_size=10, line_search_fn="strong_wolfe")
-
-        def closure():
-            opt.zero_grad()
-            tot = 0.0
-            cen = []
-            for m in "AVT":
-                W, b = par[m]
-                W0, b0 = u.start[m]
-                cw, cb = tether[(m, max(K, 1))]
-                Z = u.Xp[m] @ W.T + b
-                tot = tot - (gk * torch.log_softmax(Z, 1)).sum() + ((W - W0) ** 2).sum() / (2 * cw) + ((b - b0) ** 2).sum() / (2 * cb)
-                cen.append(Z - Z.mean(1, keepdim=True))
-            dis = sum(((cen[a] - cen[c]) ** 2).sum() for a in range(3) for c in range(a + 1, 3))
-            f = (tot + 0.5 * float(rho) * dis) / Ssum
-            f.backward()
-            return f
-        opt.step(closure)
-        gmax = max(float(x.grad.abs().max()) for m in "AVT" for x in par[m])
-        fin = all(bool(torch.isfinite(x).all()) for m in "AVT" for x in par[m])
-        rows.append(dict(stage=3, method="_conv_coreg", K=K, rho=rho, grad_max=gmax, finite=fin,
-                         n_iter=int(opt.state[opt._params[0]].get("n_iter", -1))))
-        with torch.no_grad():
-            Zt_sum = 0
-            for m in "AVT":
-                W, b = par[m]
-                Zt = u.Xt[m] @ W.T + b
-                Zt_sum = Zt_sum + Zt
-                preds[m].append(Zt.argmax(1).to(torch.int8).cpu().numpy())
-                Ws[m].append((f32(W.detach()), f32(b.detach())))
-                rows.append(dict(stage=3, student=m, K=K, method="coreg", teacher="cr", rho=rho, grad=gmax, finite=fin, S=Ssum,
-                                 uar=100 * S.uar(u.ytest, Zt.argmax(1).cpu().numpy())))
-            preds["AVT"].append(Zt_sum.argmax(1).to(torch.int8).cpu().numpy())
-            rows.append(dict(stage=3, student="AVT", K=K, method="coreg", teacher="cr", rho=rho, grad=gmax, finite=fin, S=Ssum,
-                             uar=100 * S.uar(u.ytest, Zt_sum.argmax(1).cpu().numpy())))
-    for k, v in preds.items():
-        store[f"p3g_K{K}_{k}_pred"] = np.stack(v)                       # 並びは RHO_GRID
-    for m in "AVT":
-        store[f"p3g_K{K}_{m}_W"] = np.stack([w for w, _ in Ws[m]]); store[f"p3g_K{K}_{m}_b"] = np.stack([b for _, b in Ws[m]])
+    mods = "AVT"
+    tw = [tether[(m, max(K, 1))] for m in mods]
+    res = S.fit_coreg([u.Xp[m] for m in mods], gk, [u.start[m][0] for m in mods], [u.start[m][1] for m in mods],
+                      [x[0] for x in tw], [x[1] for x in tw], list(RHO_GRID))
+    Zsum = 0
+    for i, m in enumerate(mods):
+        W, b = res["Ws"][i], res["bs"][i]
+        Zt = S.logits(u.Xt[m], W, b)                                     # (P, n_test, 4)
+        Zsum = Zsum + Zt
+        pr = pred8(Zt)
+        store[f"p3g_K{K}_{m}_pred"] = pr                                 # 並びは RHO_GRID
+        store[f"p3g_K{K}_{m}_W"], store[f"p3g_K{K}_{m}_b"] = f32(W), f32(b)
+        for j, rho in enumerate(RHO_GRID):
+            rows.append(dict(stage=3, student=m, K=K, method="coreg", teacher="cr", rho=rho, grad=float(res["grad_p"][j]),
+                             stalled=bool(res["stalled_p"][j]), finite=bool(res["finite_p"][j]), S=float(res["S"][j]),
+                             uar=100 * S.uar(u.ytest, pr[j].astype(int))))
+    prs = pred8(Zsum)
+    store[f"p3g_K{K}_AVT_pred"] = prs
+    for j, rho in enumerate(RHO_GRID):
+        rows.append(dict(stage=3, student="AVT", K=K, method="coreg", teacher="cr", rho=rho, grad=float(res["grad_p"][j]),
+                         stalled=bool(res["stalled_p"][j]), finite=bool(res["finite_p"][j]), S=float(res["S"][j]),
+                         uar=100 * S.uar(u.ytest, prs[j].astype(int))))
+    rows.append(dict(stage=3, method="_conv_coreg", K=K, grad_max=float(res["grad_p"].max()), n_iter=int(res["n_iter_p"].max()),
+                     n_stalled=int(res["stalled_p"].sum()), finite=bool(res["finite_p"].all())))
 
 
 def make_G(u: Unit, method: str, tv_Q, own, gk, it: dict):
@@ -506,9 +484,11 @@ def pass3(u: Unit, store: dict, rows: list, tether: dict, TK: dict, wsel: dict, 
                 specs.append((it, *make_G(u, "tt", Qx, own, gk, it)))
                 Wt = S.soft_rows(Qx, float(u.n))                            # 重みの集まり（D11．予測を付ける側の種類にも）
                 neff = ((Wt.sum(0) ** 2) / (Wt ** 2).sum(0).clamp(min=1e-30)).cpu().numpy()
+                csum = Qx.sum(0).cpu().numpy()
                 rows.append(dict(stage=3, method="_teacher_stats", student=s, teacher=f"tt:{name}", K=K, maxp=float(Qx.max(1).values.mean()),
+                                 entropy=float(-(Qx * Qx.clamp(min=1e-12).log()).sum(1).mean()),
                                  uar_pool=S.uar(u.ypool[nk], Qx.argmax(1).cpu().numpy()[nk]) * 100,
-                                 **{f"neff_{k}": float(neff[k]) for k in range(4)}))
+                                 **{f"colsum_{k}": float(csum[k]) for k in range(4)}, **{f"neff_{k}": float(neff[k]) for k in range(4)}))
             # 共訓練：AVT の生徒は，共訓練した 3 つの確率の積を疑似ラベルにして学ぶ（単一の生徒は共訓練の識別器そのもの）
             if s == "AVT":
                 for rho in RHO_GRID:
@@ -606,7 +586,7 @@ def committed_clean(path: Path) -> bool:
 
 EVAL_REQUIRED = [                                                   # 評価の回の前にコミットしてあるべきファイル（台本の側に固定．m51）
     "DAI/docs/実験1_設計.md", "DAI/docs/実験2_設計.md", "DAI/docs/実験3_設計.md", "DAI/docs/計画_2026-11-04.tex",
-    "DAI/frozen/dai2_frozen.json", "DAI/frozen/subsets.csv",
+    "DAI/frozen/dai2_frozen.json", "DAI/frozen/dai3_frozen.json", "DAI/frozen/subsets.csv",
     "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py", "DAI/exp/dai1_select.py", "DAI/exp/dai1_stats.py",
     "DAI/exp/dai_subsets.py", "DAI/exp/dai2.py", "DAI/exp/dai2_grad.py", "DAI/exp/dai3.py",
     "DAI_paper/reviews/comparison-design/proposal_v8.md", "exp/compare_dai.py", "exp/compare_dai2.py",
@@ -620,10 +600,10 @@ def latest_report(folder: Path, role: str) -> str:
     """`<役>.md`（第 1 版），`<役>_v2.md`，`<役>_v3.md` … のうち最も新しい版の名前。"""
     best, name = 0, ""
     for f in folder.glob(f"{role}*.md"):
-        m = re.fullmatch(re.escape(role) + r"(?:_v(\d+))?\.md", f.name)
+        m = re.fullmatch(re.escape(role) + r"(?:_v(\d+)([a-z]?))?\.md", f.name)
         if m:
-            v = int(m.group(1) or 1)
-            if v > best:
+            v = (int(m.group(1) or 1), m.group(2) or "")                # _v7b は _v7 より新しい（m92）
+            if best == 0 or v > best:
                 best, name = v, f.name
     return name
 
@@ -653,9 +633,16 @@ def check_eval_gate(frozen_rel: str) -> str:
             latest = latest_report(fp.parent, role)
             if latest != fp.name:
                 sys.exit(f"{exp_name} の {role} は新しい版 {latest} がある（{fp.name} を並べている）")
-            head = "\n".join(open(fp, encoding="utf-8").read().splitlines()[:5])
-            ok = r"^判定[：:]\s*\**OK" if role.startswith("review_") else r"^判定[：:]\s*\**通す"
-            if not re.search(ok, head, re.M):
+            lines = open(fp, encoding="utf-8").read().splitlines()
+            head = "\n".join(lines[:12])
+            word = "OK" if role.startswith("review_") else "通す"
+            # 共有の報告（DAI-2_3）は実験ごとの行「判定（DAI-2）：通す」で確かめる．実験の名前の無い「判定：通す」は報告の全部に当たる．
+            # 関門の書式「## 判定」の次の行が「通す」で始まる形も認める（m92）
+            ok = rf"^判定(?:（{re.escape(exp_name)}）)?[：:]\s*\**{word}(?:\**)?(?:$|[．。（\s])"
+            sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（\s])", head, re.M)
+            if exp_name != "DAI-1" and "DAI-2_3" in files[role]:
+                sec = None                                              # 共有の報告は実験ごとの行だけで確かめる
+            if not re.search(ok, head, re.M) and not sec:
                 sys.exit(f"{exp_name} の {role} の報告（{files[role]}）が「判定：OK」（関門は「判定：通す」）でない")
     if set(gate["approvals"]) != {"DAI-1", "DAI-2", "DAI-3"}:
         sys.exit("eval_gate.json の approvals は DAI-1・DAI-2・DAI-3 の 3 つが要る")

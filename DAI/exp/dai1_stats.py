@@ -186,7 +186,7 @@ def effect_stats(cellA: dict, cellB: dict, g_eff: float, rng) -> dict:
         se = float(np.sqrt(v_cl + v_seed))
         p, ident = pval(est, se, None)
         return res | dict(lo=est - 1.96 * se, hi=est + 1.96 * se, p=p, se=se, method="boot_cl+seed", df=np.nan,
-                          v_jk=v_cl, v_seed=v_seed, identical=ident,
+                          v_jk=v_cl, v_seed=v_seed, v_seed_all=v_seed, identical=ident,
                           boot_lo=float(np.percentile(boots, 2.5)), boot_hi=float(np.percentile(boots, 97.5)))
     all_cl = sorted({c for k in keys for c in cellA[k][0]})
     jk, dropped = [], set()
@@ -334,12 +334,15 @@ def detect(out: Path, targets=DD.CORPORA) -> None:
         df = pd.DataFrame(lst)
         g_eff, _ = g_eff_of(X)
         crit95 = 1.959964 if g_eff >= 20 else float(st.t.ppf(0.975, max(1, int(np.floor(g_eff)) - 1)))
+        # 分散を塊の項と種の項に分ける．jackknife で分割ごと外れる分割の種の揺れは v_jk に入っているので，
+        # 塊の項は max(0, v_jk − (v_seed_all − v_seed))，種の項は全部の分割の v_seed_all（統計の検査の 3 回目）
+        df["v_cl"] = (df.v_jk - (df.v_seed_all - df.v_seed)).clip(lower=0)
         n_seeds = 20
         for R in (10, 20):
             share = []
             for _, r in df[df.K > 0].iterrows():
-                vs = r.v_seed * 2 / R                                      # 仮のターゲットは種 2 つ
-                tot = r.v_jk + vs
+                vs = r.v_seed_all * 2 / R                                  # 仮のターゲットは種 2 つ
+                tot = r.v_cl + vs
                 share.append(vs / tot if tot > 0 else 0.0)
             if np.median(share) <= 0.25:
                 n_seeds = R
@@ -347,8 +350,8 @@ def detect(out: Path, targets=DD.CORPORA) -> None:
         exp_eff = expected_effects(out, X, json.load(open(out / "pseudo" / f"{X}_tether_w.json"))) if X in targets else {}
         cells = {}
         for (fam, s, K), g in df.groupby(["family", "student", "K"]):
-            vjk = float(g.v_jk.mean())
-            vseed = float(g.v_seed.mean()) * 2 / n_seeds if K > 0 else 0.0
+            vjk = float(g.v_cl.mean())
+            vseed = float(g.v_seed_all.mean()) * 2 / n_seeds if K > 0 else 0.0
             se = float(np.sqrt(vjk + vseed))
             m = 12 if fam in (1, 3, 4) else 8
             key = f"{fam}|{s}|{K}"

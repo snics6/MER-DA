@@ -107,8 +107,9 @@ def select_T(tw: dict, p1: pd.DataFrame, p2: pd.DataFrame, p3: pd.DataFrame, n_u
         else:
             tie_extra += int(used)
         if method == "joint":                                             # 提案を K 本の倍率 1 に制限した版（比較の検査 C1・C2）
-            ch1, _ = pick(g[g["a"].map(num) == 1.0], "joint", dsel[(s, int(K))], dai1.DEFAULTS["joint"])
+            ch1, used1 = pick(g[g["a"].map(num) == 1.0], "joint", dsel[(s, int(K))], dai1.DEFAULTS["joint"])
             select[f"{s}|{int(K)}|joint_a1|{ver}"] = ch1
+            tie_family += int(used1)
     for meth in ("tgtonly", "kbias"):
         d1 = p1[(p1.stage == 1) & (p1.method == meth)]
         for (s, K), g in d1.groupby(["kind", "K"]):
