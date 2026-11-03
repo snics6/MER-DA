@@ -6,6 +6,8 @@
 テストと K 本を作り，E76 の ① と同じ `map.train`（交差検証で C を選ぶ）で K = 1, 5, 10, 25, 50, 全件 を学ぶ．出力の鍵は E76 と同じ（`t_*`）．
 
   ./.venv/bin/python exp/relearn_tgtonly_e87.py [--runs fuse-audio-video-text fuse-audio-video] [--targets ...] [--reps 0 1 ...] [--out results/e87_tgtonly]
+  K = 100 の点だけを足す（第 3 版．主の実行の後に）：./.venv/bin/python exp/relearn_tgtonly_e87.py --kgrid 100 --out results/e87_tgtonly_k100
+    （同じ分け方と乱数の列なので K = 100 の K 本は主の K = 50 の K 本を含む．E76 に K = 100 は無いので _e76_check は no_common_K になる）
 
 出力：`<out>/<世界>/<配備する分類器>/<T>.npz`（sample_id，speaker_group，y，reps，test_idx_r{r}，kidx_r{r}_K{K}，t_logit_r{r} (K 6, C 4, テスト, 4)，
       t_A_r{r}，t_a0_r{r}，t_C_r{r}，t_rule_r{r}，t_cv_r{r}，_meta），`<T>.csv`（tgt_only の行），`<T>_e76_check.csv`（E76 の ① と発話の集合が
@@ -66,6 +68,7 @@ def e76_check(run, st, T, A, reps):
     s76 = np.asarray(z["sample_id"]).astype(str)
     sid = A["sample_id"]
     same_set = set(s76) == set(sid)
+    common = [(i76, iw, K) for iw, K in enumerate(K_GRID) for i76, K76 in enumerate(M.K_GRID) if K == K76]   # E76 の格子と共通の K だけ比べる（K = 100 の実行では無い）
     for r in reps:
         te76 = np.asarray(z[f"test_idx_r{r}"])
         te = A[f"test_idx_r{r}"]
@@ -73,16 +76,20 @@ def e76_check(run, st, T, A, reps):
             rows.append({"run": run, "student": st, "target": T, "rep": r, "status": "set_differs", "n_world": len(sid), "n_e76": len(s76),
                          "n_test_world": len(te), "n_test_e76": len(te76)})
             continue
+        if not common:
+            rows.append({"run": run, "student": st, "target": T, "rep": r, "status": "no_common_K", "n_world": len(sid), "n_e76": len(s76), "n_test_world": len(te), "n_test_e76": len(te76)})
+            continue
         pos76 = {s: i for i, s in enumerate(s76[te76])}
         order = np.array([pos76[s] for s in sid[te]])
         L76 = np.asarray(z[f"t_logit_r{r}"])[:, :, order]                      # (K, C, テスト, 4) を世界の並びに
         Lw = A[f"t_logit_r{r}"]
         C76, Cw = np.asarray(z[f"t_C_r{r}"]), A[f"t_C_r{r}"]
-        k76 = {K: set(s76[np.asarray(z[f"kidx_r{r}_K{K}"])]) for K in K_GRID if K != "all"}
-        kw = {K: set(sid[A[f"kidx_r{r}_K{K}"]]) for K in K_GRID if K != "all"}
-        rows.append({"run": run, "student": st, "target": T, "rep": r, "status": "compared",
-                     "max_abs_logit_diff": float(np.abs(L76 - Lw).max()), "argmax_agree_min": float(min((L76[i, j].argmax(1) == Lw[i, j].argmax(1)).mean() for i in range(6) for j in range(4))),
-                     "C_equal": bool(np.allclose(C76, Cw)), "kidx_equal": bool(all(k76[K] == kw[K] for K in k76))})
+        k76 = {K: set(s76[np.asarray(z[f"kidx_r{r}_K{K}"])]) for _, _, K in common if K != "all"}
+        kw = {K: set(sid[A[f"kidx_r{r}_K{K}"]]) for _, _, K in common if K != "all"}
+        rows.append({"run": run, "student": st, "target": T, "rep": r, "status": "compared", "K_compared": ";".join(K for _, _, K in common),
+                     "max_abs_logit_diff": float(max(np.abs(L76[i76] - Lw[iw]).max() for i76, iw, _ in common)),
+                     "argmax_agree_min": float(min((L76[i76, j].argmax(1) == Lw[iw, j].argmax(1)).mean() for i76, iw, _ in common for j in range(4))),
+                     "C_equal": bool(all(np.isclose(C76[i76], Cw[iw]) for i76, iw, _ in common)), "kidx_equal": bool(all(k76[K] == kw[K] for K in k76))})
     return rows
 
 
@@ -144,8 +151,11 @@ def main():
     ap.add_argument("--reps", nargs="+", type=int, default=list(range(10)))
     ap.add_argument("--out", type=Path, default=ROOT / "results" / "e87_tgtonly")
     ap.add_argument("--gpu-fraction", type=float, default=MEM_FRACTION)
+    ap.add_argument("--kgrid", nargs="+", default=list(M.K_GRID), help="クラスあたりの本数の格子（既定は map.K_GRID）．K = 100 の点だけを足すときは --kgrid 100 --out results/e87_tgtonly_k100")
     ap.add_argument("--allow-dirty", action="store_true", help="読み込むコードにコミットしていない変更があっても流す（試しだけ）")
     args = ap.parse_args()
+    global K_GRID
+    K_GRID = tuple(str(k) for k in args.kgrid)
     state = R.code_state()
     if state["code_dirty"] and not args.allow_dirty:
         raise SystemExit("読み込むコードにコミットしていない変更がある（--allow-dirty は試しだけ）:\n" + "\n".join(state["code_status"]))
