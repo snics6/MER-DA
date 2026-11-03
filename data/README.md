@@ -47,6 +47,11 @@
    `speaker_group` は `speaker_id` を `measure/split.py` の `speaker_groups` で補正した列である．
    いまの補正は，MELD の合同発話（`Ross_and_Rachel` のように `_and_` を含む話者 8 種・8 発話）を落とすことだけである．`Ross` を評価に回しても `Ross_and_Rachel` が学習に残ると，Ross の声と顔が学習に漏れるからである．
    `A_Waiter` と `The_Waiter` のような一般名詞の役名（`measure/split.py` の記録で 118 発話）は，同じ役名の別の端役と見なして残す．
+   **DAI の実験（`DAI/`．2026-11-04〜）だけは，塊を作る前にさらに次を直す**（感情認識の査読者の指摘 A1．`DAI/exp/dai_data.py` の `AFEW_ALIAS`・`MELD_ALIAS`・`MELD_MULTI`）．
+   `measure/split.py` は変えない（前の実験の分割を保つため）ので，前の実験の分割にはこの別名が残っている．
+   - AFEW：`AFEW_Bradely_Cooper`（公式の注釈の綴りの誤り．Hangover の 5 発話）を `AFEW_Bradley_Cooper` にまとめる．
+   - MELD：同じ俳優の別名 `Joey/Drake`→`Joey`，`Rachel/actress`→`Rachel`，`Phoebe/Waitress`→`Phoebe`，`Phoebe_Sr.`→`Phoebe_Sr` をまとめる．
+     誰の声か決まらない `All`（38 発話），`Both`（1），`The_Guys`（2）は `_and_` と同じく発話ごと落とす（MELD の 3 モダリティの集合は 11,308 → 11,267 発話）．
 6. **IEMOCAP は即興（`IEMOCAP-impro`）と台本（`IEMOCAP-script`）を別の群として扱う．**
    台本の場面では 10 人全員が同じ台詞を読むので，言葉の分類器は台詞を覚えるだけで当たってしまう．`load_group` はマニフェストの `dialog_type` で絞り込む．
 7. **K はクラスあたりの本数で数える．**K=25 なら 4 クラス × 25 = 100 本である．
@@ -221,6 +226,8 @@ MOSEI の生データには話者の注釈が無い．
 そこで取得結果を `video_id` と `channel_id` の 2 列，1,122 行の表として切り出して保存した．`features/build_manifest_mosei.py` はこの表を読むだけで，作り直さない．
 チャンネルが分かるのは 3,225 本中 1,122 本（35%）だけであり，残りの動画は動画 ID を話者の代わりにする．
 **このため MOSEI の話者分離は不完全である**（同じ人物の別の動画が，学習と評価に分かれて入りうる）．論文では限界として書く．
+MOSEI の原論文は話者を約 1,000 のチャンネルで数える（Zadeh ほか 2018，3.1 節）が，3 モダリティの集合は 2,614 の塊（チャンネルの塊 561，動画 ID の塊 2,053）に割れ，発話の 68.5% が動画 ID の塊にある．
+同じ定型の文が別の動画 ID の塊にまたがる例がある（5 語以上の書き起こしが分割をまたいで一致するのは 36 文・91 発話．感情認識の査読者の a1，2026-11-04）．チャンネルが分かる発話だけをテストにしても，同じチャンネルの別の動画が動画 ID の塊として学習側に残りうるので，漏れは 0 にならない．
 
 ### AFEW の書き起こし `afew_transcript_whisper.csv`
 

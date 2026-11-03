@@ -1,14 +1,17 @@
 """DAI 実験 1 の選ぶ段（設計 `DAI/docs/実験1_設計.md` 8 節）。仮のターゲットの出力だけを読み，固定のファイルを書く。
 
-評価のターゲットの出力（`results/dai1/eval/`）は読まない。
+- 評価のターゲットの出力（`results/dai1/eval/units/`）があれば止まる（漏れの検査 L8）。
+- 読んだ単位の集合が `<T>_tether_w.json` の単位の一覧と一致しなければ止まる。
 """
 
 from __future__ import annotations
 
 import glob
+import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -19,21 +22,23 @@ import dai1
 import dai_data as DD
 
 GRIDS = {
-    "joint": [("m", [str(x) for x in dai1.M_GRID]), ("a", [str(x) for x in dai1.A_GRID])],
-    "rolesep": [("m", [str(x) for x in dai1.M_GRID]), ("a", [str(x) for x in dai1.A_GRID])],
-    "kd": [("temp", [str(x) for x in dai1.KD_T]), ("m", [str(x) for x in dai1.M_GRID])],
-    "agree": [("tau", [str(x) for x in dai1.AG_TAU]), ("f", [str(x) for x in dai1.AG_F])],
+    "joint": [("rho", dai1.RHO_GRID), ("a", dai1.A_GRID)],
+    "rolesep": [("rho", dai1.RHO_GRID), ("a", dai1.A_GRID)],
+    "kd": [("temp", dai1.KD_T), ("rho", dai1.RHO_GRID)],
+    "agree": [("tau", dai1.AG_TAU), ("f", dai1.AG_F)],
+    "mix": [("alpha", dai1.MIX_ALPHA), ("rho", dai1.RHO_GRID)],
+    "cotrain": [("rho", dai1.RHO_GRID)],
+    "tgtonly": [("C", dai1.TGT_C)],
+    "kbias": [("Cb", (1.0, 10.0))],
+    "joint_scratch": [("C", dai1.TGT_C)],
+    "joint_tether": [("Cw", tuple(sorted({x[0] for x in dai1.TETHER}))), ("Cb", tuple(sorted({x[1] for x in dai1.TETHER})))],
 }
+EXTRA_DEFAULTS = {"kbias": {"Cb": 10.0}, "joint_scratch": {"C": 1.0}}       # 選択なしの値（設計 5 節・7 節）
+PARTNERS = ("kd", "agree", "mix", "cotrain")                          # 族 3 の相手（同じ情報を受け取る比較相手）
 
 
-def norm(v) -> str:
-    """格子の値を文字列にそろえる（CSV では 1 と 1.0，"n" が混ざる）。"""
-    s = str(v)
-    try:
-        f = float(s)
-        return str(int(f)) if f.is_integer() else str(f)
-    except ValueError:
-        return s
+def num(v) -> float:
+    return float(v)
 
 
 def load(out: Path, T: str, which: int) -> pd.DataFrame:
@@ -43,60 +48,82 @@ def load(out: Path, T: str, which: int) -> pd.DataFrame:
 
 
 def delta_sel(p1: pd.DataFrame, tether: dict, n_units: int) -> dict:
-    """(生徒, K) ごとの δ_sel = 2√(V/n)．V は比較の基準の UAR の，同じ (c, 分割) の中の種の間の分散の中央値。"""
+    """(生徒, K) ごとの δ_sel = 2√(V/n)．V は比較の基準の UAR の，同じ (c, 分割) の中の種の間の不偏分散の (c, 分割) にわたる平均
+    （中央値は 2 つの値の分散では真の値の約 0.46 倍に偏る．統計の検査 S3，定義の検査 D7）。"""
     out = {}
     for s in DD.STUDENTS:
         for K in DD.KS:
             cw, cb = tether[f"{s}|{K}"]
             d = p1[(p1.stage == 1) & (p1.method == "none") & (p1.kind == s) & (p1.K == K) &
                    np.isclose(p1.Cw, cw) & np.isclose(p1.Cb, cb)]
-            v = d.groupby(["c", "fold"])["uar"].var(ddof=1).median()
+            v = d.groupby(["c", "fold"])["uar"].var(ddof=1).mean()
             out[(s, K)] = float(2 * np.sqrt(v / n_units))
         out[(s, 0)] = out[(s, 1)]                                        # K=0 の比較の基準は出発点で種の揺れが無い
     return out
 
 
-def pick(g: pd.DataFrame, method: str, delta: float) -> tuple[dict, bool]:
-    """格子の点の平均 UAR が最大の点．δ 以内の点が複数なら選択なしの値に最も近い点（格子の番号の差の和）。"""
+def pick(g: pd.DataFrame, method: str, delta: float, default: dict) -> tuple[dict, bool]:
+    """格子の点の平均 UAR が最大の点．最良との差が δ 以内の点が複数なら，選択なしの値に最も近い点
+    （各つまみの格子の番号の差の和．それも同じなら番号の並びで先）。"""
     keys = [k for k, _ in GRIDS[method]]
+    grid = {k: list(v) for k, v in GRIDS[method]}
     g = g.copy()
     for k in keys:
-        g[k] = g[k].map(norm)
+        g[k] = g[k].map(num)
     m = g.groupby(keys)["uar"].mean()
     best = m.max()
-    cands = m[m >= best - delta].index
-    default = dai1.DEFAULTS[method]
-    pos = {k: vals for k, vals in GRIDS[method]}
+    cands = list(m[m >= best - delta].index)
 
-    def dist(ix):
-        ix = ix if isinstance(ix, tuple) else (ix,)
-        return (sum(abs(pos[k].index(v) - pos[k].index(norm(default[k]))) for k, v in zip(keys, ix)),
-                tuple(pos[k].index(v) for k, v in zip(keys, ix)))
-    chosen = min(cands, key=dist)
-    chosen = chosen if isinstance(chosen, tuple) else (chosen,)
-    argmax = m.idxmax()
-    argmax = argmax if isinstance(argmax, tuple) else (argmax,)
-    return ({k: v for k, v in zip(keys, chosen)} | {"pseudo_uar": float(m.loc[chosen if len(chosen) > 1 else chosen[0]])},
-            chosen != argmax)
+    def idx(k, v):
+        return min(range(len(grid[k])), key=lambda i: abs(grid[k][i] - v))
+
+    def as_t(ix):
+        return ix if isinstance(ix, tuple) else (ix,)
+    dflt = [idx(k, num(default[k])) for k in keys]
+    chosen = min(cands, key=lambda ix: (sum(abs(idx(k, v) - d) for k, v, d in zip(keys, as_t(ix), dflt)),
+                                        [idx(k, v) for k, v in zip(keys, as_t(ix))]))
+    am = m.idxmax()
+    return ({k: v for k, v in zip(keys, as_t(chosen))} | {"pseudo_uar": float(m.loc[chosen])}, as_t(chosen) != as_t(am))
 
 
-def main(out: Path) -> None:
+def main(out: Path, targets=DD.CORPORA) -> None:
+    if list((out / "eval" / "units").glob("*")) if (out / "eval" / "units").exists() else []:
+        sys.exit("評価の回の出力がすでにある．選ぶ段は評価の前にだけ流す（漏れの検査 L8）")
     sel_dir = out / "select"
     sel_dir.mkdir(parents=True, exist_ok=True)
-    frozen = {"_meta": {"time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "commit": subprocess.run(["git", "rev-parse", "HEAD"], cwd=dai1.ROOT, capture_output=True, text=True).stdout.strip(),
-                        "rule": "DAI/docs/実験1_設計.md 8 節"}}
-    for T in DD.CORPORA:
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=dai1.ROOT, capture_output=True, text=True).stdout.strip()
+    frozen = {"_meta": {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "commit": commit, "rule": "DAI/docs/実験1_設計.md 8 節",
+                        "partners": list(PARTNERS)}}
+    if list(targets) != list(DD.CORPORA):
+        frozen["_meta"]["partial_targets"] = list(targets)              # 試走だけ．本番は 4 つ全部
+    for T in targets:
         tw = json.load(open(out / "pseudo" / f"{T}_tether_w.json"))
-        p1, p3 = load(out, T, 1), load(out, T, 3)
-        n_units = p1[["c", "fold", "seed"]].drop_duplicates().shape[0]
+        p1, p2, p3 = load(out, T, 1), load(out, T, 2), load(out, T, 3)
+        seen = sorted({f"{c}_f{f}_r{r}" for c, f, r in p3[["c", "fold", "seed"]].drop_duplicates().itertuples(index=False)})
+        if seen != sorted(tw["units"]):
+            sys.exit(f"{T}: 読んだ単位が tether_w.json の一覧と違う")
+        n_units = len(seen)
         dsel = delta_sel(p1, tw["tether"], n_units)
-        d3 = p3[(p3.stage == 3) & p3.method.isin(list(GRIDS))]
         select, tie_used = {}, 0
+        d3 = p3[(p3.stage == 3) & p3.method.isin([m for m in GRIDS if m not in ("tgtonly", "kbias")])]
         for (s, K, method, ver), g in d3.groupby(["student", "K", "method", "teacher"]):
-            ch, used = pick(g, method, dsel[(s, int(K))])
+            if method == "joint_tether":                                  # 提案のために選んだ引き戻し（R4．記述）．既定は共有の値
+                cw0, cb0 = tw["tether"][f"{s}|{max(int(K), 1)}"]
+                dflt = {"Cw": cw0, "Cb": cb0}
+            else:
+                dflt = EXTRA_DEFAULTS.get(method) or dai1.DEFAULTS[method]
+            ch, used = pick(g, method, dsel[(s, int(K))], dflt)
             select[f"{s}|{int(K)}|{method}|{ver}"] = ch
             tie_used += int(used)
+            if method == "joint":                                         # 提案を K 本の倍率 1 に制限した版（比較の検査 C3）
+                ch1, _ = pick(g[g["a"].map(num) == 1.0], "joint", dsel[(s, int(K))], dai1.DEFAULTS["joint"])
+                select[f"{s}|{int(K)}|joint_a1|{ver}"] = ch1
+        for meth in ("tgtonly", "kbias"):
+            d1 = p1[(p1.stage == 1) & (p1.method == meth)]
+            for (s, K), g in d1.groupby(["kind", "K"]):
+                if s in DD.STUDENTS:
+                    ch, _ = pick(g, meth, dsel[(s, int(K))], EXTRA_DEFAULTS.get(meth) or dai1.DEFAULTS[meth])
+                    select[f"{s}|{int(K)}|{meth}|-"] = ch
         main_ver, partner = {}, {}
         for K in (0,) + DD.KS:
             ms = np.mean([select[f"{s}|{K}|joint|sel"]["pseudo_uar"] for s in DD.STUDENTS])
@@ -105,16 +132,34 @@ def main(out: Path) -> None:
             same = tuple(tw["w"][str(K)]) == (1.0, 1.0, 1.0)
             main_ver[str(K)] = "sel" if (not same and ms - mo > dm) else "one"
             for s in DD.STUDENTS:
-                v = main_ver[str(K)]
-                kd, ag = select[f"{s}|{K}|kd|{v}"]["pseudo_uar"], select[f"{s}|{K}|agree|{v}"]["pseudo_uar"]
-                partner[f"{s}|{K}"] = "agree" if ag - kd > dsel[(s, K)] else "kd"
-        frozen[T] = {"tether": tw["tether"], "w": tw["w"], "n_units": n_units,
+                cands = []
+                for pm in PARTNERS:
+                    vers = ["ct"] if pm == "cotrain" else ["sel", "one"]
+                    best_v = max(vers, key=lambda v: (select[f"{s}|{K}|{pm}|{v}"]["pseudo_uar"], v == "one"))   # 相手は自分の成績で版を選ぶ
+                    cands.append((select[f"{s}|{K}|{pm}|{best_v}"]["pseudo_uar"], pm, best_v))
+                top = max(c[0] for c in cands)
+                near = [c for c in cands if c[0] >= top - dsel[(s, K)]]
+                chosen = min(near, key=lambda c: PARTNERS.index(c[1]))   # 同点は PARTNERS の並びで先（蒸留 → 一致 → 混ぜる → 共訓練）
+                partner[f"{s}|{K}"] = {"method": chosen[1], "version": chosen[2], "pseudo_uar": chosen[0]}
+        # 指数を分割を 1 つずつ除いて選び直したときの一致（定義の検査 D13）
+        agree_w = {}
+        prod = p2[(p2.stage == 2) & (p2.method == "product")]
+        for K in (0,) + DD.KS:
+            hits = 0
+            for f in range(DD.N_FOLDS):
+                w_f = dai1.select_w(prod[prod.fold != f])
+                hits += int(tuple(w_f[K]) == tuple(tw["w"][str(K)]))
+            agree_w[str(K)] = hits
+        frozen[T] = {"tether": tw["tether"], "w": tw["w"], "w_lofo_agree_of5": agree_w, "n_units": n_units,
                      "delta_sel": {f"{s}|{K}": v for (s, K), v in dsel.items()},
                      "select": select, "main": main_ver, "partner": partner, "tie_rule_used": tie_used,
-                     "units": tw["units"]}
-        print(f"{T}: 単位 {n_units}，主の版 {main_ver}，同点の規則が働いたセル {tie_used}", flush=True)
+                     "units": tw["units"], "pseudo_commit": tw.get("commit", "")}
+        print(f"{T}: 単位 {n_units}，主の版 {main_ver}，同点の規則が働いたセル {tie_used}，指数の一致 {agree_w}", flush=True)
     json.dump(frozen, open(sel_dir / "frozen.json", "w"), indent=1, ensure_ascii=False)
-    fz = dai1.ROOT / "DAI" / "frozen"
-    fz.mkdir(exist_ok=True)
-    shutil.copy(sel_dir / "frozen.json", fz / "dai1_frozen.json")
-    print("書いた:", sel_dir / "frozen.json", "と", fz / "dai1_frozen.json")
+    h = hashlib.sha256(open(sel_dir / "frozen.json", "rb").read()).hexdigest()
+    print("書いた:", sel_dir / "frozen.json", "sha256", h)
+    if out.resolve().parent == (dai1.ROOT / "results").resolve():          # 本番の置き場のときだけ写しを置く（I8）
+        fz = dai1.ROOT / "DAI" / "frozen"
+        fz.mkdir(exist_ok=True)
+        shutil.copy(sel_dir / "frozen.json", fz / f"{out.name}_frozen.json")
+        print("写し:", fz / f"{out.name}_frozen.json")

@@ -41,6 +41,12 @@ def others(c: str) -> list[str]:
     return [x for x in CORPORA if x != c]
 
 
+# 同じ人物の別名と，複数の人の声（感情認識の査読者の A1．`data/README.md` 5.2 節）．DAI の実験だけに当てる
+AFEW_ALIAS = {"AFEW_Bradely_Cooper": "AFEW_Bradley_Cooper"}          # 公式の注釈の綴りの誤り（同じ俳優）
+MELD_ALIAS = {"Joey/Drake": "Joey", "Rachel/actress": "Rachel", "Phoebe/Waitress": "Phoebe", "Phoebe_Sr.": "Phoebe_Sr"}
+MELD_MULTI = {"All", "Both", "The_Guys"}                               # 誰の声か決まらないので発話ごと落とす（`_and_` と同じ扱い）
+
+
 def _afew_clusters(df: pd.DataFrame) -> pd.Series:
     """AFEW の俳優と作品のつながりでまとめた塊（同じ俳優が出る作品と，同じ作品に出る俳優を 1 つにまとめる）。"""
     man = pd.read_csv(common.META_DIR / "afew_utterance_manifest.csv", dtype=str, keep_default_na=False)
@@ -54,10 +60,11 @@ def _afew_clusters(df: pd.DataFrame) -> pd.Series:
             x = parent[x]
         return x
 
-    for sid, spk in zip(df["sample_id"], df["speaker_id"].astype(str)):
+    spk_all = df["speaker_id"].astype(str).replace(AFEW_ALIAS)
+    for sid, spk in zip(df["sample_id"], spk_all):
         mv = movie.get(sid, "") or f"nofilm:{sid}"
         parent[find("A:" + spk)] = find("M:" + mv)
-    return pd.Series([find("A:" + s) for s in df["speaker_id"].astype(str)], index=df.index)
+    return pd.Series([find("A:" + s) for s in spk_all], index=df.index)
 
 
 def clusters(corpus: str, df: pd.DataFrame) -> pd.Series:
@@ -65,6 +72,8 @@ def clusters(corpus: str, df: pd.DataFrame) -> pd.Series:
         return df["sample_id"].str.slice(0, 5)
     if corpus == "AFEW":
         return _afew_clusters(df)
+    if corpus == "MELD":
+        return df["speaker_group"].astype(str).replace(MELD_ALIAS)
     return df["speaker_group"].astype(str)
 
 
@@ -89,6 +98,10 @@ def load_corpus(corpus: str, enc: dict[str, str] = ENC1) -> tuple[pd.DataFrame, 
         else:
             assert (d.iloc[ix]["label_4"].to_numpy() == base["label_4"].to_numpy()).all()
     df = base[["sample_id", "speaker_id", "speaker_group", "label_4"]].copy()
+    if corpus == "MELD":
+        keep = ~df["speaker_group"].astype(str).isin(MELD_MULTI).to_numpy()
+        df = df[keep].reset_index(drop=True)
+        feats = {m: X[keep] for m, X in feats.items()}
     df["cluster"] = clusters(corpus, df).to_numpy()
     dlg = dialogue(corpus, df)
     df["dialogue"] = dlg.to_numpy() if dlg is not None else ""

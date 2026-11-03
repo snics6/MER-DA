@@ -65,3 +65,10 @@ DAI/**/*.log
 DAI/**/*.out
 DAI/**/*.toc
 DAI/**/*.synctex.gz
+
+# ---- DAI：検査役の試走の出力（大きい．報告と台本だけ入れる） ----
+DAI/checks/*/code_run/out/
+DAI/checks/*/code_run*/out/
+DAI/docs/*.aux
+DAI/docs/*.log
+DAI/docs/*.out

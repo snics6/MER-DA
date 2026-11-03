@@ -19,11 +19,14 @@ X は呼ぶ側で標準化してから渡す（計画 8.4 節の M9：同じ分�
 from __future__ import annotations
 
 import math
+import os
 
 import numpy as np
 import torch
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
+if DEV == "cuda":                                # WSL2 では空きブロックが GPU の全量に触ると遅くなる（memory: wsl2-cuda-allocator）
+    torch.cuda.set_per_process_memory_fraction(float(os.environ.get("MERDA_GPU_FRACTION", "0.6")))
 DT = torch.float64                               # 以前の学習器（exp/logreg.py）と同じく float64 で解く
 
 
@@ -56,11 +59,14 @@ HISTORY, ARMIJO, MAX_HALVING = 10, 1e-4, 50
 
 
 def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
-        Cw, Cb, fix_W: bool = False, max_iter: int = 20000, tol: float = 1e-6) -> dict:
+        Cw, Cb, fix_W: bool = False, max_iter: int = 20000, tol: float = 1e-6, G2=None, T2=None) -> dict:
     """G: (P, n, 4)．W0: (P, 4, d) か (4, d)．b0: (P, 4) か (4,)．Cw, Cb: 長さ P か数．
     問ごとに別々の履歴と歩幅を持つ L-BFGS（Armijo の後退）で，問ごとの勾配の最大絶対値が tol 以下になるまで解く
     （`exp/logreg.py` の fit_batch と同じ方式．1 本の L-BFGS でまとめると，曲がり方の違う問が履歴と歩幅を共有して収束が遅れる）．
-    戻り：W (P,4,d)，b (P,4)，n_iter（問ごとの反復の最大），grad_max（問ごとの勾配の最大絶対値の最大），grad_p，stalled（行き詰まった問の数）。"""
+    G2，T2 を渡すと，温度つき蒸留の項 T2² · Σ G2 · (−log softmax(z / T2)) を足す（Hinton ほか 2015．Albanie ほか 2018 は
+    教師と生徒の両方に温度 2）．S は G と G2 の重みの和．
+    戻り：W (P,4,d)，b (P,4)，n_iter（問ごとの反復の最大），grad_max（問ごとの勾配の最大絶対値の最大），grad_p（問ごと），
+    stalled（Armijo の後退を MAX_HALVING 回しても下がらなかったことがある問の数），stalled_p・n_iter_p（問ごと）。"""
     X = t(X)
     G = t(G)
     P, n, k = G.shape
@@ -69,7 +75,9 @@ def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
     b0 = t(b0).expand(P, k).contiguous() if t(b0).dim() == 1 else t(b0)
     Cw = t(np.broadcast_to(np.asarray(Cw, float), (P,)).copy())
     Cb = t(np.broadcast_to(np.asarray(Cb, float), (P,)).copy())
-    S = G.sum((1, 2)).clamp(min=1e-12)
+    G2 = None if G2 is None else t(G2)
+    T2 = None if T2 is None else t(np.broadcast_to(np.asarray(T2, float), (P,)).copy())
+    S = (G.sum((1, 2)) + (0 if G2 is None else G2.sum((1, 2)))).clamp(min=1e-12)
     lw = torch.where(torch.isinf(Cw), torch.zeros_like(Cw), 1.0 / (2 * Cw))
     lb = torch.where(torch.isinf(Cb), torch.zeros_like(Cb), 1.0 / (2 * Cb))
     kd = k * d
@@ -82,6 +90,9 @@ def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
         b = th[:, kd:]
         Z = torch.einsum("nd,pkd->pnk", X, W) + b[:, None, :]
         nll = -(sel(G) * torch.log_softmax(Z, 2)).sum((1, 2))
+        if G2 is not None:
+            tt2 = sel(T2)[:, None, None]
+            nll = nll - (sel(T2) ** 2) * (sel(G2) * torch.log_softmax(Z / tt2, 2)).sum((1, 2))
         reg = sel(lw) * ((W - sel(W0)) ** 2).sum((1, 2)) + sel(lb) * ((b - sel(b0)) ** 2).sum(1)
         f = (nll + reg) / sel(S)
         (g,) = torch.autograd.grad(f.sum(), th)
@@ -153,9 +164,12 @@ def fit(X: torch.Tensor, G: torch.Tensor, W0: torch.Tensor, b0: torch.Tensor,
         n_iter += moved.long()
         active = moved & (grad.abs().amax(1) > tol)
     gp = grad.abs().amax(1)
+    finite = torch.isfinite(gp) & torch.isfinite(theta).all(1) & torch.isfinite(f)
     W = W0.clone() if fix_W else theta[:, :kd].view(P, k, d).clone()
     return {"W": W, "b": theta[:, kd:].clone(), "n_iter": int(n_iter.max()), "grad_max": float(gp.max()),
-            "grad_p": gp.cpu().numpy(), "stalled": int(stalled.sum()), "ok": bool(float(gp.max()) <= 10 * tol)}
+            "grad_p": gp.cpu().numpy(), "stalled": int(stalled.sum()), "stalled_p": stalled.cpu().numpy(),
+            "n_iter_p": n_iter.cpu().numpy(), "finite_p": finite.cpu().numpy(),
+            "ok": bool(float(gp.max()) <= 10 * tol) and bool(finite.all())}
 
 
 def logits(X: torch.Tensor, W: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -197,7 +211,7 @@ def selftest() -> None:
         bb = r["b"][0].cpu().numpy(); skb = sk.intercept_
         db = float(np.abs((bb - bb.mean()) - (skb - skb.mean())).max())
         print(f"C={C}: W の差の最大 {dW:.2e}，b の差の最大 {db:.2e}，反復 {r['n_iter']}，勾配 {r['grad_max']:.1e}")
-        assert dW < 1e-3 and db < 1e-3, "scikit-learn と解が違う"
+        assert dW < 5e-5 and db < 5e-5, "scikit-learn と解が違う"
     # 引き戻し：Cw→0 で W0 に一致，fix_W で W が動かない
     W0 = torch.randn(4, d); b0 = torch.randn(4)
     G = balanced_onehot(y, np.arange(50), n)[None]
@@ -205,6 +219,17 @@ def selftest() -> None:
     assert float((r["W"][0].cpu() - W0.to(r["W"].dtype)).abs().max()) < 1e-4
     r = fit(t(Xs), G, W0, b0, Cw=1.0, Cb=1.0, fix_W=True)
     assert float((r["W"][0].cpu() - W0.to(r["W"].dtype)).abs().max()) == 0.0
+    # 温度の項：T2 = 1 なら G2 を G に足したのと同じ最小点（G2 の実装の検算）
+    G1 = balanced_onehot(y, np.arange(100), n)[None]
+    Q = torch.softmax(t(rng.normal(size=(n, 4))), -1)[None] * 0.5
+    ra = fit(t(Xs), G1, W0, b0, Cw=0.3, Cb=1.0, G2=Q, T2=[1.0], tol=1e-8)
+    rb = fit(t(Xs), G1 + Q, W0, b0, Cw=0.3, Cb=1.0, tol=1e-8)
+    dd = float((ra["W"] - rb["W"]).abs().max())
+    print(f"温度 1 の蒸留の項と足し合わせの差の最大 {dd:.1e}")
+    assert dd < 1e-6
+    # 温度 2 でも許容の勾配まで収束する
+    rc = fit(t(Xs), G1, W0, b0, Cw=0.3, Cb=1.0, G2=Q, T2=[2.0], tol=1e-9)
+    assert rc["grad_max"] < 1e-8
     print("selftest: 通った")
 
 
