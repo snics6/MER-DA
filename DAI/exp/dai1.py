@@ -625,8 +625,12 @@ def check_eval_gate(frozen_rel: str) -> str:
         if not fp.exists() or sha(fp) != h or not committed_clean(fp):
             sys.exit(f"eval_gate.json の {rel} が無いか，sha256 が違うか，コミットされていない")
     # 実験 1〜3 のそれぞれで，査読者 2 人と関門 5 体の「最新の版の」報告が OK・通すであること（DAI/CLAUDE.md の規則．m64）
+    folders = {"DAI-1": ("DAI/checks/DAI-1/",), "DAI-2": ("DAI/checks/DAI-2_3/", "DAI/checks/DAI-2/"),
+               "DAI-3": ("DAI/checks/DAI-2_3/", "DAI/checks/DAI-3/")}             # 実験ごとの報告の置き場を台本に固定（比較の検査の 4 回目）
     for exp_name, files in gate["approvals"].items():
         for role in APPROVAL_ROLES:
+            if not files[role].startswith(folders[exp_name]):
+                sys.exit(f"{exp_name} の {role} の報告 {files[role]} が実験の置き場 {folders[exp_name]} に無い")
             fp = ROOT / files[role]
             if fp.as_posix() not in {(ROOT / r).as_posix() for r in req}:
                 sys.exit(f"{exp_name} の {role} の報告が required に無い")
@@ -638,10 +642,13 @@ def check_eval_gate(frozen_rel: str) -> str:
             word = "OK" if role.startswith("review_") else "通す"
             # 共有の報告（DAI-2_3）は実験ごとの行「判定（DAI-2）：通す」で確かめる．実験の名前の無い「判定：通す」は報告の全部に当たる．
             # 関門の書式「## 判定」の次の行が「通す」で始まる形も認める（m92）
-            ok = rf"^判定(?:（{re.escape(exp_name)}）)?[：:]\s*\**{word}(?:\**)?(?:$|[．。（\s])"
-            sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（\s])", head, re.M)
-            if exp_name != "DAI-1" and "DAI-2_3" in files[role]:
-                sec = None                                              # 共有の報告は実験ごとの行だけで確かめる
+            shared = "DAI-2_3" in files[role]
+            if shared:                                                  # 共有の報告は実験ごとの行「判定（DAI-2）：…」だけを読む（m102）
+                ok = rf"^判定（{re.escape(exp_name)}）[：:]\s*\**{word}(?:\**)?(?:$|[．。（\s])"
+                sec = None
+            else:
+                ok = rf"^判定(?:（{re.escape(exp_name)}）)?[：:]\s*\**{word}(?:\**)?(?:$|[．。（\s])"
+                sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（\s])", head, re.M)
             if not re.search(ok, head, re.M) and not sec:
                 sys.exit(f"{exp_name} の {role} の報告（{files[role]}）が「判定：OK」（関門は「判定：通す」）でない")
     if set(gate["approvals"]) != {"DAI-1", "DAI-2", "DAI-3"}:

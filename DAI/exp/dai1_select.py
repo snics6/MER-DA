@@ -134,7 +134,18 @@ def select_T(tw: dict, p1: pd.DataFrame, p2: pd.DataFrame, p3: pd.DataFrame, n_u
             near = [c for c in cands if c[0] >= top - dsel[(s, K)]]
             chosen = min(near, key=lambda c: PARTNERS.index(c[1]))
             partner[f"{s}|{K}"] = {"method": chosen[1], "version": chosen[2], "pseudo_uar": chosen[0]}
-    return dict(dsel=dsel, select=select, main=main_ver, partner=partner, tie_family=tie_family, tie_extra=tie_extra)
+    # 格子の端を選んだセルの数（手法ごと．比較の検査の 3・4 回目）
+    edge = {}
+    for key, ch in select.items():
+        meth = key.split("|")[2]
+        gm = "joint" if meth == "joint_a1" else meth
+        if gm not in GRIDS:
+            continue
+        hit = any(num(ch[k]) in (float(min(v)), float(max(v))) for k, v in GRIDS[gm] if len(v) > 1 and k in ch)
+        edge.setdefault(meth, [0, 0])
+        edge[meth][0] += int(hit); edge[meth][1] += 1
+    return dict(dsel=dsel, select=select, main=main_ver, partner=partner, tie_family=tie_family, tie_extra=tie_extra,
+                grid_edge=edge)
 
 
 def main(out: Path, targets=DD.CORPORA) -> None:
@@ -171,6 +182,7 @@ def main(out: Path, targets=DD.CORPORA) -> None:
                      "delta_sel": {f"{s}|{K}": v for (s, K), v in r["dsel"].items()},
                      "select": r["select"], "main": r["main"], "partner": r["partner"],
                      "tie_rule_used_family": r["tie_family"], "tie_rule_used_extra": r["tie_extra"],
+                     "grid_edge_cells": r["grid_edge"],
                      "units": tw["units"], "pseudo_commit": tw.get("commit", "")}
         print(f"{T}: 単位 {n_units}，同点の規則が働いたセル 族 {r['tie_family']}・ほか {r['tie_extra']}，指数の一致 {agree_w}", flush=True)
     json.dump(frozen, open(sel_dir / "frozen.json", "w"), indent=1, ensure_ascii=False)
