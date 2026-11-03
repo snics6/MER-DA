@@ -660,7 +660,7 @@ def values_group(run, T, p, cv, chT, st, K, comp, nls, C, Wj, need_jk, sess, Wj_
                     if Wj_s is not None:
                         res["S"][(rule, q)] = np.zeros(Wj_s.shape[0])
                 else:
-                    KBn, KBm, nb, nb_lo, nb_up, flb, (mb_lo, mb_up) = read_bounds(cv["B"][q], logk, B_n[q], B_m[q], BETTER_HIGH[q])
+                    KBn, KBm, nb, nb_lo, nb_up, flb, (mb_lo, mb_up), _ = read_bounds(cv["B"][q], logk, B_n[q], B_m[q], BETTER_HIGH[q])
                     res["B"][(rule, q)], res["LB"][(rule, q)], res["UB"][(rule, q)] = nb, nb_lo, nb_up
                     res["MLB"][(rule, q)], res["MUB"][(rule, q)] = mb_lo, mb_up                     # 手法の読みだけの限り（直接の差に使う）
                     res["mmask"][(rule, q)] = pack_mask({k: flb[k] for k in ("lo_method", "hi_method", "amb_method")})
