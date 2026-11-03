@@ -9,8 +9,10 @@
   単位：（比較，世界，配備する分類器，K，コーパス）．抽出の種は（種，コーパス）だけで，世界と比較相手で共有する．
   コーパスの値：世界の平均（複製も平均）．区間は百分位と，G_eff < 20 なら jackknife の t 区間との和集合．
   族：読めるコーパスの中央値．複製は，G_eff < 20 のコーパスの複製を jackknife の幅まで広げてから中央値．抽出の中の打ち切りが 2.5% を超える区間は使わない．
+  限り：読みごとに本当の本数の下限（最初の読み．下に打ち切られていれば 0）と上限（最後の読み＝右から整えた曲線で読む．最初か最後が上に打ち切られていれば 1e6）．
+       直接の差（A − B）は手法の読みだけの限り（none を選んだ群は none の読みを手法の読みとして引き継ぐ．両方が none なら 0）．
   判定：予言ごとに当たり・外れ・判定できない（P87-2 は負も）．読めるコーパスの区分が決まったら，読めないコーパスも入れて各コーパス・各抽出の読みを
-       不等式ごとに不利な側の限り（下の打ち切り：[0, 1)，上の打ち切り：K_all 以上，あいまい：最初と最後の読みの間）に置いても同じ側なら確定にする．
+       不等式ごとに不利な側の限りに置いても同じ側なら確定にする（包絡は不利な側の点の限りのまわりで jackknife の倍率 r で広げる．点の限りが 1e6/8 以上なら記録した点が中心）．
        抽出の中の印は種類別に残し，区間が使える基準（2.5%）は上の打ち切りとあいまいに当てる．
 
 使い方：./.venv/bin/python exp/analyze_value_split_e87.py [--out results/e87] [--curve-root results/e87_tgtonly] [--boot 1000] [--runs ...] [--targets ...] [--smoke]
@@ -1553,7 +1555,7 @@ def main():
                           "final_status": "読めるコーパスの区分が当たり・外れ・負のとき，読めないコーパスも入れて各コーパス・各抽出を不等式ごとに不利な側の限りに置いても同じ側なら確定（*_final）．そうでなければ undet_censoring",
                           "draws": "種は (seed, crc32(コーパス))．話者の多項分布 (B, nls) と反復の多項分布 (B, R)．世界と比較相手で共有",
                           "corpus_value": "世界の単位の平均（複製・jackknife も平均）．区間は百分位と，G_eff < 20 なら jackknife の t 区間の和集合",
-                          "family": "読めるコーパスの中央値．複製は G_eff < 20 のコーパスの記録した複製を記録した点のまわりで jackknife の幅まで広げ（倍率 r），複製ごとに中央値．包絡は不利な側の点の限りのまわりで同じ倍率で広げる（L ＝ pt_up ＋ r·(LB − pt_up)，U ＝ pt_lo ＋ r·(UB − pt_lo)）．読めるコーパスのそれぞれで上の打ち切り・あいまいの割合が CENS_DRAW_MAX を超えれば区間は使わない",
+                          "family": "読めるコーパスの中央値．複製は G_eff < 20 のコーパスの記録した複製を記録した点のまわりで jackknife の幅まで広げ（倍率 r），複製ごとに中央値．包絡は不利な側の点の限りのまわりで同じ倍率で広げる（L ＝ pt_up ＋ r·(LB − pt_up)，U ＝ pt_lo ＋ r·(UB − pt_lo)．点の限りの絶対値が 1e6/8 以上（上の打ち切りが混ざった平均）なら記録した点を中心にする）．読めるコーパスのそれぞれで上の打ち切り・あいまいの割合が CENS_DRAW_MAX を超えれば区間は使わない",
                           "judgment": "予言ごとに holds / fails / undet（P87-2 は neg も）．final は上の final_status の規則．外れは 1 つの条件が限りでも成り立つときだけ",
                           "QUANTS_B": list(QUANTS_B), "QUANTS_PT": list(QUANTS_PT), "DIFFS": list(DIFFS), "DS": list(DS), "BETTER_HIGH": BETTER_HIGH, "KS": list(KS), "REPS": list(REPS),
                           "SEEDED": sorted(E.SEEDED), "PARTIAL_SELECTORS": E.PARTIAL_SELECTORS, "EXCL_MA": list(EXCL_MA), "family_min_readable": "max(2, ceil(名目のコーパス数/2))",
