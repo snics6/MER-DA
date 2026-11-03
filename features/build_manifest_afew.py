@@ -38,6 +38,18 @@ XML には `NameOfActor` がある。
 
 **`NameOfActor` が数字なら入れ替える。**
 
+## 書き起こし（2026-11-04 から）
+
+AFEW には人の書き起こしが無い。`features/build_transcript_afew.py` が Whisper large-v3 で
+作った表 `data/metadata/afew_transcript_whisper.csv`（git に入れてある）を `sample_id` で
+突き合わせ，`transcript` 列を埋める。出所は `transcript_source` 列に `whisper-large-v3` と書く。
+表が無ければ `transcript` は空のままにする（言葉の特徴は作られない）。
+
+**英字も数字も含まない出力は空にする。**Whisper は声を拾えない発話で，点の並び（`. . . .`）や
+音符の記号（`🎵 🎵`）を出す（4 クラスの 795 本のうち 5 本）。これは「声が無い」という印であって
+話された言葉ではないので，人の書き起こしが空の発話と同じく，言葉の特徴を作らない。
+元の出力は書き起こしの表にそのまま残す。
+
 使い方:
 
     ./.venv/bin/python features/build_manifest_afew.py --check
@@ -61,6 +73,10 @@ ROOT = Path("/mnt/d/Databases/AFEW")
 SPLITS = {"train": ("TRAIN", "Train_6.xml"), "val": ("VAL", "Val_6.xml")}
 
 EMO4 = {"Angry": 3, "Happy": 1, "Neutral": 0, "Sad": 2}
+
+# Whisper の書き起こし（features/build_transcript_afew.py が作る．git に入れる）
+TRANSCRIPT = common.META_DIR / "afew_transcript_whisper.csv"
+TRANSCRIPT_SOURCE = "whisper-large-v3"
 
 
 def clip_id(start_time: str) -> str:
@@ -134,6 +150,31 @@ def build() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def attach_transcript(df: pd.DataFrame) -> pd.DataFrame:
+    """Whisper の書き起こしを `sample_id` で突き合わせて `transcript` 列に入れる。"""
+    df = df.copy()
+    if not TRANSCRIPT.is_file():
+        print(f"**書き起こしの表が無い: {TRANSCRIPT.name}．transcript は空のまま**")
+        df["transcript_source"] = ""
+        return df
+    # **既定の欠損の読み替えを切る。**"None" や "NA" という文を欠損にしないため
+    t = pd.read_csv(TRANSCRIPT, dtype=str, keep_default_na=False)
+    if t["sample_id"].duplicated().any():
+        raise SystemExit(f"{TRANSCRIPT.name} の sample_id が重複している")
+    # 英字も数字も含まない出力（点の並び・音符の記号）は声が無い印なので空にする
+    words = t["transcript_asr"].str.contains(r"[A-Za-z0-9]", regex=True)
+    m = dict(zip(t["sample_id"], t["transcript_asr"].where(words, "")))
+    hit = df["sample_id"].isin(m)
+    df["transcript"] = df["sample_id"].map(m).fillna("")
+    i = df.columns.get_loc("transcript") + 1
+    df.insert(i, "transcript_source", "")
+    df.loc[hit, "transcript_source"] = TRANSCRIPT_SOURCE
+    print(f"書き起こしを付けた: {int(hit.sum())} / {len(df)} 本"
+          f"（英字も数字も含まないので空にした {int((~words).sum())} 本）"
+          f"・表にだけある行 {int((~t['sample_id'].isin(df['sample_id'])).sum())}")
+    return df
+
+
 def report(df: pd.DataFrame) -> None:
     print(f"\n=== AFEW: {len(df)} 本 ===")
     print(f"sample_id の重複: {int(df['sample_id'].duplicated().sum())} 件")
@@ -173,7 +214,7 @@ def main() -> None:
 
     if not ROOT.is_dir():
         raise SystemExit(f"生データが無い: {ROOT}")
-    df = build()
+    df = attach_transcript(build())
     report(df)
     if not args.check:
         out = common.META_DIR / "afew_utterance_manifest.csv"

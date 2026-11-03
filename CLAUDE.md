@@ -50,7 +50,7 @@
 9. **エンコーダは微調整していないものだけ**
 
 群は `IEMOCAP-impro / IEMOCAP-script / MOSEI / MELD / AFEW / RAVDESS / CREMA-D` の 7 つ．
-映像は RAVDESS に無く，言葉は AFEW・RAVDESS・CREMA-D に無い．
+映像は RAVDESS に無く，言葉は RAVDESS・CREMA-D に無い．**AFEW の言葉だけは人ではなく Whisper large-v3 の書き起こしから作る**（2026-11-04〜．`data/README.md` 3 節）．
 
 ---
 
@@ -62,8 +62,8 @@
 | `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`・`gate-code`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節）と，新しい定理を探す担当の定義（`thm-unexplained`・`thm-open-problems`・`thm-claim`・`thm-screen`・`thm-deep`・`thm-check`．手順は同 10 節）．2026-10-28〜 | ○ |
 | `checks/` | 検査役の報告（`checks/<E 番号>/<役>.md`） | ○ |
 | `A theory of learning from different domains.pdf` | 中核の理論の論文（Ben-David 2010） | ○ |
-| `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本） | ○ |
-| `data/cache/*.npz` | 特徴 28 本（1.1 GB）．消えたら `run/build_data.sh` で作り直す | × |
+| `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本），AFEW の Whisper の書き起こし `afew_transcript_whisper.csv` | ○ |
+| `data/cache/*.npz` | 特徴 30 本（1.1 GB）．消えたら `run/build_data.sh` で作り直す | × |
 | `data/cache/faces_*.csv.gz` | 顔の座標．**消さない** | ○ |
 | `features/` | 発話一覧と特徴を作るコード | ○ |
 | `measure/` | 読み込み（`data.py`）・話者分割（`split.py`）・ずれの指標（`shift.py`）・ずれを消す操作（`ablate.py`）・その検算（`test_shift.py`）・監査 | ○ |

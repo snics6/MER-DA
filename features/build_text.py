@@ -1,16 +1,20 @@
 """言葉の特徴を作る。文字起こし → 事前学習済みの言語モデル → 単語方向に平均。
 
-    マニフェストの transcript（人が書き起こした文）
+    マニフェストの transcript（人が書き起こした文．AFEW だけ Whisper の書き起こし）
          → トークンに分ける（上限 256）
          → RoBERTa-base（または DeBERTa-v3-base）に通す
          → 単語方向に平均（詰め物の部分は除く）→ 768 次元
 
-**文字起こしはすべて人が書いたもの**で，音声認識の出力ではない。出所は
+**IEMOCAP・MOSEI・MELD の文字起こしは人が書いたもの**である。出所は
 IEMOCAP が公式の `transcriptions/`，MELD が公式 CSV の `Utterance` 列，
 MOSEI が CMU 配布の `label.csv` の `text` 列である。
 
-**AFEW には文字起こしが 1 件も無い**（795 件すべて空）。この場合は特徴を作らず
-`ok = False` とする。**前身は空文字をトークンに変換して，開始記号と終了記号だけの
+**AFEW には人の文字起こしが無いので，Whisper large-v3 で書き起こした文を使う**
+（`features/build_transcript_afew.py`．2026-11-04 から．発話一覧の `transcript_source` 列が
+`whisper-large-v3`）。ほかのコーパスと同じく，そのまま特徴にする。
+
+**文字起こしが空の発話は特徴を作らず `ok = False` とする**（Whisper が声を拾えなかった
+AFEW の発話など）。**前身は空文字をトークンに変換して，開始記号と終了記号だけの
 平均を特徴として保存していた**が，それは言葉の情報を何も含まないので改めた。
 
 **RAVDESS と CREMA-D は，この抽出の対象にしない。**俳優が同じ文を感情だけ変えて
@@ -141,7 +145,7 @@ def main() -> None:
 
     kind = f"text_{common.TEXT_MODELS[args.model]}" + (
         "" if args.level == 1 else f"_L{args.level}")
-    # 転写があるのは 3 つだけ（AFEW は 0 件・RAVDESS と CREMA-D は固定文）
+    # 言葉を作るのは 4 つ（AFEW は Whisper の書き起こし・RAVDESS と CREMA-D は固定文なので作らない）
     targets = list(common.CORPORA_TEXT) if args.corpus == "all" else [args.corpus]
 
     if args.merge:

@@ -19,7 +19,7 @@ CACHE_DIR = ROOT / "data" / "cache"
 PARTS_DIR = CACHE_DIR / "parts"
 WEIGHTS_DIR = ROOT / "weights"
 
-# 元からある 4 つ。映像・音声・（AFEW を除き）言葉が揃っている。
+# 元からある 4 つ。映像・音声・言葉が揃っている（AFEW の言葉は Whisper の書き起こし．2026-11-04〜）。
 CORPORA = ("IEMOCAP", "MOSEI", "MELD", "AFEW")
 
 # 検出力のために足した 2 つ。俳優が同じ文を感情だけ変えて読むコーパス。
@@ -28,9 +28,10 @@ CORPORA_EXTRA = ("RAVDESS", "CREMA-D")
 
 CORPORA_ALL = CORPORA + CORPORA_EXTRA
 
-# **転写があるのはこの 3 つだけ。**AFEW には 1 件も無く，RAVDESS と CREMA-D は
-# 読む文が 2 種類・12 種類しかないので，言葉からは感情の手がかりが得られない。
-CORPORA_TEXT = ("IEMOCAP", "MOSEI", "MELD")
+# **言葉の特徴を作るのはこの 4 つ。**IEMOCAP・MOSEI・MELD は人の書き起こし，AFEW は
+# Whisper large-v3 の書き起こし（features/build_transcript_afew.py．2026-11-04 に足した）。
+# RAVDESS と CREMA-D は読む文が 2 種類・12 種類しかないので，言葉からは感情の手がかりが得られない。
+CORPORA_TEXT = ("IEMOCAP", "MOSEI", "MELD", "AFEW")
 
 # label_4 の整数値と名前の対応。0=Neutral, 1=Happy, 2=Sad, 3=Angry。
 LABELS = ("Neutral", "Happy", "Sad", "Angry")

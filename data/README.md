@@ -8,7 +8,8 @@
 |---|---|---|---|
 | `data/metadata/*_utterance_manifest.csv` | 発話一覧 6 本．**ラベルと話者の正本**（3 節） | 15 MB（下の対応表を含む） | 入れる |
 | `data/metadata/mosei_channel_map.csv` | MOSEI の動画 ID と YouTube チャンネル ID の対応表（3 節） | 42 KB | 入れる |
-| `data/cache/*.npz` | 特徴 28 本（4 節） | 1.1 GB | 入れない |
+| `data/metadata/afew_transcript_whisper.csv` | AFEW の Whisper large-v3 の書き起こし（3 節） | 168 KB | 入れる |
+| `data/cache/*.npz` | 特徴 30 本（4 節） | 1.1 GB | 入れない |
 | `data/cache/faces_*.csv.gz` | 顔検出の結果 5 本（4 節）．**消さない** | 17.6 MB | 入れる |
 | `data/cache/parts/` | 抽出の途中保存．抽出中にだけ生じ，統合済みの npz があれば要らない | 1.1 GB 規模 | 入れない |
 | `data/weights.sha256` | 重み 2 本の sha256（5 節） | — | 入れる |
@@ -25,11 +26,11 @@
 
 1. **ラベルは `data/metadata/*.csv` から貼り直す．npz の `label_4` は使わない．**
    npz の `label_4` には抽出した時点のマニフェストの値が保存されており，マニフェストを直しても古い値のまま残る．
-   実際，`video_IEMOCAP.npz` の `label_4` は現行のマニフェストと 5,531 件中 1,767 件で食い違う（2026-10-08 に照合した．他の 27 本は全件一致した）．
+   実際，`video_IEMOCAP.npz` の `label_4` は現行のマニフェストと 5,531 件中 1,767 件で食い違う（2026-10-08 に照合した．他の 27 本は全件一致した．2026-11-04 に足した AFEW の言葉 2 本も全件一致した）．
    前身の研究ではマニフェスト自体が壊れており，IEMOCAP の 57% に誤ったラベルが付いていた（3 節「前身のマニフェストにあった誤り」）．
    `load_group` はマニフェストと `sample_id` で突き合わせ，ラベルと話者を取り直す．
 2. **`sample_id` で並べ直す．行番号で標本を選ばない．**
-   npz 28 本のうち 27 本は `load_manifest()` が返す行の順に並んでいる．`video_IEMOCAP.npz` だけは古いマニフェスト（9,169 行）から作ったので，行数も順序も現行のマニフェスト（5,531 行）と違う（現行の 5,531 件はすべて含まれている）．
+   npz 30 本のうち 29 本は `load_manifest()` が返す行の順に並んでいる．`video_IEMOCAP.npz` だけは古いマニフェスト（9,169 行）から作ったので，行数も順序も現行のマニフェスト（5,531 行）と違う（現行の 5,531 件はすべて含まれている）．
    抽出をやり直せば順序が変わりうるので，K-shot の抽出などで行番号に頼ると結果を再現できない．`load_group` は最後に `sample_id` の昇順に並べ直す．
 3. **`ok` が偽の行と，特徴に NaN・Inf を含む行は落とす．**
    抽出に失敗した行の特徴は NaN で埋めてあり，理由は `fail_reason` に入っている（件数は 2 節）．
@@ -72,11 +73,12 @@ IEMOCAP-impro / IEMOCAP-script / MOSEI / MELD / AFEW / RAVDESS / CREMA-D
 | IEMOCAP-script | ○ | ○ | ○ |
 | MOSEI | ○ | ○ | ○ |
 | MELD | ○ | ○ | ○ |
-| AFEW | ○ | ○ | ×（転写が無い） |
+| AFEW | ○ | ○ | ○（Whisper の書き起こし．2026-11-04〜） |
 | RAVDESS | ×（特徴を作っていない．7 節） | ○ | ×（読む文が 2 種類） |
 | CREMA-D | ○ | ○ | ×（読む文が 12 種類） |
 
-映像は 6 群，音声は 7 群，言葉は 4 群で使える．複数モダリティを連結するときは，すべてのモダリティがそろう群と発話だけを使う（音声と映像の連結は 6 群，言葉を含む連結は 4 群）．
+映像は 6 群，音声は 7 群，言葉は 5 群で使える．複数モダリティを連結するときは，すべてのモダリティがそろう群と発話だけを使う（音声と映像の連結は 6 群，言葉を含む連結は 5 群）．
+言葉は 2026-11-04 に AFEW を足すまで 4 群だった．それより前に計算した言葉を含む結果は 4 群のものである．
 どの群でどのモダリティを使えるかは `measure/data.py` の `has_modality` と `groups_for` が決める．
 
 ### 測定に入る件数
@@ -89,12 +91,12 @@ IEMOCAP-impro / IEMOCAP-script / MOSEI / MELD / AFEW / RAVDESS / CREMA-D
 | IEMOCAP-script | 2,549 | 2,549 | 2,588 | 2,588 | 2,588 | 2,588 |
 | MOSEI | 18,634 | 18,634 | 18,919 | 18,919 | 18,919 | 18,919 |
 | MELD | 11,308 | 11,308 | 11,343 | 11,343 | 11,344 | 11,344 |
-| AFEW | 795 | 795 | 795 | 795 | — | — |
+| AFEW | 795 | 795 | 795 | 795 | 790 | 790 |
 | RAVDESS | — | — | 672 | 672 | — | — |
 | CREMA-D | 4,899 | 4,899 | 4,900 | 4,900 | — | — |
 
 クラス別の件数と話者群の数は次のとおりである（音声 WavLM）．
-ほかのエンコーダのクラス別の件数は，上の表の行数の差の分だけこれと違う（映像では顔を検出できなかった発話が抜け，MELD の言葉では音声の抽出に失敗した 1 発話が加わる）．
+ほかのエンコーダのクラス別の件数は，上の表の行数の差の分だけこれと違う（映像では顔を検出できなかった発話が抜け，MELD の言葉では音声の抽出に失敗した 1 発話が加わり，AFEW の言葉では Whisper が声を拾えなかった 5 発話が抜ける）．
 
 | 群 | 話者群 | Neutral | Happy | Sad | Angry |
 |---|---:|---:|---:|---:|---:|
@@ -123,16 +125,16 @@ MOSEI の話者群 2,626 の多くは人物ではなく動画 ID である（3 �
 | `video_clip_AFEW` | 795 | 795 | |
 | `video_clip_CREMA-D` | 4,900 | 4,899 | 同 1 |
 | `audio_wavlm_*`・`audio_hubert_*` | IEMOCAP 5,531・MOSEI 18,919・MELD 11,352・AFEW 795・RAVDESS 672・CREMA-D 4,900 | 行数と同じ（MELD だけ 11,351） | MELD の 1 件が「音声を取り出せない」 |
-| `text_roberta_*`・`text_deberta_*` | IEMOCAP 5,531・MOSEI 18,919・MELD 11,352 | 行数と同じ | |
+| `text_roberta_*`・`text_deberta_*` | IEMOCAP 5,531・MOSEI 18,919・MELD 11,352・AFEW 795 | 行数と同じ（AFEW だけ 790） | AFEW の 5 件が「文字起こしが無い」（3 節「AFEW の書き起こし」） |
 
-`video_*` 5 本，`video_clip_*` 5 本，`audio_*` 12 本，`text_*` 6 本の計 28 本である．
-`video_IEMOCAP` 以外の 27 本の行数は，3 節の「使う行」と一致する．
+`video_*` 5 本，`video_clip_*` 5 本，`audio_*` 12 本，`text_*` 8 本の計 30 本である（`text_*_AFEW` の 2 本は 2026-11-04 に足した）．
+`video_IEMOCAP` 以外の 29 本の行数は，3 節の「使う行」と一致する．
 
 ---
 
 ## 3. 発話一覧（マニフェスト）
 
-`data/metadata/` には，発話一覧 6 本と MOSEI のチャンネル対応表 1 本がある．
+`data/metadata/` には，発話一覧 6 本と，MOSEI のチャンネル対応表 1 本と，AFEW の Whisper の書き起こし 1 本がある．
 発話一覧は 1 行が 1 発話で，動画と音声の場所，話者，ラベル，転写を持つ．
 6 本とも本リポジトリのコードが生データから作ったものであり，前身の研究が作った CSV は使っていない．
 `features/common.py` の `load_manifest()` が発話一覧を読み，特徴の抽出はその行順で行う．
@@ -174,12 +176,13 @@ MELD は `label_4` のある行が 11,353 あるが，`val_dia110_utt7` の 1 �
 | `marker_side` | IEMOCAP だけ．モーションキャプチャのマーカーを付けた人の性別．発話者が画面の左右どちらに映るかを決めるのに使う（`common.speaker_side`） |
 | `path_video` | 映像ファイル．無ければ空（RAVDESS は全 1,440 行が空．7 節） |
 | `path_audio` | 音声ファイル．IEMOCAP・RAVDESS・CREMA-D は wav を持ち，MOSEI・MELD・AFEW は空．空のときは `path_video` から ffmpeg で取り出す |
-| `transcript` | 人が書き起こした文．AFEW は全件空 |
+| `transcript` | 書き起こした文．IEMOCAP・MOSEI・MELD は人が書いたもの，AFEW は Whisper large-v3 の出力（下の「転写の出所」） |
 | `exclude` | `false` 以外の行は落とされる（いまは全行 `false`） |
 
 `load_manifest()` が読まない列も残してある．元の感情は全コーパスで `emotion_raw` に入っており，IEMOCAP の happy と excited はこの列で区別できる．
 RAVDESS と CREMA-D は感情の強さを `emotion_intensity` に持つ．
 MOSEI は話者の出所を `speaker_source`（`youtube_channel` か `video_id_fallback`），AFEW は `speaker_source`（`actor` か `film`）に持つ．
+AFEW は書き起こしの出所を `transcript_source`（`whisper-large-v3`）に持つ．
 
 ### ラベルの決め方
 
@@ -199,14 +202,14 @@ RAVDESS の `sample_id` は，ファイル名の 7 つの数字から先頭（�
 
 ### 転写の出所
 
-転写はすべて人が書いたものであり，音声認識の出力ではない．
+IEMOCAP・MOSEI・MELD の転写は人が書いたものである．AFEW には人の転写が無いので，音声認識（Whisper large-v3）の出力を使う（2026-11-04 から）．
 
 | コーパス | 出所 |
 |---|---|
 | IEMOCAP | 公式配布の `transcriptions/` |
 | MELD | 公式 CSV の `Utterance` 列 |
 | MOSEI | CMU 配布の `label.csv` の `text` 列 |
-| AFEW | 無い（795 件すべて空） |
+| AFEW | `afew_transcript_whisper.csv`（Whisper large-v3．下の節） |
 | RAVDESS・CREMA-D | 読む文が固定（2 種類・12 種類）なので記録はするが，言葉の特徴は作らない |
 
 MELD の転写の 28.1% には文字化けがある（4 節「文字化けの修復」）．
@@ -218,6 +221,35 @@ MOSEI の生データには話者の注釈が無い．
 そこで取得結果を `video_id` と `channel_id` の 2 列，1,122 行の表として切り出して保存した．`features/build_manifest_mosei.py` はこの表を読むだけで，作り直さない．
 チャンネルが分かるのは 3,225 本中 1,122 本（35%）だけであり，残りの動画は動画 ID を話者の代わりにする．
 **このため MOSEI の話者分離は不完全である**（同じ人物の別の動画が，学習と評価に分かれて入りうる）．論文では限界として書く．
+
+### AFEW の書き起こし `afew_transcript_whisper.csv`
+
+AFEW には人の書き起こしが無いので，`features/build_transcript_afew.py` が Whisper large-v3 で書き起こした（2026-11-04．研究者の指示．`docs/researchvision.md` 6.1 節）．
+Ryumina ほか（2025，Pattern Recognition Letters 190）も，4 コーパスのうち AFEW だけを Whisper で書き起こしている．
+
+- 対象は発話一覧の全 1,156 行（4 クラスに入らない行を含む）である．
+- 音声は音声の特徴と同じく ffmpeg で 16kHz モノラルにし（`build_audio.decode`），正規化しない．
+- モデルは `openai/whisper-large-v3` で，版はコミット `06f233fe06e710322aca913c1bc4249a0d71fce1` である（表の `asr_model` 列）．計算は fp32 である．
+- 言語は英語に固定し，ビーム幅 5，サンプリングなしで解いた．同じ入力からは同じ文が出る．
+- GPU（RTX A5000）で 1,437 秒かかった．
+
+表の列は `sample_id`・`transcript_asr`（Whisper の出力そのまま）・`duration_sec`・`compression_ratio`・`asr_model` の 5 つである．
+**この表を正本にし，git に入れる．**`build_manifest_afew.py` がこの表を `sample_id` で突き合わせて発話一覧の `transcript` 列を埋め，`transcript_source` 列に `whisper-large-v3` と書く．
+Whisper を流し直すと GPU の丸めで文がまれに変わりうるので，`run/build_data.sh` は書き起こしを作り直さない．
+
+**書き起こしの誤りは測らず，出力をそのまま使う**（研究者の指示）．例外は 1 つだけで，英字も数字も含まない出力（点の並びと音符の記号）は声が無い印とみなして空にする．空の発話は言葉の特徴を作らない．
+4 クラスの 795 本についての内訳は次のとおりである．
+
+| 項目 | 本数 |
+|---|---:|
+| 書き起こしに英字か数字がある（言葉の特徴を作る） | 790 |
+| 英字も数字も含まないので空にした（点の並び 4，音符の記号 1） | 5 |
+| 同じ句のくり返しの疑い（圧縮率が 2.4 を超える．Whisper 自身が失敗とみなす基準） | 33 |
+| 「Thank you.」だけの文（くり返しを含む．声の無い区間で Whisper がよく作る文） | 6 |
+| 単語数の中央値・最大 | 6・200 |
+
+くり返しの例は，長さ 0.96 秒の発話に「I'm sorry.」が 50 回並ぶものである（くり返しの疑いの 33 本はどれも 4.4 秒以下）．言葉の特徴は単語方向の平均なので，同じ文のくり返しは 1 回ぶんの文とほぼ同じ特徴になる．
+書き起こしの記号は ASCII の `'` だけで，Unicode の引用符・ダッシュ・三点リーダは無い（4 節「記号の表記の違い」）．
 
 ### 前身のマニフェストにあった誤り
 
@@ -289,7 +321,7 @@ CLIP を選んだ理由は 2 つある．MERBench（Lian et al.）が同じ条�
 
 1. `transcript` を正規化の段階（下）に従って整える．**解析にはすべて L1 を使う．**
 2. 256 トークンを上限に切り（現行で切られたのは MOSEI の 5 件．`truncated`），RoBERTa-base（第 2 は DeBERTa-v3-base）の最終層の出力を，詰め物の部分を除いて単語方向に平均する（768 次元）．`n_token` には切った後のトークン数（開始記号と終了記号を含む）を記録する．
-3. 作るのは転写のある IEMOCAP・MOSEI・MELD だけである（`common.CORPORA_TEXT`）．AFEW には転写が無く，RAVDESS と CREMA-D は読む文が決まっていて感情の手がかりにならないので作らない．
+3. 作るのは転写のある IEMOCAP・MOSEI・MELD・AFEW である（`common.CORPORA_TEXT`．AFEW は 2026-11-04 に足した）．RAVDESS と CREMA-D は読む文が決まっていて感情の手がかりにならないので作らない．転写が空の発話は特徴を作らず，`ok` を偽にする．
 
 ### 言葉の正規化の段階
 
@@ -340,9 +372,10 @@ MELD の 6 つの塊の値（396・518・527・569・571・610）を足すと 3,
 | IEMOCAP | 5,531 | 4,194 | 0 | 0 | 0 | 0 | 0 | 0 |
 | MOSEI | 18,919 | 10,178 | 0 | 1,186 | 22 | 263 | 155 | 17 |
 | MELD | 11,352 | 2,397 | 4,192 | 64 | 0 | 0 | 0 | 5 |
+| AFEW（Whisper．2026-11-04 に数えた） | 795 | 797 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 L1 で `\x92` を ’ に直すと，MELD も Unicode の記号を使うコーパスになる．
-したがって L1 の後も，ASCII の記号だけを使う IEMOCAP と，Unicode の記号を含む MOSEI・MELD の差が残る．
+したがって L1 の後も，ASCII の記号だけを使う IEMOCAP・AFEW と，Unicode の記号を含む MOSEI・MELD の差が残る．
 この差は言葉の特徴でコーパスを見分ける手がかりになり，感情表現の違いと区別できない．
 `features/common.py` の `normalize_text` の説明には，意味を使わない表記の 16 次元だけでコーパスを均衡精度 0.7047（でたらめなら 0.333）で見分けられたという記録がある．
 L2 はこの差を消すが，上の決定により解析には使わない．
@@ -383,7 +416,7 @@ L2 はこの差を消すが，上の決定により解析には使わない．
 1. **顔検出の結果（フレーム番号と矩形）を保存する．**別の表情モデルに差し替えても同じ切り出しを再現でき，「エンコーダ 1 種では結果がエンコーダの癖と区別できない」という査読の指摘に答えられる．作り直した最大の理由であり，CLIP の特徴はこれで作った．
 2. **セグメント数を記録し，平均と標準偏差を分けて保存する．**前身は両者を 1024 次元に連結しており，標準偏差の 512 次元が発話の短さを表していた（取り決め 4）．
 3. **IEMOCAP で発話者が映る半分を正しく選び，複数の顔を平均しない．**前身はパスを `'.'` で区切っていたため判定が常に偽になり，常に右半分を見ていた．また検出した顔をすべて平均していたので，相手や背景の人の顔が混ざっていた．
-4. **音声と言葉の計算を fp32 にし，音声の上限を 20 秒から 60 秒にし，MELD の文字化けを修復した．**転写の無い AFEW では言葉の特徴を作らない（前身は空文字から開始記号と終了記号だけの平均を作っていた）．
+4. **音声と言葉の計算を fp32 にし，音声の上限を 20 秒から 60 秒にし，MELD の文字化けを修復した．**AFEW の言葉は Whisper の書き起こしから作り，書き起こしが空の発話では作らない（前身は AFEW の空文字から開始記号と終了記号だけの平均を作っていた）．
 5. **RAVDESS と CREMA-D を足した．**前身では 2 つとも音声しか無かった．CREMA-D は映像の特徴も作ったが，RAVDESS の映像の特徴はまだ無い（7 節）．
 
 ---
@@ -451,6 +484,7 @@ measure/split.py                話者分割の検査（results/split_summary.cs
 features/build_video.py         映像 第 1（顔検出 → ResNet-50）
 features/build_video_clip.py    映像 第 2（保存した顔座標 → CLIP）
 features/build_audio.py         音声（--model で第 1／第 2 を切り替える）
+features/build_transcript_afew.py  AFEW の書き起こし（Whisper large-v3）．台本からは呼ばない．出力は git に入っている
 features/build_text.py          言葉（--model で第 1／第 2，--level で正規化の段階を切り替える）
 ```
 
@@ -467,7 +501,9 @@ Python 環境は `.venv/` の 1 つだけであり，作り方は `requirements.
 - **RAVDESS の映像の特徴は無い．**生データは取得済みである（`/mnt/d/Databases/RAVDESS/video_speech/Actor_01`〜`Actor_24`，mp4 2,880 本．`features/download_ravdess.sh` で取った．Zenodo の API 形式の URL は 403 を返したが，`/records/…/files/…?download=1` 形式の URL で取れた）．
   しかし発話一覧の RAVDESS 1,440 行はすべて `path_video` が空であり，`video_RAVDESS.npz` と `video_clip_RAVDESS.npz` は無い．
   映像の特徴を足すかは保留している（`docs/researchvision.md` の『未決事項』）．足すと映像の群が 6 から 7 に増え，映像と音声＋映像の地図とずれの指標を作り直す必要がある．
-- **言葉の特徴は 4 群（IEMOCAP の 2 群・MOSEI・MELD）にしか無い．**AFEW には転写が無く，RAVDESS と CREMA-D は読む文が 2 種類・12 種類しかない．
+- **言葉の特徴は 5 群（IEMOCAP の 2 群・MOSEI・MELD・AFEW）にある．**RAVDESS と CREMA-D は読む文が 2 種類・12 種類しかないので作らない．
+- **AFEW の言葉だけは機械の書き起こし（Whisper large-v3）から作る．**ほかの 3 コーパスは人の書き起こしである．AFEW をターゲットやソースにした言葉の得と損には，コーパスの違いと書き起こしの作り方の違い（認識の誤り，同じ句のくり返し 33 本など）の両方が入り，分けられない．書き起こしの誤りは測っていない（3 節「AFEW の書き起こし」）．論文では限界として書く．
+- **言葉を含む融合特徴の標準化の統計に，2026-11-04 から AFEW が入った．**`measure/data.py` の `_fuse_stats` は，その種類の特徴がある全群をまとめて平均と標準偏差を作る．AFEW の 790 発話が加わったので，既存の 4 群の融合特徴は列ごとに一定の倍率（0.94〜1.006）とずらし（絶対値 0.04 以下）だけ変わった（MELD と IEMOCAP 即興で，AVT・AT・第 2 エンコーダの AVT を確かめた）．分類器は学習データで，距離を使う指標の多くは 2 標本を合わせて標準化し直すので，結果は計算の丸めの範囲でしか変わらない．生の特徴のまま測るずれの指標（`measure/shift.py` の `space="raw"`）だけは，計算し直すと 2026-11-03 までの値から少し変わる．
 - **`video_IEMOCAP.npz` は古いマニフェスト（9,169 行）から作った．**行順と `label_4` が現行のマニフェストと違うが，取り決め 1・2 を守れば結果に影響しない．`video_clip_IEMOCAP.npz` は現行のマニフェストから作った．
 - **MOSEI の話者分離は不完全である．**チャンネルが分かる動画は 35% だけで，残りは動画 ID を話者の代わりにしている（3 節）．
 - **MOSEI の Neutral は消去法で決まる．**ほかのコーパスの Neutral と定義が違う（3 節「ラベルの決め方」）．

@@ -16,6 +16,8 @@
 # **既存の data/ を上書きする．**特に manifest はラベルの正本を書き換えるので，
 # 走らせる前に git で data/metadata/ の状態を確かめ，終わったら差分を見る．
 # **feat2 の映像（CLIP）は feat1 が保存した顔の座標を読む．**順序を入れ替えない．
+# AFEW の書き起こし（Whisper）は git に入れた data/metadata/afew_transcript_whisper.csv を
+# manifest が読む．この台本では作り直さない（作り直すなら features/build_transcript_afew.py）．
 # 抽出は途中保存（data/cache/parts/）を見て飛ばすので，止まっても流し直せばよい．
 set -u
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
@@ -50,7 +52,7 @@ do_feat1() {
   run "映像の結合"     $PY -u features/build_video.py --corpus all --merge
   run "音声 WavLM"     $PY -u features/build_audio.py --corpus all --budget 240 --max-batch 64
   run "音声の結合"     $PY -u features/build_audio.py --corpus all --merge
-  for C in IEMOCAP MOSEI MELD; do
+  for C in IEMOCAP MOSEI MELD AFEW; do
     run "言葉 RoBERTa $C" $PY -u features/build_text.py --corpus "$C"
   done
   run "言葉の結合" $PY -u features/build_text.py --corpus all --merge
@@ -62,7 +64,7 @@ do_feat2() {
       --model facebook/hubert-large-ll60k
   run "音声 HuBERT の結合" $PY -u features/build_audio.py --corpus all --merge \
       --model facebook/hubert-large-ll60k
-  for C in IEMOCAP MOSEI MELD; do
+  for C in IEMOCAP MOSEI MELD AFEW; do
     run "言葉 DeBERTa $C" $PY -u features/build_text.py --corpus "$C" \
         --model microsoft/deberta-v3-base
   done

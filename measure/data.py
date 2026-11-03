@@ -54,9 +54,9 @@ FEATURE_KEYS: dict[str, tuple[str, ...]] = {
     "text_roberta": ("X",), "text_deberta": ("X",),
 }
 
-# 言葉が使えるのは転写のある 3 コーパスだけ（AFEW は転写なし，
-# RAVDESS・CREMA-D は読む文が 2 種類・12 種類しかない）
-GROUPS_WITH_TEXT = ("IEMOCAP-impro", "IEMOCAP-script", "MOSEI", "MELD")
+# 言葉が使えるのは書き起こしのある 4 コーパスの 5 群（AFEW は Whisper の書き起こし．
+# 2026-11-04 に足した）。RAVDESS・CREMA-D は読む文が 2 種類・12 種類しかないので使わない
+GROUPS_WITH_TEXT = ("IEMOCAP-impro", "IEMOCAP-script", "MOSEI", "MELD", "AFEW")
 
 
 def has_modality(group: str, modality: str) -> bool:
@@ -140,6 +140,10 @@ def _fuse_stats(kinds: list[str]) -> list[tuple[np.ndarray, np.ndarray]]:
     でたらめ 0.5 を下回る 0.099〜0.359 になって発覚した）。
     尺度を揃えたいのはモダリティの間であって群の間ではないので，
     **全群を合わせた 1 組の統計を全群に同じように当てる**。
+
+    **2026-11-04 から，言葉を含む融合の統計に AFEW が入る**（AFEW の言葉を足したため）。
+    既存の 4 群の融合特徴は列ごとの一定の倍率とずらしだけ変わり，学習データで標準化し直す
+    分類器の結果は丸めの範囲でしか変わらない（`data/README.md` 7 節）。
     """
     key = tuple(kinds)
     if key in _FUSE_STATS:
