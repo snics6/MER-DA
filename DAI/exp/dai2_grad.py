@@ -51,6 +51,19 @@ GPU の非決定性を抑える `torch.use_deterministic_algorithms` は使わ�
 W·A と b（候補の統計で標準化した座標）を float32 で，テストの判定を int8 で残す．ミニバッチ・最適化・TF32 の設定は provenance_log.jsonl に残す．
 xMUDA 型の対照（設計 2.3 節の 2-C）は map の mapctl（A・V・T）で，8 点すべてを仮のターゲットの回と評価の回で解く．
 
+束の大きさを変えた解き直し（gate-code の I7・R4）：勾配法の解は，同じ問でも同じ束に何問入れるかで変わる（Adam は成分ごとに勾配の大きさで
+割るので，丸めの差が解の差に広がる．同じ束で解き直すとビットまで同じ）．そこで各単位で，map は (生徒, K) ごとに DANN・MME・mapctl の
+選択なしの点と，評価の回は選んだ点（その mapctl の相手と，xMUDA 型の点の mapctl の相手も）を，xmuda は XM_REF の点（学習率 1e−3・反復 1000・
+κ 1・μ 1）と評価の回は (生徒, K) ごとに選んだ点を，1 問ずつの束（REP_CHUNK = 1）でもう 1 回解く．種は同じ s．npz の `maprep_<生徒>_*`・
+`xmrep_<生徒>_*`（W·A，b，テストの判定，items の roles），行の method `<手法>_rep` に残し（選ぶ段は読まない），行に
+dis_rep（同じ問の束を変えた解き直しどうしの判定の食い違い），dis_ctl（同じ学習率・反復・μ・K の mapctl との食い違い．本番の束どうし），
+dis_ctl_rep（1 問ずつの束どうし）を残す．本番の束の行にも dis_ctl を残す．xmuda の mapctl との比べは同じ単位の map の保存から読む（無ければ NaN）．
+分布の量（gate-code の R2．map だけ）：学び終えた直後に，候補とソースから固定の乱数（種 9000）で選んだ最大 2,000 本ずつの部分で，A z の候補と
+ソースの平均の差のノルム（mdiff_after），共分散（不偏）の差の Frobenius ノルム（cdiff_after），問の判別器の 2 値の交差エントロピー（ソースと
+候補で平均して半分ずつ．dloss_after）と正答率（dacc_after）を問ごとに残す．学ぶ前（A = I，初期値の判別器）の値は *_before．判別器を学ぶのは
+DANN だけで，MME・mapctl の判別器は初期値のまま（その値は学んでいない判別器の参照）．xMUDA 型は ‖A_m − I‖ と KL で読む．
+`--students` は試走だけ（`dai2.setup_run`）．xmuda は A・V・T を同時に学ぶので絞らない．
+
 予算を超えたときの削り方（設計 2.3 節の m72）：--cut-mme-sw01 で MME の sw = 0.1 の点を外し，--cut-iter200 で反復 200 の点を外す．
 削り方は行と npz に残し，評価の回は固定のファイルに書いた削り方で回す．
 """
@@ -92,6 +105,10 @@ ADAM = {"betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.0}
 SEED_BASE = {"disc": 1000, "batch": 5000, "xmuda": 2000}
 CORAL_R = (32, 64, 128)
 GRAD_SEEDS_EVAL = (0, 1, 2)
+REP_CHUNK = 1                                                          # 束の大きさを変えた解き直し（I7・R4）：1 問ずつの束
+XM_REF = {"lr": 1e-3, "iters": 1000, "kap": 1.0, "mu": 1.0}            # xMUDA 型の解き直しの点（選択なしの値が無いので，mapctl の選択なしの値と同じ
+                                                                       # 学習率・反復・μ に，候補 1 本あたり重み 1 の κ を合わせた点）
+DIAG_N, DIAG_SEED = 2000, 9000                                         # 分布の量（R2）を測る候補とソースの部分の本数と，部分を引く乱数
 GRIDS = {
     "dann": [("lr", MAP_LR), ("iters", MAP_IT), ("lam", MAP_LAM), ("mu", MAP_MU)],
     "mme": [("lr", MAP_LR), ("iters", MAP_IT), ("lam", MAP_LAM), ("mu", MAP_MU), ("sw", MME_SW)],
@@ -108,7 +125,8 @@ DEFAULTS = {                                                           # 選択�
 SETTINGS = {"batch": BATCH, "src_batch": SRC_BATCH, "disc_h": DISC_H, "chunk_small": CHUNK_SMALL, "chunk_large": CHUNK_LARGE,
             "chunk_dim": CHUNK_DIM, "adam": ADAM, "lr_schedule": "constant", "grl_schedule": "lam*(2/(1+exp(-10p))-1)",
             "seed_base": SEED_BASE, "seed_rule": "s = r", "tf32": False, "deterministic_algorithms": False, "coral_r": CORAL_R,
-            "coral_pca": "eigh of scatter of [source centered; candidates centered]", "coral_cov": "sklearn ledoit_wolf(assume_centered=True)"}
+            "coral_pca": "eigh of scatter of [source centered; candidates centered]", "coral_cov": "sklearn ledoit_wolf(assume_centered=True)",
+            "rep_chunk": REP_CHUNK, "xmuda_rep_point": XM_REF, "diag_n": DIAG_N, "diag_seed": DIAG_SEED}
 
 
 class _GRL(torch.autograd.Function):
@@ -176,19 +194,55 @@ def map_problems(cut_sw: bool, cut_it: bool) -> list[tuple]:
     return out
 
 
-def train_map(Z, Zl, ylab, wl, Zs, ys, W0, b0, cw, cb, meth, lam, mu, sw, lr, iters, s):
-    """1 つの束を Adam で学ぶ（E78 の `_train_map` と同じ式．引き戻しは問ごとの (C′, C_b)）。戻り：(W·A, b, 記録の list)。"""
+def subset(n: int, m: int = DIAG_N, seed: int = DIAG_SEED) -> torch.Tensor:
+    """分布の量（R2）を測る部分：n 本から m 本（n ≤ m なら全部）を固定の乱数で選ぶ（番号の昇順）。"""
+    if n <= m:
+        return torch.arange(n, device=DEV)
+    g = torch.Generator().manual_seed(seed)
+    return torch.sort(torch.randperm(n, generator=g)[:m])[0].to(DEV)
+
+
+def dist_stats(Hc, Hs):
+    """写像した特徴の候補とソースの平均の差のノルムと，共分散（不偏）の差の Frobenius ノルム。"""
+    mc, ms = Hc.mean(0), Hs.mean(0)
+    Cc = (Hc - mc).T @ (Hc - mc) / max(len(Hc) - 1, 1)
+    Cs = (Hs - ms).T @ (Hs - ms) / max(len(Hs) - 1, 1)
+    return float((mc - ms).norm()), float((Cc - Cs).norm())
+
+
+def disc_loss(Hs, Hc, D1, c1, D2, c2):
+    """判別器（ソース 1，候補 0）の 2 値の交差エントロピーを，ソースと候補でそれぞれ平均して足して半分にしたもの（釣り合いを取る）と正答率。"""
+    os_ = torch.relu(Hs @ D1 + c1) @ D2 + c2
+    oc = torch.relu(Hc @ D1 + c1) @ D2 + c2
+    ls = F.binary_cross_entropy_with_logits(os_, torch.ones_like(os_))
+    lc = F.binary_cross_entropy_with_logits(oc, torch.zeros_like(oc))
+    acc = 0.5 * (float((os_ > 0).float().mean()) + float((oc <= 0).float().mean()))
+    return float(0.5 * (ls + lc)), acc
+
+
+def init_disc(d: int, s: int):
+    """判別器の初期値（E78 と同じ引き方：種 1000 + s の生成器から D1，D2 の順に正規 / √(入力の次元)）。"""
+    g = torch.Generator(device=DEV).manual_seed(SEED_BASE["disc"] + s)
+    D1 = torch.randn(1, d, DISC_H, generator=g, device=DEV, dtype=F32)[0] / math.sqrt(d)
+    D2 = torch.randn(1, DISC_H, 1, generator=g, device=DEV, dtype=F32)[0] / math.sqrt(DISC_H)
+    return D1, D2
+
+
+def train_map(Z, Zl, ylab, wl, Zs, ys, W0, b0, cw, cb, meth, lam, mu, sw, lr, iters, s, Zc_sub=None, Zs_sub=None):
+    """1 つの束を Adam で学ぶ（E78 の `_train_map` と同じ式．引き戻しは問ごとの (C′, C_b)）。戻り：(W·A, b, 記録の list)。
+    Zc_sub・Zs_sub（候補とソースの固定の部分）を渡すと，学び終えた直後の A z の平均の差・共分散の差・判別器の損失と正答率を問ごとに残す（R2）．
+    判別器を学ぶのは DANN の問だけで，MME・mapctl の問の判別器は初期値のまま（値は「学んでいない判別器」の参照）。"""
     B = len(meth)
     n, d = Z.shape
-    g = torch.Generator(device=DEV).manual_seed(SEED_BASE["disc"] + s)            # 判別器の初期値
     gb = torch.Generator(device=DEV).manual_seed(SEED_BASE["batch"] + s)          # ミニバッチ（同じ s の DANN・MME・対照で同じ列）
     I = torch.eye(d, dtype=F32, device=DEV)
     A = I.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True)
     W = W0.unsqueeze(0).repeat(B, 1, 1).clone().requires_grad_(True)
     b = b0.unsqueeze(0).repeat(B, 1).clone().requires_grad_(True)
-    D1 = (torch.randn(1, d, DISC_H, generator=g, device=DEV, dtype=F32) / math.sqrt(d)).repeat(B, 1, 1).requires_grad_(True)
+    d1, d2 = init_disc(d, s)                                                     # 判別器の初期値（1 つ引いて束の全部の問に写す）
+    D1 = d1[None].repeat(B, 1, 1).requires_grad_(True)
     c1 = torch.zeros(B, 1, DISC_H, device=DEV, dtype=F32, requires_grad=True)
-    D2 = (torch.randn(1, DISC_H, 1, generator=g, device=DEV, dtype=F32) / math.sqrt(DISC_H)).repeat(B, 1, 1).requires_grad_(True)
+    D2 = d2[None].repeat(B, 1, 1).requires_grad_(True)
     c2 = torch.zeros(B, 1, 1, device=DEV, dtype=F32, requires_grad=True)
     t = lambda v: torch.tensor(v, dtype=F32, device=DEV)  # noqa: E731
     lam, mu, sw, cw, cb = t(lam), t(mu), t(sw), t(cw), t(cb)
@@ -242,54 +296,125 @@ def train_map(Z, Zl, ylab, wl, Zs, ys, W0, b0, cw, cb, meth, lam, mu, sw, lr, it
         r0, r1 = rec[0], rec[iters - 1]
         diag = [dict(S=float(Sv[j]), anorm=float(an[j]), wa_dist=float(wad[j]), w_dist=float(wd[j]), ent_first=float(r0["ent"][j]), ent_last=float(r1["ent"][j]),
                      dom_first=float(r0["dom"][j]), dom_last=float(r1["dom"][j]), finite=bool(fin[j])) for j in range(B)]
+        if Zc_sub is not None:                                                   # 学び終えた直後の分布の量（R2．問ごとに 1 つずつ計算してメモリを抑える）
+            t0 = time.time()
+            for j in range(B):
+                Hc, Hs = Zc_sub @ A[j].T, Zs_sub @ A[j].T
+                md, cd = dist_stats(Hc, Hs)
+                dl, da = disc_loss(Hs, Hc, D1[j], c1[j], D2[j], c2[j])
+                diag[j].update(mdiff_after=md, cdiff_after=cd, dloss_after=dl, dacc_after=da)
+                del Hc, Hs
+            for j in range(B):
+                diag[j]["sec_diag_chunk"] = time.time() - t0                  # 束の分布の量の所要（束の全部の問に同じ値）
         return Weff.detach().clone(), b.detach().clone(), diag
 
 
-def pass_map(u, store, rows, tether, s_init, cut_sw, cut_it):
+def map_key(meth, pt, K):
+    """(方法, 学習率, 反復, λ, μ, sw, K) の問の鍵（map_problems の並びと同じ形）。"""
+    return (meth, float(pt["lr"]), int(pt["iters"]), float(pt.get("lam", 0.0)) if meth != "mapctl" else 0.0, float(pt["mu"]),
+            float(pt.get("sw", 0.0)) if meth == "mme" else 0.0, int(K))
+
+
+def disagree(a, b) -> float:
+    return float((np.asarray(a) != np.asarray(b)).mean())
+
+
+def run_chunks(Z, Zl, ylab, wK, Zs, ys, W0, b0, tether, s, probs_sel, s_init, step, Zc_sub, Zs_sub):
+    """probs_sel の問を (学習率, 反復) ごとに step 問ずつの束で解く。戻り：問ごとの (W·A, b, 記録, 束の番号, 束の中の位置, 束の大きさ, 秒) と束の一覧。"""
+    groups = {}
+    for j, c in enumerate(probs_sel):
+        groups.setdefault((c[1], c[2]), []).append(j)
+    out, chunks = [None] * len(probs_sel), []
+    for (lr, iters), idx in groups.items():
+        for a in range(0, len(idx), step):
+            ch = idx[a:a + step]
+            cid = len(chunks)
+            chunks.append(ch)
+            t0 = time.time()
+            cs = [probs_sel[j] for j in ch]
+            tw = [tether[(s, max(c[6], 1))] for c in cs]
+            Weff, bb, dg = train_map(Z, Zl, ylab, torch.stack([wK[c[6]] for c in cs]), Zs, ys, W0, b0, [x[0] for x in tw], [x[1] for x in tw],
+                                     [c[0] for c in cs], [c[3] for c in cs], [c[4] for c in cs], [c[5] for c in cs], lr, iters, s_init,
+                                     Zc_sub, Zs_sub)
+            sec = time.time() - t0
+            for q, j in enumerate(ch):
+                out[j] = (Weff[q], bb[q], dict(dg[q], Cw=tw[q][0], Cb=tw[q][1]), cid, q, len(ch), sec)
+            del Weff, bb
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+    return out, chunks
+
+
+def item_of(c, s_init, cid, q, size):
+    meth, lr_, it_, lam, mu, sw, K = c
+    it = dict(method=meth, lr=lr_, iters=it_, mu=mu, K=K, seed_init=s_init, chunk=cid, chunk_pos=q, chunk_size=size)
+    if meth != "mapctl":
+        it["lam"] = lam
+    if meth == "mme":
+        it["sw"] = sw
+    return it
+
+
+def pass_map(u, store, rows, tether, s_init, cut_sw, cut_it, students=DD.STUDENTS, sel=None):
+    """sel：評価の回だけ，{(生徒, K, 方法): 選んだ点}（dann・mme・mapctl・xmuda）。選択なしの点と選んだ点を 1 問ずつの束で解き直す（I7・R4）。"""
     probs_all = map_problems(cut_sw, cut_it)
+    index = {c: j for j, c in enumerate(probs_all)}
     pt, ylab, wK = kshot(u)
-    for s in DD.STUDENTS:
+    for s in students:
         Z, Zt = u.Xp[s].to(F32), u.Xt[s]
         Zl = Z[pt]
         Zs, ys = src_feats(u, s)
         W0, b0 = (x.to(F32) for x in u.start[s])
         d = Z.shape[1]
+        Zc_sub, Zs_sub = Z[subset(len(Z))], Zs[subset(len(Zs))]
+        md0, cd0 = dist_stats(Zc_sub, Zs_sub)                                    # 学ぶ前（A = I）の分布の量と，初期値の判別器の損失（R2）
+        d1, d2 = init_disc(d, s_init)
+        dl0, da0 = disc_loss(Zs_sub, Zc_sub, d1, torch.zeros(1, DISC_H, device=DEV), d2, torch.zeros(1, 1, device=DEV))
+        before = dict(mdiff_before=md0, cdiff_before=cd0, dloss_before=dl0, dacc_before=da0, n_diag_cand=len(Zc_sub), n_diag_src=len(Zs_sub))
         step = CHUNK_SMALL if d <= CHUNK_DIM else CHUNK_LARGE
-        groups = {}
-        for j, c in enumerate(probs_all):
-            groups.setdefault((c[1], c[2]), []).append(j)
-        Ws, bs, items, rws, chunks = [None] * len(probs_all), [None] * len(probs_all), [None] * len(probs_all), [None] * len(probs_all), []
-        for (lr, iters), idx in groups.items():
-            for a in range(0, len(idx), step):
-                ch = idx[a:a + step]
-                cid = len(chunks)
-                chunks.append(ch)
-                t0 = time.time()
-                cs = [probs_all[j] for j in ch]
-                tw = [tether[(s, max(c[6], 1))] for c in cs]
-                Weff, bb, dg = train_map(Z, Zl, ylab, torch.stack([wK[c[6]] for c in cs]), Zs, ys, W0, b0, [x[0] for x in tw], [x[1] for x in tw],
-                                         [c[0] for c in cs], [c[3] for c in cs], [c[4] for c in cs], [c[5] for c in cs], lr, iters, s_init)
-                sec = time.time() - t0
-                for q, (j, c) in enumerate(zip(ch, cs)):
-                    meth, lr_, it_, lam, mu, sw, K = c
-                    it = dict(method=meth, lr=lr_, iters=it_, mu=mu, K=K, seed_init=s_init, chunk=cid, chunk_pos=q, chunk_size=len(ch))
-                    if meth != "mapctl":
-                        it["lam"] = lam
-                    if meth == "mme":
-                        it["sw"] = sw
-                    Ws[j], bs[j], items[j] = Weff[q], bb[q], it
-                    rws[j] = dict(student=s, Cw=tw[q][0], Cb=tw[q][1], sec_chunk=sec, **it, **dg[q])
-                del Weff, bb
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-        Zte = save_lin(store, f"map_{s}", torch.stack(Ws), torch.stack(bs), Zt)
+        res, chunks = run_chunks(Z, Zl, ylab, wK, Zs, ys, W0, b0, tether, s, probs_all, s_init, step, Zc_sub, Zs_sub)
+        items = [item_of(c, s_init, *r_[3:6]) for c, r_ in zip(probs_all, res)]
+        Zte = save_lin(store, f"map_{s}", torch.stack([r_[0] for r_ in res]), torch.stack([r_[1] for r_ in res]), Zt)
+        pm = store[f"map_{s}_pred"]
         ua = S.uar_batch(u.ytest, Zte)
-        for j in range(len(probs_all)):
-            rws[j]["uar"] = float(ua[j])
-        rows.extend(rws)
+        ctl = {c: index[map_key("mapctl", dict(lr=c[1], iters=c[2], mu=c[4]), c[6])] for c in probs_all}
+        for j, (c, r_) in enumerate(zip(probs_all, res)):
+            dis = disagree(pm[j], pm[ctl[c]]) if c[0] != "mapctl" else float("nan")   # mapctl との判定の食い違い（同じ学習率・反復・μ・K．設計 2.3 節）
+            rows.append(dict(student=s, sec_chunk=r_[6], uar=float(ua[j]), dis_ctl=dis, **items[j], **r_[2], **before))
         store[f"map_{s}_items"] = np.array([json.dumps(it, sort_keys=True) for it in items])
         store[f"map_{s}_chunks"] = np.array(json.dumps(chunks))
-        del Zs, Z, Zl
+        # 束の大きさを変えた解き直し（1 問ずつ．I7・R4）：選択なしの点，評価の回は選んだ点，その mapctl の相手（xMUDA 型の点の相手も）
+        roles: dict = {}
+        for K in KS_ALL:
+            pts = [(m_, DEFAULTS[m_], "default") for m_ in ("dann", "mme", "mapctl")]
+            if sel is not None:
+                pts += [(m_, sel[(s, K, m_)], "selected") for m_ in ("dann", "mme", "mapctl")]
+                if s in "AVT" and len(s) == 1:
+                    pts += [("mapctl", sel[(s, K, "xmuda")], "ctl_of_xmuda_selected")]
+            if s in "AVT" and len(s) == 1:
+                pts += [("mapctl", XM_REF, "ctl_of_xmuda_ref")]
+            for m_, p_, role in pts:
+                for c in ([map_key(m_, p_, K)] + ([map_key("mapctl", p_, K)] if m_ != "mapctl" else [])):
+                    if c not in index:
+                        sys.exit(f"解き直しの点 {c} が格子に無い（削り方と固定のファイルが食い違う）")
+                    roles.setdefault(c, set()).add(role if c[0] == m_ else f"ctl_of_{m_}_{role}")
+        reps = sorted(roles, key=lambda c: index[c])
+        rr, rchunks = run_chunks(Z, Zl, ylab, wK, Zs, ys, W0, b0, tether, s, reps, s_init, REP_CHUNK, Zc_sub, Zs_sub)
+        ritems = [dict(item_of(c, s_init, *r_[3:6]), rep=f"chunk{REP_CHUNK}", roles=sorted(roles[c])) for c, r_ in zip(reps, rr)]
+        Zr = save_lin(store, f"maprep_{s}", torch.stack([r_[0] for r_ in rr]), torch.stack([r_[1] for r_ in rr]), Zt)
+        pr = store[f"maprep_{s}_pred"]
+        ur = S.uar_batch(u.ytest, Zr)
+        rindex = {c: q for q, c in enumerate(reps)}
+        for q, (c, r_) in enumerate(zip(reps, rr)):
+            jc = rindex.get(map_key("mapctl", dict(lr=c[1], iters=c[2], mu=c[4]), c[6]))
+            row = dict(student=s, sec_chunk=r_[6], uar=float(ur[q]), **dict(ritems[q], method=f"{c[0]}_rep", roles="|".join(ritems[q]["roles"])),
+                       **r_[2], **before,
+                       dis_rep=disagree(pr[q], pm[index[c]]),                          # 同じ問の，束の大きさを変えた解き直しどうしの食い違い
+                       dis_ctl=disagree(pm[index[c]], pm[ctl[c]]) if c[0] != "mapctl" else float("nan"),
+                       dis_ctl_rep=disagree(pr[q], pr[jc]) if c[0] != "mapctl" else float("nan"))
+            rows.append(row)
+        store[f"maprep_{s}_items"] = np.array([json.dumps(it, sort_keys=True) for it in ritems])
+        del Zs, Z, Zl, Zc_sub, Zs_sub
     store["cut"] = np.array(json.dumps({"mme_sw01": cut_sw, "iter200": cut_it}))
 
 
@@ -362,46 +487,98 @@ def train_xmuda(Zm, Zlm, ylab, wl, start, cw, cb, kap, mu, lr, iters, s, n):
     return out
 
 
-def pass_xmuda(u, store, rows, tether, s_init, cut_it):
+def run_xm_chunks(u, Zm, Zlm, ylab, wK, tether, probs_sel, s_init, size=None):
+    """probs_sel の問を (学習率, 反復) ごとの束（size があれば size 問ずつ）で解く。戻り：問ごとの {m: (W·A, b, 記録)} と束の情報。"""
+    mods = "AVT"
+    groups = {}
+    for j, c in enumerate(probs_sel):
+        groups.setdefault((c[0], c[1]), []).append(j)
+    out, chunks = [None] * len(probs_sel), []
+    for (lr, iters), idx in groups.items():
+        step = size or len(idx)
+        for a in range(0, len(idx), step):
+            ch = idx[a:a + step]
+            cid = len(chunks)
+            chunks.append(ch)
+            t0 = time.time()
+            cs = [probs_sel[j] for j in ch]
+            cw = {m: [tether[(m, max(c[4], 1))][0] for c in cs] for m in mods}
+            cb = {m: [tether[(m, max(c[4], 1))][1] for c in cs] for m in mods}
+            o = train_xmuda(Zm, Zlm, ylab, torch.stack([wK[c[4]] for c in cs]), u.start, cw, cb, [c[2] for c in cs], [c[3] for c in cs],
+                            lr, iters, s_init, u.n)
+            sec = time.time() - t0
+            for q, j in enumerate(ch):
+                out[j] = ({m: (o[m][0][q], o[m][1][q], dict(o[m][2][q], Cw=cw[m][q], Cb=cb[m][q])) for m in mods}, cid, q, len(ch), sec)
+            del o
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+    return out, chunks
+
+
+def map_preds(map_npz: Path | None, m: str, prefix: str):
+    """同じ単位の map の保存から，生徒 m の mapctl の判定を {(学習率, 反復, μ, K): 判定} で返す（無ければ空）。"""
+    if map_npz is None or not map_npz.exists():
+        return {}
+    z = np.load(map_npz)
+    if f"{prefix}_{m}_items" not in z:
+        return {}
+    out = {}
+    for it, pr in zip(z[f"{prefix}_{m}_items"], z[f"{prefix}_{m}_pred"]):
+        it = json.loads(str(it))
+        if it["method"] == "mapctl":
+            out[(float(it["lr"]), int(it["iters"]), float(it["mu"]), int(it["K"]))] = pr
+    return out
+
+
+def pass_xmuda(u, store, rows, tether, s_init, cut_it, sel=None, map_npz: Path | None = None):
+    """sel：評価の回だけ，{(生徒, K, "xmuda"): 選んだ点}．解き直しの点（XM_REF と選んだ点）を 1 問ずつの束で解き直す（I7・R4）．
+    map_npz：同じ単位の map の保存（mapctl との食い違いを行に残す．無ければ NaN）。"""
     mods = "AVT"
     probs_all = xm_problems(cut_it)
+    index = {c: j for j, c in enumerate(probs_all)}
     pt, ylab, wK = kshot(u)
     Zm = {m: u.Xp[m].to(F32) for m in mods}
     Zlm = {m: Zm[m][pt] for m in mods}
-    groups = {}
-    for j, c in enumerate(probs_all):
-        groups.setdefault((c[0], c[1]), []).append(j)
-    res = {m: ([None] * len(probs_all), [None] * len(probs_all)) for m in mods}
-    items, chunks, rws = [None] * len(probs_all), [], [[] for _ in probs_all]
-    for (lr, iters), ch in groups.items():
-        cid = len(chunks)
-        chunks.append(ch)
-        t0 = time.time()
-        cs = [probs_all[j] for j in ch]
-        cw = {m: [tether[(m, max(c[4], 1))][0] for c in cs] for m in mods}
-        cb = {m: [tether[(m, max(c[4], 1))][1] for c in cs] for m in mods}
-        o = train_xmuda(Zm, Zlm, ylab, torch.stack([wK[c[4]] for c in cs]), u.start, cw, cb, [c[2] for c in cs], [c[3] for c in cs],
-                        lr, iters, s_init, u.n)
-        sec = time.time() - t0
-        for q, (j, c) in enumerate(zip(ch, cs)):
-            it = dict(method="xmuda", lr=c[0], iters=c[1], kap=c[2], mu=c[3], K=c[4], seed_init=s_init, chunk=cid, chunk_pos=q, chunk_size=len(ch))
-            items[j] = it
+    res, chunks = run_xm_chunks(u, Zm, Zlm, ylab, wK, tether, probs_all, s_init)
+    items = [dict(method="xmuda", lr=c[0], iters=c[1], kap=c[2], mu=c[3], K=c[4], seed_init=s_init, chunk=r_[1], chunk_pos=r_[2],
+                  chunk_size=r_[3]) for c, r_ in zip(probs_all, res)]
+    key = lambda c: (float(c[0]), int(c[1]), float(c[3]), int(c[4]))  # noqa: E731  （mapctl の相手の鍵：学習率，反復，μ，K）
+    # 束の大きさを変えた解き直し（1 問ずつ）：XM_REF の点と，評価の回は (生徒, K) ごとに選んだ点
+    roles: dict = {}
+    for K in KS_ALL:
+        roles.setdefault((XM_REF["lr"], XM_REF["iters"], XM_REF["kap"], XM_REF["mu"], K), set()).add("ref")
+        if sel is not None:
             for m in mods:
-                res[m][0][j], res[m][1][j] = o[m][0][q], o[m][1][q]
-                rws[j].append(dict(student=m, Cw=cw[m][q], Cb=cb[m][q], sec_chunk=sec, **it, **o[m][2][q]))
-        del o
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+                p_ = sel[(m, K, "xmuda")]
+                roles.setdefault((float(p_["lr"]), int(p_["iters"]), float(p_["kap"]), float(p_["mu"]), K), set()).add(f"selected_{m}")
+    reps = sorted(roles, key=lambda c: index[c])
+    if any(c not in index for c in reps):
+        sys.exit("xMUDA 型の解き直しの点が格子に無い（削り方と固定のファイルが食い違う）")
+    rr, _ = run_xm_chunks(u, Zm, Zlm, ylab, wK, tether, reps, s_init, size=REP_CHUNK)
+    out_rows = []
     for m in mods:
-        Zte = save_lin(store, f"xm_{m}", torch.stack(res[m][0]), torch.stack(res[m][1]), u.Xt[m])
+        Zte = save_lin(store, f"xm_{m}", torch.stack([r_[0][m][0] for r_ in res]), torch.stack([r_[0][m][1] for r_ in res]), u.Xt[m])
+        pm = store[f"xm_{m}_pred"]
         ua = S.uar_batch(u.ytest, Zte)
-        for j in range(len(probs_all)):
-            r_ = next(x for x in rws[j] if x["student"] == m)
-            r_["uar"] = float(ua[j])
-    for lst in rws:
-        rows.extend(lst)
+        ctl, ctl_rep = map_preds(map_npz, m, "map"), map_preds(map_npz, m, "maprep")
+        for j, (c, r_) in enumerate(zip(probs_all, res)):
+            dis = disagree(pm[j], ctl[key(c)]) if key(c) in ctl else float("nan")       # mapctl（模倣の重み 0 の同じ問）との食い違い（設計 2.3 節の 2-C）
+            out_rows.append((j, dict(student=m, sec_chunk=r_[4], uar=float(ua[j]), dis_ctl=dis, **items[j], **r_[0][m][2])))
+        Zr = save_lin(store, f"xmrep_{m}", torch.stack([r_[0][m][0] for r_ in rr]), torch.stack([r_[0][m][1] for r_ in rr]), u.Xt[m])
+        pr = store[f"xmrep_{m}_pred"]
+        ur = S.uar_batch(u.ytest, Zr)
+        for q, (c, r_) in enumerate(zip(reps, rr)):
+            it = dict(method="xmuda_rep", lr=c[0], iters=c[1], kap=c[2], mu=c[3], K=c[4], seed_init=s_init, chunk=r_[1], chunk_pos=r_[2],
+                      chunk_size=r_[3], rep=f"chunk{REP_CHUNK}", roles="|".join(sorted(roles[c])))
+            out_rows.append((len(probs_all) + q, dict(student=m, sec_chunk=r_[4], uar=float(ur[q]), **it, **r_[0][m][2],
+                                                      dis_rep=disagree(pr[q], pm[index[c]]),
+                                                      dis_ctl=disagree(pm[index[c]], ctl[key(c)]) if key(c) in ctl else float("nan"),
+                                                      dis_ctl_rep=disagree(pr[q], ctl_rep[key(c)]) if key(c) in ctl_rep else float("nan"))))
+    rows.extend(r_ for _, r_ in sorted(out_rows, key=lambda x: x[0]))
     store["xm_items"] = np.array([json.dumps(it, sort_keys=True) for it in items])
     store["xm_chunks"] = np.array(json.dumps(chunks))
+    store["xmrep_items"] = np.array([json.dumps(dict(lr=c[0], iters=c[1], kap=c[2], mu=c[3], K=c[4], rep=f"chunk{REP_CHUNK}",
+                                                     roles=sorted(roles[c])), sort_keys=True) for c in reps])
     store["cut"] = np.array(json.dumps({"iter200": cut_it}))
 
 
@@ -472,9 +649,9 @@ def coral_starts(u, kind):
     return CORAL_CACHE[key]
 
 
-def pass_coral(u, store, rows, tether, fsel=None):
+def pass_coral(u, store, rows, tether, fsel=None, students=DD.STUDENTS):
     """fsel：評価の回だけ，{(生徒, K): 選んだ r}．その r の新しい出発点から引き戻しの格子 14 点の曲線を解く。"""
-    for s in DD.STUDENTS:
+    for s in students:
         starts, info = coral_starts(u, s)
         rows.extend(dict(x) for x in info)
         X, Xt = u.Xp[s], u.Xt[s]
@@ -529,7 +706,7 @@ def main() -> None:
                                                                   cut_iter200=cut_it, settings=SETTINGS))
             seeds = args.seeds if args.seeds is not None else [0, 1]
             for c, srcs, f, r in dai2.units_of(args, T, "pseudo", seeds):
-                run_parts(out, "pseudo", T, c, srcs, f, r, args.parts, teth, cut_sw, cut_it, None)
+                run_parts(out, "pseudo", T, c, srcs, f, r, args.parts, teth, cut_sw, cut_it, None, None, args.students)
         return
     fz2, fz1 = dai2.check_eval_frozen(out, Path(args.dai1_frozen))
     cut = fz2["_meta"]["grad_cut"]
@@ -540,29 +717,35 @@ def main() -> None:
         R["tether_key"] = dai2.tether_key(teth)
         Rs = int(fz1[T]["n_seeds_eval"])
         fsel = {(s, K): fz2[T]["select"][f"{s}|{K}|coral"]["r"] for s in DD.STUDENTS for K in DD.KS}
+        sel = {(s, K, m_): fz2[T]["select"][f"{s}|{K}|{m_}"] for s in DD.STUDENTS for K in KS_ALL for m_ in ("dann", "mme", "mapctl")}
+        sel.update({(m, K, "xmuda"): fz2[T]["select"][f"{m}|{K}|xmuda"] for m in "AVT" for K in KS_ALL})   # 解き直しに使う選んだ点（I7・R4）
         dai2.provenance(out, args, "DAI/exp/dai2_grad.py", dict(stage="eval", T=T, frozen_sha256=R["frozen_sha256"], tether_key=R["tether_key"],
                                                               parts=args.parts, grad_cut=cut, settings=SETTINGS, R=Rs))
         grad_parts = [p for p in args.parts if p != "coral"]
         if grad_parts:
             for c, srcs, f, r in dai2.units_of(args, T, "eval", args.seeds if args.seeds is not None else list(GRAD_SEEDS_EVAL)):
-                run_parts(out, "eval", T, c, srcs, f, r, grad_parts, teth, cut["mme_sw01"], cut["iter200"], None)
+                run_parts(out, "eval", T, c, srcs, f, r, grad_parts, teth, cut["mme_sw01"], cut["iter200"], None, sel, args.students)
         if "coral" in args.parts:
             for c, srcs, f, r in dai2.units_of(args, T, "eval", args.seeds if args.seeds is not None else list(range(Rs))):
-                run_parts(out, "eval", T, c, srcs, f, r, ["coral"], teth, False, False, fsel)
+                run_parts(out, "eval", T, c, srcs, f, r, ["coral"], teth, False, False, fsel, None, args.students)
 
 
-def run_parts(out, tag, T, c, srcs, f, r, parts, teth, cut_sw, cut_it, fsel):
+def run_parts(out, tag, T, c, srcs, f, r, parts, teth, cut_sw, cut_it, fsel, sel=None, students=None):
+    """sel：評価の回の選んだ点（解き直しに使う）．students：試走だけ（xMUDA 型は A・V・T を同時に学ぶので絞らない）。"""
     s_init = r                                                              # 初期化の種 s = r（設計 1 節）
+    studs = tuple(students) if students else DD.STUDENTS
+    st_tag = {"students": list(students)} if students else {}
+    map_npz = Path(f"{dai2.unit_base(out, tag, T, c, f, r, 'map')}.npz")
     for part in parts:
         if part == "map":
-            dai2.run_unit(out, tag, T, c, srcs, f, r, "map", lambda u, st, rw: pass_map(u, st, rw, teth, s_init, cut_sw, cut_it), teth,
-                          extra_tag=json.dumps({"mme_sw01": cut_sw, "iter200": cut_it}))
+            dai2.run_unit(out, tag, T, c, srcs, f, r, "map", lambda u, st, rw: pass_map(u, st, rw, teth, s_init, cut_sw, cut_it, studs, sel), teth,
+                          extra_tag=json.dumps({"mme_sw01": cut_sw, "iter200": cut_it, "rep_chunk": REP_CHUNK, **st_tag}))
         elif part == "xmuda":
-            dai2.run_unit(out, tag, T, c, srcs, f, r, "xmuda", lambda u, st, rw: pass_xmuda(u, st, rw, teth, s_init, cut_it), teth,
-                          extra_tag=json.dumps({"iter200": cut_it}))
+            dai2.run_unit(out, tag, T, c, srcs, f, r, "xmuda", lambda u, st, rw: pass_xmuda(u, st, rw, teth, s_init, cut_it, sel, map_npz), teth,
+                          extra_tag=json.dumps({"iter200": cut_it, "rep_chunk": REP_CHUNK}))
         else:
-            dai2.run_unit(out, tag, T, c, srcs, f, r, "coral", lambda u, st, rw: pass_coral(u, st, rw, teth, fsel), teth,
-                          extra_tag=json.dumps({"curve": fsel is not None}))
+            dai2.run_unit(out, tag, T, c, srcs, f, r, "coral", lambda u, st, rw: pass_coral(u, st, rw, teth, fsel, studs), teth,
+                          extra_tag=json.dumps({"curve": fsel is not None, **st_tag}))
 
 
 if __name__ == "__main__":

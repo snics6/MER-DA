@@ -10,6 +10,9 @@
           選ぶ段で使ったものと同じときだけ動く（`check_eval_frozen`）．
 
 共通（設計 1 節）：単位・標準化（候補の統計）・出発点（ソースのコーパスごとの識別器の平均）は `dai1.Unit` をそのまま使う．
+実験 2 は第 1 のエンコーダ（WavLM・ResNet-50・RoBERTa）だけで回す．`--dai1-dir` の provenance_log.jsonl（と source/ の実体の隣のもの）に
+記録されたエンコーダが 1 つも無いか，第 1 のエンコーダと違えば止まる（`check_encoder`．gate-code の R7．次元が同じなので確かめないと落ちない）．
+`--students` は試走だけ（本番の置き場 `results/dai2` では受け付けない．絞った単位は extra_tag で区別する．I10）．
 引き戻し (C′, C_b) は，仮のターゲットの回は `<dai1-dir>/pseudo/<T>_tether_w.json`，評価の回は `--dai1-frozen`（既定
 `DAI/frozen/dai1_frozen.json`）の値．K=0 の手法は K=1 の値（実験 1 と同じ）．ρ は候補 1 本あたりの重み（重みの合計 ÷ 候補の本数 n）．
 
@@ -19,7 +22,9 @@
   saerens：Saerens ほか 2002 の EM．none[K] の候補の確率で感情の割合 π を推定し（反復 200 回まで，差 1e-9 で止める．E77 の値），テストの確率に π を掛ける
   self   ：自己学習．none[K] から始め，3 巡のあいだ，生徒自身の今の確率の最大が τ 以上の候補（K 本も含む）に硬いラベル（1 本あたり重み ρ．
            感情の釣り合いは取らない）を置き，K 本（倍率 1）と合わせて出発点から学び直す．残る候補が 0 本の巡は K 本だけで学ぶ．S = 4K ＋ ρ × 残った本数．
-           巡ごとの残った本数（感情ごと）を `_self_round` の行に，最後の巡の硬いラベル（−1 は無し．int8）を npz に残す．
+           巡ごとの残った本数（感情ごと）を `_self_round` の行に残す．npz には，巡 t ごとに置いた硬いラベル `self_<生徒>_K<K>_r<t>_pl`
+           （候補の番号ごとの感情．−1 は無し．int8）と，1・2 巡の解のテストの判定 `self_<生徒>_K<K>_r<t>_pred` を残す（3 巡の解は
+           `self_<生徒>_K<K>_pred`，`_pl` は 3 巡のラベルの写し．gate-code の R9）．
            仮のターゲットの回だけ，残った候補のラベルの正しさの割合を測る（測るだけ．m20）
   entmin ：エントロピー最小化（Grandvalet & Bengio 2005）．K 本の交差エントロピー ＋ ρn × 候補の予測のエントロピーの平均 ＋ 引き戻し．S = 4K ＋ ρn．
            凸でないので none[K] の解から始め，`dai_solver.lbfgs_batch`（実験 1 と同じ L-BFGS．問ごとの履歴 10 と Armijo の後退，float64，
@@ -110,6 +115,8 @@ DEFAULTS = {                                                         # 選択な
     "own": {"rho": 1.0, "a": 1}, "st": {"beta": 1.0}, "saerens": {},
 }
 SCRIPTS = ("dai2.py", "dai2_grad.py", "dai2_select.py", "dai1.py", "dai_solver.py", "dai_data.py")   # provenance と固定のファイルに sha256 を残す台本
+ENCODER = DD.ENC1                                                    # 実験 2 は第 1 のエンコーダだけで回す（R7）
+PROD_DIR = ROOT / "results" / "dai2"                                 # 本番の置き場
 OWN_SCRIPTS = ("dai2.py", "dai2_grad.py", "dai2_select.py")          # 評価の段が，選ぶ段のときの sha256 と照らす台本（共通の台本は eval_gate が固める）
 RUN = {"commit": "", "dirty": False, "frozen_sha256": "", "gate_sha256": "", "gpu": "", "tether_key": "", "dai1_dir": "", "out": ""}   # main が埋める
 f32, pred8, probs = dai1.f32, dai1.pred8, dai1.probs
@@ -149,7 +156,7 @@ def provenance(out: Path, args, script: str, extra: dict | None = None) -> dict:
                 scripts_sha256={n: sha(HERE / n) for n in SCRIPTS if (HERE / n).exists()},
                 features_sha256={p.name: sha(p) for p in sorted((ROOT / "data" / "cache").glob("*.npz"))
                                  if p.stem.split("_")[-1] in DD.CORPORA and any(p.stem.startswith(k + "_") for k in DD.ENC1.values())},
-                encoder=DD.ENC1, afew_transcript_sha256=sha(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv"),
+                encoder=ENCODER, afew_transcript_sha256=sha(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv"),
                 metadata_sha256={p.name: sha(p) for p in sorted((ROOT / "data" / "metadata").glob("*.csv"))},
                 splits_sha256={p.name: sha(p) for p in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
                 gpu_fraction=os.environ.get("MERDA_GPU_FRACTION", "0.6"), **(extra or {}))
@@ -465,7 +472,7 @@ def solve_batch(u, s, K, specs, W0, b0, Cw, Cb, rows, store, key, X=None, Xt=Non
     return res
 
 
-def pass_lin(u, store: dict, rows: list, tether: dict, pseudo: bool) -> None:
+def pass_lin(u, store: dict, rows: list, tether: dict, pseudo: bool, students=DD.STUDENTS) -> None:
     dai1_dir = Path(RUN["dai1_dir"])
     p1old = None                                                       # 実験 1 の段 1 の保存（あれば none の判定の一致を残す）
     p1path = dai1_dir / ("pseudo" if pseudo else "eval") / "units" / f"{u.T}_{u.c if pseudo else 'ALL'}_f{u.f}_r{u.r}_p1.npz"
@@ -477,7 +484,7 @@ def pass_lin(u, store: dict, rows: list, tether: dict, pseudo: bool) -> None:
                       and all(np.array_equal(p1old[f"sample_K{K}"], sid[u.pool[u.kpos[K]]].astype(str)) for K in DD.KS))
         if not same_units:                                             # 分割か K 本が違う保存（古いコミットの試走など）とは照らさない
             p1old = None
-    for s in DD.STUDENTS:
+    for s in students:
         X, Xt = u.Xp[s], u.Xt[s]
         W0, b0 = u.start[s]
         n = u.n
@@ -534,9 +541,11 @@ def pass_lin(u, store: dict, rows: list, tether: dict, pseudo: bool) -> None:
                     acc = float((lab[keep].cpu().numpy() == u.ypool[keep.cpu().numpy()]).mean()) if pseudo and bool(keep.any()) else float("nan")
                     rows.append(dict(method="_self_round", student=s, K=K, tau=tau, rho=rho, round=rnd + 1, n_pseudo=int(keep.sum()),
                                      **{f"n_pseudo_{k}": int(cnt[k]) for k in range(4)}, acc_pseudo=acc))
+                store[f"self_{s}_K{K}_r{rnd + 1}_pl"] = torch.stack(Hl).to(torch.int8).cpu().numpy()   # 巡 rnd+1 で置いた硬いラベル（候補の番号ごとの感情．−1 は無し．R9）
                 if rnd < SELF_ROUNDS - 1:
                     rs = S.fit(X, torch.stack(Gs), W0, b0, Cw=cw, Cb=cb)
                     cur = torch.softmax(S.logits(X, rs["W"], rs["b"]), -1)
+                    store[f"self_{s}_K{K}_r{rnd + 1}_pred"] = pred8(S.logits(Xt, rs["W"], rs["b"]))     # 巡 rnd+1 の解のテストの判定（最後の巡は self_..._pred．R9）
                     rows.append(dict(method="_conv_self", student=s, K=K, round=rnd + 1, grad_max=rs["grad_max"], n_stalled=rs["stalled"],
                                      finite=bool(rs["finite_p"].all())))
             solve_batch(u, s, K, [(dict(method="self", tau=tau, rho=rho), g) for (tau, rho), g in zip(items, Gs)], W0, b0, cw, cb,
@@ -634,10 +643,39 @@ def common_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--pseudo-c", nargs="*", default=None, help="試走用：仮のターゲットを絞る")
     ap.add_argument("--allow-dirty", action="store_true", help="試走用（評価の段は受け付けない．選ぶ段は本番の置き場では受け付けない）")
     ap.add_argument("--allow-partial-tether", action="store_true", help="試走用：tether_w.json の単位が全部でなくても進める")
+    ap.add_argument("--students", nargs="*", default=None, choices=DD.STUDENTS,
+                    help="試走用：生徒を絞る（本番の置き場では受け付けない．xMUDA 型は A・V・T を同時に学ぶので絞らない．I10）")
+
+
+def is_production(out: Path) -> bool:
+    return Path(out).resolve() == PROD_DIR.resolve()
+
+
+def check_encoder(dai1_dir: Path) -> dict:
+    """実験 1 の置き場のエンコーダが実験 2 のエンコーダ（第 1 のエンコーダ）と同じかを確かめる（R7）．実験 1 の provenance_log.jsonl
+    （置き場のものと，source/ の実体の隣のもの）の encoder を全部読み，1 つも無いか，1 つでも違えば止まる．
+    音声 1,024・顔 512・言葉 768 の次元は両エンコーダで同じなので，確かめないと誤った組み合わせでも落ちずに計算する。"""
+    logs = {dai1_dir / "provenance_log.jsonl", (dai1_dir / "source").resolve().parent / "provenance_log.jsonl"}
+    encs = []
+    for lp in sorted(logs):
+        if lp.exists():
+            for line in open(lp):
+                d = json.loads(line)
+                if "encoder" in d:
+                    encs.append((lp.name, d.get("stage"), d["encoder"]))
+    if not encs:
+        sys.exit(f"実験 1 の置き場 {dai1_dir} の provenance にエンコーダの記録が無い（R7）")
+    bad = [e for e in encs if e[2] != ENCODER]
+    if bad:
+        sys.exit(f"実験 1 の置き場のエンコーダ {bad[0][2]} が実験 2 のエンコーダ {ENCODER} と違う（実験 2 は第 1 のエンコーダだけで回す．R7）")
+    return ENCODER
 
 
 def setup_run(args, script: str) -> Path:
     out = Path(args.out_dir)
+    if args.students and is_production(out):
+        sys.exit("--students は試走だけ（本番の置き場では受け付けない．I10）")
+    check_encoder(Path(args.dai1_dir))
     out.mkdir(parents=True, exist_ok=True)
     commit, dirty = dai1.git_commit()
     if dirty and args.stage == "eval":
@@ -647,6 +685,11 @@ def setup_run(args, script: str) -> Path:
     RUN.update(commit=commit, dirty=dirty, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
                dai1_dir=str(Path(args.dai1_dir)), out=str(out))
     return out
+
+
+def students_tag(args) -> str:
+    """生徒を絞った試走の単位を，絞らない単位として読み直さないための印（run_unit の extra_tag）。"""
+    return json.dumps({"students": list(args.students)}) if args.students else ""
 
 
 def units_of(args, T: str, mode: str, seeds):
@@ -666,6 +709,8 @@ def main() -> None:
         dai2_select.main(Path(args.out_dir), args.targets, Path(args.dai1_frozen), args.allow_dirty)
         return
     out = setup_run(args, "dai2.py")
+    studs = tuple(args.students) if args.students else DD.STUDENTS
+    stag = students_tag(args)
     if args.stage == "pseudo":
         for T in args.targets:
             teth, tpath = tether_pseudo(Path(args.dai1_dir), T, args.allow_partial_tether)
@@ -675,7 +720,7 @@ def main() -> None:
                                                          lp_cg_iters=LP_CG_ITERS, saerens_iters=SAERENS_ITERS))
             seeds = args.seeds if args.seeds is not None else [0, 1]
             for c, srcs, f, r in units_of(args, T, "pseudo", seeds):
-                run_unit(out, "pseudo", T, c, srcs, f, r, "lin", lambda u, st, rw: pass_lin(u, st, rw, teth, True), teth)
+                run_unit(out, "pseudo", T, c, srcs, f, r, "lin", lambda u, st, rw: pass_lin(u, st, rw, teth, True, studs), teth, extra_tag=stag)
         return
     fz2, fz1 = check_eval_frozen(out, Path(args.dai1_frozen))
     for T in args.targets:
@@ -686,7 +731,7 @@ def main() -> None:
         provenance(out, args, "DAI/exp/dai2.py", dict(stage="eval", T=T, frozen_sha256=RUN["frozen_sha256"], gate_sha256=RUN["gate_sha256"],
                                                      dai1_frozen_sha256=sha(Path(args.dai1_frozen)), tether_key=RUN["tether_key"], R=R))
         for c, srcs, f, r in units_of(args, T, "eval", seeds):
-            run_unit(out, "eval", T, c, srcs, f, r, "lin", lambda u, st, rw: pass_lin(u, st, rw, teth, False), teth)
+            run_unit(out, "eval", T, c, srcs, f, r, "lin", lambda u, st, rw: pass_lin(u, st, rw, teth, False, studs), teth, extra_tag=stag)
 
 
 if __name__ == "__main__":
