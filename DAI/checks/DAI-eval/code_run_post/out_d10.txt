@@ -1,0 +1,6 @@
+checked 909600 mismatch 0 []
+coverage by tag: {'p1_start': 1400, 'p1_start_srcstd': 1400, 'p1_none': 78400, 'p1_oracle': 19600, 'p1_kbias': 6400, 'p1_tgtonly': 38400, 'p3main:joint': 96000, 'p3main:kd': 96000, 'p3main:agree': 72000, 'p3main:mix': 72000, 'p3main:tt': 88000, 'p3tether:joint_tether': 56000, 'p3tether:kd_tether': 52500, 'p3scratch:joint_scratch': 96000, 'rolesep': 96000, 'coreg': 20000, 'cotrain': 12000, 'p3main:cotrain': 4000, 'p3tether:agree_tether': 3500}
+
+real	5m4.247s
+user	39m6.957s
+sys	0m1.392s

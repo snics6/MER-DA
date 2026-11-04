@@ -1,0 +1,3 @@
+units 200 problems 0 []
+distinct K=5 draws among 10 seeds per (T,fold): min 10 max 10
+{'AFEW': 790, 'IEMOCAP': 2943, 'MOSEI': 18634, 'MELD': 11267}
