@@ -1,0 +1,2 @@
+== new
+fatal: not a git repository

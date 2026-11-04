@@ -14,7 +14,7 @@
    - 実験 2 の Pod：`results/dai2/{select,st_cv}`．
    - 実験 1・3 の Pod：`results/dai3/{frozen.json,validate,detect}`．
 6. 実験 1・3 の Pod（4 台）：`DAI/run/dai_eval.sh 1 <T>`，終わったら `DAI/run/dai_eval.sh 3 <T>`．実験 2 の Pod（4 台）：`DAI/run/dai_eval.sh 2 <T>`．
-   - 起動した後に `logs/dai_eval_<実験>_<T>.inputs` を見て，commit が 8 台で同じで汚れの数が 0 であることを照らす．
+   - 起動した後に `logs/dai_eval_<実験>_<T>.inputs` を見て，commit が 8 台で同じで汚れの数が 0 であることを照らす．記録に GPU の行（H200）と commit の行があることも確かめる（v3-1）．8 台すべてに `results/dai1/provenance_log.jsonl` を，実験 2 の Pod には空でない `results/dai2/st_cv/` を送る（v3-2）．
    - `.failed` ができたら，流し直す前に，止めた処理が最後に書き終えた単位より後に更新されたファイルを消す（v2-5）．
 7. 研究室の PC に集める．
    - `results/dai1/eval/units/`，`results/dai2/eval/units/`，`results/dai3/eval/units/*.pkl` を合わせる．
