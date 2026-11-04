@@ -15,6 +15,7 @@
 # どれかの処理が失敗したら残りの処理を止め，logs/dai_eval_<実験>_<T>.failed を書いて止まる．終わったら .done を書く．
 # 起動のたびに前の .done・.failed を消す．ログは追記する（前の失敗の記録を残す）．
 set -u
+[ "${BASH_VERSINFO[0]}${BASH_VERSINFO[1]}" -ge 51 ] 2>/dev/null || { echo "bash 5.1 以上が要る（wait -n -p）．今は $BASH_VERSION"; exit 1; }
 cd "$(dirname "$0")/../.."
 E=$1
 T=$2
@@ -41,15 +42,18 @@ export OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
     3) sha256sum results/dai3/frozen.json ;;
   esac
 } >> "logs/dai_eval_${TAG}.inputs" 2>&1 || fail "入力の記録を書けない"
+tail -n +"$(grep -n "^== " "logs/dai_eval_${TAG}.inputs" | tail -1 | cut -d: -f1)" "logs/dai_eval_${TAG}.inputs" | grep -qiE "No such file|cannot|error|Traceback" && fail "入力の記録に誤りの行がある（logs/dai_eval_${TAG}.inputs）"
 case "$E" in
   1)
     export MERDA_GPU_FRACTION=${FRAC:-0.15}
+    echo "MERDA_GPU_FRACTION $MERDA_GPU_FRACTION" >> "logs/dai_eval_${TAG}.inputs"
     for f in 0 1 2 3 4; do
       $PY DAI/exp/dai1.py --stage eval --targets "$T" --folds $f --out-dir results/dai1 >> "logs/dai1_eval_${T}_f$f.log" 2>&1 &
       pids+=($!)
     done ;;
   2)
     export MERDA_GPU_FRACTION=${FRAC:-0.12}
+    echo "MERDA_GPU_FRACTION $MERDA_GPU_FRACTION" >> "logs/dai_eval_${TAG}.inputs"
     [ -f results/dai1/provenance_log.jsonl ] || fail "results/dai1/provenance_log.jsonl が無い（dai2.check_encoder が止まる）"
     for f in 0 1 2 3 4; do
       $PY DAI/exp/dai2.py --stage eval --targets "$T" --folds $f --out-dir results/dai2 --dai1-dir results/dai1 >> "logs/dai2_eval_${T}_lin_f$f.log" 2>&1 &
@@ -59,6 +63,7 @@ case "$E" in
     done ;;
   3)
     export MERDA_GPU_FRACTION=${FRAC:-0.5}
+    echo "MERDA_GPU_FRACTION $MERDA_GPU_FRACTION" >> "logs/dai_eval_${TAG}.inputs"
     [ -f "logs/dai_eval_1_${T}.done" ] || fail "この機械で実験 1 の eval（DAI/run/dai_eval.sh 1 $T）が終わっていない"
     n=$(ls results/dai1/eval/units/${T}_ALL_f*_r*_p3.npz 2>/dev/null | wc -l)
     m=$(ls results/dai1/eval/units/${T}_ALL_f*_r*_p3.csv 2>/dev/null | wc -l)
@@ -71,6 +76,6 @@ left=${#pids[@]}
 while [ "$left" -gt 0 ]; do
   wait -n -p fin; st=$?
   left=$((left - 1))
-  [ "$st" -eq 0 ] || fail "処理 $fin が失敗（終了コード $st）"
+  [ "$st" -eq 0 ] || fail "処理 ${fin:-?} が失敗（終了コード $st）"
 done
 date > "logs/dai_eval_${TAG}.done"
