@@ -41,6 +41,7 @@
     教師の確率 Q（float32）を保存する（集計が正解の感情に置かれた重みの割合を作り直すため）。印は候補の全発話（K 本を含む）に付け，重みも全発話に置く。
   - `--selftest-g1`：γ = 1 の点も解き，実験 1 の p3 の joint（a = 1，同じ ρ，teacher = one）との判定の一致と W・b の差を `_g1check` の行に残す
     （本番の格子には入れない．--allow-dirty の pseudo で本番の置き場以外だけ）。
+  - 問の数は 1 単位 1,140（本番 240 ＋ 対照 900）。評価の回は cons の選んだ点の引き戻し 14 点 × 生徒 4 × K 5 = 280 問（`p4t_`，method=cons_tether．実験 1 の p3t と同じ並び）を足して 1,420。
   - 計算機の名前を行（gpu）と npz（gpu）に残す。問の名前の JSON（_items）に method・rho・gamma を入れる。
   - 入力の単位が実験 1 の保存と同じ分割・K 本・標準化かを，sample_pool・sample_test・sample_K{K}・標準化の統計で照合し，違えば止まる。
   - tether は実験 1 の固定のファイル（`DAI/frozen/dai1_frozen.json`）から読む。仮のターゲットの回では `<T>_tether_w.json` と一致を確かめる。
@@ -147,7 +148,7 @@ def seed_of(u, s: str, K: int) -> int:
 
 
 def solve_unit(u: dai1.Unit, tether: dict, gammas, store: dict, rows: list, z1, ctrl_pts, z3=None, p3rows=None,
-               check_teacher: bool = False) -> None:
+               check_teacher: bool = False, tether_sel=None) -> None:
     """本番 cons は `gammas` の格子の全点で解く。対照 4 つは `ctrl_pts(method, s, K)` の点を解く（仮のターゲットの回は格子の全点，
     評価の回は固定のファイルの選んだ点）。z1 は実験 1 の段 1 の保存。z3 と p3rows があれば `--selftest-g1` の検算，
     check_teacher なら教師の検算（候補のラベルを読むので，仮のターゲットの回だけ。評価の回は dai4_stats が数える）。
@@ -192,6 +193,11 @@ def solve_unit(u: dai1.Unit, tether: dict, gammas, store: dict, rows: list, z1, 
             cw, cb = tether[(s, max(K, 1))]
             specs = build_specs(u, s, K, mark, Q, gk, "cons", grid_all, rows)
             dai1.solve_items(u, s, K, specs, cw, cb, W0, b0, rows, store, f"p4_{s}_K{K}")
+            if tether_sel is not None:                                              # 評価の回だけ：cons の選んだ点を引き戻しの 14 点（dai1.TETHER）で解く（実験 1 の p3t と同じ並び）
+                pt = tether_sel(s, K)
+                base = build_specs(u, s, K, mark, Q, gk, "cons_tether_base", [pt], rows)[0]
+                spt = [(dict(base[0], method="cons_tether", Cw=tcw, Cb=tcb), base[1], base[2], base[3]) for tcw, tcb in dai1.TETHER]
+                dai1.solve_items(u, s, K, spt, [x[0] for x in dai1.TETHER], [x[1] for x in dai1.TETHER], W0, b0, rows, store, f"p4t_{s}_K{K}")
             ctrl = {}
             if s != "AVT":                                                          # (a) 生徒を含む全モダリティの一致（AVT の生徒は本番と同じなので省く）
                 ctrl["cons_self"] = ("self", allm)
@@ -234,6 +240,9 @@ def solve_unit(u: dai1.Unit, tether: dict, gammas, store: dict, rows: list, z1, 
                                      pred_agree=float((store[f"p4_{s}_K{K}_pred"][j4] == z3[f"p3_{s}_K{K}_pred"][j3]).mean()),
                                      W_maxdiff=float(np.abs(store[f"p4_{s}_K{K}_W"][j4] - z3[f"p3_{s}_K{K}_W"][j3]).max()),
                                      b_maxdiff=float(np.abs(store[f"p4_{s}_K{K}_b"][j4] - z3[f"p3_{s}_K{K}_b"][j3]).max())))
+        ag = min(x["pred_agree"] for x in rows if x.get("method") == "_g1check")
+        if ag < 0.999:
+            sys.exit(f"--selftest-g1：γ = 1 の判定と実験 1 の joint の一致が 99.9% 未満（最小 {ag:.4f}）。止める")
 
 
 def check_inputs(u: dai1.Unit, z1) -> None:
@@ -247,14 +256,15 @@ def check_inputs(u: dai1.Unit, z1) -> None:
 
 
 def run_unit(in_dir: Path, out_dir: Path, tag: str, T: str, c: str, srcs: list, f: int, r: int, tether: dict, gammas,
-             run: dict, ctrl_pts, selftest_g1: bool = False) -> pd.DataFrame:
+             run: dict, ctrl_pts, selftest_g1: bool = False, tether_sel=None) -> pd.DataFrame:
     cname = "ALL" if tag == "eval" else c
     name = f"{T}_{cname}_f{f}_r{r}"
     ib = in_dir / tag / "units" / name
     base = out_dir / tag / "units" / name
     path, rpath = Path(f"{base}_p4.npz"), Path(f"{base}_p4.csv")
     grid = np.array([f"{it['rho']}|{it['gamma']}" for it in grid_points(gammas)] +
-                    [f"{m}|{s_}|{K_}|{ctrl_pts(m, s_, K_)}" for m in CTRL_PREFIX for s_ in DD.STUDENTS for K_ in KS_ALL if not (m == "cons_self" and s_ == "AVT")])
+                    [f"{m}|{s_}|{K_}|{ctrl_pts(m, s_, K_)}" for m in CTRL_PREFIX for s_ in DD.STUDENTS for K_ in KS_ALL if not (m == "cons_self" and s_ == "AVT")] +
+                    ([f"tether|{s_}|{K_}|{tether_sel(s_, K_)}" for s_ in DD.STUDENTS for K_ in KS_ALL] if tether_sel else []))
     if path.exists() and rpath.exists():
         old = pd.read_csv(rpath, low_memory=False)
         z = np.load(path)
@@ -283,7 +293,7 @@ def run_unit(in_dir: Path, out_dir: Path, tag: str, T: str, c: str, srcs: list, 
     elif Path(f"{ib}_p3.csv").exists():
         p3rows = pd.read_csv(f"{ib}_p3.csv", low_memory=False)           # 教師の検算だけ
     store, rows = {}, []
-    solve_unit(u, tether, gammas, store, rows, z1, ctrl_pts, z3, p3rows, check_teacher=(tag == "pseudo"))
+    solve_unit(u, tether, gammas, store, rows, z1, ctrl_pts, z3, p3rows, check_teacher=(tag == "pseudo"), tether_sel=tether_sel)
     store.update(sample_pool=z1["sample_pool"], cluster_test=u.cp.df["cluster"].to_numpy()[u.test].astype(str), grid=grid, commit=np.array(run["commit"]), dirty=np.array(run["dirty"]),
                  frozen_sha256=np.array(run["frozen_sha256"]), dai1_frozen_sha256=np.array(run["dai1_frozen_sha256"]),
                  gate_sha256=np.array(run["gate_sha256"]), gpu=np.array(run["gpu"]),
@@ -368,6 +378,7 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
                         "dai1_frozen_sha256": dai1.sha(FROZEN1)}}
     if list(targets) != list(DD.CORPORA):
         frozen["_meta"]["partial_targets"] = list(targets)
+    gpus: set = set()
     for T in targets:
         raw = load_rows(out_dir, "pseudo", T)
         d = raw[raw.method == "cons"]
@@ -383,6 +394,7 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
             sys.exit(f"{T}: dirty の行がある")
         if set(raw.dai1_frozen_sha256.astype(str)) != {dai1.sha(FROZEN1)}:
             sys.exit(f"{T}: 行の dai1_frozen_sha256 が今の固定のファイルと違う")
+        gpus |= set(raw.gpu.astype(str))
         select, tie_used, edge = {}, 0, dict(rho=0, gamma=0, any=0)
         for meth in ("cons",) + tuple(CTRL_PREFIX):
             dm = raw[raw.method == meth]
@@ -403,6 +415,9 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
                          n_cells=len(select), n_seeds_eval=fz1[T]["n_seeds_eval"], units=names, pseudo_commit=commit_of(raw),
                          pseudo_unit_sha256={f"{T}_{n.split('_', 1)[0]}_{n.split('_', 1)[1]}_p4.npz": dai1.sha(out_dir / "pseudo" / "units" / f"{T}_{n}_p4.npz") for n in names})
         print(f"{T}: 単位 {len(names)}，セル {len(select)}，同点の規則が働いたセル {tie_used}，格子の端のセル {edge}", flush=True)
+    if len(gpus) != 1 and "partial_targets" not in frozen["_meta"]:
+        sys.exit(f"pseudo の全単位の計算機名が 1 種でない：{sorted(gpus)}")
+    frozen["_meta"]["pseudo_gpu"] = sorted(gpus)
     fzp = sel_dir / "frozen.json"
     json.dump(frozen, open(fzp, "w"), indent=1, ensure_ascii=False)
     print("書いた:", fzp, "sha256", dai1.sha(fzp))
@@ -428,6 +443,7 @@ def check_eval_gate4(frozen_rel: str, out_dir: Path) -> str:
     5. dai4_frozen.json のコミット時刻が，評価の段の最初の保存より前である。
     6. 学習の経路がラベルを読まない（印・教師は保存した重みと切片だけから作る）：この台本では solve_unit の check_teacher（仮のターゲットの回だけ）以外に候補の
        ラベルを使わない。構造の検査は gate-code に任せ，ここでは評価の段で check_teacher を呼ばないことで守る。
+    （追加）固定のファイルの pseudo_commit と HEAD の間で dai4.py・dai1.py・dai_solver.py・dai_data.py に差が無く，pseudo_unit_sha256 が今の pseudo の保存と一致する。
     7. 評価の後・stats の前の joint・kd・none の保存の sha256 は dai4_stats.py の evaluate が書く。"""
     if not GATE4.exists() or not dai1.committed_clean(GATE4):
         sys.exit("DAI/frozen/eval_gate_dai4.json が無いかコミットされていない")
@@ -473,6 +489,16 @@ def check_eval_gate4(frozen_rel: str, out_dir: Path) -> str:
         fp = IN_DIR / "eval" / "units" / nm
         if not fp.exists() or dai1.sha(fp) != h:
             sys.exit(f"実験 1 の評価の回の保存 {nm} が無いか，記録の sha256 と違う")
+    fzj = json.load(open(out_dir / "select" / "frozen.json"))                    # 固定のファイル：pseudo の台本と保存が今のものか
+    code = ["DAI/exp/dai4.py", "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py"]
+    for T in DD.CORPORA:
+        pc = fzj[T]["pseudo_commit"]
+        if subprocess.run(["git", "diff", "--quiet", pc, "HEAD", "--", *code], cwd=ROOT).returncode != 0:
+            sys.exit(f"{T}: 固定のファイルの pseudo_commit {pc[:10]} と HEAD の間で {code} に差がある")
+        for nm, h in fzj[T]["pseudo_unit_sha256"].items():
+            fp = out_dir / "pseudo" / "units" / nm
+            if not fp.exists() or dai1.sha(fp) != h:
+                sys.exit(f"{T}: pseudo の保存 {nm} が無いか，固定のファイルの sha256 と違う")
     ct = int(subprocess.run(["git", "log", "-1", "--format=%ct", "--", frozen_rel], cwd=ROOT, capture_output=True, text=True).stdout.strip() or 0)
     sv = [p.stat().st_mtime for p in (out_dir / "eval" / "units").glob("*_p4.npz")] if (out_dir / "eval" / "units").exists() else []
     if not ct or (sv and min(sv) < ct):
@@ -542,14 +568,16 @@ def main() -> None:
     with open(out_dir / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     n = 0
+    sel_all = json.load(open(out_dir / "select" / "frozen.json")) if args.stage == "eval" else None
     for T in args.targets:
+        tsel = None if args.stage == "pseudo" else (lambda s_, K_, T=T: (sel_all[T]["select"][f"{s_}|{K_}"]["rho"], sel_all[T]["select"][f"{s_}|{K_}"]["gamma"]))
         ctrl_pts = lambda meth, s_, K_: [(float(r_), float(g_)) for r_ in RHO_GRID for g_ in gammas]            # noqa: E731  対照も格子の全点（仮のターゲットの回も評価の回も）
         tether = {(k.split("|")[0], int(k.split("|")[1])): tuple(v) for k, v in fz1[T]["tether"].items()}
         sd = seeds if seeds is not None else (args.seeds if args.seeds is not None else list(range(int(fz1[T]["n_seeds_eval"]))))
         for c, srcs, f, r in dai1.units_for(T, args.stage, args.folds, sd):
             if args.cs is not None and c not in args.cs:
                 continue
-            run_unit(in_dir, out_dir, args.stage, T, c, srcs, f, r, tether, gammas, run, ctrl_pts, args.selftest_g1)
+            run_unit(in_dir, out_dir, args.stage, T, c, srcs, f, r, tether, gammas, run, ctrl_pts, args.selftest_g1, tsel)
             n += 1
     print(f"{args.stage}: {n} 単位", flush=True)
 

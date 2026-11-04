@@ -8,7 +8,7 @@
       検出できる差（最初の段）が効果の見込みの大きさを超えるセルは記述に回す。同じ水準の δ と種の数は実験 1 の固定のファイルの値を使う
       （比較の基準の種の間の分散だけに依り，この実験で変わらない）。結果は frozen.json の X の `detect` に書き，写しを置く。
   python DAI/exp/dai4_stats.py eval [出力の置き場]  ：評価の回の後。
-      families6.csv（族 6．コーパスごとに Holm），desc.csv（記述．cons − none，kd_one，partner（セルごとに相手の名前と版），agree，cotrain，coreg，cons_g1，
+      families6.csv（族 6．コーパスごとに Holm），desc.csv（記述．cons_tether − joint_tether の引き戻しの曲線（14 点），cons − none，kd_one，partner（セルごとに相手の名前と版），agree，cotrain，coreg，cons_g1，
       cons0（選択なしどうしは cons0 − joint_default の行），joint，joint_a1，ρ だけ選んだ版 cons_rho25 − joint_a1，ρ = 1 での γ の曲線，取りこぼし
       （cons − 格子で平均が最良の点，joint − joint の格子で最良の点．n_grid_points を添える），同じ水準の δ との比べ，対照 4 つとの差を 2 通り：
       B = cons_* は各対照が自分の選んだ点（read = own_selected），B = cons_*@cons は cons の選んだ (ρ, γ) の点（read = cons_selected．印だけの差），K = 0〜25 の全部），
@@ -16,13 +16,14 @@
       判定の一致率と ret と AVT の none[K] の一致率，誤りの φ 係数と「同じ誤りをする割合 ÷ 独立なときの見込み」），marks_variants.csv（本番と対照の印の割合，感情ごと），
       sensitivity.csv（漏れの感度：subsets.csv の部分集合と実験 3 の筋書きの対での cons − joint），teacher_check(.summary).csv（評価の回の教師の UAR と実験 1 の
       `_teacher_stats` の照合），gpu_counts.csv，zero_weight_classes.csv，neff_lt30.csv，pairing.csv（対の照合：テスト・K 本・塊の名前）。
-      判定は int8 の保存から作り直し，行の uar と全部の問で照合した数を残す。今のコミットが評価の回の単位のコミットと違えば止まる。
+      判定は int8 の保存から作り直し，行の uar と全部の問で照合した数を残す。評価の回の単位のコミットが HEAD の祖先でないか，dai4.py・dai1.py・dai_solver.py・dai_data.py・両方の固定のファイルが単位のコミットと違えば止まる（stats の台本自身の変更は許す。結果の csv には今のコミットを書く）。
 """
 
 from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import subprocess
 import sys
 from pathlib import Path
@@ -99,6 +100,17 @@ def collect(out4: Path, in_dir: Path, tag: str, T: str, c: str, units, y_of, cl_
                     put("cons_rho25", p4.pred(s, K, rr25[0], rr25[1]))
                     for it in p4.items(s, K):
                         put(f"g|{it['rho']}|{it['gamma']}", p4.pred(s, K, it["rho"], it["gamma"]))
+                    if p4.has(s, K, "p4t"):                                 # 引き戻しの曲線：cons の選んだ点（p4t）と joint の選んだ点（実験 1 の p3t）の 14 点
+                        it4 = [json.loads(x) for x in p4.z[f"p4t_{s}_K{K}_items"]]
+                        it3 = [json.loads(x) for x in up.p3[f"p3t_{s}_K{K}_items"]]
+                        for tcw, tcb in dai1.TETHER:
+                            j4 = [j for j, x in enumerate(it4) if np.isclose(x["Cw"], tcw) and np.isclose(x["Cb"], tcb)]
+                            j3 = [j for j, x in enumerate(it3) if x.get("method") == "joint_tether" and x.get("tag") == "prop_sel"
+                                  and np.isclose(x["Cw"], tcw) and np.isclose(x["Cb"], tcb)]
+                            if len(j4) != 1 or len(j3) != 1:
+                                sys.exit(f"{name}: 引き戻しの点が 1 つに決まらない ({s}, K={K}, {tcw}, {tcb})")
+                            put(f"tc|{tcw}|{tcb}", p4.z[f"p4t_{s}_K{K}_pred"][j4[0]])
+                            put(f"tj|{tcw}|{tcb}", up.p3[f"p3t_{s}_K{K}_pred"][j3[0]])
                     vj = fz1T["main"][str(K)]
                     for rj in dai1.RHO_GRID:                               # joint の全格子（取りこぼし用．主の版の ρ 4 × a 3）
                         for aj in dai1.A_GRID:
@@ -230,8 +242,6 @@ def guard_eval(out4: Path, fz1: dict) -> str:
     if not dai1.committed_clean(cp):
         sys.exit("固定のファイルの写しがコミットされていない")
     commit, dirty = dai1.git_commit()
-    if dirty:
-        sys.exit("作業木に未コミットの変更がある．評価の集計は流さない")
     h, commits = dai1.sha(fzp), set()
     for T in DD.CORPORA:
         for f in range(DD.N_FOLDS):
@@ -247,8 +257,12 @@ def guard_eval(out4: Path, fz1: dict) -> str:
     if len(commits) != 1:
         sys.exit(f"評価の回の単位のコミットが 1 つでない：{sorted(commits)}")
     ucommit = commits.pop()
-    if commit != ucommit:
-        sys.exit(f"今のコミット {commit[:10]} が評価の回の単位のコミット {ucommit[:10]} と違う．評価の回のコミットの作業木で流す")
+    if subprocess.run(["git", "merge-base", "--is-ancestor", ucommit, "HEAD"], cwd=ROOT).returncode != 0:
+        sys.exit(f"評価の回の単位のコミット {ucommit[:10]} が HEAD の祖先でない")
+    fixed = ["DAI/exp/dai4.py", "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py", "DAI/frozen/dai4_frozen.json", "DAI/frozen/dai1_frozen.json"]
+    if subprocess.run(["git", "diff", "--quiet", ucommit, "HEAD", "--", *fixed], cwd=ROOT).returncode != 0 or \
+            subprocess.run(["git", "diff", "--quiet", ucommit, "--", *fixed], cwd=ROOT).returncode != 0:
+        sys.exit(f"評価の回の単位のコミット {ucommit[:10]} と今の間で {fixed} に差がある（stats の台本自身の変更は許す）")
     return ucommit
 
 
@@ -259,6 +273,7 @@ def pairing(out4: Path, in_dir: Path, fz1: dict) -> None:
     for T in DD.CORPORA:
         sp = pd.read_csv(ROOT / "DAI" / "splits" / f"{T}.csv", keep_default_na=False)
         cl = dict(zip(sp["sample_id"].astype(str), sp["cluster"].astype(str)))
+        ymap = dict(zip(sp["sample_id"].astype(str), sp["label_4"].astype(int)))
         for f in range(DD.N_FOLDS):
             for r in range(int(fz1[T]["n_seeds_eval"])):
                 name = f"{T}_ALL_f{f}_r{r}"
@@ -266,8 +281,20 @@ def pairing(out4: Path, in_dir: Path, fz1: dict) -> None:
                 ok_t = bool((z1["sample_test"] == z4["sample_test"]).all())
                 ok_k = all(bool((z1[f"sample_K{K}"] == z4[f"sample_K{K}"]).all()) for K in DD.KS)
                 ok_c = [cl[x] for x in z1["sample_test"].astype(str)] == list(z4["cluster_test"].astype(str))
-                rows.append(dict(T=T, fold=f, seed=r, test_ok=ok_t, K_ok=ok_k, cluster_ok=ok_c))
-                bad += int(not (ok_t and ok_k and ok_c))
+                # joint 側：p1 の sample_test の順で解釈した p3 の選んだ点の判定から作った UAR が，p3 の csv の行の uar と一致するか
+                up = ST.UnitPreds(in_dir / "eval" / "units" / name)
+                y = np.array([ymap[x] for x in up.sid])
+                r3 = pd.read_csv(in_dir / "eval" / "units" / f"{name}_p3.csv", low_memory=False)
+                nbad = 0
+                for s in DD.STUDENTS:
+                    for K in dai1.KS_ALL:
+                        jj = joint_sel(fz1[T], s, K)
+                        mine = S.uar(y, up.p3item(s, K, method="joint", teacher=jj["teacher"], rho=jj["rho"], a=jj["a"]).astype(int)) * 100
+                        q = r3[(r3.stage == 3) & (r3.student == s) & (r3.K == K) & (r3.method == "joint") & (r3.teacher == jj["teacher"])]
+                        q = q[np.isclose(q.rho.astype(float), float(jj["rho"])) & np.isclose(q.a.astype(float), float(jj["a"]))]
+                        nbad += int(len(q) != 1 or abs(float(q.uar.iloc[0]) - mine) > 1e-6)
+                rows.append(dict(T=T, fold=f, seed=r, test_ok=ok_t, K_ok=ok_k, cluster_ok=ok_c, joint_uar_mismatch=nbad))
+                bad += int(not (ok_t and ok_k and ok_c) or nbad > 0)
     (out4 / "stats").mkdir(exist_ok=True)
     pd.DataFrame(rows).to_csv(out4 / "stats" / "pairing.csv", index=False)
     print(f"対の照合：一致しない単位 {bad}/{len(rows)}", flush=True)
@@ -435,6 +462,12 @@ def evaluate(out4: Path, in_dir: Path) -> None:
                     e["n_units"] = DD.N_FOLDS
                 desc.append(dict(T=T, student=s, K=K, A="joint", B="joint_oracle", oracle_point=joracle, n_grid_points=len(jmeans), read="regret",
                                  delta_same=delta, interval_within_delta=bool(K > 0 and -delta < e["lo"] and e["hi"] < delta), g_eff=g_eff, **e))
+                for tcw, tcb in dai1.TETHER:                              # cons − joint の引き戻しの曲線（記述）
+                    e = ST.effect_stats(cells[(s, K, f"tc|{tcw}|{tcb}")], cells[(s, K, f"tj|{tcw}|{tcb}")], g_eff, rng)
+                    if K == 0:
+                        e["n_units"] = DD.N_FOLDS
+                    desc.append(dict(T=T, student=s, K=K, A="cons_tether", B="joint_tether", Cw=tcw, Cb=tcb, read="tether_curve", oracle_point="",
+                                     n_grid_points=0, delta_same=delta, interval_within_delta=False, g_eff=g_eff, **e))
                 # 選択の自由度をそろえた比べ：γ = 1/4 の列で ρ だけ選んだ cons − joint_a1，選択なしどうし cons0 − joint_default
                 for A_, B_ in (("cons_rho25", "joint_a1"), ("cons0", "joint_default")):
                     e = ST.effect_stats(cells[(s, K, A_)], cells[(s, K, B_)], g_eff, rng)
@@ -479,8 +512,10 @@ def evaluate(out4: Path, in_dir: Path) -> None:
                     Pc = S.soft_rows(Q * m[:, None], dai1.mval(rho_c, n), balance=True)
                     Pj = S.soft_rows(Q, dai1.mval(jj["rho"], n), balance=True)
 
-                    def wfrac(P):
-                        return float(np.mean([(P[yy == k, k].sum() / P[:, k].sum().clamp(min=1e-30)).item() for k in range(4)]))
+                    nkt = torch.as_tensor(nk, device=S.DEV)
+
+                    def wfrac(P):                                           # K 本を除いた候補で数える
+                        return float(np.mean([(P[nkt & (yy == k), k].sum() / P[nkt, k].sum().clamp(min=1e-30)).item() for k in range(4)]))
                     d = dict(share=float(mk[nk].mean()), n_marked=int((nk & mk).sum()), n_unmarked=int((nk & ~mk).sum()),
                              wfrac_correct_cons=wfrac(Pc), wfrac_correct_joint=wfrac(Pj))
                     for nm_, g in (("marked", nk & mk), ("unmarked", nk & ~mk)):
@@ -518,7 +553,10 @@ def evaluate(out4: Path, in_dir: Path) -> None:
     dest.mkdir(exist_ok=True)
     # joint・kd・none の保存（実験 1 の評価の回の段 1・段 3）の sha256 を書く（m7）。固定のファイルは評価の後に書き換えないので別のファイルに置く
     shas = {f"{T}_ALL_f{f}_r{r}_p{w}.npz": dai1.sha(in_dir / "eval" / "units" / f"{T}_ALL_f{f}_r{r}_p{w}.npz")
-            for T in DD.CORPORA for f in range(DD.N_FOLDS) for r in range(int(fz1[T]["n_seeds_eval"])) for w in (1, 3)}
+            for T in DD.CORPORA for f in range(DD.N_FOLDS) for r in range(int(fz1[T]["n_seeds_eval"])) for w in (1, 2, 3)}
+    gate_sha = json.load(open(D4.GATE4)).get("input_sha256", {})
+    if gate_sha != shas:
+        sys.exit("実験 1 の評価の回の p1・p2・p3 の sha256 が eval_gate_dai4.json の input_sha256 と違う")
     ish = dest / "eval_input_sha256.json"
     if ish.exists() and json.load(open(ish)) != shas:
         sys.exit("実験 1 の評価の回の保存の sha256 が前の集計のときと違う")
