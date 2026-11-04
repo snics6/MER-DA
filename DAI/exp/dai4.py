@@ -29,13 +29,16 @@
                       dai1_frozen_sha256：実験 1 の固定のファイル）を持つ。
 
 実装で決めた細部：
-  - 対照 4 つ（設計第 2 版の M2・比べ方の関門）を，本番と同じ ρ 4 × γ 3 の格子の全点で，仮のターゲットの回にも評価の回にも解く：
+  - 対照 4 つ（設計第 2 版の M2・比べ方の関門）を，仮のターゲットの回も評価の回も本番と同じ ρ 4 × γ 3 の格子の全点で解く
+    （選ぶ段が本番と対照それぞれの点を選ぶ。cons の γ = 1/4 の列で ρ だけを選んだ `cons_rho25` も固定する）：
     cons_self（印＝生徒を含む全モダリティの ret の判定の一致．AVT の生徒は本番と同じなので省く），cons_own（印＝生徒自身の none[K] の判定と教師 Q の
-    判定の一致．K = 0 は出発点），cons_conf（印＝教師 Q の最大の確率が上位の発話．数は本番の印と同じ．同点は番号の若い方），cons_rand（印＝本番と同じ数の乱数．
+    判定の一致．K = 0 は出発点），cons_conf（印＝感情（教師 Q の判定）ごとに，その感情の本番の印と同じ数だけ最大の確率が上位の発話．同点は番号の若い方），cons_rand（印＝同じ数を各感情の中で乱数．
     種は crc32("T|c|f|r|生徒|K")）。保存は接頭辞 p4s・p4o・p4c・p4r（本番は p4）で，形は本番と同じ。評価の集計は，本番の選んだ (ρ, γ) の点で比べる。
   - 行 `_weights`：感情ごとの重みの合計と有効な本数 (Σw)²/Σw²，重みが 0 の感情の数（γ = 0 で印の付いた発話が無い感情）。止めずに残す。
     行 `_marks`：印の数，感情（教師の判定）ごとの印の数と割合，印の付いた発話が 0 の感情の数。`_marks_ctrl`：対照の印の数と本番の印との一致の割合。
   - 行 `_teacher_check`：作り直した教師の候補の UAR（K 本を除く）が実験 1 の段 3 の `_teacher_stats`（teacher = one）の uar_pool と一致するか。
+    候補のラベルを読むので仮のターゲットの回だけ。評価の回は dai4.py がラベルを読まず，dai4_stats.py が同じ照合を `stats/teacher_check.csv` に出す。
+    教師の確率 Q（float32）を保存する（集計が正解の感情に置かれた重みの割合を作り直すため）。印は候補の全発話（K 本を含む）に付け，重みも全発話に置く。
   - `--selftest-g1`：γ = 1 の点も解き，実験 1 の p3 の joint（a = 1，同じ ρ，teacher = one）との判定の一致と W・b の差を `_g1check` の行に残す
     （本番の格子には入れない．--allow-dirty の pseudo で本番の置き場以外だけ）。
   - 計算機の名前を行（gpu）と npz（gpu）に残す。問の名前の JSON（_items）に method・rho・gamma を入れる。
@@ -59,6 +62,7 @@ import json
 import platform
 import re
 import shutil
+import subprocess
 import sys
 import time
 import zlib
@@ -84,13 +88,13 @@ OUT_DIR = ROOT / "results" / "dai4"
 FROZEN1 = ROOT / "DAI" / "frozen" / "dai1_frozen.json"
 GATE4 = ROOT / "DAI" / "frozen" / "eval_gate_dai4.json"
 
-EVAL_REQUIRED = [
+EVAL_REQUIRED = [                                           # 設計 4 節の評価の段の守り 2。`DAI/checks/DAI-4/data/*.csv` は check_eval_gate4 が全部を要求する
     "DAI/docs/実験4_設計.md", "DAI/exp/dai4.py", "DAI/exp/dai4_stats.py",
-    "DAI/frozen/dai1_frozen.json", "DAI/frozen/dai4_frozen.json",
     "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py", "DAI/exp/dai1_select.py", "DAI/exp/dai1_stats.py",
-    "DAI/frozen/eval_gate.json",
+    "DAI/frozen/dai1_frozen.json", "DAI/frozen/dai4_frozen.json",
 ]
 CTRL_PREFIX = {"cons_self": "p4s", "cons_own": "p4o", "cons_conf": "p4c", "cons_rand": "p4r"}   # 対照の保存の接頭辞
+CTRL_KEY = {k: v + "_{s}_K{K}" for k, v in CTRL_PREFIX.items()}
 APPROVAL_FOLDER = "DAI/checks/DAI-4/"
 
 
@@ -115,21 +119,26 @@ def mark_and_teacher(u: dai1.Unit, z2, K: int):
     return dai1.product(tk, (1, 1, 1), 0), am
 
 
-def build_specs(u, s: str, K: int, mark, Q, gk, method: str, gammas, rows: list) -> list:
-    """(ρ, γ) の格子の問を作る。印なしの確率に γ を掛け，感情ごとの総量をそろえて ρ n に（`soft_rows`）。
-    あわせて感情ごとの重みの合計と有効な本数（実験 1 の D11 と同じ式）を `_weights` の行に残す。"""
+def build_specs(u, s: str, K: int, mark, Q, gk, method: str, pts, rows: list) -> list:
+    """pts：[(ρ, γ)] の問を作る。印なしの確率に γ を掛け，感情ごとの総量をそろえて ρ n に（`soft_rows`）。
+    `_weights` の行に，感情ごとの S_k = Σ_i m_i Q_ik，重みの合計と有効な本数 (Σw)²/Σw²（実験 1 の D11），印の無い発話に置かれた重みの割合，
+    重みが 0 になった感情の数を残す。"""
     zero = torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
+    one = torch.ones((), device=S.DEV, dtype=S.DT)
     specs = []
-    for rho in RHO_GRID:
-        for gam in gammas:
-            m = torch.where(mark, torch.ones((), device=S.DEV, dtype=S.DT), torch.full((), float(gam), device=S.DEV, dtype=S.DT))
-            P = S.soft_rows(Q * m[:, None], dai1.mval(rho, u.n), balance=True)
-            cs = P.sum(0).cpu().numpy()
-            neff = ((P.sum(0) ** 2) / (P ** 2).sum(0).clamp(min=1e-30)).cpu().numpy()
-            rows.append(dict(stage=3, method="_weights", variant=method, student=s, K=K, rho=float(rho), gamma=float(gam),
-                             n_zero_weight_classes=int((P.sum(0) < 1e-12).sum()),
-                             **{f"colsum_{k}": float(cs[k]) for k in range(4)}, **{f"neff_{k}": float(neff[k]) for k in range(4)}))
-            specs.append((dict(method=method, rho=float(rho), gamma=float(gam)), gk + P, zero, 1.0))
+    for rho, gam in pts:
+        m = torch.where(mark, one, torch.full((), float(gam), device=S.DEV, dtype=S.DT))
+        P = S.soft_rows(Q * m[:, None], dai1.mval(rho, u.n), balance=True)
+        cs = P.sum(0)
+        neff = (cs ** 2 / (P ** 2).sum(0).clamp(min=1e-30)).cpu().numpy()
+        Sk = (Q * m[:, None]).sum(0).cpu().numpy()
+        unm = (P[~mark].sum(0) / cs.clamp(min=1e-30)).cpu().numpy()
+        cs = cs.cpu().numpy()
+        rows.append(dict(stage=3, method="_weights", variant=method, student=s, K=K, rho=float(rho), gamma=float(gam),
+                         n_zero_weight_classes=int((cs < 1e-12).sum()),
+                         **{f"S_{k}": float(Sk[k]) for k in range(4)}, **{f"colsum_{k}": float(cs[k]) for k in range(4)},
+                         **{f"neff_{k}": float(neff[k]) for k in range(4)}, **{f"unmarked_wfrac_{k}": float(unm[k]) for k in range(4)}))
+        specs.append((dict(method=method, rho=float(rho), gamma=float(gam)), gk + P, zero, 1.0))
     return specs
 
 
@@ -137,22 +146,30 @@ def seed_of(u, s: str, K: int) -> int:
     return zlib.crc32(f"{u.T}|{u.c}|{u.f}|{u.r}|{s}|{K}".encode())
 
 
-def solve_unit(u: dai1.Unit, tether: dict, gammas, store: dict, rows: list, z1, z3=None, p3rows=None) -> None:
-    """対照 4 つ（cons_self・cons_own・cons_conf・cons_rand）も本番と同じ格子の全点で解く（仮のターゲットの回も評価の回も）。z1 は実験 1 の段 1 の保存。z3 と p3rows（実験 1 の p3 の保存と行）があれば教師の検算をする。"""
+def solve_unit(u: dai1.Unit, tether: dict, gammas, store: dict, rows: list, z1, ctrl_pts, z3=None, p3rows=None,
+               check_teacher: bool = False) -> None:
+    """本番 cons は `gammas` の格子の全点で解く。対照 4 つは `ctrl_pts(method, s, K)` の点を解く（仮のターゲットの回は格子の全点，
+    評価の回は固定のファイルの選んだ点）。z1 は実験 1 の段 1 の保存。z3 と p3rows があれば `--selftest-g1` の検算，
+    check_teacher なら教師の検算（候補のラベルを読むので，仮のターゲットの回だけ。評価の回は dai4_stats が数える）。
+    印は候補の全発話（K 本を含む）に付け，重みも全発話に置く（γ = 1 で joint に一致させるため）。診断の数は K 本を除いた候補で数える。"""
     z2 = u.z2
+    grid_all = [(float(r), float(g)) for r in RHO_GRID for g in gammas]
     for K in KS_ALL:
         gk = u.gK(K) if K else torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
         Q, am = mark_and_teacher(u, z2, K)
         nk = np.setdiff1d(np.arange(u.n), u.kpos[K])
         tpred = Q.argmax(1)
+        tp = tpred.cpu().numpy()
         store[f"p4_K{K}_teacher"] = tpred.to(torch.int8).cpu().numpy()
-        # 教師の検算：作り直した教師の候補の UAR（K 本を除く）が実験 1 の段 3 の `_teacher_stats`（teacher = one）の uar_pool と一致するか
-        if p3rows is not None:
-            mine = S.uar(u.ypool[nk], tpred.cpu().numpy()[nk]) * 100
-            ref = p3rows[(p3rows.method == "_teacher_stats") & (p3rows.teacher == "one") & (p3rows.K == K)]
+        for m_ in "AVT":
+            store[f"p4_K{K}_ret_{m_}_am"] = am[m_].to(torch.int8).cpu().numpy()    # 印の元の判定（float64 の確率の argmax．同値は numpy の規則で先頭の感情）
+        store[f"p4_K{K}_Q"] = Q.float().cpu().numpy()                                # 重みの配分を集計で作り直すため（ラベルは含まない）
+        if check_teacher:
+            mine = S.uar(u.ypool[nk], tp[nk]) * 100
+            ref = p3rows[(p3rows.method == "_teacher_stats") & (p3rows.teacher == "one") & (p3rows.K == K)] if p3rows is not None else []
             theirs = float(ref.uar_pool.iloc[0]) if len(ref) == 1 else float("nan")
             rows.append(dict(stage=3, method="_teacher_check", K=K, uar_pool_mine=mine, uar_pool_dai1=theirs,
-                             match=bool(np.isfinite(theirs) and abs(mine - theirs) < 1e-6)))
+                             uar_pool_diff=mine - theirs, match=bool(np.isfinite(theirs) and abs(mine - theirs) < 1e-6)))
         allm = torch.ones(u.n, dtype=torch.bool, device=S.DEV)
         for o in "AVT":
             allm &= am["A"] == am[o]
@@ -164,36 +181,40 @@ def solve_unit(u: dai1.Unit, tether: dict, gammas, store: dict, rows: list, z1, 
             mk = mark.cpu().numpy()
             store[f"p4_K{K}_{s}_mark"] = mk.astype(np.int8)
             store[f"p4_K{K}_{s}_counts"] = np.array([u.n, int(mk.sum()), len(nk), int(mk[nk].sum())])
-            tp = tpred.cpu().numpy()
-            cls_marked = [int((mk & (tp == k)).sum()) for k in range(4)]          # 感情（教師の判定）ごとの印の付いた発話の数
+            cm = np.zeros(u.n, bool); cm[nk] = True
+            cls_marked = [int((mk & (tp == k) & cm).sum()) for k in range(4)]     # K 本を除いた候補で，感情（教師の判定）ごとの印の数
+            cls_n = [int(((tp == k) & cm).sum()) for k in range(4)]
             rows.append(dict(stage=3, method="_marks", student=s, K=K, n_pool=u.n, n_pool_marked=int(mk.sum()),
                              n_cand=len(nk), n_cand_marked=int(mk[nk].sum()), zero_marked_classes=int(sum(c == 0 for c in cls_marked)),
-                             **{f"marked_cls{k}": cls_marked[k] for k in range(4)},
-                             **{f"frac_cls{k}": cls_marked[k] / max(1, int((tp == k).sum())) for k in range(4)}))
+                             **{f"marked_cls{k}": cls_marked[k] for k in range(4)}, **{f"n_cls{k}": cls_n[k] for k in range(4)},
+                             **{f"frac_cls{k}": cls_marked[k] / max(1, cls_n[k]) for k in range(4)}))
             W0, b0 = u.start[s]
             cw, cb = tether[(s, max(K, 1))]
-            specs = build_specs(u, s, K, mark, Q, gk, "cons", gammas, rows)
+            specs = build_specs(u, s, K, mark, Q, gk, "cons", grid_all, rows)
             dai1.solve_items(u, s, K, specs, cw, cb, W0, b0, rows, store, f"p4_{s}_K{K}")
             ctrl = {}
             if s != "AVT":                                                          # (a) 生徒を含む全モダリティの一致（AVT の生徒は本番と同じなので省く）
                 ctrl["cons_self"] = ("self", allm)
             Wn, bn = dai1.none_wb(u, z1, s, K, tether)                              # (b) 生徒自身の none[K] の判定と教師 Q の判定の一致
             ctrl["cons_own"] = ("own", dai1.probs(u.Xp[s], Wn, bn).argmax(1) == tpred)
-            order = np.argsort(-Q.max(1).values.cpu().numpy(), kind="stable")       # (c) 教師 Q の最大の確率が上位の発話（本番の印と同じ数．同点は番号の若い方）
+            qmax = Q.max(1).values.cpu().numpy()                                    # (c) 感情（教師 Q の判定）ごとに本番の印と同じ数を選ぶ：各感情の中で教師の最大の確率が上位（同点は番号の若い方）
             mc = np.zeros(u.n, bool)
-            mc[order[:int(mk.sum())]] = True
-            ctrl["cons_conf"] = ("conf", torch.as_tensor(mc, device=S.DEV))
-            rng = np.random.default_rng(seed_of(u, s, K))                          # (d) 本番の印と同じ割合の乱数の印
+            rng = np.random.default_rng(seed_of(u, s, K))                          # (d) 各感情の中で，固定の種の乱数
             mr = np.zeros(u.n, bool)
-            mr[rng.permutation(u.n)[:int(mk.sum())]] = True
+            for k in range(4):
+                ik = np.flatnonzero(tp == k)
+                nm_ = int(mk[ik].sum())
+                mc[ik[np.argsort(-qmax[ik], kind="stable")[:nm_]]] = True
+                mr[ik[rng.permutation(len(ik))[:nm_]]] = True
+            ctrl["cons_conf"] = ("conf", torch.as_tensor(mc, device=S.DEV))
             ctrl["cons_rand"] = ("rand", torch.as_tensor(mr, device=S.DEV))
             for meth, (tag_, mkc) in ctrl.items():
                 mkn = mkc.cpu().numpy().astype(bool)
                 store[f"p4_K{K}_{s}_mark{tag_}"] = mkn.astype(np.int8)
                 rows.append(dict(stage=3, method="_marks_ctrl", variant=meth, student=s, K=K, n_pool_marked=int(mkn.sum()),
                                  n_cand_marked=int(mkn[nk].sum()), agree_with_cons=float((mkn == mk).mean())))
-                sp = build_specs(u, s, K, mkc, Q, gk, meth, gammas, rows)
-                dai1.solve_items(u, s, K, sp, cw, cb, W0, b0, rows, store, f"p4{tag_[0]}_{s}_K{K}" if tag_ != "own" else f"p4o_{s}_K{K}")
+                sp = build_specs(u, s, K, mkc, Q, gk, meth, ctrl_pts(meth, s, K), rows)
+                dai1.solve_items(u, s, K, sp, cw, cb, W0, b0, rows, store, CTRL_KEY[meth].format(s=s, K=K))
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
     if z3 is not None:                                                                  # 式の検算（--selftest-g1）：γ = 1 は実験 1 の joint（a = 1，teacher = one）
@@ -226,13 +247,14 @@ def check_inputs(u: dai1.Unit, z1) -> None:
 
 
 def run_unit(in_dir: Path, out_dir: Path, tag: str, T: str, c: str, srcs: list, f: int, r: int, tether: dict, gammas,
-             run: dict, selftest_g1: bool = False) -> pd.DataFrame:
+             run: dict, ctrl_pts, selftest_g1: bool = False) -> pd.DataFrame:
     cname = "ALL" if tag == "eval" else c
     name = f"{T}_{cname}_f{f}_r{r}"
     ib = in_dir / tag / "units" / name
     base = out_dir / tag / "units" / name
     path, rpath = Path(f"{base}_p4.npz"), Path(f"{base}_p4.csv")
-    grid = np.array([f"{it['rho']}|{it['gamma']}" for it in grid_points(gammas)])
+    grid = np.array([f"{it['rho']}|{it['gamma']}" for it in grid_points(gammas)] +
+                    [f"{m}|{s_}|{K_}|{ctrl_pts(m, s_, K_)}" for m in CTRL_PREFIX for s_ in DD.STUDENTS for K_ in KS_ALL if not (m == "cons_self" and s_ == "AVT")])
     if path.exists() and rpath.exists():
         old = pd.read_csv(rpath, low_memory=False)
         z = np.load(path)
@@ -261,8 +283,8 @@ def run_unit(in_dir: Path, out_dir: Path, tag: str, T: str, c: str, srcs: list, 
     elif Path(f"{ib}_p3.csv").exists():
         p3rows = pd.read_csv(f"{ib}_p3.csv", low_memory=False)           # 教師の検算だけ
     store, rows = {}, []
-    solve_unit(u, tether, gammas, store, rows, z1, z3, p3rows)
-    store.update(sample_pool=z1["sample_pool"], grid=grid, commit=np.array(run["commit"]), dirty=np.array(run["dirty"]),
+    solve_unit(u, tether, gammas, store, rows, z1, ctrl_pts, z3, p3rows, check_teacher=(tag == "pseudo"))
+    store.update(sample_pool=z1["sample_pool"], cluster_test=u.cp.df["cluster"].to_numpy()[u.test].astype(str), grid=grid, commit=np.array(run["commit"]), dirty=np.array(run["dirty"]),
                  frozen_sha256=np.array(run["frozen_sha256"]), dai1_frozen_sha256=np.array(run["dai1_frozen_sha256"]),
                  gate_sha256=np.array(run["gate_sha256"]), gpu=np.array(run["gpu"]),
                  **{f"sample_K{K}": z1[f"sample_K{K}"] for K in DD.KS}, sample_test=z1["sample_test"])
@@ -347,14 +369,13 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
     if list(targets) != list(DD.CORPORA):
         frozen["_meta"]["partial_targets"] = list(targets)
     for T in targets:
-        d = load_rows(out_dir, "pseudo", T)
-        d = d[d.method == "cons"]
+        raw = load_rows(out_dir, "pseudo", T)
+        d = raw[raw.method == "cons"]
         names = sorted({f"{c}_f{f}_r{r}" for c, f, r in d[["c", "fold", "seed"]].drop_duplicates().itertuples(index=False)})
         if names != sorted(fz1[T]["units"]):
             sys.exit(f"{T}: 単位が実験 1 の固定のファイルの units と違う")
         if len(names) != 30 and "partial_targets" not in frozen["_meta"]:
             sys.exit(f"{T}: 単位の数 {len(names)} が 30 でない")
-        raw = load_rows(out_dir, "pseudo", T)
         commits = set(raw.commit.astype(str))
         if len(commits) != 1:
             sys.exit(f"{T}: 行のコミットが 1 つでない {commits}")
@@ -362,19 +383,25 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
             sys.exit(f"{T}: dirty の行がある")
         if set(raw.dai1_frozen_sha256.astype(str)) != {dai1.sha(FROZEN1)}:
             sys.exit(f"{T}: 行の dai1_frozen_sha256 が今の固定のファイルと違う")
-        if not set(d.gamma.round(6)) <= set(GAMMA_GRID) or not set(d.rho.round(6)) <= set(RHO_GRID):
-            sys.exit(f"{T}: 格子の外の点がある（γ = 1 の検算の出力を混ぜない）")
-        if (d.groupby(["student", "K", "rho", "gamma"]).size() != 30).any():
-            sys.exit(f"{T}: 格子の点ごとの単位が 30 でない")
         select, tie_used, edge = {}, 0, dict(rho=0, gamma=0, any=0)
-        for (s, K), g in d.groupby(["student", "K"]):
-            ch, used = pick4(g, float(fz1[T]["delta_sel"][f"{s}|{int(K)}"]))
-            select[f"{s}|{int(K)}"] = ch
-            tie_used += int(used)
-            er, eg = ch["rho"] in (min(RHO_GRID), max(RHO_GRID)), ch["gamma"] in (min(GAMMA_GRID), max(GAMMA_GRID))
-            edge["rho"] += int(er); edge["gamma"] += int(eg); edge["any"] += int(er or eg)
+        for meth in ("cons",) + tuple(CTRL_PREFIX):
+            dm = raw[raw.method == meth]
+            if not set(dm.gamma.round(6)) <= set(GAMMA_GRID) or not set(dm.rho.round(6)) <= set(RHO_GRID):
+                sys.exit(f"{T}: {meth} に格子の外の点がある（γ = 1 の検算の出力を混ぜない）")
+            if (dm.groupby(["student", "K", "rho", "gamma"]).size() != 30).any() or dm.groupby(["student", "K"]).ngroups != (15 if meth == "cons_self" else 20):
+                sys.exit(f"{T}: {meth} の格子の点ごとの単位が 30 でないか，(生徒, K) の数が違う")
+            for (s, K), g in dm.groupby(["student", "K"]):
+                ch, used = pick4(g, float(fz1[T]["delta_sel"][f"{s}|{int(K)}"]))
+                select[f"{s}|{int(K)}" + ("" if meth == "cons" else f"|{meth}")] = ch
+                if meth == "cons":
+                    tie_used += int(used)
+                    er, eg = ch["rho"] in (min(RHO_GRID), max(RHO_GRID)), ch["gamma"] in (min(GAMMA_GRID), max(GAMMA_GRID))
+                    edge["rho"] += int(er); edge["gamma"] += int(eg); edge["any"] += int(er or eg)
+                    ch2, _ = pick4(g[np.isclose(g.gamma, DEFAULT["gamma"])], float(fz1[T]["delta_sel"][f"{s}|{int(K)}"]))   # γ = 1/4 の列で ρ だけ選ぶ（joint_a1 との自由度をそろえた比べ）
+                    select[f"{s}|{int(K)}|cons_rho25"] = ch2
         frozen[T] = dict(select=select, delta_sel=fz1[T]["delta_sel"], n_units=len(names), tie_rule_used=tie_used, grid_edge_cells=edge,
-                         n_cells=len(select), n_seeds_eval=fz1[T]["n_seeds_eval"], units=names, pseudo_commit=commit_of(raw))
+                         n_cells=len(select), n_seeds_eval=fz1[T]["n_seeds_eval"], units=names, pseudo_commit=commit_of(raw),
+                         pseudo_unit_sha256={f"{T}_{n.split('_', 1)[0]}_{n.split('_', 1)[1]}_p4.npz": dai1.sha(out_dir / "pseudo" / "units" / f"{T}_{n}_p4.npz") for n in names})
         print(f"{T}: 単位 {len(names)}，セル {len(select)}，同点の規則が働いたセル {tie_used}，格子の端のセル {edge}", flush=True)
     fzp = sel_dir / "frozen.json"
     json.dump(frozen, open(fzp, "w"), indent=1, ensure_ascii=False)
@@ -392,17 +419,24 @@ def commit_of(raw: pd.DataFrame) -> str:
 
 # ------------------------------------------------------------------ 評価の段の関門
 
-def check_eval_gate4(frozen_rel: str) -> str:
-    """評価の段を流す条件：`DAI/frozen/eval_gate_dai4.json` がコミット済みで，required に EVAL_REQUIRED と固定のファイルが並び，
-    並べたファイルがすべてコミット済みで sha256 が一致し，`DAI/checks/DAI-4/` の 7 役の最新の版が OK（査読）・通す（関門）であること。
-    戻り：eval_gate_dai4.json の sha256。"""
+def check_eval_gate4(frozen_rel: str, out_dir: Path) -> str:
+    """評価の段の守り（設計 4 節の 1〜7。`dai1.check_eval_gate` と同じ形で dai4.py の中に書く）．戻り：eval_gate_dai4.json の sha256。
+    1. dai4_frozen.json の写しがコミット済みで results/dai4/select/frozen.json と一致し，どの T にも detect の出力がある（main の呼び出しの前半で一致を確かめる）。
+    2. EVAL_REQUIRED と DAI/checks/DAI-4/data/*.csv が eval_gate_dai4.json の required に並び，コミット済みで sha256 が一致する。
+    3. DAI/checks/DAI-4/ の 7 役の最新の版が OK（査読）・通す（関門）で，その版を approvals["DAI-4"] に並べている。
+    4. results/dai1/eval/units に 4 T × 50 単位の p1・p2・p3 がそろい，sha256 の一覧（input_sha256）が eval_gate_dai4.json の記録と一致する。
+    5. dai4_frozen.json のコミット時刻が，評価の段の最初の保存より前である。
+    6. 学習の経路がラベルを読まない（印・教師は保存した重みと切片だけから作る）：この台本では solve_unit の check_teacher（仮のターゲットの回だけ）以外に候補の
+       ラベルを使わない。構造の検査は gate-code に任せ，ここでは評価の段で check_teacher を呼ばないことで守る。
+    7. 評価の後・stats の前の joint・kd・none の保存の sha256 は dai4_stats.py の evaluate が書く。"""
     if not GATE4.exists() or not dai1.committed_clean(GATE4):
         sys.exit("DAI/frozen/eval_gate_dai4.json が無いかコミットされていない")
     gate = json.load(open(GATE4))
     req = gate["required"]
-    missing = [r for r in EVAL_REQUIRED + [frozen_rel] if r not in req]
+    data_csv = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "DAI" / "checks" / "DAI-4" / "data").glob("*.csv"))
+    missing = [r for r in EVAL_REQUIRED + data_csv if r not in req]
     if missing:
-        sys.exit(f"eval_gate_dai4.json に必須のファイルが無い：{missing}（必須の一覧は台本の EVAL_REQUIRED）")
+        sys.exit(f"eval_gate_dai4.json に必須のファイルが無い：{missing}")
     for rel, h in req.items():
         fp = ROOT / rel
         if not fp.exists() or dai1.sha(fp) != h or not dai1.committed_clean(fp):
@@ -428,6 +462,21 @@ def check_eval_gate4(frozen_rel: str) -> str:
         sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（])", head, re.M)
         if not re.search(ok, head, re.M) and not sec:
             sys.exit(f"DAI-4 の {role} の報告（{files[role]}）が「判定：{word}」でない")
+    fz1 = json.load(open(FROZEN1))                                       # 4 入力の完全性
+    ish = gate.get("input_sha256")
+    if not ish:
+        sys.exit("eval_gate_dai4.json に input_sha256（実験 1 の評価の回の p1・p2・p3 の sha256）が無い")
+    want = {f"{T}_ALL_f{f}_r{r}_p{w}.npz" for T in DD.CORPORA for f in range(DD.N_FOLDS) for r in range(int(fz1[T]["n_seeds_eval"])) for w in (1, 2, 3)}
+    if set(ish) != want:
+        sys.exit("input_sha256 の単位が 4 T × 50 単位 × p1・p2・p3 でない")
+    for nm, h in ish.items():
+        fp = IN_DIR / "eval" / "units" / nm
+        if not fp.exists() or dai1.sha(fp) != h:
+            sys.exit(f"実験 1 の評価の回の保存 {nm} が無いか，記録の sha256 と違う")
+    ct = int(subprocess.run(["git", "log", "-1", "--format=%ct", "--", frozen_rel], cwd=ROOT, capture_output=True, text=True).stdout.strip() or 0)
+    sv = [p.stat().st_mtime for p in (out_dir / "eval" / "units").glob("*_p4.npz")] if (out_dir / "eval" / "units").exists() else []
+    if not ct or (sv and min(sv) < ct):
+        sys.exit("dai4_frozen.json のコミット時刻が無いか，評価の段の最初の保存より後である")
     return dai1.sha(GATE4)
 
 
@@ -443,6 +492,7 @@ def main() -> None:
     ap.add_argument("--seeds", nargs="*", type=int, default=None, help="既定は pseudo で 0 1，eval で実験 1 の固定のファイルの n_seeds_eval")
     ap.add_argument("--cs", nargs="*", default=None, help="pseudo の仮のターゲット c を絞る（試走だけ）")
     ap.add_argument("--allow-dirty", action="store_true", help="試走だけ（pseudo のみ）")
+    ap.add_argument("--allow-other-gpu", action="store_true", help="評価の段の計算機が H200 でなくても流す（試走だけ．設計 6 節）")
     ap.add_argument("--selftest-g1", action="store_true", help="γ = 1 の点を足す（実験 1 の joint との式の検算．試走だけ）")
     args = ap.parse_args()
     out_dir, in_dir = Path(args.out_dir), Path(args.in_dir)
@@ -480,7 +530,12 @@ def main() -> None:
             sys.exit("固定のファイルが無いか，DAI/frozen/dai4_frozen.json と一致しない")
         if not dai1.committed_clean(cp):
             sys.exit("固定のファイルの写しがコミットされていない")
-        gate_sha = check_eval_gate4(f"DAI/frozen/{out_dir.name}_frozen.json")
+        fzj = json.load(open(fzp))
+        if any("detect" not in fzj.get(T, {}) for T in DD.CORPORA):
+            sys.exit("固定のファイルに detect の出力が無い（dai4_stats の detect を先に流す）")
+        if "H200" not in run["gpu"] and not args.allow_other_gpu:
+            sys.exit(f"評価の段は H200 で流す（今の計算機 {run['gpu']}．joint の保存と機械をそろえる．試走は --allow-other-gpu）")
+        gate_sha = check_eval_gate4(f"DAI/frozen/{out_dir.name}_frozen.json", out_dir)
         run["gate_sha256"], run["frozen_sha256"] = gate_sha, dai1.sha(fzp)
         prov.update(eval_gate_sha256=gate_sha, frozen_sha256=run["frozen_sha256"])
         seeds = None
@@ -488,12 +543,13 @@ def main() -> None:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     n = 0
     for T in args.targets:
+        ctrl_pts = lambda meth, s_, K_: [(float(r_), float(g_)) for r_ in RHO_GRID for g_ in gammas]            # noqa: E731  対照も格子の全点（仮のターゲットの回も評価の回も）
         tether = {(k.split("|")[0], int(k.split("|")[1])): tuple(v) for k, v in fz1[T]["tether"].items()}
         sd = seeds if seeds is not None else (args.seeds if args.seeds is not None else list(range(int(fz1[T]["n_seeds_eval"]))))
         for c, srcs, f, r in dai1.units_for(T, args.stage, args.folds, sd):
             if args.cs is not None and c not in args.cs:
                 continue
-            run_unit(in_dir, out_dir, args.stage, T, c, srcs, f, r, tether, gammas, run, args.selftest_g1)
+            run_unit(in_dir, out_dir, args.stage, T, c, srcs, f, r, tether, gammas, run, ctrl_pts, args.selftest_g1)
             n += 1
     print(f"{args.stage}: {n} 単位", flush=True)
 
