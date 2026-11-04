@@ -589,7 +589,7 @@ EVAL_REQUIRED = [                                                   # 評価の�
     "DAI/docs/実験1_設計.md", "DAI/docs/実験2_設計.md", "DAI/docs/実験3_設計.md", "DAI/docs/計画_2026-11-04.tex",
     "DAI/frozen/dai2_frozen.json", "DAI/frozen/dai3_frozen.json", "DAI/frozen/subsets.csv",
     "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py", "DAI/exp/dai1_select.py", "DAI/exp/dai1_stats.py",
-    "DAI/exp/dai_subsets.py", "DAI/exp/dai2.py", "DAI/exp/dai2_grad.py", "DAI/exp/dai3.py",
+    "DAI/exp/dai_subsets.py", "DAI/exp/dai2.py", "DAI/exp/dai2_grad.py", "DAI/exp/dai2_select.py", "DAI/exp/dai3.py",
     "DAI_paper/reviews/comparison-design/proposal_v8.md", "exp/compare_dai.py", "exp/compare_dai2.py",
 ]
 
