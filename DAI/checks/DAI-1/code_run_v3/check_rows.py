@@ -42,10 +42,13 @@ for f in sorted(glob.glob(f"{out}/pseudo/units/*_p3.csv")):
     # coreg・共訓練（単一）・役割を分けた版
     for K in dai1.KS_ALL:
         for s in DD.STUDENTS:
-            for j, rho in enumerate(dai1.RHO_GRID):
+            CR = getattr(dai1, "COREG_RHO", dai1.RHO_GRID)
+            assert z3[f"p3g_K{K}_{s}_pred"].shape[0] == len(CR)
+            for j, rho in enumerate(CR):
                 v = 100 * dai1.S.uar(y, z3[f"p3g_K{K}_{s}_pred"][j])
                 r = d[(d.method == "coreg") & (d.student == s) & (d.K == K) & np.isclose(d.rho, rho)]
                 tot += 1; bad += int(len(r) != 1 or abs(float(r.uar.iloc[0]) - v) > 1e-6)
+            for j, rho in enumerate(dai1.RHO_GRID):
                 if s != "AVT":
                     v = 100 * dai1.S.uar(y, z3[f"p3c_K{K}_{s}_pred"][j])
                     r = d[(d.method == "cotrain") & (d.student == s) & (d.K == K) & np.isclose(d.rho, rho)]
