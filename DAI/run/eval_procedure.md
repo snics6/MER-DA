@@ -5,7 +5,7 @@
    - `results/dai2/st_cv/` は，4 台で同じ名前のファイルの sha256 が一致することを確かめてから合わせる．
    - `results/dai2/provenance_log.jsonl` は `results/dai2/provenance_log_<Pod 名>.jsonl` の名前で置く．
    - gate-code に出力の欠けと重複を点検させる．
-2. 実験 2 の選ぶ段（`python DAI/exp/dai2.py --stage select`）を流し，`_meta.grad_cut` が設計 5 節の決定 {"mme_sw01": true, "iter200": false} であることを照らしてから，`DAI/frozen/dai2_frozen.json` をコミットする（比較の 5 回目 2-K）．実験 2 の集計の台本 `DAI/exp/dai2_stats.py` を gate-code に通してコミットし，`eval_gate.json` の required に足す（比較の 5 回目 2-I）．
+2. 実験 2 の選ぶ段（`python DAI/exp/dai2.py --stage select`）を流し，`_meta.grad_cut` が設計 5 節の決定 {"mme_sw01": true, "iter200": false} であることを照らしてから，`DAI/frozen/dai2_frozen.json` をコミットする（比較の 5 回目 2-K）．実験 2 の集計の台本 `DAI/exp/dai2_stats.py` と実験 1 の記述の数の集計の台本 `DAI/exp/dai1_desc.py` を gate-code に通してコミットし，`eval_gate.json` の required に足す（比較の 5 回目 2-I，定義の 5 回目）．
 3. 査読者 2 人（`dai-review-ml`・`dai-review-affect`）に，評価の回の前の最終の確認を頼む（設計の変更：削り方の決定，範囲の外の文，報告の書き方の足し）．査読者に `dai2_frozen.json` の値を渡さない．ここで設計を変えたら台帳に 1 行足す（漏れの 5 回目の 7）．
 4. `DAI/frozen/eval_gate.json` を作ってコミットする（`dai1.EVAL_REQUIRED` と 3 つの固定のファイル，7 つの役の最新の報告の sha256）．
    その後，評価の回のコミットで `./.venv/bin/python DAI/checks/DAI-eval/code_run/m3_frozen_keys.py dai2` を流し，食い違いが 0 であることを確かめる．
@@ -21,8 +21,8 @@
    - 各 Pod の `results/dai{1,2,3}/provenance_log.jsonl` は `provenance_log_<Pod 名>.jsonl` の名前で置く（先頭の 46 行は研究室の PC から送った行）．
    - 実験 3 の T ごとの表（`results/dai3/eval/*.csv`，`verdicts.json`）は `logs/dai3_eval_tables_<T>/` に写す．
 8. 評価の回のコミットの別の作業木で集計する（I-commit）．
-   - `git worktree add --detach <置き場> <評価の回のコミット>`．`results` と `.venv` はリンク，`data/cache/` は本来の `*.npz` を 1 本ずつリンクする（`faces_*.csv.gz` は git にあるので，ディレクトリごとリンクにしない）．
+   - `git worktree add --detach <置き場> <評価の回のコミット>`．`.venv` はリンク．`results/` はリポジトリが中の csv を追跡しているので作業木に実在する．`results/dai1`・`results/dai2`・`results/dai3` を個別に本来のものへのリンクにする．`data/cache/` は本来の `*.npz` を 1 本ずつリンクする（`faces_*.csv.gz` は git にあるので，ディレクトリごとリンクにしない）．
    - 流す前に pkl が 200 個そろい，pkl の `_run.commit` が 1 つであることを数える．
    - `python DAI/exp/dai3.py --stage eval`（4 つの T）を流し，出力をファイルに残す．そのファイルに計算した印の行（`eval <T>_f…: … 秒`）が 0 であることを数える．
-   - `python DAI/exp/dai1_stats.py evaluate` と実験 2 の集計も同じ作業木で流す．
+   - `python DAI/exp/dai1_stats.py evaluate`，`OMP_NUM_THREADS=1 python DAI/exp/dai1_desc.py eval --jobs 4`，`OMP_NUM_THREADS=1 python DAI/exp/dai1_desc.py pseudo --jobs 4`（設計 14 節の φ の正本．pseudo の段は出力先を上書きする），`python DAI/exp/dai2_stats.py eval` も同じ作業木で流す（dai2_stats は families.csv を読むので dai1_stats の後）．表の書き出しの途中で止まったら，出力先を消してから流し直し，台帳に書く．
 9. gate-code に結果ファイルの欠けと重複を点検させ（`DAI/checks/DAI-1/code_run_post/c9_predcheck.py` を評価の回の出力にも流させる．統計の 5 回目の記録），結果の文を `gate-claim` に照合させてから文書に書く．
