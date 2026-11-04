@@ -108,6 +108,7 @@ E1〜E73 の 1 件ずつの記録は無い．台帳を始めた 2026-10-28 の�
 | DAI（探索：K 本で選んだ指数の積の融合．`DAI/exp/explore_fusion_kshot.py`．研究者の承認「初めて良い」） | 2026-11-05 04:15 | 探索（評価の回を見た後．選択に使わない） | 4 コーパス × 50 単位で，K 本（学習にも使った発話）で指数を選んだ積のテストの UAR と，最も重いモダリティが上限と一致する割合を研究者と本体が見た（`results/explore_fusion/kshot_cells.csv`．写し `DAI/checks/DAI-explore/`） | — |
 | DAI（探索：K 本の leave-one-out でモダリティの信頼度を見積もる．`DAI/exp/explore_reliability_loo.py`．研究者の承認「良い」） | 2026-11-05 04:50 | 探索（評価の回を見た後．新しい小さな学習：K 本だけの識別器を 1 本抜きで学び直す） | AFEW の 50 単位（K = 5・25）で，LOO の UAR，直した単独の識別器と none のテストの UAR，最強のモダリティの一致率，LOO で決めた指数の積のテストの UAR（事前分布つきも），上限，AVT の生徒を研究者と本体が見た（`results/explore_fusion/loo_cells.csv`．写し `DAI/checks/DAI-explore/loo_cells_AFEW.csv`）．ほかの 3 コーパスは続けて流す | — |
 | DAI（探索：LOO の信頼度の第 2 版．塊ごとの LOO・同点・事前分布だけの対照を足した版を 4 コーパスで） | 2026-11-05 05:07 | 探索（評価の回を見た後．小さな学習） | 4 コーパス × 50 単位（K = 5・25）で，発話単位と塊ごとの LOO の UAR，最強のモダリティの一致率，各規則の積のテストの UAR，上限，AVT の生徒を研究者と本体が見た（`results/explore_fusion/loo_cells.csv`．写し `DAI/checks/DAI-explore/loo_cells.csv`） | — |
+| DAI-1・DAI-2・DAI-3（集計．作業木 ba98974） | 2026-11-05 04:00〜05:17 | 本番（集計） | 作業木で `dai1_stats.py eval`（照合 0/600 × 4），`dai3.py --stage eval`（4 T．計算した印の行 0．判定の規則を当てた），`dai2_stats.py eval`（照合 0），`dai1_desc.py eval`（照合 0/867,560，退化 80/80）と `pseudo`（照合 0/445,560，退化 240/240）を流した．出力は `results/dai1/stats/`，`results/dai2/stats/`，`results/dai3/eval/`．結果の文は gate-code の点検と gate-claim の照合の後に書く | 集計の出力 |
 
 ## 3. 確認に使えるデータ
 
