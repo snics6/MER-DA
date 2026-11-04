@@ -20,7 +20,7 @@
    - `results/dai1/eval/units/`，`results/dai2/eval/units/`，`results/dai3/eval/units/*.pkl` を合わせる．
    - 各 Pod の `results/dai{1,2,3}/provenance_log.jsonl` は `provenance_log_<Pod 名>.jsonl` の名前で置く（先頭の 46 行は研究室の PC から送った行）．
    - 実験 3 の T ごとの表（`results/dai3/eval/*.csv`，`verdicts.json`）は `logs/dai3_eval_tables_<T>/` に写す．
-8. 評価の回のコミットの別の作業木で集計する（I-commit）．
+8. 評価の回のコミットの別の作業木で集計する（I-commit）．集計の台本（dai1_desc.py，dai2_stats.py）は，今のコミットが評価の回の単位のコミットと違うと止まる（DAI-1 code_v5 [I-guard]，DAI-2 code_v3 [I-guard]）．
    - `git worktree add --detach <置き場> <評価の回のコミット>`．`.venv` はリンク．`results/` はリポジトリが中の csv を追跡しているので作業木に実在する．`results/dai1`・`results/dai2`・`results/dai3` を個別に本来のものへのリンクにする．`data/cache/` は本来の `*.npz` を 1 本ずつリンクする（`faces_*.csv.gz` は git にあるので，ディレクトリごとリンクにしない）．
    - 流す前に pkl が 200 個そろい，pkl の `_run.commit` が 1 つであることを数える．
    - `python DAI/exp/dai3.py --stage eval`（4 つの T）を流し，出力をファイルに残す．そのファイルに計算した印の行（`eval <T>_f…: … 秒`）が 0 であることを数える．
