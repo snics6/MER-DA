@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import time
+import warnings
 from collections import Counter
 from pathlib import Path
 
@@ -94,11 +95,25 @@ def sha(path: Path) -> str:
     return h.hexdigest()
 
 
-RUN = {"commit": "", "dirty": True}
+RUN = {"commit": "", "dirty": True, "encoder": 1}
 
 
-def production(out: Path, name: str) -> bool:
-    return out.resolve() == (ROOT / "results" / name).resolve()
+PROD_OUT = {"dai3": ("dai1", 1), "dai3_enc2": ("dai1_enc2", 2)}           # 本番の置き場 → 読む実験 1 の置き場とエンコーダ（gate-code の I8）
+SCRIPTS = ("dai3.py", "dai1_stats.py", "dai_solver.py", "dai1.py")        # detect と eval で sha256 を照合する台本（gate-code の記録 6）
+
+
+def production(out: Path) -> bool:
+    """本番の置き場（results/dai3 と，第 2 のエンコーダの results/dai3_enc2）なら真．どちらにも同じ守りをかける．"""
+    return any(out.resolve() == (ROOT / "results" / n).resolve() for n in PROD_OUT)
+
+
+def frozen_copy(out: Path) -> Path:
+    """固定のファイルの写しの置き場（置き場ごとに名前を分ける：dai3_frozen.json，dai3_enc2_frozen.json）．"""
+    return ROOT / "DAI" / "frozen" / f"{out.resolve().name}_frozen.json"
+
+
+def script_shas() -> dict:
+    return {n: sha(HERE / n) for n in SCRIPTS}
 
 
 # ------------------------------------------------------------------ コーパスの表と部分集合
@@ -143,6 +158,23 @@ def mosei_channels() -> set:
     return set(pd.read_csv(ROOT / "data" / "metadata" / "mosei_channel_map.csv", dtype=str).channel_id)
 
 
+def subset_masks(T: str, sid: np.ndarray, cl: np.ndarray) -> dict:
+    """1.1 節の部分集合（族 5 の記述）と説明 4 の (b) のテストの印．成績は使わない．"""
+    out = {}
+    if T == "MOSEI":
+        out["channel"] = np.isin(cl, list(mosei_channels()))
+    if T == "IEMOCAP":
+        mk = subset_map("IEMOCAP", "marker")
+        v = np.array([mk.get(x, "") for x in sid])
+        out["marker"], out["nomarker"] = v == "marker", v == "nomarker"
+    if T == "AFEW":
+        out["asr_ok"] = ~np.isin(sid, list(set(subset_map("AFEW", "asr_suspect"))))
+    if T == "MELD":
+        fc = subset_map("MELD", "face_compete")
+        out["face_single"] = np.array([fc.get(x) == "single" for x in sid], bool)
+    return out
+
+
 def scenario(sid: np.ndarray) -> np.ndarray:
     """IEMOCAP 即興の筋書きの番号（2 桁．05a・05b は 05，08a・08b は 08）．"""
     return np.array([(re.search(r"impro(\d\d)", x) or re.search(r"(\d\d)", "xx")).group(1) for x in sid])
@@ -170,6 +202,21 @@ def pool_halves(cl: np.ndarray) -> np.ndarray:
         h[g] = k
         tot[k] += n[g]
     return np.array([h[g] for g in cl.tolist()], int)
+
+
+def disjoint_halves(T: str, cl: np.ndarray, sid: np.ndarray) -> np.ndarray:
+    """話者が重ならない 2 組（gate-code の R4．全体の複製だけで使う）：AFEW・MOSEI・MELD はテストの塊を候補の 2 組と同じ配り方
+    （大きい順に，そのときの本数の少ない組へ）で分ける．IEMOCAP はテストが 1 つの塊（セッション）なので話者（F と M）で分ける．
+    ラベルは使わない．"""
+    if T == "IEMOCAP":
+        return np.array([0 if x.split("_")[-1][:1] == "F" else 1 for x in sid.tolist()], int)
+    return pool_halves(cl)
+
+
+def groups_ok(c0: np.ndarray, c1: np.ndarray) -> np.ndarray:
+    """1 節の 10 本の規則と 4 節の 30 本の規則：どちらの組でも，版の感情がそれぞれ 10 本以上で，合計が 30 本以上．
+    c0・c1：2 組の感情ごとの件数（(…, k)）．偽の (単位，複製) は計算せず，その量の平均から外す（1.2 節と同じ扱い）．"""
+    return ((c0 >= MIN_GROUP).all(-1) & (c1 >= MIN_GROUP).all(-1) & (c0.sum(-1) >= MIN_TOTAL) & (c1.sum(-1) >= MIN_TOTAL))
 
 
 def rep_keep(cl: np.ndarray, mode: str, gmap: dict | None) -> tuple[list, np.ndarray]:
@@ -202,14 +249,24 @@ def onehot(yl: np.ndarray, k: int) -> np.ndarray:
     return Y
 
 
-def uar_of(hit: np.ndarray, mask: np.ndarray, Yk: np.ndarray) -> np.ndarray:
-    """hit (P, n)，mask (P, n) → 印の中の UAR（%）．印に現れる感情だけの再現率の平均（`dai_solver.uar` と同じ定義）．"""
+def rec_of(hit: np.ndarray, mask: np.ndarray, Yk: np.ndarray) -> np.ndarray:
+    """hit (P, n)，mask (P, n) → 印の中の感情ごとの再現率（%．(P, k)）．印に現れない感情は NaN．"""
     m = mask.astype(float)
     tot = m @ Yk
     cor = (m * hit) @ Yk
     with np.errstate(invalid="ignore", divide="ignore"):
-        r = np.where(tot > 0, cor / np.maximum(tot, 1), np.nan)
-        return 100.0 * np.nanmean(r, 1)
+        return 100.0 * np.where(tot > 0, cor / np.maximum(tot, 1), np.nan)
+
+
+def nanmean_rows(r: np.ndarray) -> np.ndarray:
+    with warnings.catch_warnings():                                    # 空の複製（IEMOCAP の塊を除いた残り）の警告だけを抑える
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        return np.nanmean(r, -1)
+
+
+def uar_of(hit: np.ndarray, mask: np.ndarray, Yk: np.ndarray) -> np.ndarray:
+    """hit (P, n)，mask (P, n) → 印の中の UAR（%）．印に現れる感情だけの再現率の平均（`dai_solver.uar` と同じ定義）．"""
+    return nanmean_rows(rec_of(hit, mask, Yk))
 
 
 def scores(X: torch.Tensor, W: torch.Tensor) -> torch.Tensor:
@@ -217,10 +274,11 @@ def scores(X: torch.Tensor, W: torch.Tensor) -> torch.Tensor:
     return S.t(X) @ S.t(W).T
 
 
-def solve_b(Zw: torch.Tensor, b: torch.Tensor, probs: list) -> tuple[list, dict]:
+def solve_b(Zw: torch.Tensor, b: torch.Tensor, probs: list, ctx: str = "") -> tuple[list, dict]:
     """probs：[(版の感情 cls，学ぶ発話の印 (n,)，版の中のラベル yl (n,))]．W を固定し，切片だけを感情の釣り合いの重みつきの
     交差エントロピーで解く（`dai_solver.fit` の fix_W=True，C_b = ∞）．点数 Zw = X Wᵀ を特徴に，版の感情の列を選ぶ行列を W0 に
-    渡すので，点数は X Wᵀ を毎回掛けたのと同じである．感情の数が同じ問をまとめて解く．戻り：b*（問ごとに (k,)）と収束の記録．"""
+    渡すので，点数は X Wᵀ を毎回掛けたのと同じである．感情の数が同じ問をまとめて解く．戻り：b*（問ごとに (k,)）と収束の記録．
+    解か勾配に NaN・Inf があれば，ctx（単位と識別器の名前）と版を書いて止まる（I11）．"""
     out = [None] * len(probs)
     conv = dict(n_problems=len(probs), grad_max=0.0, n_over_tol=0, stalled=0, finite=True)
     n = Zw.shape[0]
@@ -239,6 +297,10 @@ def solve_b(Zw: torch.Tensor, b: torch.Tensor, probs: list) -> tuple[list, dict]
             W0[q, torch.arange(k, device=S.DEV), torch.as_tensor(list(cls), device=S.DEV)] = 1.0
             b0[q] = b[list(cls)]
         r = S.fit(Zw, G, W0, b0, Cw=math.inf, Cb=math.inf, fix_W=True)
+        fin = r["finite_p"] & torch.isfinite(r["b"]).all(1).cpu().numpy()
+        if not fin.all():
+            bad = sorted({VNAME[VERSIONS.index(tuple(probs[ix[q]][0]))] for q in np.flatnonzero(~fin)})
+            sys.exit(f"{ctx}：切片の当て直しの解か勾配に NaN・Inf がある（版 {bad}，{int((~fin).sum())} 問．I11）")
         for q, i in enumerate(ix):
             out[i] = r["b"][q].cpu().numpy()
         conv["grad_max"] = max(conv["grad_max"], float(r["grad_max"]))
@@ -248,17 +310,21 @@ def solve_b(Zw: torch.Tensor, b: torch.Tensor, probs: list) -> tuple[list, dict]
     return out, conv
 
 
-def refit_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarray, keep: np.ndarray, refit: bool = True) -> tuple[dict, dict]:
+def refit_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarray, keep: np.ndarray, refit: bool = True,
+               ctx: str = "") -> tuple[dict, dict]:
     """1 つの識別器（点数 Zw = X Wᵀ，切片 b）の，版（4 感情と感情の対 6 つ）× 複製ごとの 2 組の上の UAR（1 節）．
       orig[v, j]  ：UAR(W, b) を組 A と組 B で測った平均
       refit[v, j] ：組 A で b* を解いて組 B で測り，入れ替えて平均した UAR(W, b*(W))（交差の当て直し）
       fullb[v, j] ：除いた後の全部の発話で解いた b* を 2 組で測った平均（refit − fullb が差の無いときの位置の誤りの水準）
-      valid[v, j] ：どちらの組でも版の感情が 10 本以上（偽なら計算しない）
+      valid[v, j] ：どちらの組でも版の感情が 10 本以上で合計が 30 本以上（`groups_ok`．偽なら計算しない）
+      rec[量][v]  ：orig・refit・fullb の感情ごとの再現率（(J, k)．2 組の平均．float32．gate-code の R2）
+      bstar[v]    ：解いた b*（(J, 3, k)．組 A で解いた値，組 B で解いた値，全体で解いた値．float32．計算しない複製は NaN．R2）
     ほかに full[v]（全体のテストの UAR(W, b)），tot[v]・minc[v]（全体の複製での 2 組の本数と感情ごとの最少）．"""
     Zn, bn = Zw.cpu().numpy(), b.cpu().numpy()
     J, V = keep.shape[0], len(VERSIONS)
     R = {k: np.full((V, J), np.nan) for k in ("orig", "refit", "fullb")}
-    R.update(valid=np.zeros((V, J), bool), full=np.full(V, np.nan), tot=np.zeros((V, 2), int), minc=np.zeros((V, 2), int))
+    R.update(valid=np.zeros((V, J), bool), full=np.full(V, np.nan), tot=np.zeros((V, 2), int), minc=np.zeros((V, 2), int),
+             rec={k: [] for k in ("orig", "refit", "fullb")}, bstar=[])
     probs, where, cache = [], [], {}
     for vi, cls in enumerate(VERSIONS):
         k = len(cls)
@@ -267,14 +333,19 @@ def refit_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarray
         Yk = onehot(yl, k)
         A = [keep & (inV & (grp == g))[None, :] for g in (0, 1)]
         cnt = [a.astype(float) @ Yk for a in A]
-        valid = (cnt[0] >= MIN_GROUP).all(1) & (cnt[1] >= MIN_GROUP).all(1)
+        valid = groups_ok(cnt[0], cnt[1])
         R["valid"][vi] = valid
         R["tot"][vi] = [int(c[0].sum()) for c in cnt]
         R["minc"][vi] = [int(c[0].min()) for c in cnt]
         hit = np.argmax(Zn[:, list(cls)] + bn[list(cls)], 1) == yl
         R["full"][vi] = uar_of(hit[None], inV[None], Yk)[0]
-        o = 0.5 * (uar_of(np.broadcast_to(hit, A[0].shape), A[0], Yk) + uar_of(np.broadcast_to(hit, A[1].shape), A[1], Yk))
-        R["orig"][vi] = np.where(valid, o, np.nan)
+        ro = 0.5 * (rec_of(np.broadcast_to(hit, A[0].shape), A[0], Yk) + rec_of(np.broadcast_to(hit, A[1].shape), A[1], Yk))
+        ro[~valid] = np.nan
+        R["orig"][vi] = nanmean_rows(ro)
+        R["rec"]["orig"].append(ro.astype(np.float32))
+        R["rec"]["refit"].append(np.full((J, k), np.nan, np.float32))
+        R["rec"]["fullb"].append(np.full((J, k), np.nan, np.float32))
+        R["bstar"].append(np.full((J, 3, k), np.nan, np.float32))
         cache[vi] = (cls, yl, Yk, A)
         if refit:
             for j in np.flatnonzero(valid):
@@ -282,18 +353,19 @@ def refit_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarray
                     probs.append((cls, m, yl)); where.append((vi, j, tag))
     conv = dict(n_problems=0, grad_max=0.0, n_over_tol=0, stalled=0, finite=True)
     if refit and probs:
-        bs, conv = solve_b(Zw, b, probs)
+        bs, conv = solve_b(Zw, b, probs, ctx)
         acc = {}
         for (vi, j, tag), bb in zip(where, bs):
             cls, yl, Yk, A = cache[vi]
             hit = (np.argmax(Zn[:, list(cls)] + bb, 1) == yl)[None]
-            u0 = uar_of(hit, A[0][j][None], Yk)[0]
-            u1 = uar_of(hit, A[1][j][None], Yk)[0]
-            acc[(vi, j, tag)] = (u0, u1)
+            acc[(vi, j, tag)] = (rec_of(hit, A[0][j][None], Yk)[0], rec_of(hit, A[1][j][None], Yk)[0])
+            R["bstar"][vi][j, "abf".index(tag)] = bb
         for vi in range(V):
             for j in np.flatnonzero(R["valid"][vi]):
-                R["refit"][vi, j] = 0.5 * (acc[(vi, j, "a")][1] + acc[(vi, j, "b")][0])   # A で解いて B で測る，入れ替える
-                R["fullb"][vi, j] = 0.5 * (acc[(vi, j, "f")][0] + acc[(vi, j, "f")][1])
+                rr = 0.5 * (acc[(vi, j, "a")][1] + acc[(vi, j, "b")][0])           # A で解いて B で測る，入れ替える
+                rf = 0.5 * (acc[(vi, j, "f")][0] + acc[(vi, j, "f")][1])
+                R["rec"]["refit"][vi][j], R["rec"]["fullb"][vi][j] = rr, rf
+                R["refit"][vi, j], R["fullb"][vi, j] = float(np.mean(rr)), float(np.mean(rf))
     return R, conv
 
 
@@ -546,7 +618,7 @@ def coord_ascent(Z: np.ndarray, yl: np.ndarray, Yk: np.ndarray, b_star: np.ndarr
     return b
 
 
-def check1_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarray) -> list:
+def check1_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarray, ctx: str = "") -> list:
     """確かめ 1（1.4 節の 1）：版ごとに，組 A で b*（交差エントロピー）と UAR を直接最大にする切片を決め，組 B で 2 つの UAR を測り，
     入れ替えて平均する．差 = 最適の切片の UAR − b* の UAR．"""
     Zn = Zw.cpu().numpy()
@@ -555,12 +627,12 @@ def check1_item(Zw: torch.Tensor, b: torch.Tensor, y: np.ndarray, grp: np.ndarra
         yl = local_labels(y, cls)
         A = [(grp == g) & (yl >= 0) for g in (0, 1)]
         cnt = [np.bincount(yl[a], minlength=len(cls)) for a in A]
-        if min(c.min() for c in cnt) < MIN_GROUP:
+        if not groups_ok(cnt[0], cnt[1]):
             meta.append((vi, None)); continue
         for g in (0, 1):
             probs.append((cls, A[g], yl))
         meta.append((vi, (yl, A)))
-    bs, conv = solve_b(Zw, b, probs) if probs else ([], {})
+    bs, conv = solve_b(Zw, b, probs, ctx) if probs else ([], {})
     rows, q = [], 0
     for vi, m in meta:
         if m is None:
@@ -596,7 +668,7 @@ def rotate_rows(W: np.ndarray, deg: float, rng) -> np.ndarray:
 
 
 def stage_validate(args, out: Path, out1: Path) -> None:
-    if production(out, "dai3") and eval_units_present(out1):
+    if production(out) and eval_units_present(out1):
         sys.exit("評価の回の出力がすでにある．妥当性の確かめは評価の回の前にだけ流す（1.4 節）")
     fz1, fz1_sha = load_fz1(out1)
     vdir = out / "validate"
@@ -605,6 +677,7 @@ def stage_validate(args, out: Path, out1: Path) -> None:
     t0 = time.time()
     for T in args.targets:
         units = pseudo_units(out1, T)
+        orc = select_oracle(out1, T)["tether"]                          # 確かめ 1 の W* は detect と同じ選び方の点（gate-code の記録 2）
         for c in DD.others(T):
             for (cc, f, r) in [x for x in units if x[0] == c]:
                 t1 = time.time()
@@ -616,19 +689,20 @@ def stage_validate(args, out: Path, out1: Path) -> None:
                     for K in ks_f():
                         Ws[f"none{K}"] = sv.none(s, K)
                         Ws[f"prop{K}"] = sv.prop(s, K)
+                    Ws["oracle"] = sv.oracle(s, *orc[s])
                     for wt, (W, b) in Ws.items():
-                        for row in check1_item(scores(sv.u.Xt[s], W), b, sv.y, grp):
+                        for row in check1_item(scores(sv.u.Xt[s], W), b, sv.y, grp, ctx=f"{T}_{c}_f{f}_r{r} {s} {wt}"):
                             rows1.append(meta | dict(student=s, wtype=wt) | row)
                     K2 = k_check2()
                     Wn, bn = sv.none(s, K2)
                     keep = np.ones((1, len(sv.y)), bool)
-                    base, cv = refit_item(scores(sv.u.Xt[s], Wn), bn, sv.y, grp, keep)
+                    base, cv = refit_item(scores(sv.u.Xt[s], Wn), bn, sv.y, grp, keep, ctx=f"{T}_{c}_f{f}_r{r} {s} none{K2}")
                     conv_rows.append(meta | dict(student=s, what=f"none{K2}") | cv)
                     Wnp = Wn.cpu().numpy()
                     for ang in ANGLES:
                         rng = np.random.default_rng([RNG_SEED, DD.CORPUS_ID[T], DD.CORPUS_ID[c], f, r, si, int(ang)])
                         Wr = rotate_rows(Wnp, ang, rng)
-                        rr, cv = refit_item(scores(sv.u.Xt[s], S.t(Wr)), bn, sv.y, grp, keep)
+                        rr, cv = refit_item(scores(sv.u.Xt[s], S.t(Wr)), bn, sv.y, grp, keep, ctx=f"{T}_{c}_f{f}_r{r} {s} rot{int(ang)}")
                         conv_rows.append(meta | dict(student=s, what=f"rot{int(ang)}") | cv)
                         rows2.append(meta | dict(student=s, K=K2, angle=ang, valid=bool(base["valid"][0, 0]),
                                                  uar_drop=float(base["orig"][0, 0] - rr["orig"][0, 0]),
@@ -703,7 +777,7 @@ def detect_unit(sv: Saved, alt: dict | None) -> dict:
         if alt is not None and 5 in DD.KS:
             its["prop_alt|5"] = sv.prop(s, 5, fz=alt)
         for nm, (W, b) in its.items():
-            R["refit"][f"{s}|{nm}"], cv = refit_item(scores(sv.u.Xt[s], W), b, sv.y, grp, keep)
+            R["refit"][f"{s}|{nm}"], cv = refit_item(scores(sv.u.Xt[s], W), b, sv.y, grp, keep, ctx=f"{sv.base.name} {s}|{nm}")
             R["conv"].append(dict(item=f"{s}|{nm}") | cv)
         startp = up.none(s, 0, None)
         for K in ks_f():
@@ -787,14 +861,15 @@ def select_oracle(out1: Path, T: str) -> dict:
     return {"tether": out, "convergence": conv}
 
 
-def label_tables(X: str) -> tuple[list, list, list, list]:
-    """評価の回の前にラベルの件数だけから作る表：テストの 2 組の感情ごとの件数，塊を除くと 10 本の規則で外れる回の数，
-    候補の 2 組の本数（MELD は共有する対話と顔が競らない発話に限った本数），同じ筋書きの中の対の件数．"""
+def label_tables(X: str) -> tuple[list, list, list, list, list]:
+    """評価の回の前にラベルの件数だけから作る表：テストの 2 組の感情ごとの件数，塊を除くと件数の規則（10 本と 30 本）で外れる回の数，
+    候補の 2 組の本数（MELD は共有する対話と顔が競らない発話に限った本数），同じ筋書きの中の対の件数，
+    件数の規則で外れる (コーパス，部分集合，版，分割)（全体のテストと 1.1 節の部分集合．gate-code の L4）．"""
     df = corpus_df(X)
     y = df["label_4"].to_numpy().astype(int)
     cl = df["cluster"].to_numpy().astype(str)
     sid = df["sample_id"].to_numpy().astype(str)
-    gc, drops, ph, sc = [], [], [], []
+    gc, drops, ph, sc, cr = [], [], [], [], []
     mode, gmap = jk_mode(X)
     face = subset_map("MELD", "face_compete") if X == "MELD" else {}
     for f in range(DD.N_FOLDS):
@@ -809,11 +884,21 @@ def label_tables(X: str) -> tuple[list, list, list, list]:
             bad = 0
             for j in range(1, len(keys)):
                 cnt = [np.bincount(yl[keep[j] & (grp == g) & (yl >= 0)], minlength=len(cls)) for g in (0, 1)]
-                bad += int(min(c.min() for c in cnt) < MIN_GROUP)
+                bad += int(not groups_ok(cnt[0], cnt[1]))
             cnt0 = [np.bincount(yl[(grp == g) & (yl >= 0)], minlength=len(cls)) for g in (0, 1)]
             drops.append(dict(corpus=X, fold=f, version=VNAME[vi], n_reps=len(keys) - 1, n_reps_dropping=bad,
-                              full_valid=bool(min(c.min() for c in cnt0) >= MIN_GROUP),
+                              full_valid=bool(groups_ok(cnt0[0], cnt0[1])),
                               min_group_total=int(min(c.sum() for c in cnt0))))
+        subs = {"all": np.ones(len(te), bool)} | subset_masks(X, sid[te], cl[te])
+        for sname, m in subs.items():
+            ix = np.flatnonzero(m)
+            g2 = test_halves(y[te][ix], cl[te][ix], sid[te][ix])
+            for vi, cls in enumerate(VERSIONS):
+                yl = local_labels(y[te][ix], cls)
+                cnt0 = [np.bincount(yl[(g2 == g) & (yl >= 0)], minlength=len(cls)) for g in (0, 1)]
+                if not groups_ok(cnt0[0], cnt0[1]):
+                    cr.append(dict(corpus=X, subset=sname, version=VNAME[vi], fold=f, min_group_total=int(min(c.sum() for c in cnt0)),
+                                   min_emotion=int(min(c.min() for c in cnt0))))
         pool = np.flatnonzero(DD.pool_mask(df, f))
         sets = [("all", pool)]
         if X == "MELD":
@@ -834,7 +919,7 @@ def label_tables(X: str) -> tuple[list, list, list, list]:
                 te = (df["fold"].to_numpy() == f) & np.isin(scen, scs)
                 n = [int((te & (y == k)).sum()) for k in cls]
                 sc.append(dict(pair=pn, fold=f, **{f"n_{dai3_emo(k)}": v for k, v in zip(cls, n)}, kept=bool(min(n) >= MIN_GROUP)))
-    return gc, drops, ph, sc
+    return gc, drops, ph, sc, cr
 
 
 def dai3_emo(k: int) -> str:
@@ -881,7 +966,7 @@ def stage_detect(args, out: Path, out1: Path) -> None:
             dai1.Corpus.cache.pop(c, None)
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-    det, se_rows = {}, []
+    det, se_rows, expected = {}, [], {}
     for X, cells in se_acc.items():
         fX = fz1.get(X, {})
         if "n_seeds_eval" not in fX or "detect" not in fX:
@@ -904,8 +989,9 @@ def stage_detect(args, out: Path, out1: Path) -> None:
             if fam == "5":
                 ex = exp_acc.get(X, {}).get(key)
                 ee = float(np.nanmean(ex)) if ex is not None and np.isfinite(ex).any() else np.nan
-                cell |= dict(detectable_first=crit(X, kind, 24) * se, detectable_last=crit(X, kind, 1) * se, expected_effect=ee)
+                cell |= dict(detectable_first=crit(X, kind, 24) * se, detectable_last=crit(X, kind, 1) * se)
                 cell["descriptive"] = bool(not np.isfinite(ee) or cell["detectable_first"] > abs(ee))
+                expected.setdefault(X, {})[key] = ee                           # 効果の見込みは固定のファイルに入れない（gate-code の記録 3）
             out_cells[key] = cell
             se_rows += [dict(X=X, cell=key) | {k: x.get(k) for k in ("T", "v_jk", "v_seed", "v_seed_all", "n_units", "n_folds",
                                                                      "folds_dropped", "rep_fold_drops", "df")} for x in lst]
@@ -917,9 +1003,9 @@ def stage_detect(args, out: Path, out1: Path) -> None:
               f"同じ水準を出しうるセル {len(det[X]['same_level_cells'])}", flush=True)
     for X, d in exp_acc.items():                                         # 標準誤差の見込みが無い X（試走だけ）の効果の見込み
         if X not in det:
-            det[X] = dict(cells={k: dict(expected_effect=float(np.nanmean(v)) if np.isfinite(v).any() else np.nan) for k, v in d.items()},
-                          note="標準誤差の見込みが無い（ほかの T の仮のターゲットの回で c = X の単位が無い）")
-    tabs = {"group_counts": [], "rep_drops": [], "pool_halves": [], "scenario_counts": []}
+            for k, v in d.items():
+                expected.setdefault(X, {})[k] = float(np.nanmean(v)) if np.isfinite(v).any() else np.nan
+    tabs = {"group_counts": [], "rep_drops": [], "pool_halves": [], "scenario_counts": [], "count_rule": []}
     for X in DD.CORPORA:
         for name, rows in zip(tabs, label_tables(X)):
             tabs[name] += rows
@@ -929,14 +1015,19 @@ def stage_detect(args, out: Path, out1: Path) -> None:
     pd.DataFrame(se_rows).assign(**tag).to_csv(ddir / "se_rows.csv", index=False)
     pd.DataFrame(conv_rows).assign(**tag).to_csv(ddir / "convergence.csv", index=False)
     vpath = out / "validate" / "summary.json"
-    frozen = {"_meta": dict(tag, time=time.strftime("%Y-%m-%d %H:%M:%S"), rule="DAI/docs/実験3_設計.md 1 節・1.1 節・1.4 節",
-                            dai1_frozen_sha256=fz1_sha, targets=list(args.targets),
-                            validate_sha256=sha(vpath) if vpath.exists() else None),
+    ep = out / "detect_expected.json"                                   # 台本だけが読む．人は評価の回の前に開かない
+    json.dump({"_meta": tag, "expected_effect": expected}, open(ep, "w"), indent=1)
+    frozen = {"_meta": dict(tag, time=time.strftime("%Y-%m-%d %H:%M:%S"), rule="DAI/docs/実験3_設計.md 1 節・1.1 節・1.4 節・9 節",
+                            dai1_frozen_sha256=fz1_sha, targets=list(args.targets), encoder=dai1.ENC["enc"],
+                            validate_sha256=sha(vpath) if vpath.exists() else None, script_sha256=script_shas(),
+                            detect_expected_sha256=sha(ep)),
               "oracle_tether": {T: v["tether"] for T, v in oracle.items()},
               "oracle_convergence": {T: v["convergence"] for T, v in oracle.items()},
               "detect": det,
               "validity": json.load(open(vpath)) if vpath.exists() else None,
-              "scenario_folds": {pn: [r["fold"] for r in tabs["scenario_counts"] if r["pair"] == pn and r["kept"]] for pn in SCEN}}
+              "scenario_folds": {pn: [r["fold"] for r in tabs["scenario_counts"] if r["pair"] == pn and r["kept"]] for pn in SCEN},
+              "count_rule": dict(rule="どちらかの組で版の感情が 10 本未満か合計が 30 本未満の分割は，その量の平均から外す（全体の複製）",
+                                 n_dropped=len(tabs["count_rule"]), dropped=tabs["count_rule"])}
     if list(args.targets) != list(DD.CORPORA):
         frozen["_meta"]["partial_targets"] = list(args.targets)            # 試走だけ．本番は 4 つ全部
     if frozen["validity"] is None:
@@ -944,9 +1035,9 @@ def stage_detect(args, out: Path, out1: Path) -> None:
     fp = out / "frozen.json"
     json.dump(frozen, open(fp, "w"), indent=1, ensure_ascii=False)
     print(f"detect：{time.time()-t0:.0f} 秒．書いた：{fp} sha256 {sha(fp)}", flush=True)
-    if production(out, "dai3"):                                          # 本番の置き場のときだけ写しを置く
-        shutil.copy(fp, ROOT / "DAI" / "frozen" / "dai3_frozen.json")
-        print("写し：", ROOT / "DAI" / "frozen" / "dai3_frozen.json", flush=True)
+    if production(out):                                                  # 本番の置き場のときだけ写しを置く（置き場ごとに名前を分ける）
+        shutil.copy(fp, frozen_copy(out))
+        print("写し：", frozen_copy(out), flush=True)
 
 
 # ------------------------------------------------------------------ 段 eval：単位ごとの計算
@@ -1049,22 +1140,14 @@ def eval_items(sv: Saved, fz3: dict, first_seed: bool) -> dict:
 
 def eval_subsets(sv: Saved) -> dict:
     """1.1 節の部分集合（族 5 の記述）と説明 4 の (b)．名前 → (テストの印，切片を当て直す識別器の名前の並び)．"""
-    T, out = sv.T, {}
-    if T == "MOSEI":
-        ch = mosei_channels()
-        out["channel"] = (np.isin(sv.cl, list(ch)), [f"{s}|{w}|5" for s in DD.STUDENTS for w in ("prop", "none")])
-    if T == "IEMOCAP":
-        mk = subset_map("IEMOCAP", "marker")
-        v = np.array([mk.get(x, "") for x in sv.sid])
-        for val in ("marker", "nomarker"):
-            out[val] = (v == val, [f"{s}|{w}|5" for s in DD.STUDENTS for w in ("prop", "none")])
-    if T == "AFEW":
-        sus = set(subset_map("AFEW", "asr_suspect"))
-        out["asr_ok"] = (~np.isin(sv.sid, list(sus)), [f"{s}|{w}|5" for s in ("T", "AVT") for w in ("prop", "none")])
-    if T == "MELD":
-        fc = subset_map("MELD", "face_compete")
-        out["face_single"] = (np.array([fc.get(x) == "single" for x in sv.sid]),
-                              [f"{s}|{w}" for s in "AVT" for w in ["oracle"] + [f"none|{K}" for K in ks_f()]])
+    out = {}
+    for k, mask in subset_masks(sv.T, sv.sid, sv.cl).items():
+        if k == "face_single":
+            names = [f"{s}|{w}" for s in "AVT" for w in ["oracle"] + [f"none|{K}" for K in ks_f()]]
+        else:
+            studs = ("T", "AVT") if k == "asr_ok" else DD.STUDENTS
+            names = [f"{s}|{w}|5" for s in studs for w in ("prop", "none")]
+        out[k] = (mask, names)
     if 5 not in DD.KS:
         out = {k: (m, [n for n in names if not n.endswith("|5")]) for k, (m, names) in out.items()}
     return out
@@ -1085,12 +1168,24 @@ def rebuilt_check(sv: Saved) -> list:
             Z = S.logits(sv.u.Xt[s], S.t(sv.p3[f"p3_{s}_K{K}_W"]), S.t(sv.p3[f"p3_{s}_K{K}_b"])).argmax(2).cpu().numpy()
             ag = (Z == sv.p3[f"p3_{s}_K{K}_pred"]).mean(1)
             rows.append(dict(stage=3, student=s, K=str(K), n_items=len(ag), n_not_full=int((ag < 1).sum()), min_agree=float(ag.min())))
+    def agree(stage, s, K, X, W, b, pred):
+        Z = S.logits(X, S.t(W), S.t(b)).argmax(2).cpu().numpy()
+        ag = (Z == pred).mean(1)
+        rows.append(dict(stage=stage, student=s, K=str(K), n_items=len(ag), n_not_full=int((ag < 1).sum()), min_agree=float(ag.min())))
+    nA = len(dai1.A_GRID)
     for K in dai1.KS_ALL:
         W = np.concatenate([sv.p3[f"p3g_K{K}_{m}_W"] for m in "AVT"], axis=2)
         b = sum(sv.p3[f"p3g_K{K}_{m}_b"].astype(np.float64) for m in "AVT")
-        Z = S.logits(sv.u.Xt["AVT"], S.t(W), S.t(b)).argmax(2).cpu().numpy()
-        ag = (Z == sv.p3[f"p3g_K{K}_AVT_pred"]).mean(1)
-        rows.append(dict(stage="3g", student="AVT", K=str(K), n_items=len(ag), n_not_full=int((ag < 1).sum()), min_agree=float(ag.min())))
+        agree("3g", "AVT", K, sv.u.Xt["AVT"], W, b, sv.p3[f"p3g_K{K}_AVT_pred"])
+        for m in "AVT":                                                  # 単一の生徒の共訓練と共正則化（gate-code の I14）
+            agree("3c", m, K, sv.u.Xt[m], sv.p3[f"p3c_K{K}_{m}_W"], sv.p3[f"p3c_K{K}_{m}_b"], sv.p3[f"p3c_K{K}_{m}_pred"])
+            agree("3g", m, K, sv.u.Xt[m], sv.p3[f"p3g_K{K}_{m}_W"], sv.p3[f"p3g_K{K}_{m}_b"], sv.p3[f"p3g_K{K}_{m}_pred"])
+        for s in DD.STUDENTS:                                            # 役割を分ける版の段 a と段 b（段 b の W は段 a の解．並びは (版, ρ, a)）
+            Wa, ba = sv.p3[f"p3r_{s}_K{K}_Wa"], sv.p3[f"p3r_{s}_K{K}_ba"]
+            agree("3r_a", s, K, sv.u.Xt[s], Wa, ba, sv.p3[f"p3r_{s}_K{K}_pred_a"])
+            if K > 0:
+                bb = sv.p3[f"p3r_{s}_K{K}_bb"]
+                agree("3r_b", s, K, sv.u.Xt[s], np.repeat(Wa, nA, axis=0), bb, sv.p3[f"p3r_{s}_K{K}_pred_b"])
     return rows
 
 
@@ -1107,7 +1202,7 @@ def eval_unit(sv: Saved, fz3: dict, first_seed: bool) -> dict:
     for name, (kind, W, b) in items.items():
         Zw = scores(u.Xt[kind], W)
         Z[name] = (kind, Zw, b, W)
-        R["refit"][name], cv = refit_item(Zw, b, sv.y, grp, keep)
+        R["refit"][name], cv = refit_item(Zw, b, sv.y, grp, keep, ctx=f"{sv.base.name} {name}")
         R["conv"].append(dict(item=name) | cv)
         Wn = W.cpu().numpy()
         R["rowsum"].append(dict(item=name, rel=float(np.abs(Wn.sum(0)).max() / max(np.abs(Wn).max(), 1e-30))))
@@ -1117,6 +1212,25 @@ def eval_unit(sv: Saved, fz3: dict, first_seed: bool) -> dict:
         scale = float(torch.linalg.norm(W) / torch.linalg.norm(Wo))
         al, _ = refit_item(Zo * scale, b, sv.y, grp, keep, refit=False)
         R["refit"][name]["align"] = al["orig"]
+    # gate-code の R4（全体の複製 j = 0 だけ）：(i) W* の引き戻しの格子の全部の点の UAR(W*, b*(W*))，
+    # (ii) 話者が重ならない 2 組（`disjoint_halves`）での当て直し（分解に使う識別器と W*）．
+    keep0 = keep[:1]
+    R["oracle_grid"] = {}
+    for kind in DD.STUDENTS:
+        for itm in [str(x) for x in sv.p1[f"p1_{kind}_items"] if str(x).startswith("all|")]:
+            _, cw, cb = itm.split("|")
+            Wg, bg = sv.oracle(kind, cw, cb)
+            R["oracle_grid"][f"{kind}|{cw}|{cb}"], cv = refit_item(scores(u.Xt[kind], Wg), bg, sv.y, grp, keep0,
+                                                                   ctx=f"{sv.base.name} {kind}|oracle_grid|{cw}|{cb}")
+            R["conv"].append(dict(item=f"oracle_grid:{kind}|{cw}|{cb}") | cv)
+    gdis = disjoint_halves(sv.T, sv.cl, sv.sid)
+    R["dis_meta"] = dict(n_group0=int((gdis == 0).sum()), n_group1=int((gdis == 1).sum()),
+                         n_clusters_shared=len(set(sv.cl[gdis == 0]) & set(sv.cl[gdis == 1])))
+    R["refit_dis"] = {}
+    for name in decomp_items(items) + [f"{k}|oracle" for k in DD.STUDENTS]:
+        kind, Zw, b, _ = Z[name]
+        R["refit_dis"][name], cv = refit_item(Zw, b, sv.y, gdis, keep0, ctx=f"{sv.base.name} {name}（話者が重ならない 2 組）")
+        R["conv"].append(dict(item=f"disjoint:{name}") | cv)
     for sname, (mask, names) in eval_subsets(sv).items():
         idx = np.flatnonzero(mask)
         ys, cs, ss = sv.y[idx], sv.cl[idx], sv.sid[idx]
@@ -1125,7 +1239,7 @@ def eval_unit(sv: Saved, fz3: dict, first_seed: bool) -> dict:
         blk = {"keys": k2, "sizes": Counter(cs.tolist()), "n": len(idx), "refit": {}}
         for name in names:
             kind, Zw, b, _ = Z[name]
-            blk["refit"][name], cv = refit_item(Zw[torch.as_tensor(idx, device=S.DEV)], b, ys, g2, keep2)
+            blk["refit"][name], cv = refit_item(Zw[torch.as_tensor(idx, device=S.DEV)], b, ys, g2, keep2, ctx=f"{sv.base.name} {sname}:{name}")
             R["conv"].append(dict(item=f"{sname}:{name}") | cv)
         R["sub"][sname] = blk
     up = ST.UnitPreds(sv.base)
@@ -1194,16 +1308,18 @@ def eval_unit(sv: Saved, fz3: dict, first_seed: bool) -> dict:
 # ------------------------------------------------------------------ 段 eval：集計
 
 def cell_flags_refit(U: dict, name: str, vi: int, sub: str | None = None) -> dict:
-    """4 節：2 組のどちらかで合計が 30 本未満か感情ごとの最少が 10 本未満の単位があるセルは付録だけ（区間を示さない）．"""
-    n_small, n_drop = 0, 0
-    for R in U.values():
+    """4 節と 1.2 節（gate-code の L4）：2 組のどちらかで感情が 10 本未満か合計が 30 本未満の分割は，その量の平均から外す
+    （`groups_ok`．refit_item が計算しない）．全部の分割が外れたセルだけを付録に回す（区間を示さない）．"""
+    n_out, n_all, folds = 0, 0, set()
+    for (f, r), R in U.items():
         blk = R["refit"] if sub is None else R["sub"].get(sub, {}).get("refit", {})
         if name not in blk:
             continue
-        x = blk[name]
-        n_small += int(min(x["tot"][vi]) < MIN_TOTAL or min(x["minc"][vi]) < MIN_GROUP)
-        n_drop += int(not x["valid"][vi][0])
-    return dict(n_units_small=n_small, n_units_not_computed=n_drop, appendix_only=bool(n_small > 0))
+        n_all += 1
+        if not blk[name]["valid"][vi][0]:
+            n_out += 1; folds.add(f)
+    return dict(n_units_count_rule=n_out, folds_count_rule=",".join(map(str, sorted(folds))),
+                appendix_only=bool(n_all > 0 and n_out == n_all))
 
 
 def sub_vals(U: dict, sub: str, fn) -> tuple[dict, dict]:
@@ -1221,7 +1337,8 @@ def sub_vals(U: dict, sub: str, fn) -> tuple[dict, dict]:
 
 
 def validity_ok(fz3: dict, c: str, s: str, wts: list, ver: str) -> bool | None:
-    """確かめ 1 の合否（不合格の W の種類を使う量は記述に回す）．確かめの結果が無いときは None．"""
+    """確かめ 1 の合否（不合格の W の種類を使う量は記述に回す）．確かめの結果が無いときは None．呼ぶ側は True のときだけ
+    判定に使い，False と None はどちらも「判定できない」にする（欠けを合格として扱わない．gate-code の I11-a）．"""
     v = (fz3.get("validity") or {}).get("check1", {})
     res = [v.get(f"{c}|{s}|{w}|{ver}") for w in wts]
     if any(x is None for x in res):
@@ -1293,6 +1410,7 @@ def aggregate(T: str, U: dict, fz1T: dict, fz3: dict, rng, tabs: dict) -> dict:
             tabs["twogroup_vs_full"].append(dict(T=T, item=name, version=vn, median_gap=float(np.nanmedian(gap)) if gap else np.nan,
                                                  n_units=len(gap)))
     neg_share = {k: (float(np.mean(np.array(v) < 0)) if v else np.nan) for k, v in negs.items()}
+    r4_tables(T, U, first, names, fz3, tabs)
     # 差が無いときの位置の誤りの水準（1 節）：コーパスと版ごとに，単位 × 識別器の中央値（組の大きさで変わる）
     for vi, vn in enumerate(VNAME):
         v0 = [R["refit"][n]["refit"][vi, 0] - R["refit"][n]["fullb"][vi, 0] for R in U.values() for n in decomp_items(R["refit"])
@@ -1316,8 +1434,9 @@ def aggregate(T: str, U: dict, fz1T: dict, fz3: dict, rng, tabs: dict) -> dict:
                                 partner_effect=ep["effect"], partner_lo=ep["lo"], partner_hi=ep["hi"], partner_n_units=ep["n_units"]))
         ps = np.array([x["p"] if np.isfinite(x["p"]) else 1.0 for x in fam])     # 落ちたセルも族に含める（1.2 節）
         for x, a in zip(fam, ST.holm(ps) if len(ps) else []):
-            x["p_holm"] = float(a)
-            x["verdict"] = verdict(x["lo"], x["hi"], delta) if not x["appendix_only"] else UNDET
+            x["p_holm"] = float(a)                                     # 確かめ 1 に不合格のセルも Holm の族に残す
+            x["verdict_raw"] = verdict(x["lo"], x["hi"], delta) if not x["appendix_only"] else UNDET
+            x["verdict"] = x["verdict_raw"] if x["check1_pair_ok"] is True else UNDET    # 確かめ 1 の不合格・欠けは判定できない（I1-a）
         tabs["family5"] += fam
         for sub in sorted({k for R in U.values() for k in R["sub"]}):
             for s in DD.STUDENTS:
@@ -1348,11 +1467,14 @@ def aggregate(T: str, U: dict, fz1T: dict, fz3: dict, rng, tabs: dict) -> dict:
             ok_iv = validity_ok(fz3, T, s, [f"prop{K}", f"none{K}"], "four")
             row = dict(T=T, student=s, K=K, check2=check2_ok(fz3, T, s), check1_iii_ok=ok_iii, check1_iv_ok=ok_iv)
             for tag, e, ok in (("i", q_i, True), ("ii", q_ii, True), ("iii", q_iii, ok_iii), ("iv", q_iv, ok_iv),
-                               ("iii_iv", q_34, ok_iii is not False and ok_iv is not False)):
+                               ("iii_iv", q_34, ok_iii is True and ok_iv is True)):
                 v = verdict(e["lo"], e["hi"], delta)
                 row |= {f"{tag}_{k}": e.get(k) for k in ("effect", "lo", "hi", "n_units", "df")}
                 row[f"{tag}_verdict_raw"] = v
-                row[f"{tag}_verdict"] = v if ok is not False else UNDET              # 確かめ 1 の不合格の量は記述だけ（1.4 節の 3）
+                row[f"{tag}_verdict"] = v if ok is True else UNDET                   # 確かめ 1 の不合格・欠けの量は記述だけ（1.4 節の 3）
+            # 確かめ 1 に不合格（か欠け）の量を含むセルは，規則で支持にも退けるにも数えない「判定できないセル」（I1-b）．
+            # (i)・(ii) は判定から作る量で b* を使わないので，(iii)・(iv) の W の種類だけで決まる
+            row["cell_undetermined"] = bool(not (ok_iii is True and ok_iv is True))
             e1.append(row)
             if s != "AVT":
                 for nm in noown_types(s, srcs):
@@ -1458,6 +1580,60 @@ def aggregate(T: str, U: dict, fz1T: dict, fz3: dict, rng, tabs: dict) -> dict:
     return summ
 
 
+def theta_units(vals: dict) -> tuple[float, int]:
+    """{(f, r): x} → 分割ごとの種の平均の分割の平均（NaN は外す）と単位の数．全体の複製だけの記述に使う（区間を付けない）．"""
+    fv = {}
+    for (f, r), x in vals.items():
+        if np.isfinite(x):
+            fv.setdefault(f, []).append(x)
+    return (float(np.mean([np.mean(v) for v in fv.values()])) if fv else np.nan), int(sum(len(v) for v in fv.values()))
+
+
+def r4_tables(T: str, U: dict, first: dict, names: list, fz3: dict, tabs: dict) -> None:
+    """gate-code の R4 の記述（全体の複製 j = 0 だけ．区間は付けない）：
+      oracle_grid      ：W* の引き戻しの格子の各点で測った方向の誤り UAR(W*_点, b*) − UAR(W, b*(W)) と，その点の UAR(W*, b*(W*))
+      speaker_disjoint ：同じ話者が両方の組に入る 2 組（1 節）と，話者が重ならない 2 組（`disjoint_halves`）での位置・方向の誤りと，
+                         その差（同じ話者 − 重ならない．漏れの L9 の大きさ）．両方の分け方で計算できた単位だけで比べる．"""
+    for name in names:
+        kind = name.split("|")[0]
+        oname = f"{kind}|oracle"
+        UU = first if "|src|" in name else U
+        sel = "|".join(str(x) for x in fz3["oracle_tether"][T][kind])
+        tks = sorted({k.split("|", 1)[1] for R in UU.values() for k in R.get("oracle_grid", {}) if k.split("|")[0] == kind})
+        for vi, vn in enumerate(VNAME):
+            for tk in tks:
+                d, o = {}, {}
+                for fr, R in UU.items():
+                    a, g = R["refit"].get(name), R["oracle_grid"].get(f"{kind}|{tk}")
+                    if a is None or g is None or not a["valid"][vi, 0]:
+                        continue
+                    d[fr] = g["refit"][vi, 0] - a["refit"][vi, 0]
+                    o[fr] = g["refit"][vi, 0]
+                th, n = theta_units(d)
+                tabs["oracle_grid"].append(dict(T=T, item=name, kind=kind, version=vn, tether=tk,
+                                                selected=bool(np.isclose([float(x) for x in tk.split("|")], [float(x) for x in sel.split("|")]).all()),
+                                                direction=th, oracle_refit=theta_units(o)[0], n_units=n))
+            q = {k: {} for k in ("position_same", "position_disjoint", "direction_same", "direction_disjoint")}
+            for fr, R in UU.items():
+                a, ao = R["refit"].get(name), R["refit"].get(oname)
+                b, bo = R.get("refit_dis", {}).get(name), R.get("refit_dis", {}).get(oname)
+                if a is None or b is None or not (a["valid"][vi, 0] and b["valid"][vi, 0]):
+                    continue
+                q["position_same"][fr] = a["refit"][vi, 0] - a["orig"][vi, 0]
+                q["position_disjoint"][fr] = b["refit"][vi, 0] - b["orig"][vi, 0]
+                q["direction_same"][fr] = ao["refit"][vi, 0] - a["refit"][vi, 0]
+                q["direction_disjoint"][fr] = bo["refit"][vi, 0] - b["refit"][vi, 0]
+            row = dict(T=T, item=name, kind=kind, version=vn)
+            for k, v in q.items():
+                row[k], row["n_units"] = theta_units(v)
+            row["position_same_minus_disjoint"] = row["position_same"] - row["position_disjoint"]
+            row["direction_same_minus_disjoint"] = row["direction_same"] - row["direction_disjoint"]
+            n_dis = sum(1 for R in UU.values() if name in R.get("refit_dis", {}))
+            row["n_units_disjoint_not_computed"] = int(n_dis - row["n_units"])
+            row["disjoint_split"] = "話者（F と M）" if T == "IEMOCAP" else "テストの塊（大きい順に少ない組へ）"
+            tabs["speaker_disjoint"].append(row)
+
+
 def spearman_rows(A: np.ndarray, b: np.ndarray) -> np.ndarray:
     """A (B, n) の各行と b (n,) の Spearman の順位相関．"""
     ra = st.rankdata(A, axis=1)
@@ -1552,7 +1728,8 @@ def expl4(T: str, U: dict, rp: pd.DataFrame, fz1T: dict, mode: str, tabs: dict) 
                     row[f"V_minus_{o}_fold_min"] = float(min(dv)) if dv else np.nan
                     row[f"V_minus_{o}_fold_max"] = float(max(dv)) if dv else np.nan
                 row["dims"] = json.dumps(next(iter(U.values()))["meta"]["dims"])
-                row["second_encoder"] = "確かめていない"                     # (c)：第 2 のエンコーダの評価の回は別の置き場で同じ段を流す
+                row["second_encoder"] = ("この表が第 2 のエンコーダの回の値" if RUN["encoder"] == 2 else
+                                         "確かめていない（第 2 のエンコーダの回は results/dai3_enc2 の同じ表）")   # (c)．I8
                 tabs["expl4"].append(row)
 
 
@@ -1622,13 +1799,14 @@ def rules(summs: dict) -> dict:
     # 説明 1
     per = {}
     for T in corp:
-        cells = summs[T]["expl1"]
-        n = len(cells)
+        all_cells = summs[T]["expl1"]
+        n = len(all_cells)                                                # 「過半のセル」の分母は行のセルの数（8）のまま
         half = n // 2 + 1
+        cells = [c for c in all_cells if not c.get("cell_undetermined")]  # 判定できないセルはどの条件にも数えない（I1-b）
         iii_below = sum(c["iii_verdict"] == BELOW for c in cells) >= half
         first = [c["i_verdict"] in (SAME, ABOVE) and c["ii_verdict"] in (SAME, ABOVE) and c["iii_verdict"] != ABOVE for c in cells]
         full = [f and c["iv_verdict"] == ABOVE and (not iii_below or c["iii_iv_verdict"] == ABOVE) for f, c in zip(first, cells)]
-        per[T] = dict(n_cells=n, n_first=int(sum(first)), n_full=int(sum(full)),
+        per[T] = dict(n_cells=n, n_undetermined_cells=n - len(cells), n_first=int(sum(first)), n_full=int(sum(full)),
                       n_iii_above=int(sum(c["iii_verdict"] == ABOVE for c in cells)), iii_below_majority=bool(iii_below),
                       n_ii_supportive=int(sum(c["ii_verdict"] in (SAME, ABOVE) for c in cells)),
                       corpus_first=bool(sum(first) >= half), corpus_full=bool(sum(full) >= half),
@@ -1652,9 +1830,10 @@ def rules(summs: dict) -> dict:
     # 説明 2
     per = {}
     for T in corp:
-        cells = [c for c in summs[T]["expl2"] if c.get("K", 0) > 0]
-        half = len(cells) // 2 + 1
-        per[T] = dict(n_cells=len(cells), n_a_above=int(sum(c["a_verdict"] == ABOVE for c in cells)),
+        all_cells = [c for c in summs[T]["expl2"] if c.get("K", 0) > 0]
+        half = len(all_cells) // 2 + 1
+        cells = [c for c in all_cells if not c.get("cell_undetermined")]  # 説明 2 の量は判定から作り，確かめ 1 の対象を含まない
+        per[T] = dict(n_cells=len(all_cells), n_a_above=int(sum(c["a_verdict"] == ABOVE for c in cells)),
                       n_b_above=int(sum(c["b_verdict"] == ABOVE for c in cells)),
                       corpus_a=bool(sum(c["a_verdict"] == ABOVE for c in cells) >= half),
                       corpus_b=bool(sum(c["b_verdict"] == ABOVE for c in cells) >= half))
@@ -1695,19 +1874,32 @@ def stage_eval(args, out: Path, out1: Path) -> None:
     fz3 = json.load(open(fp))
     if fz3["_meta"]["dai1_frozen_sha256"] != fz1_sha:
         sys.exit("実験 3 の固定のファイルが作られたときの実験 1 の固定のファイルと，今の実験 1 の固定のファイルが違う")
-    if production(out, "dai3"):
-        cp = ROOT / "DAI" / "frozen" / "dai3_frozen.json"
+    if fz3["_meta"].get("script_sha256") != script_shas():                 # detect と eval で同じ台本か（gate-code の記録 6）
+        sys.exit(f"固定のファイルを作ったときの台本（{', '.join(SCRIPTS)}）の sha256 と今の台本が違う（detect から流し直す）")
+    if fz3["_meta"].get("encoder") != dai1.ENC["enc"]:
+        sys.exit("固定のファイルを作ったときのエンコーダと --encoder が違う")
+    if production(out):
+        cp = frozen_copy(out)
         if not cp.exists() or sha(cp) != sha(fp) or not dai1.committed_clean(cp):
-            sys.exit("DAI/frozen/dai3_frozen.json が無いか，frozen.json と一致しないか，コミットされていない")
+            sys.exit(f"{cp.relative_to(ROOT)} が無いか，frozen.json と一致しないか，コミットされていない")
         if RUN["dirty"] or fz3["_meta"].get("dirty", True):
             sys.exit("本番の評価の段は未コミットの変更があると流さない（固定のファイルも未コミットの台本で作ったものは使わない）")
+        if "partial_targets" in fz3["_meta"]:
+            sys.exit("固定のファイルが一部の評価のターゲットだけで作られている（detect を 4 つ全部で流す）")
         if fz3.get("validity") is None:
             sys.exit("固定のファイルに妥当性の確かめの結果が無い（validate → detect の順に流す）")
+        wts = ["start"] + [f"{x}{K}" for K in ks_f() for x in ("none", "prop")] + ["oracle"]
+        need1 = [f"{c}|{s}|{w}|{v}" for c in DD.CORPORA for s in DD.STUDENTS for w in wts for v in ("four", "pair")]
+        need2 = [f"{c}|{s}" for c in DD.CORPORA for s in DD.STUDENTS]
+        miss = [k for k in need1 if k not in fz3["validity"].get("check1", {})] + \
+               [k for k in need2 if k not in fz3["validity"].get("check2", {})]
+        if miss:
+            sys.exit(f"確かめの結果の鍵が欠けている（{len(miss)} 個．例 {miss[:3]}．欠けを合格として扱わない．I11-a）")
     edir = out / "eval"
     (edir / "units").mkdir(parents=True, exist_ok=True)
     tabs = {k: [] for k in ("decomp", "twogroup_vs_full", "family5", "family5_subsets", "expl1", "expl1_tt", "expl2", "repro",
                             "expl3_types", "expl3_cells", "expl3", "expl4", "expl5", "expl6", "recall_content", "assumptions",
-                            "null_level", "repro_units")}
+                            "null_level", "repro_units", "oracle_grid", "speaker_disjoint")}
     summs, conv = {}, []
     t0 = time.time()
     for T in args.targets:
@@ -1794,11 +1986,16 @@ def main() -> None:
     args = ap.parse_args()
     dai1.ENC["enc"] = DD.ENC1 if args.encoder == 1 else DD.ENC2
     out, out1 = Path(args.out_dir), Path(args.dai1_out)
-    out.mkdir(parents=True, exist_ok=True)
     commit, dirty = dai1.git_commit()
     RUN["commit"], RUN["dirty"] = commit, dirty
-    if dirty and (production(out, "dai3") or not args.allow_dirty):
+    RUN["encoder"] = args.encoder
+    if dirty and (production(out) or not args.allow_dirty):
         sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+    if production(out):                                                  # 本番の置き場は，読む実験 1 の置き場とエンコーダが決まっている（I8）
+        d1name, enc = PROD_OUT[out.resolve().name]
+        if out1.resolve() != (ROOT / "results" / d1name).resolve() or args.encoder != enc:
+            sys.exit(f"本番の置き場 {out.name} は --dai1-out results/{d1name} と --encoder {enc} で流す")
+    out.mkdir(parents=True, exist_ok=True)                                # 守りを通ってから置き場を作る
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, host=platform.node(),
                 gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", torch=torch.__version__,
                 numpy=np.__version__, pandas=pd.__version__, time=time.strftime("%Y-%m-%d %H:%M:%S"),
