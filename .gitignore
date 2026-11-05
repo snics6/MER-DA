@@ -76,3 +76,4 @@ DAI/docs/*.out
 # ---- DAI/slides/（LaTeX の中間生成物と PDF） ----
 DAI/slides/*/build/
 DAI/slides/*/*.pdf
+DAI/checks/DAI-eval/code_run_post/*.pkl
