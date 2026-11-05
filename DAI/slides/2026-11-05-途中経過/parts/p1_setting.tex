@@ -138,22 +138,3 @@ MOSEI (\T{動画}{online videos}) & 18,634 & 2,614 \\
 {\tiny\color{mMuted}\T{上限＝候補の全ラベルで学んだ重みに，テストの感情の釣り合いで切片を当て直した識別器（点の値，区間なし）．出どころ：figures/difficulty.csv}{Upper bound = weights trained on all pool labels with the intercept refit on the test emotion balance (point values, no interval). Source: figures/difficulty.csv}}
 \end{frame}
 
-\begin{frame}{\T{実験の全体像：4 つの実験で「どれだけ・どこで・なぜ」を分けて測る}{Overview: four experiments separate ``how much'', ``where'' and ``why''}}
-\rl{\T{計画}{Plan}}
-\scriptsize
-\begin{tabular}{@{}p{0.07\linewidth}p{0.42\linewidth}p{0.27\linewidth}p{0.17\linewidth}@{}}
-\toprule
-& \T{何を測るか}{What is measured} & \T{相手}{Compared against} & \T{状態}{Status} \\
-\midrule
-\T{実験 1}{Exp.~1} & \T{別のモダリティの予測（疑似ラベル）で学ぶ手法の得}{Gain from learning on the other modalities' predictions (pseudo-labels)} & \T{K 本だけ；同じ情報を受け取る 5 手法（温度つき蒸留など）}{K-only; 5 methods using the same information (e.g.\ temperature distillation)} & \done \\
-\T{実験 2}{Exp.~2} & \T{標準のドメイン適応・半教師あり手法との差}{Difference from standard DA / semi-supervised methods} & \T{自己学習，エントロピー最小化，T3A，ラベル伝播，S+T，CORAL，DANN，MME など 14}{self-training, entropy min., T3A, label propagation, S+T, CORAL, DANN, MME, … (14)} & \done \\
-\T{実験 3}{Exp.~3} & \T{得の説明：損を切片（位置）と重みの向きに分ける，再現できる度合い}{Explanation: split the loss into intercept (position) and weight direction; reproducibility} & \T{事前に固定した判定の規則}{pre-fixed decision rules} & \done \\
-\T{実験 4}{Exp.~4} & \T{蒸留の弱点（全発話を同じ重みで信じる）を直した手法の得}{Gain from fixing a weakness of distillation (uniform trust in all pool utterances)} & \T{実験 1 の提案・蒸留}{Exp.~1 proposal / distillation} & \todo\ \T{設計済み}{designed} \\
-\T{探索}{Exploration} & \T{どのモダリティを信じるか（信頼度の見積もり）}{Which modality to trust (reliability estimation)} & --- & \done\ \T{測定済み}{measured} \\
-\bottomrule
-\end{tabular}
-
-\vspace{0.3em}
-\scriptsize
-\T{実験 1〜3 は設計・台本・集計の台本を評価の前に固定し，関門（統計・漏れ・比較・定義・台本）と ML・感情認識の査読想定の検査を通してから計算した．実験 4 と探索は評価の結果を見た後の案で，論文では節を分け，限界に由来を書く．}{Experiments 1--3: designs, scripts and aggregation were frozen before evaluation and passed the gate checks (statistics, leakage, fairness, definitions, code) and simulated ML / affective-computing review. Experiment 4 and the exploration arose after seeing the results; the paper separates them and states their origin.}
-\end{frame}

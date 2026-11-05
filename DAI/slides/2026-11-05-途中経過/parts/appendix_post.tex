@@ -1,0 +1,326 @@
+%% 補足（後半）：本編から移した区間つきの図，信頼度の筋，まとめ
+\setband{\T{補足}{Appendix}}
+
+\begin{frame}{\T{補足：提案 − K 本だけ（K = 0・5・25，区間つき）}{Appendix: proposal − K-only (K = 0, 5, 25, with intervals)}}
+\rl{\T{実験 1，族 1}{Exp.~1, family 1}}
+\hosoku{appfam1}{\T{全セルの数値表}{full table of cells}}
+\centering
+\famchart{fam1}{-8}{13}{\T{提案 − K 本だけ（ポイント）}{proposal − K-only (points)}}
+\vspace{-0.3em}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{音声}：12 セルすべて正，10 セルで区間の下端が 0 より上（AFEW \N{famoneAFEWAfive}，MELD \N{famoneMELDAfive}，MOSEI \N{famoneMOSEIAfive} ポイント，K = 5）
+\item \textbf{言葉}：IEMOCAP だけ \N{famoneIEMOCAPTfive}（K = 5）．ほかは区間が 0 を含む
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Audio}: all 12 cells positive; 10 have the interval above 0 (AFEW \N{famoneAFEWAfive}, MELD \N{famoneMELDAfive}, MOSEI \N{famoneMOSEIAfive} points at K = 5)
+\item \textbf{Text}: only IEMOCAP, \N{famoneIEMOCAPTfive} (K = 5); elsewhere the interval contains 0
+\end{itemize}
+}
+\end{column}
+\begin{column}{0.5\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{顔}：下端が 0 より上なのは MOSEI の K = 25 だけ．IEMOCAP は負
+\item \textbf{AVT}：MELD だけ \N{famoneMELDAVTfive}（K = 5）．ほかは −0.8〜+1.7
+\item 検定で言えるのは MOSEI の音声（3 つの K，Holm 後 p < 0.001）だけ
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Face}: the interval is above 0 only for MOSEI at K = 25; IEMOCAP is negative
+\item \textbf{AVT}: only MELD, \N{famoneMELDAVTfive} (K = 5); elsewhere −0.8 to +1.7
+\item Only MOSEI audio survives the tests (all three K, Holm p < 0.001)
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\T{補足：提案 − 温度つき蒸留（同じ教師を受け取る相手）は同じ値になる}{Appendix: proposal − temperature distillation (same-teacher baseline) scores the same}}
+\rl{\T{実験 1，族 3}{Exp.~1, family 3}}
+\hosoku{appfam3}{\T{全セルの数値表}{full table of cells}}
+\centering
+\famchart{fam3}{-4}{4}{\T{提案 − 相手（ポイント）}{proposal − baseline (points)}}
+\vspace{-0.3em}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 48 セル中 40 セルで区間が 0 を含む．相手は 80 セル中 75 セルで温度つき蒸留（残りは「一致した発話だけ」）
+\item 含まない 8 セル：提案が高いのは MELD の AVT K = 5（\N{famthreetwodMELDAVTfive}）だけ．相手が高いのは MOSEI の言葉（\N{famthreetwodMOSEITzero}〜\N{famthreetwodMOSEITtwofive}），MELD の言葉 K = 25（\N{famthreetwodMELDTtwofive}）など
+\item 検定で言えるのは MOSEI の言葉 K = 0 で蒸留が高いこと（Holm 後 p = \N{famthreepMOSEITzero}）だけ．「このコーパスで提案は相手より良い」の文は書かない（事前の条件を満たさない）
+\end{itemize}
+}{%
+\begin{itemize}
+\item In 40 of 48 cells the interval contains 0. The baseline is temperature distillation in 75 of 80 cells (``agreed-only'' otherwise)
+\item Of the 8 other cells, the proposal is higher only for MELD AVT K = 5 (\N{famthreetwodMELDAVTfive}); the baseline is higher for MOSEI text (\N{famthreetwodMOSEITzero} to \N{famthreetwodMOSEITtwofive}), MELD text K = 25 (\N{famthreetwodMELDTtwofive}), etc.
+\item The only tested difference: distillation is higher for MOSEI text at K = 0 (Holm p = \N{famthreepMOSEITzero}). No ``proposal beats the baseline on this corpus'' sentence is written (pre-fixed condition not met)
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}{\T{補足：提案 − 標準の適応手法（AVT の生徒，K = 5，区間つきの図）}{Appendix: proposal − standard adaptation methods (AVT student, K = 5, chart with intervals)}}
+\rl{\T{実験 2（K = 5，AVT の生徒）}{Exp.~2 (K = 5, AVT student)}}
+\hosoku{appdai2}{\T{K = 0・25 の図}{charts for K = 0 and 25}}
+\centering
+\daichart{5}{-9}{22}{4.5cm}
+\vspace{-0.2em}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 横軸は「提案 − 手法」（ポイント，95\% 区間．手法ごとに使う情報が違うので優劣でなく情報の違いとして読む）．右が提案に有利．12 セル（4 コーパス × K ∈ \{0,5,25\}）で下端が 0 より上の数：エントロピー最小化 \N{daitwoaboveentmin}，IM \N{daitwoaboveim}，MME \N{daitwoabovemme}，T3A \N{daitwoabovetthreea}，CORAL \N{daitwoabovecoral}，DANN \N{daitwoabovedann}，自己学習 \N{daitwoaboveself}，S+T \N{daitwoabovest}
+\item 提案が負けるセルは 4 つだけ：AFEW の K = 0 で T3A（\N{daitwoAFEWtthreeazero}），エントロピー最小化（\N{daitwoAFEWentminzero}），IM（\N{daitwoAFEWimzero}）と，MOSEI の K = 5 で CORAL（\N{daitwoMOSEIcoralfive}）
+\end{itemize}
+}{%
+\begin{itemize}
+\item x-axis: ``proposal − method'' (points, 95\% interval; methods use different information, so read as information differences, not a ranking); right favors the proposal. Cells (of 12 = 4 corpora × K ∈ \{0,5,25\}) with the lower end above 0: entropy min.\ \N{daitwoaboveentmin}, IM \N{daitwoaboveim}, MME \N{daitwoabovemme}, T3A \N{daitwoabovetthreea}, CORAL \N{daitwoabovecoral}, DANN \N{daitwoabovedann}, self-training \N{daitwoaboveself}, S+T \N{daitwoabovest}
+\item The proposal loses in only 4 cells: AFEW at K = 0 to T3A (\N{daitwoAFEWtthreeazero}), entropy min.\ (\N{daitwoAFEWentminzero}), IM (\N{daitwoAFEWimzero}); MOSEI at K = 5 to CORAL (\N{daitwoMOSEIcoralfive})
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}{\T{補足：結果のまとめ（検定で言えるのは 2 つ，記述の傾向は 4 つ）}{Appendix: results in brief (two tested statements, four descriptive trends)}}
+\rl{\T{まとめ}{Summary}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\T{検定で言えること（Holm 後 p < 0.05）}{Tested statements (Holm p < 0.05)}}
+\T{%
+\begin{enumerate}
+\item MOSEI の音声の生徒で，提案は K 本だけを上回る（K = 0・5・25 で \N{famoneMOSEIAzero}〜\N{famoneMOSEIAtwofive} ポイント）
+\item MOSEI の言葉 K = 0 で，温度つき蒸留は提案より高い（\N{famthreetwodMOSEITzero}）
+\end{enumerate}
+\textbf{事前に立てた説明で支持されなかったもの}
+\begin{itemize}
+\item 「K 本は主に切片を直し，別のモダリティの予測が重みの向きを直す」→ K 本も向きを直していた（\S4）
+\end{itemize}
+}{%
+\begin{enumerate}
+\item For the MOSEI audio student, the proposal beats K-only (\N{famoneMOSEIAzero} to \N{famoneMOSEIAtwofive} points at K = 0, 5, 25)
+\item For MOSEI text at K = 0, temperature distillation is higher than the proposal (\N{famthreetwodMOSEITzero})
+\end{enumerate}
+\textbf{Pre-registered explanation not supported}
+\begin{itemize}
+\item ``K labels mainly fix the intercept; the other modalities' predictions fix the weight direction'' → K labels also fix the direction (\S4)
+\end{itemize}
+}
+\end{column}
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\T{区間つきの記述の傾向}{Descriptive trends (with intervals)}}
+\T{%
+\begin{enumerate}
+\item 音声の生徒には 4 コーパスで効く（+1.4〜+4.9）
+\item 言葉は IEMOCAP だけ（+5.0〜+7.5）．顔には効かない．AVT は MELD だけ
+\item 提案と温度つき蒸留は同じ値
+\item 標準の適応手法には多くで勝つが，AFEW の K = 0 ではラベル無しだけを使う手法が 4〜5 ポイント上
+\end{enumerate}
+}{%
+\begin{enumerate}
+\item Helps the audio student in all 4 corpora (+1.4 to +4.9)
+\item Text only in IEMOCAP (+5.0 to +7.5). No gain for the face. AVT only in MELD
+\item Proposal and temperature distillation score the same
+\item Beats most standard adaptation methods, but at AFEW K = 0 unlabeled-only methods are 4--5 points higher
+\end{enumerate}
+}
+\end{column}
+\end{columns}
+\takeaway{\T{次の問い：なぜ弱いモダリティにだけ効くのか．効く仕組みが分かれば，弱点も分かる（\S4，\S5）}{Next question: why only the weak modalities? Understanding the mechanism also reveals the weakness (\S4, \S5)}}
+\end{frame}
+
+\begin{frame}{\T{手がかりが無い：一致率でも，学習に使った K 本でも，指数を決められない}{No usable signal: neither agreement rates nor the training labels can set the exponents}}
+\rl{\T{探索}{Exploration}}
+\scriptsize
+\begin{center}
+\T{テスト UAR（AVT の生徒との差，ポイント）}{Test UAR (difference from the AVT student, points)}
+
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{AFEW} & \multicolumn{2}{c}{IEMOCAP} & \multicolumn{2}{c}{MELD} & \multicolumn{2}{c}{MOSEI} \\
+K & 5 & 25 & 5 & 25 & 5 & 25 & 5 & 25 \\
+\midrule
+\T{積，指数すべて 1}{Product, all exponents 1} & \N{fproddAFEWfive} & \N{fproddAFEWtwofive} & \N{fproddIEMOCAPfive} & \N{fproddIEMOCAPtwofive} & \N{fproddMELDfive} & \N{fproddMELDtwofive} & \N{fproddMOSEIfive} & \N{fproddMOSEItwofive} \\
+\T{積，K 本で選んだ指数}{Product, exponents chosen on the K labels} & \N{fkshotdAFEWfive} & \N{fkshotdAFEWtwofive} & \N{fkshotdIEMOCAPfive} & \N{fkshotdIEMOCAPtwofive} & \N{fkshotdMELDfive} & \N{fkshotdMELDtwofive} & \N{fkshotdMOSEIfive} & \N{fkshotdMOSEItwofive} \\
+\T{積，テストで選んだ上限}{Product, test-chosen upper bound} & \N{foracledAFEWfive} & \N{foracledAFEWtwofive} & \N{foracledIEMOCAPfive} & \N{foracledIEMOCAPtwofive} & \N{foracledMELDfive} & \N{foracledMELDtwofive} & \N{foracledMOSEIfive} & \N{foracledMOSEItwofive} \\
+\midrule
+\T{K 本で最強のモダリティを当てた割合}{K labels pick the strongest modality (\%)} & \N{fheavyAFEWfive}\% & \N{fheavyAFEWtwofive}\% & \N{fheavyIEMOCAPfive}\% & \N{fheavyIEMOCAPtwofive}\% & \N{fheavyMELDfive}\% & \N{fheavyMELDtwofive}\% & \N{fheavyMOSEIfive}\% & \N{fheavyMOSEItwofive}\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\scriptsize
+\T{%
+\begin{itemize}
+\item \textbf{一致率}：強いモダリティほど弱いモダリティと意見が合わないので，候補での一致率は強さの手がかりにならない（AFEW で −0.4〜−3.4）
+\item \textbf{K 本のラベル}：単独の識別器の学習に使った発話なので，どのモダリティも K 本の上では当たりすぎて差が見えない．AFEW で最強の顔を当てた単位は 50 中 1〜2
+\item \textbf{仮のターゲット}で選んだ指数：強いモダリティがコーパスで違うので移らない
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Agreement rate}: the stronger a modality, the more it disagrees with the weak ones, so pool agreement is no cue for strength (AFEW: −0.4 to −3.4)
+\item \textbf{The K labels}: used to train the unimodal classifiers, so every modality looks too good on them. In AFEW the strongest modality (face) is picked in only 1--2 of 50 units
+\item \textbf{Proxy targets}: the strongest modality differs per corpus, so exponents chosen elsewhere do not transfer
+\end{itemize}
+}
+\takeaway{\T{難しさの核：同じ K 本を学習にも信頼度の測定にも使うと，測定が壊れる}{The crux: using the same K labels both for training and for measuring trust breaks the measurement}}
+\end{frame}
+
+\begin{frame}{\T{いまの案：K 本を「1 塊ずつ抜いて」学び直し，抜いた分で当たるかを数える（leave-one-out）}{Current idea: hold out the K labels one cluster at a time, retrain, and score the held-out part (leave-one-out)}}
+\rl{\T{方法（探索）}{Method (exploration)}}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+  % K 本（塊ごと）
+  \node[font=\scriptsize\bfseries, anchor=west] at (-0.2,1.6) {\T{K 本 × 4 感情のラベル（話者の塊ごとに色分け）}{K × 4 labels (colored by speaker cluster)}};
+  \foreach \i/\c in {0/kA, 1/kA, 2/kV, 3/kV, 4/kV, 5/kT, 6/kAVT, 7/kAVT} {\node[utt, fill=\c!25] at (0.62*\i,0.9) {};}
+  \draw[mBad, line width=1pt, rounded corners=2pt] (1.0,0.55) rectangle (2.95,1.25);
+  \node[font=\tiny, mBad] at (2.0,0.3) {\T{塊 2 を抜く}{hold out cluster 2}};
+  % 学び直し
+  \node[clf, text width=2.5cm] (fit) at (6.3,0.9) {\T{残りの K 本だけで}{retrain A, V, T and AVT}\\ \T{A・V・T・AVT を学び直す}{on the remaining labels only}};
+  \draw[arr] (4.6,0.9) -- (fit);
+  \node[testbox, text width=2.3cm] (held) at (10.2,0.9) {\T{抜いた塊の発話に}{predict the held-out}\\ \T{予測 → 当たるか}{cluster → right or not}};
+  \draw[arr] (fit) -- (held);
+  \node[font=\tiny, color=mMuted, align=center] at (6.3,-0.1) {\T{これを塊の数だけ繰り返す（AFEW は 1 単位あたり約 12〜30 塊）}{repeat for every cluster (AFEW: ≈12--30 clusters per unit)}};
+  % 出力
+  \node[modbox, text width=3.6cm] (rel) at (2.0,-1.5) {\T{モダリティごとの信頼度}{per-modality reliability}\\ \T{＝抜いた発話での UAR}{= UAR on held-out labels}\\ \T{→ 積の指数 $e_A, e_V, e_T$}{→ exponents $e_A, e_V, e_T$}};
+  \node[modbox, text width=3.6cm] (est) at (6.3,-1.5) {\T{積の見込み／AVT の見込み}{expected UAR of product / of AVT}\\ \T{（同じ抜いた発話で測る）}{(both measured on the held-out labels)}};
+  \node[propbox, text width=3.2cm] (sel) at (10.2,-1.5) {\T{単位ごとに選ぶ：}{choose per unit:}\\ \T{見込みが高い方（積 か AVT）}{the form with the higher estimate}\\ \T{をテストで使う}{and use it on the test set}};
+  \draw[arr] (held.south) |- ++(-0.5,-0.55) -| (rel.north);
+  \draw[arr] (held.south) |- ++(-0.5,-0.55) -| (est.north);
+  \draw[arr] (est) -- (sel);
+  \draw[arr] (rel.east) -- (est.west);
+\end{tikzpicture}
+\end{adjustbox}
+\notreal
+\scriptsize
+\T{%
+\begin{itemize}
+\item 発話 1 本ずつ抜く版は，同じ話者の残りの発話から学ぶので話者が漏れ，信頼度が高く出る．そこで\textbf{塊（話者）ごと}に抜く
+\item テストのラベルは使わない．新しい学習は「K 本だけの小さな識別器」で，1 単位あたり数秒〜数十秒
+\end{itemize}
+}{%
+\begin{itemize}
+\item Holding out one utterance at a time leaks the speaker (its other labels stay in training) and inflates reliability, so we hold out \textbf{whole clusters (speakers)}
+\item No test labels are used. The new training involves only small K-label classifiers (seconds per unit)
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}{\T{補足（信頼度の筋）結果 1：信頼度の見積もりは当たる．ただし「常に積」は AFEW でしか得をしない}{Appendix (trust line) result 1: the reliability estimate is right, but ``always product'' gains only in AFEW}}
+\rl{\T{結果 1}{Result 1}}
+\scriptsize
+\begin{center}
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{AFEW} & \multicolumn{2}{c}{IEMOCAP} & \multicolumn{2}{c}{MELD} & \multicolumn{2}{c}{MOSEI} \\
+K & 5 & 25 & 5 & 25 & 5 & 25 & 5 & 25 \\
+\midrule
+\T{最強のモダリティを当てた割合（塊ごとの LOO）}{Strongest modality identified (cluster LOO, \%)} & \N{fclokAFEWfive}\% & \N{fclokAFEWtwofive}\% & \N{fclokIEMOCAPfive}\% & \N{fclokIEMOCAPtwofive}\% & \N{fclokMELDfive}\% & \N{fclokMELDtwofive}\% & \N{fclokMOSEIfive}\% & \N{fclokMOSEItwofive}\% \\
+\midrule
+\T{AVT の生徒（テスト UAR）}{AVT student (test UAR)} & \N{favtAFEWfive} & \N{favtAFEWtwofive} & \N{favtIEMOCAPfive} & \N{favtIEMOCAPtwofive} & \N{favtMELDfive} & \N{favtMELDtwofive} & \N{favtMOSEIfive} & \N{favtMOSEItwofive} \\
+\T{常に積，LOO の信頼度の指数（差）}{Always product, LOO exponents (diff.)} & \N{fruledAFEWfive} & \N{fruledAFEWtwofive} & \N{fruledIEMOCAPfive} & \N{fruledIEMOCAPtwofive} & \N{fruledMELDfive} & \N{fruledMELDtwofive} & \N{fruledMOSEIfive} & \N{fruledMOSEItwofive} \\
+\T{テストで選んだ上限（差）}{Test-chosen upper bound (diff.)} & \N{foracledAFEWfive} & \N{foracledAFEWtwofive} & \N{foracledIEMOCAPfive} & \N{foracledIEMOCAPtwofive} & \N{foracledMELDfive} & \N{foracledMELDtwofive} & \N{foracledMOSEIfive} & \N{foracledMOSEItwofive} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\footnotesize
+\T{%
+\begin{itemize}
+\item K = 25 では，塊ごとの LOO が最強のモダリティを AFEW・IEMOCAP・MELD で \N{fclokMELDtwofive}〜\N{fclokAFEWtwofive}\% 当てる．MOSEI は \N{fclokMOSEItwofive}\%（モダリティの差が小さく，塊も粗い）
+\item 常に積を使うと AFEW で \N{fruledAFEWfive}・\N{fruledAFEWtwofive}（上限との差 1〜3），MOSEI で \N{fruledMOSEIfive}・\N{fruledMOSEItwofive}．MOSEI は上限でも AVT に届かず，\textbf{積という形そのものが負ける}
+\item そこで「積か AVT か」を単位ごとに同じ LOO で選ぶ（前のページの右端）．AFEW で積，MOSEI で AVT を選べれば，4 コーパスで AVT を下回らない形になる → 次のページ
+\end{itemize}
+}{%
+\begin{itemize}
+\item At K = 25, cluster LOO identifies the strongest modality in \N{fclokMELDtwofive}--\N{fclokAFEWtwofive}\% of units for AFEW, IEMOCAP and MELD; MOSEI \N{fclokMOSEItwofive}\% (small modality differences, coarse clusters)
+\item Always using the product gives \N{fruledAFEWfive} / \N{fruledAFEWtwofive} in AFEW (1--3 below the upper bound) but \N{fruledMOSEIfive} / \N{fruledMOSEItwofive} in MOSEI, where even the upper bound is below AVT: \textbf{the product form itself loses there}
+\item So we choose ``product or AVT'' per unit with the same LOO (right end of the previous page). Picking product in AFEW and AVT in MOSEI would give a form that never falls below AVT → next page
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}{\T{補足（信頼度の筋）結果 2：LOO で選ぶ形は AFEW で得をするが，MOSEI の損を消せない．まだ使える手法ではない}{Appendix (trust line) result 2: the LOO-selected form gains in AFEW but does not remove the MOSEI loss; not yet a usable method}}
+\rl{\T{結果 2（4 コーパス）}{Result 2 (4 corpora)}}
+\scriptsize
+\begin{center}
+\T{テスト UAR（AVT の生徒との差，ポイント．50 単位の平均）}{Test UAR (difference from the AVT student, points; mean over 50 units)}
+
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{AFEW} & \multicolumn{2}{c}{IEMOCAP} & \multicolumn{2}{c}{MELD} & \multicolumn{2}{c}{MOSEI} \\
+K & 5 & 25 & 5 & 25 & 5 & 25 & 5 & 25 \\
+\midrule
+\T{AVT の生徒（UAR そのもの）}{AVT student (absolute UAR)} & \N{savtAFEWfive} & \N{savtAFEWtwofive} & \N{savtIEMOCAPfive} & \N{savtIEMOCAPtwofive} & \N{savtMELDfive} & \N{savtMELDtwofive} & \N{savtMOSEIfive} & \N{savtMOSEItwofive} \\
+\T{常に積（差）}{Always product (diff.)} & \N{sruledAFEWfive} & \N{sruledAFEWtwofive} & \N{sruledIEMOCAPfive} & \N{sruledIEMOCAPtwofive} & \N{sruledMELDfive} & \N{sruledMELDtwofive} & \N{sruledMOSEIfive} & \N{sruledMOSEItwofive} \\
+\textbf{\T{LOO で選ぶ（差）}{LOO-selected (diff.)}} & \textbf{\N{sseldAFEWfive}} & \textbf{\N{sseldAFEWtwofive}} & \textbf{\N{sseldIEMOCAPfive}} & \textbf{\N{sseldIEMOCAPtwofive}} & \textbf{\N{sseldMELDfive}} & \textbf{\N{sseldMELDtwofive}} & \textbf{\N{sseldMOSEIfive}} & \textbf{\N{sseldMOSEItwofive}} \\
+\T{単位ごとにテストで良い方（差，上限）}{Test-best per unit (diff., upper bound)} & \N{soracledAFEWfive} & \N{soracledAFEWtwofive} & \N{soracledIEMOCAPfive} & \N{soracledIEMOCAPtwofive} & \N{soracledMELDfive} & \N{soracledMELDtwofive} & \N{soracledMOSEIfive} & \N{soracledMOSEItwofive} \\
+\midrule
+\T{積を選んだ単位の割合}{Units choosing the product} & \N{sshareAFEWfive}\% & \N{sshareAFEWtwofive}\% & \N{sshareIEMOCAPfive}\% & \N{sshareIEMOCAPtwofive}\% & \N{sshareMELDfive}\% & \N{sshareMELDtwofive}\% & \N{sshareMOSEIfive}\% & \N{sshareMOSEItwofive}\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-0.6em}
+\scriptsize
+\T{%
+\begin{itemize}
+\item MOSEI の損は「常に積」の半分ほどに減ったが消えず，4 コーパスの平均は AVT とほぼ同じ．理由：MOSEI で積がテストで良い単位は 3〜5\% しか無いのに，LOO の見込みは積のほうが高く出て（\N{sestpMOSEIfive} 対 \N{sestaMOSEIfive}，K = 5），\N{sshareMOSEIfive}\% の単位で積を選ぶ
+\item 偏りの原因は 2 つ：(1) 指数と見込みを同じ抜いた発話から作る（楽観）．(2) 見込みは K 本だけの識別器で測るが，テストで使うのは直した識別器で，この差は 2,304 次元の AVT で大きい
+\item 信頼度の見積もりは当たるが，その上の「積か AVT か」の選択はまだ使える形ではない．続けるなら，偏りを直す版を設計して検査に回す
+\end{itemize}
+}{%
+\begin{itemize}
+\item The MOSEI loss is roughly halved but not removed; averaged over corpora the form is about level with AVT. Why: in MOSEI the product is better on test in only 3--5\% of units, yet the LOO estimate favors the product (\N{sestpMOSEIfive} vs \N{sestaMOSEIfive} at K = 5) and picks it in \N{sshareMOSEIfive}\% of units
+\item Two sources of the bias: (1) exponents and estimate come from the same held-out labels (optimistic); (2) the estimate uses K-label-only classifiers while the test uses adapted ones, a gap largest for the 2,304-dim AVT
+\item The reliability estimate is right, but the product-vs-AVT selection on top of it is not yet usable. If this line continues, a bias-corrected version must be designed and checked
+\end{itemize}
+}
+{\tiny\color{mMuted}\T{出どころ：figures/select.csv（results/explore\_fusion/select\_cells.csv．本番の台本 DAI/exp/explore\_fusion\_select.py，2026-11-05 10:17）．AFEW の値は保存ずみの対数確率から先に出した途中の値と小数 2 桁まで一致}{Source: figures/select.csv (results/explore\_fusion/select\_cells.csv; script DAI/exp/explore\_fusion\_select.py, 2026-11-05 10:17). AFEW values agree to 2 decimals with the interim values computed earlier from the saved log-probabilities}}
+\end{frame}
+
+\begin{frame}{\T{いまの状態の一覧}{Where things stand}}
+\rl{\T{状態}{Status}}
+\footnotesize
+\begin{tabular}{@{}p{0.44\linewidth}p{0.22\linewidth}p{0.30\linewidth}@{}}
+\toprule
+\T{項目}{Item} & \T{状態}{Status} & \T{次}{Next} \\
+\midrule
+\T{実験 1〜3 の評価の回，集計，結果の文の照合}{Exp.~1--3 evaluation, aggregation, claim check} & \done & \T{論文の結果の節に写す}{move into the paper's results section} \\
+\T{得の仕組みの探索（先回り，一致，位置と向き）}{Mechanism exploration (lead, agreement, position/direction)} & \done & \T{論文の「説明」の節（事前の解析と分けて）}{``explanation'' section, separated from pre-fixed analyses} \\
+\T{実験 4（一致で重みづけた疑似ラベル）}{Exp.~4 (agreement-weighted pseudo-labels)} & \todo\ \T{設計・台本は検査済み}{design and code checked} & \T{研究者の判断で起動（H200，4〜6 時間）}{launch at the researcher's decision (H200, 4--6 h)} \\
+\T{LOO による信頼度と，積／AVT の選択}{LOO reliability and product/AVT selection} & \done\ \T{4 コーパス}{4 corpora} & \T{続けるかを研究者が決める（見込みの偏りを直す版の設計が要る）}{researcher decides whether to continue (a version that removes the estimate bias would be needed)} \\
+\T{第 2 のエンコーダでの繰り返し}{Replication with a second encoder set} & \todo & \T{保留（研究者「まだいい」）}{on hold (researcher: ``not yet'')} \\
+\T{論文の型（手法の論文 → 測定と説明の論文）と骨組みの項目 3・4・6 の書き直し}{Paper type (method paper → measurement-and-explanation paper), rewriting skeleton items 3, 4, 6} & \wip & \T{\S7 の案を研究者が決める}{researcher decides on the \S7 drafts} \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{\T{まとめ：骨組みの 6 項目に，いまの結果で答える}{Summary: answering the six skeleton items with the current results}}
+\rl{\T{まとめ}{Summary}}
+\scriptsize
+\begin{tabular}{@{}cp{0.92\linewidth}@{}}
+\toprule
+1 & \T{新しいコーパスでは感情ごとに数本〜数十本のラベルしか用意できず，ほかのコーパスの識別器とラベル無しの発話で補う必要がある}{A new corpus offers only a few labels per emotion; classifiers from other corpora and unlabeled utterances must fill the gap} \\
+2 & \T{ソースの識別器の平均は最良の線形識別器より \N{gapstartMELD}〜\N{gapstartAFEW} ポイント低く，14 の標準手法とラベル無しの発話を足しても融合の識別器では 1〜3 ポイントしか埋まらない}{The mean of source classifiers is \N{gapstartMELD}--\N{gapstartAFEW} points below the best linear classifier; 14 standard methods plus unlabeled data close only 1--3 points for the fusion classifier} \\
+3 & \T{既存の評価は「上がるか」だけを測り，どのモダリティで，損のどの部分（切片か重みの向きか）が減るかを測らない}{Existing evaluations only ask whether it helps, not for which modality or which part of the loss (intercept or weight direction)} \\
+4 & \T{\textbf{（書き直し案）}4 コーパスで損を切片と向きに分け，3 モダリティの積の予測で学ぶ得が「教師が生徒より当たる弱いモダリティでの，向きの修正」として現れ，融合と顔では現れないことを示す}{\textbf{(Draft)} Across 4 corpora, split the loss into intercept and direction, and show that the gain from learning on the product of three modalities appears as a direction correction in weak modalities where the teacher leads the student, and not for the fusion or the face} \\
+5 & \T{UAR．4 コーパスを順にターゲットにし，テストの話者を学習側に入れない}{UAR; each corpus in turn as the target; test speakers never in training} \\
+6 & \T{比較：K 本だけ，温度つき蒸留，自己学習・DANN など 14 手法．除去：教師の学び直し，単一の教師，総量そろえ，切片だけ}{Baselines: K-only, temperature distillation, 14 methods incl.\ self-training and DANN. Ablations: teacher retraining, single-modality teacher, balancing, intercept-only} \\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 手法の新しさ（提案 ≈ 蒸留）は結果に支えられない．説明の新しさ（どこで・なぜ効くか）は支えられる．論文の型を「測定と説明」にすることを推す
+\item 「どのモダリティを信じるか」の見積もりは当たるが，その上の積／AVT の選択は MOSEI の損を消せなかった（\S6）．続けるかは研究者の判断
+\end{itemize}
+}{%
+\begin{itemize}
+\item Method novelty (proposal ≈ distillation) is not supported by the results; explanatory novelty (where and why it helps) is. We recommend a ``measurement and explanation'' paper
+\item The trust estimate is right, but the product/AVT selection built on it did not remove the MOSEI loss (\S6). Whether to continue is the researcher's call
+\end{itemize}
+}
+\end{frame}

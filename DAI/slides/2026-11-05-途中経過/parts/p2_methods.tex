@@ -23,119 +23,43 @@
 \takeaway{\T{骨組み 3 の文：既存の評価は，ほかのモダリティの予測で学ぶと成績が上がるかだけを測り，どのモダリティで，損のどの部分（切片か重みの向きか）が減るかを測らない}{Skeleton item 3: existing evaluations only ask whether learning from other modalities' predictions helps, not for which modality or which part of the loss (intercept or weight direction) shrinks}}
 \end{frame}
 
-\begin{frame}{\T{提案の流れ：ソースの識別器を出発点にし，3 モダリティの積の予測と K 本で生徒を学ぶ}{Proposal: start from the source classifiers; train the student on K labels plus the product of three modalities' predictions}}
+\begin{frame}{\T{提案の流れ：3 段．ソースから出発点を作り，3 モダリティの積で疑似ラベルを作り，K 本と一緒に生徒を学ぶ}{The proposal in 3 steps: build the start from the sources, build pseudo-labels from the product of 3 modalities, train the student with the K labels}}
 \rl{\T{手法}{Method}}
 \hosoku{appsolver}{\T{学習器と引き戻しの詳細}{solver and pull details}}
 \centering
-\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
-  % 行 A：出発点
-  \node[srcbox, text width=3.6cm, minimum height=0.9cm] (src) at (0,0) {\T{ソースのコーパスごとの識別器}{Per-source classifiers}\\ \T{（3 コーパス × A・V・T・AVT）}{(3 corpora × A, V, T, AVT)}};
-  \node[clf, text width=2.6cm, minimum height=0.9cm] (start) at (4.3,0) {\T{出発点}{Start}\\ \T{＝重みと切片の平均}{= mean of weights and intercepts}};
-  \draw[arr] (src) -- node[above, font=\tiny]{\T{平均}{average}} (start);
-  \node[font=\tiny, color=mMuted, anchor=west] at (6.0,0) {\T{すべての手法が同じ出発点を使う}{every method uses the same start}};
-  % 行 B：教師
-  \node[unlbox, text width=2.9cm, minimum height=1.0cm] (avtk) at (0.35,-1.7) {\T{出発点の AVT を}{AVT start, retrained}\\ \T{K 本で学び直す → 候補に予測}{with K labels → predict the pool}};
-  \node[unlbox, text width=3.3cm, minimum height=1.0cm] (ret) at (4.3,-1.7) {\T{A・V・T の識別器を出発点から}{Retrain A, V, T from the start on}\\ \T{K 本 ＋ その予測で学び直す}{K labels + those predictions}};
-  \node[modbox, text width=3.3cm, minimum height=1.0cm] (q) at (8.6,-1.7) {\T{\textbf{教師}：3 つの確率の積}{\textbf{Teacher}: product of the 3 probabilities}\\ \T{→ 候補の各発話に疑似ラベル Q}{→ pseudo-label Q for each pool utterance}};
-  \draw[arr] (avtk) -- (ret); \draw[arr] (ret) -- node[above, font=\tiny]{\T{掛ける}{multiply}} (q);
-  \draw[arr] (start.south) -- ++(0,-0.35) -| (ret.north);
-  % 行 C：生徒
-  \node[propbox, text width=8.6cm, minimum height=1.25cm] (stu) at (4.3,-3.6) {\T{\textbf{生徒}（A／V／T／AVT）を出発点から学ぶ．損失 ＝}{\textbf{Student} (A / V / T / AVT), trained from the start. Loss =}\\
-    \colorbox{cTgt}{\T{K 本の正解との交差エントロピー}{cross-entropy on the K labels}} ＋
-    \colorbox{cMod}{\T{疑似ラベル Q との交差エントロピー（感情ごとに総量をそろえる）}{cross-entropy to Q (total weight balanced per emotion)}} ＋
-    \colorbox{cSrc}{\T{出発点への引き戻し}{pull toward the start}}};
-  \draw[arr] (q.south) |- ++(-1.5,-0.55) -| (stu.north east);
-  \node[lblbox, text width=1.6cm] (k) at (-1.1,-3.6) {K \T{本}{labels}};
-  \draw[arr] (k) -- (stu);
-  \node[testbox, text width=1.4cm] (test) at (10.5,-3.6) {\T{テストで UAR}{UAR on test}};
-  \draw[arr] (stu) -- (test);
+\begin{adjustbox}{max width=\linewidth, max height=0.78\textheight}
+\begin{tikzpicture}[font=\small, x=1cm, y=1cm,
+  num/.style={circle, fill=mDarkTeal, text=white, font=\small\bfseries, minimum size=6mm, inner sep=0pt},
+  big/.style={draw=mDarkTeal!70, rounded corners=3pt, align=center, font=\small, inner sep=5pt, minimum height=1.1cm},
+  lab/.style={big, fill=cTgt}, unl/.style={big, fill=white}, srcs/.style={big, fill=cSrc}, mod/.style={big, fill=cMod}, stu/.style={big, fill=cProp!12, draw=cProp}]
+  % 段 1
+  \node[num] (n1) at (-0.6,0) {1};
+  \node[anchor=west, font=\small\bfseries] at (0,0) {\T{ソースの識別器を平均して「出発点」を作る}{Average the source classifiers into the ``start''}};
+  \node[srcs, text width=2.0cm] (s1) at (1.2,-1.2) {AFEW\\ \T{の識別器}{classifier}};
+  \node[srcs, text width=2.0cm] (s2) at (3.6,-1.2) {IEMOCAP\\ \T{の識別器}{classifier}};
+  \node[srcs, text width=2.0cm] (s3) at (6.0,-1.2) {MELD\\ \T{の識別器}{classifier}};
+  \node[unl, text width=3.2cm] (st) at (10.3,-1.2) {\T{\textbf{出発点}}{\textbf{Start}}\\ \T{（重みと切片の平均）}{(mean of weights and intercepts)}};
+  \draw[arr] (s3) -- node[above, font=\scriptsize]{\T{平均}{average}} (st);
+  \node[font=\scriptsize, color=mMuted] at (3.6,-2.0) {\T{A・V・T・AVT のそれぞれについて}{for each of A, V, T, AVT}};
+  % 段 2
+  \node[num] (n2) at (-0.6,-2.8) {2};
+  \node[anchor=west, font=\small\bfseries] at (0,-2.8) {\T{教師を作る：3 モダリティの確率を掛けて，ラベル無しの発話に疑似ラベルを付ける}{Build the teacher: multiply the 3 modalities' probabilities to pseudo-label the unlabeled utterances}};
+  \node[unl, text width=3.0cm] (avt) at (1.7,-4.1) {\T{出発点の AVT を}{AVT start, retrained on}\\ \T{K 本で学び直す}{the K labels}};
+  \node[unl, text width=3.4cm] (ret) at (6.0,-4.1) {\T{A・V・T を出発点から}{Retrain A, V, T from the start on}\\ \T{K 本 ＋ AVT の予測で学び直す}{K labels + AVT's predictions}};
+  \node[mod, text width=3.2cm] (q) at (10.3,-4.1) {\T{\textbf{教師} ＝ 確率の積}{\textbf{Teacher} = product of probabilities}\\ \T{→ 疑似ラベル Q}{→ pseudo-labels Q}};
+  \draw[arr] (avt) -- node[above, font=\scriptsize]{\T{候補に予測}{predict the pool}} (ret);
+  \draw[arr] (ret) -- node[above, font=\scriptsize]{\T{掛ける}{multiply}} (q);
+  % 段 3
+  \node[num] (n3) at (-0.6,-5.7) {3};
+  \node[anchor=west, font=\small\bfseries] at (0,-5.7) {\T{生徒を学ぶ：K 本の正解 ＋ 疑似ラベル Q ＋ 出発点への引き戻し}{Train the student: K true labels + pseudo-labels Q + pull toward the start}};
+  \node[lab, text width=2.4cm] (k) at (1.4,-7.0) {\T{K 本の正解}{K true labels}\\ \T{（感情ごとに K 本）}{(K per emotion)}};
+  \node[mod, text width=2.6cm] (q2) at (4.6,-7.0) {\T{疑似ラベル Q}{Pseudo-labels Q}\\ \T{（感情ごとに総量をそろえる）}{(balanced per emotion)}};
+  \node[stu, text width=3.0cm] (stu) at (8.3,-7.0) {\T{\textbf{生徒}}{\textbf{Student}}\\ \T{A／V／T／AVT の識別器}{A / V / T / AVT classifier}\\ \T{（出発点を初期値にし，引き戻す）}{(start = initial value and anchor)}};
+  \node[testbox, text width=1.8cm, minimum height=1.0cm] (test) at (11.6,-7.0) {\T{テストで}{UAR on}\\ UAR \T{を測る}{the test set}};
+  \draw[arr] (k) -- (q2); \draw[arr] (q2) -- (stu); \draw[arr] (stu) -- (test);
 \end{tikzpicture}
+\end{adjustbox}
 \notreal
-\end{frame}
-
-\begin{frame}{\T{提案と温度つき蒸留の違いは 2 点だけで，評価ではほぼ同じ値になった}{The proposal differs from temperature distillation in only two points, and scored the same in evaluation}}
-\rl{\T{手法}{Method}}
-\begin{columns}[T]
-\begin{column}{0.58\textwidth}
-\small
-\begin{tabular}{@{}p{0.30\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
-\toprule
-& \T{提案}{Proposal} & \T{温度つき蒸留（Hinton 2015，Albanie 2018 の形）}{Temperature distillation (Hinton 2015; Albanie 2018 form)} \\
-\midrule
-\T{教師}{Teacher} & \T{同じ Q}{same Q} & \T{同じ Q}{same Q} \\
-\T{疑似ラベルの形}{Pseudo-label form} & \T{Q そのまま}{Q as is} & \T{Q を温度 2 で柔らげる}{Q softened with temperature 2} \\
-\T{感情ごとの総量}{Per-emotion total weight} & \T{そろえる}{balanced} & \T{そろえない}{not balanced} \\
-\T{K 本・引き戻し}{K labels, pull} & \T{同じ}{same} & \T{同じ}{same} \\
-\T{つまみ（格子）}{Knobs (grid)} & \T{全体の重み ρ，K 本の倍率}{overall weight ρ, label multiplier} & \T{温度，全体の重み ρ}{temperature, overall weight ρ} \\
-\bottomrule
-\end{tabular}
-\end{column}
-\begin{column}{0.42\textwidth}
-\small
-\T{%
-\begin{itemize}
-\item 評価の回で，提案 − 蒸留 は 48 セル中 40 セルで区間が 0 を含む（\S3）
-\item 残りの差も −1.2〜+2.2 ポイントで，向きはコーパスで分かれる
-\item したがって解析では\textbf{両者を区別せず}，「別のモダリティの予測（教師）で学ぶ手法」として扱う
-\end{itemize}
-}{%
-\begin{itemize}
-\item In evaluation, proposal − distillation has an interval containing 0 in 40 of 48 cells (\S3)
-\item The remaining differences are −1.2 to +2.2 points, with signs varying by corpus
-\item Hence the analysis \textbf{does not distinguish} them: both are ``learning from the other modalities' predictions (the teacher)''
-\end{itemize}
-}
-\end{column}
-\end{columns}
-\takeaway{\T{「蒸留が良い理由」を問うときの「蒸留」は，この 2 手法の共通部分＝教師 Q で学ぶことを指す}{When we ask ``why distillation helps'', ``distillation'' means what the two share: learning from the teacher Q}}
-\end{frame}
-
-\begin{frame}{\T{評価の尺度と比較：UAR で測り，使う情報ごとに相手を分ける}{Measure and comparisons: UAR, with baselines grouped by the information they use}}
-\rl{\T{評価（骨組み 5・6）}{Evaluation (skeleton 5, 6)}}
-\hosoku{appmethods}{\T{手法と格子の一覧}{list of methods and grids}}
-\begin{columns}[T]
-\begin{column}{0.46\textwidth}
-\footnotesize
-\textbf{\T{尺度（骨組み 5）}{Measure (skeleton 5)}}
-\T{%
-\begin{itemize}
-\item UAR（4 感情の再現率の平均）．MELD と MOSEI は Neutral が半分近くを占め，正解率だと「全部 Neutral」が高く出るため
-\item テストの話者は学習側に入れない（MOSEI は話者の代わりにチャンネルか動画）
-\end{itemize}
-\textbf{除去（骨組み 6）}：提案から 1 つずつ外した版を実験 1 で計算済み
-\begin{itemize}
-\item (i) 教師を学び直さない　(ii) 教師を 1 モダリティにする
-\item (iii) 総量をそろえない（＝温度 1 の蒸留）　(iv) 切片だけを K 本で学ぶ
-\end{itemize}
-}{%
-\begin{itemize}
-\item UAR (mean recall over 4 emotions). In MELD and MOSEI nearly half the utterances are Neutral, so accuracy rewards ``always Neutral''
-\item Test speakers never enter training (MOSEI: channel or video stands in for speaker)
-\end{itemize}
-\textbf{Ablations (skeleton 6)}: versions with one part removed, already computed in Exp.~1
-\begin{itemize}
-\item (i) teacher not retrained\quad (ii) single-modality teacher
-\item (iii) no balancing (= distillation at T = 1)\quad (iv) intercept only from K labels
-\end{itemize}
-}
-\end{column}
-\begin{column}{0.54\textwidth}
-\footnotesize
-\textbf{\T{比較の相手（骨組み 6）}{Baselines (skeleton 6)}}
-\begin{tabular}{@{}p{0.30\linewidth}p{0.66\linewidth}@{}}
-\toprule
-\T{使う情報}{Information used} & \T{相手}{Baselines} \\
-\midrule
-\T{K 本だけ}{K labels only} & \T{比較の基準（出発点から K 本で学び直す）}{the baseline (start retrained on K labels)} \\
-\T{K 本 ＋ 同じ教師 Q}{K labels + the same teacher Q} & \T{温度つき蒸留，一致した発話だけ，自分の予測と混ぜる，柔らかい共訓練，共正則化（実験 1）}{temperature distillation, agreed-only, mixing with own prediction, soft co-training, co-regularization (Exp.~1)} \\
-\T{K 本 ＋ ラベル無し（同じモダリティ）}{K labels + unlabeled (same modality)} & \T{自己学習，エントロピー最小化，IM，T3A，ラベル伝播，自分の予測を提案の形で（実験 2）}{self-training, entropy min., IM, T3A, label propagation, own prediction in the proposal's form (Exp.~2)} \\
-\T{＋ ソースのデータ}{+ source data} & \T{S+T，CORAL，DANN，MME，xMUDA 型（実験 2）}{S+T, CORAL, DANN, MME, xMUDA-style (Exp.~2)} \\
-\bottomrule
-\end{tabular}
-\vspace{0.3em}
-{\scriptsize\color{mMuted}\T{全手法が同じ出発点・同じ標準化・同じ K 本を使い，つまみは仮のターゲットで選んで固定した}{All methods share the start, the standardization and the K labels; knobs were selected on proxy targets and frozen}}
-\end{column}
-\end{columns}
 \end{frame}
 
 \begin{frame}{\T{統計の決まり：検定に残るのは 128 セル中 15 セルで，残りは区間つきの記述}{Statistical rules: 15 of 128 cells are tested; the rest are descriptions with intervals}}

@@ -1,0 +1,126 @@
+%% 補足（前半）：本編から移した語・全体像・比較・蒸留の違い
+\setband{\T{補足}{Appendix}}
+
+\begin{frame}{\T{この資料で使う語（8 つ）}{Terms used in this deck (8)}}
+\rl{\T{語}{Terms}}
+\footnotesize
+\begin{tabular}{@{}p{0.27\linewidth}p{0.70\linewidth}@{}}
+\toprule
+\T{語}{Term} & \T{意味}{Meaning} \\
+\midrule
+\T{ソース／ターゲット}{Source / target} & \T{ラベル付きの既存コーパス（3 つ）／新しいコーパス（1 つ）．4 つを順にターゲットにする}{The 3 labeled existing corpora / the 1 new corpus. Each of the 4 corpora takes the target role in turn} \\
+\T{K 本}{K labels} & \T{ターゲットの感情ごとに K 本のラベル付き発話（K = 25 なら 4 感情 × 25 = 100 本）}{K labeled target utterances per emotion (K = 25 means 4 × 25 = 100)} \\
+\T{候補}{Pool} & \T{ターゲットのラベル無しの発話（学習に使える．テストの話者は含まない）}{Unlabeled target utterances usable for training (test speakers excluded)} \\
+\T{出発点}{Start} & \T{ソースのコーパスごとの識別器の重みと切片の平均．学習の初期値であり，引き戻す先}{Mean of the per-source classifiers (weights and intercepts). Initial value and the anchor of the pull} \\
+\T{引き戻し}{Pull} & \T{出発点から離れすぎないようにする L2 正則化（強さは仮のターゲットで選んで固定）}{L2 regularization toward the start (strength fixed on proxy targets)} \\
+\T{教師／生徒}{Teacher / student} & \T{教師＝ラベル無しの発話に疑似ラベルを付けるモデル（3 モダリティの識別器の確率の積）．生徒＝ターゲットで使う識別器（音声・顔・言葉・AVT）}{Teacher = the model that pseudo-labels the pool (product of the three unimodal classifiers' probabilities). Student = the classifier to deploy (audio, face, text, AVT)} \\
+\T{単位}{Unit} & \T{（ターゲット，分割，種）の 1 組．コーパスごとに 5 分割 × 10 種 = 50 単位}{One (target, fold, seed) triple. 5 folds × 10 seeds = 50 units per corpus} \\
+UAR & \T{4 感情の再現率の平均（でたらめなら 25\%）．差は「ポイント」で書く}{Mean recall over the 4 emotions (chance = 25\%). Differences are in ``points''} \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{\T{実験の全体像：4 つの実験で「どれだけ・どこで・なぜ」を分けて測る}{Overview: four experiments separate ``how much'', ``where'' and ``why''}}
+\rl{\T{計画}{Plan}}
+\scriptsize
+\begin{tabular}{@{}p{0.07\linewidth}p{0.42\linewidth}p{0.27\linewidth}p{0.17\linewidth}@{}}
+\toprule
+& \T{何を測るか}{What is measured} & \T{相手}{Compared against} & \T{状態}{Status} \\
+\midrule
+\T{実験 1}{Exp.~1} & \T{別のモダリティの予測（疑似ラベル）で学ぶ手法の得}{Gain from learning on the other modalities' predictions (pseudo-labels)} & \T{K 本だけ；同じ情報を受け取る 5 手法（温度つき蒸留など）}{K-only; 5 methods using the same information (e.g.\ temperature distillation)} & \done \\
+\T{実験 2}{Exp.~2} & \T{標準のドメイン適応・半教師あり手法との差}{Difference from standard DA / semi-supervised methods} & \T{自己学習，エントロピー最小化，T3A，ラベル伝播，S+T，CORAL，DANN，MME など 14}{self-training, entropy min., T3A, label propagation, S+T, CORAL, DANN, MME, … (14)} & \done \\
+\T{実験 3}{Exp.~3} & \T{得の説明：損を切片（位置）と重みの向きに分ける，再現できる度合い}{Explanation: split the loss into intercept (position) and weight direction; reproducibility} & \T{事前に固定した判定の規則}{pre-fixed decision rules} & \done \\
+\T{実験 4}{Exp.~4} & \T{蒸留の弱点（全発話を同じ重みで信じる）を直した手法の得}{Gain from fixing a weakness of distillation (uniform trust in all pool utterances)} & \T{実験 1 の提案・蒸留}{Exp.~1 proposal / distillation} & \todo\ \T{設計済み}{designed} \\
+\T{探索}{Exploration} & \T{どのモダリティを信じるか（信頼度の見積もり）}{Which modality to trust (reliability estimation)} & --- & \done\ \T{測定済み}{measured} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\scriptsize
+\T{実験 1〜3 は設計・台本・集計の台本を評価の前に固定し，関門（統計・漏れ・比較・定義・台本）と ML・感情認識の査読想定の検査を通してから計算した．実験 4 と探索は評価の結果を見た後の案で，論文では節を分け，限界に由来を書く．}{Experiments 1--3: designs, scripts and aggregation were frozen before evaluation and passed the gate checks (statistics, leakage, fairness, definitions, code) and simulated ML / affective-computing review. Experiment 4 and the exploration arose after seeing the results; the paper separates them and states their origin.}
+\end{frame}
+
+\begin{frame}{\T{評価の尺度と比較：UAR で測り，使う情報ごとに相手を分ける}{Measure and comparisons: UAR, with baselines grouped by the information they use}}
+\rl{\T{評価（骨組み 5・6）}{Evaluation (skeleton 5, 6)}}
+\hosoku{appmethods}{\T{手法と格子の一覧}{list of methods and grids}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\footnotesize
+\textbf{\T{尺度（骨組み 5）}{Measure (skeleton 5)}}
+\T{%
+\begin{itemize}
+\item UAR（4 感情の再現率の平均）．MELD と MOSEI は Neutral が半分近くを占め，正解率だと「全部 Neutral」が高く出るため
+\item テストの話者は学習側に入れない（MOSEI は話者の代わりにチャンネルか動画）
+\end{itemize}
+\textbf{除去（骨組み 6）}：提案から 1 つずつ外した版を実験 1 で計算済み
+\begin{itemize}
+\item (i) 教師を学び直さない　(ii) 教師を 1 モダリティにする
+\item (iii) 総量をそろえない（＝温度 1 の蒸留）　(iv) 切片だけを K 本で学ぶ
+\end{itemize}
+}{%
+\begin{itemize}
+\item UAR (mean recall over 4 emotions). In MELD and MOSEI nearly half the utterances are Neutral, so accuracy rewards ``always Neutral''
+\item Test speakers never enter training (MOSEI: channel or video stands in for speaker)
+\end{itemize}
+\textbf{Ablations (skeleton 6)}: versions with one part removed, already computed in Exp.~1
+\begin{itemize}
+\item (i) teacher not retrained\quad (ii) single-modality teacher
+\item (iii) no balancing (= distillation at T = 1)\quad (iv) intercept only from K labels
+\end{itemize}
+}
+\end{column}
+\begin{column}{0.54\textwidth}
+\footnotesize
+\textbf{\T{比較の相手（骨組み 6）}{Baselines (skeleton 6)}}
+\begin{tabular}{@{}p{0.30\linewidth}p{0.66\linewidth}@{}}
+\toprule
+\T{使う情報}{Information used} & \T{相手}{Baselines} \\
+\midrule
+\T{K 本だけ}{K labels only} & \T{比較の基準（出発点から K 本で学び直す）}{the baseline (start retrained on K labels)} \\
+\T{K 本 ＋ 同じ教師 Q}{K labels + the same teacher Q} & \T{温度つき蒸留，一致した発話だけ，自分の予測と混ぜる，柔らかい共訓練，共正則化（実験 1）}{temperature distillation, agreed-only, mixing with own prediction, soft co-training, co-regularization (Exp.~1)} \\
+\T{K 本 ＋ ラベル無し（同じモダリティ）}{K labels + unlabeled (same modality)} & \T{自己学習，エントロピー最小化，IM，T3A，ラベル伝播，自分の予測を提案の形で（実験 2）}{self-training, entropy min., IM, T3A, label propagation, own prediction in the proposal's form (Exp.~2)} \\
+\T{＋ ソースのデータ}{+ source data} & \T{S+T，CORAL，DANN，MME，xMUDA 型（実験 2）}{S+T, CORAL, DANN, MME, xMUDA-style (Exp.~2)} \\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
+{\scriptsize\color{mMuted}\T{全手法が同じ出発点・同じ標準化・同じ K 本を使い，つまみは仮のターゲットで選んで固定した}{All methods share the start, the standardization and the K labels; knobs were selected on proxy targets and frozen}}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\T{提案と温度つき蒸留の違いは 2 点だけで，評価ではほぼ同じ値になった}{The proposal differs from temperature distillation in only two points, and scored the same in evaluation}}
+\rl{\T{手法}{Method}}
+\begin{columns}[T]
+\begin{column}{0.58\textwidth}
+\small
+\begin{tabular}{@{}p{0.30\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
+\toprule
+& \T{提案}{Proposal} & \T{温度つき蒸留（Hinton 2015，Albanie 2018 の形）}{Temperature distillation (Hinton 2015; Albanie 2018 form)} \\
+\midrule
+\T{教師}{Teacher} & \T{同じ Q}{same Q} & \T{同じ Q}{same Q} \\
+\T{疑似ラベルの形}{Pseudo-label form} & \T{Q そのまま}{Q as is} & \T{Q を温度 2 で柔らげる}{Q softened with temperature 2} \\
+\T{感情ごとの総量}{Per-emotion total weight} & \T{そろえる}{balanced} & \T{そろえない}{not balanced} \\
+\T{K 本・引き戻し}{K labels, pull} & \T{同じ}{same} & \T{同じ}{same} \\
+\T{つまみ（格子）}{Knobs (grid)} & \T{全体の重み ρ，K 本の倍率}{overall weight ρ, label multiplier} & \T{温度，全体の重み ρ}{temperature, overall weight ρ} \\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.42\textwidth}
+\small
+\T{%
+\begin{itemize}
+\item 評価の回で，提案 − 蒸留 は 48 セル中 40 セルで区間が 0 を含む（\S3）
+\item 残りの差も −1.2〜+2.2 ポイントで，向きはコーパスで分かれる
+\item したがって解析では\textbf{両者を区別せず}，「別のモダリティの予測（教師）で学ぶ手法」として扱う
+\end{itemize}
+}{%
+\begin{itemize}
+\item In evaluation, proposal − distillation has an interval containing 0 in 40 of 48 cells (\S3)
+\item The remaining differences are −1.2 to +2.2 points, with signs varying by corpus
+\item Hence the analysis \textbf{does not distinguish} them: both are ``learning from the other modalities' predictions (the teacher)''
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\takeaway{\T{「蒸留が良い理由」を問うときの「蒸留」は，この 2 手法の共通部分＝教師 Q で学ぶことを指す}{When we ask ``why distillation helps'', ``distillation'' means what the two share: learning from the teacher Q}}
+\end{frame}

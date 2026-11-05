@@ -75,6 +75,9 @@ for T in CORPORA:
             put(f"dai2lo_{T}_{r.method}_{K}", r.lo, 1, True)
             put(f"dai2hi_{T}_{r.method}_{K}", r.hi, 1, True)
             put(f"dai2uar_{T}_{r.method}_{K}", r.uar_other, 1)
+            v = f"{r.effect:+.1f}".replace("-", "\\textminus{}")
+            cell = f"\\textbf{{{v}}}" if r.lo > 0 else (f"\\textcolor{{mBad}}{{{v}}}" if r.hi < 0 else v)
+            NUM[re.sub(r"[^A-Za-z]", "", f"dai2cell_{T}_{r.method}_{K}".replace("0", "zero").replace("5", "five").replace("2", "two").replace("3", "three"))] = cell
         pr = pm[(pm.student == "AVT") & (pm.K == K) & (pm["T"] == T) & (pm.method == "self")].uar_prop.iloc[0]
         put(f"dai2prop_{T}_{K}", pr, 1)
 # 下端が 0 より上のセルの数（手法ごと，12 セル）
