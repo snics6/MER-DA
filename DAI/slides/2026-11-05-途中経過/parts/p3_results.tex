@@ -1,6 +1,9 @@
 %% 3. 結果（実験 1・2）
 \setband{\T{\S3 結果}{\S3 Results}}
 
+% セルの値：#1 = famone|famthree，#2 = コーパス，#3 = 生徒，#4 = K（zero|five|twofive）
+\newcommand{\fc}[4]{\N{#1#2#3#4}\,{\color{mMuted}[\N{#1lo#2#3#4}, \N{#1hi#2#3#4}]}}
+
 % 族の図：#1 = fam1|fam3，#2 = ymin，#3 = ymax，#4 = ylabel
 \newcommand{\fampanel}[3]{%
   \nextgroupplot[title=#2]
@@ -61,43 +64,73 @@
 \end{groupplot}
 \end{tikzpicture}}
 
-\begin{frame}{\T{結果 A（実験 1）：別のモダリティの予測を足すと，音声の識別器は 4 コーパスで上がる．顔と AVT は上がらない}{Result A (Exp.~1): adding the other modalities' predictions lifts the audio classifier in all 4 corpora; not the face or AVT}}
-\rl{\T{比べるもの：提案（K 本 ＋ 教師の疑似ラベル）− K 本だけ．A = 音声，V = 顔，T = 言葉}{Compared: proposal (K labels + teacher pseudo-labels) − K labels only. A = audio, V = face, T = text}}
+% 絶対の UAR の棒グラフ：#1 = 生徒の記号（A|V|T|AVT），#2 = K，#3 = 題
+\newcommand{\levelpanel}[3]{%
+  \nextgroupplot[title={#3}]
+  \addplot[ybar, bar shift=0pt, bar width=11pt, fill=cNone!60, draw=cNone] table[x expr=\thisrow{ci}-0.2, y=none#2]{levels_#1.csv};
+  \addplot[ybar, bar shift=0pt, bar width=11pt, fill=cProp, draw=cProp] table[x expr=\thisrow{ci}+0.2, y=prop#2]{levels_#1.csv};}
+\newcommand{\levelchart}[3]{%
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=0.6cm, ylabels at=edge left, yticklabels at=edge left}, width=0.5\textwidth, height=4.1cm,
+  xmin=0.4, xmax=4.6, ymin=#2, ymax=#3, xtick={1,2,3,4}, xticklabels={AFEW, IEMOCAP, MELD, MOSEI}, tick label style={font=\scriptsize},
+  ylabel={\T{テスト UAR（\%）}{test UAR (\%)}}, ylabel style={font=\scriptsize}, ymajorgrids, title style={font=\small, yshift=-3pt},
+  nodes near coords={\pgfmathprintnumber[fixed, precision=1]{\pgfplotspointmeta}}, every node near coord/.append style={font=\tiny},
+  ]
+\levelpanel{#1}{5}{K = 5\T{（感情ごとに 5 本）}{ (5 labels per emotion)}}
+\levelpanel{#1}{25}{K = 25\T{（感情ごとに 25 本）}{ (25 labels per emotion)}}
+\end{groupplot}
+\end{tikzpicture}}
+% 凡例（手で描く）
+\newcommand{\levellegend}{{\scriptsize\tikz[baseline=-0.3ex]\fill[cNone!60, draw=cNone] (0,-0.1) rectangle (0.4,0.15);\ \T{K 本だけ}{K labels only}\qquad \tikz[baseline=-0.3ex]\fill[cProp, draw=cProp] (0,-0.1) rectangle (0.4,0.15);\ \T{提案（K 本 ＋ 教師の疑似ラベル）}{proposal (K labels + teacher pseudo-labels)}}}
+% 得の表：#1 = 生徒の記号
+\newcommand{\gaintable}[1]{\scriptsize\setlength{\tabcolsep}{5pt}\begin{tabular}{@{}lrrrr@{}}\toprule
+\T{得（提案 − K 本だけ）[95\% 区間]}{Gain (proposal − K-only) [95\% interval]} & AFEW & IEMOCAP & MELD & MOSEI \\ \midrule
+K = 5 & \fc{famone}{AFEW}{#1}{five} & \fc{famone}{IEMOCAP}{#1}{five} & \fc{famone}{MELD}{#1}{five} & \fc{famone}{MOSEI}{#1}{five} \\
+K = 25 & \fc{famone}{AFEW}{#1}{twofive} & \fc{famone}{IEMOCAP}{#1}{twofive} & \fc{famone}{MELD}{#1}{twofive} & \fc{famone}{MOSEI}{#1}{twofive} \\ \bottomrule\end{tabular}}
+
+\begin{frame}{\T{結果 A-1（音声の識別器）：別のモダリティの予測を足すと，4 コーパスで上がる}{Result A-1 (audio classifier): the other modalities' predictions lift it in all 4 corpora}}
+\rl{\T{実験 1．比べるもの：提案（K 本 ＋ 教師の疑似ラベル）対 K 本だけ．同じ K 本・同じ出発点}{Exp.~1. Compared: proposal (K labels + teacher pseudo-labels) vs K labels only; same labels, same start}}
 \hosoku{appfam1}{\T{全セルの数値表（K = 0 を含む）}{full table of cells (incl.\ K = 0)}}
 \centering
-\gainchart{fam1}
-\vspace{-0.3em}
-\scriptsize
-\begin{columns}[T]
-\begin{column}{0.5\textwidth}
-\T{%
-\begin{itemize}
-\item \textbf{何を比べたか}：同じ K 本で学んだ識別器どうし．棒は「教師の疑似ラベルを足した識別器」が「K 本だけの識別器」より何ポイント高いか．ひげは 95\% 区間（0 をまたがなければ揺れより大きい差）
-\item \textbf{音声}：4 コーパスすべてで正（K = 5 で \N{famoneIEMOCAPAfive}〜\N{famoneAFEWAfive}）．MOSEI は検定でも有意（Holm 後 p < 0.001）
-\end{itemize}
-}{%
-\begin{itemize}
-\item \textbf{What is compared}: classifiers trained on the same K labels. Bars: points by which the classifier with the teacher's pseudo-labels exceeds the K-only one. Whiskers: 95\% intervals (not crossing 0 = larger than the noise)
-\item \textbf{Audio}: positive in all 4 corpora (K = 5: \N{famoneIEMOCAPAfive} to \N{famoneAFEWAfive}); MOSEI also significant (Holm p < 0.001)
-\end{itemize}
-}
-\end{column}
-\begin{column}{0.5\textwidth}
-\T{%
-\begin{itemize}
-\item \textbf{言葉}：IEMOCAP だけ大きい（\N{famoneIEMOCAPTfive}）．ほかは区間が 0 をまたぐ
-\item \textbf{顔}：上がらない（IEMOCAP は負）．\textbf{AVT}：MELD だけ \N{famoneMELDAVTfive}，ほかは −0.8〜+1.7
-\item 同じ教師を受け取る温度つき蒸留と比べると差は無い（補足）
-\end{itemize}
-}{%
-\begin{itemize}
-\item \textbf{Text}: large only in IEMOCAP (\N{famoneIEMOCAPTfive}); elsewhere the interval crosses 0
-\item \textbf{Face}: no gain (IEMOCAP negative). \textbf{AVT}: only MELD, \N{famoneMELDAVTfive}; elsewhere −0.8 to +1.7
-\item No difference from temperature distillation, which receives the same teacher (appendix)
-\end{itemize}
-}
-\end{column}
-\end{columns}
+\levellegend\par\vspace{-0.3em}
+\levelchart{A}{30}{85}\par
+\vspace{-0.1em}
+\footnotesize
+\gaintable{A}\par
+\takeaway{\T{音声では 12 セルすべてで正，10 セルで区間が 0 より上．MOSEI は検定でも有意（Holm 後 p < 0.001）}{Audio: positive in all 12 cells, interval above 0 in 10; MOSEI also significant (Holm p < 0.001)}}
+\end{frame}
+
+\begin{frame}{\T{結果 A-2（言葉の識別器）：IEMOCAP だけ大きく上がる．ほかは揺れの中}{Result A-2 (text classifier): a large gain only in IEMOCAP; elsewhere within the noise}}
+\rl{\T{実験 1．比べるもの：提案 対 K 本だけ}{Exp.~1. Compared: proposal vs K labels only}}
+\centering
+\levellegend\par\vspace{-0.3em}
+\levelchart{T}{30}{72}\par
+\vspace{-0.1em}
+\footnotesize
+\gaintable{T}\par
+\takeaway{\T{IEMOCAP の言葉は +5.0〜+7.5．AFEW・MELD・MOSEI は −1.2〜+1.6 で区間が 0 をまたぐ}{IEMOCAP text: +5.0 to +7.5. AFEW, MELD, MOSEI: −1.2 to +1.6, intervals crossing 0}}
+\end{frame}
+
+\begin{frame}{\T{結果 A-3（顔の識別器）：上がらない．IEMOCAP では下がる}{Result A-3 (face classifier): no gain; a loss in IEMOCAP}}
+\rl{\T{実験 1．比べるもの：提案 対 K 本だけ}{Exp.~1. Compared: proposal vs K labels only}}
+\centering
+\levellegend\par\vspace{-0.3em}
+\levelchart{V}{30}{90}\par
+\vspace{-0.1em}
+\footnotesize
+\gaintable{V}\par
+\takeaway{\T{顔で区間が 0 より上なのは MOSEI の K = 25 だけ．IEMOCAP は負（理由は \S4：切片が悪くなる）}{Face: the interval is above 0 only for MOSEI at K = 25; IEMOCAP is negative at all K (why: \S4, the intercept gets worse)}}
+\end{frame}
+
+\begin{frame}{\T{結果 A-4（AVT：3 つをつないだ識別器）：MELD 以外は上がらない}{Result A-4 (AVT, the concatenated classifier): no gain except in MELD}}
+\rl{\T{実験 1．比べるもの：提案 対 K 本だけ}{Exp.~1. Compared: proposal vs K labels only}}
+\centering
+\levellegend\par\vspace{-0.3em}
+\levelchart{AVT}{35}{92}\par
+\vspace{-0.1em}
+\footnotesize
+\gaintable{AVT}\par
+\takeaway{\T{AVT は MELD で +1.4〜+3.4，ほかは −0.8〜+1.7 で区間が 0 をまたぐ（理由は \S4：教師が AVT より当たっていない）}{AVT: +1.4 to +3.4 in MELD, −0.8 to +1.7 elsewhere with intervals crossing 0 (why: \S4, the teacher is no better than AVT)}}
 \end{frame}
 
 % 実験 2 の表の 1 行：#1 = 手法の記号（daitwo の key），#2 = 手法名

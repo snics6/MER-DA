@@ -59,6 +59,20 @@ for family, tag in ((1, "fam1"), (3, "fam3")):
                 put(f"{tag}lo2d_{T}_{r.student}_{K}", r.lo, 2, True)
                 put(f"{tag}hi2d_{T}_{r.student}_{K}", r.hi, 2, True)
 
+# ---------- 実験 1：絶対の UAR（K 本だけ，提案の主の版）．results/dai1/stats/desc/levels.csv ----------
+lv = pd.read_csv(ROOT / "results/dai1/stats/desc/levels.csv")
+assert (lv.commit.str.startswith("ba98974")).all() and not lv.dirty.any()
+for s_ in STUDENTS:
+    rows = []
+    for i, T in enumerate(CORPORA):
+        rec = dict(ci=i + 1, T=T)
+        for K in (5, 25):
+            q = lv[(lv["T"] == T) & (lv.student == s_) & (lv.K == K)].set_index("row")
+            rec[f"none{K}"] = q.loc["none", "effect"]; rec[f"prop{K}"] = q.loc["joint|one|main", "effect"]
+            put(f"lvlnone_{T}_{s_}_{K}", rec[f"none{K}"], 1); put(f"lvlprop_{T}_{s_}_{K}", rec[f"prop{K}"], 1)
+        rows.append(rec)
+    csv(f"levels_{s_}.csv", pd.DataFrame(rows), f"results/dai1/stats/desc/levels.csv student={s_}（テスト UAR の 50 単位の平均：none = K 本だけ，joint|one|main = 提案の主の版）")
+
 # ---------- 実験 2：提案 − 標準の DA 手法（AVT の生徒） ----------
 pm = pd.read_csv(ROOT / "results/dai2/stats/prop_minus_method.csv")
 assert (pm.commit.str.startswith("ba98974")).all() and not pm.dirty.any()
