@@ -47,15 +47,15 @@
   \node[unl, text width=3.0cm] (avt) at (1.7,-4.1) {\T{出発点の AVT を}{AVT start, retrained on}\\ \T{K 本で学び直す}{the K labels}};
   \node[unl, text width=3.4cm] (ret) at (6.0,-4.1) {\T{A・V・T を出発点から}{Retrain A, V, T from the start on}\\ \T{K 本 ＋ AVT の予測で学び直す}{K labels + AVT's predictions}};
   \node[mod, text width=3.2cm] (q) at (10.3,-4.1) {\T{\textbf{教師} ＝ 確率の積}{\textbf{Teacher} = product of probabilities}\\ \T{→ 疑似ラベル Q}{→ pseudo-labels Q}};
-  \draw[arr] (avt) -- node[above, font=\scriptsize]{\T{候補に予測}{predict the pool}} (ret);
+  \draw[arr] (avt) -- node[above, font=\tiny]{\T{候補に予測}{predict pool}} (ret);
   \draw[arr] (ret) -- node[above, font=\scriptsize]{\T{掛ける}{multiply}} (q);
   % 段 3
   \node[num] (n3) at (-0.6,-5.7) {3};
   \node[anchor=west, font=\small\bfseries] at (0,-5.7) {\T{生徒を学ぶ：K 本の正解 ＋ 疑似ラベル Q ＋ 出発点への引き戻し}{Train the student: K true labels + pseudo-labels Q + pull toward the start}};
-  \node[lab, text width=2.4cm] (k) at (1.4,-7.0) {\T{K 本の正解}{K true labels}\\ \T{（感情ごとに K 本）}{(K per emotion)}};
-  \node[mod, text width=2.6cm] (q2) at (4.6,-7.0) {\T{疑似ラベル Q}{Pseudo-labels Q}\\ \T{（感情ごとに総量をそろえる）}{(balanced per emotion)}};
-  \node[stu, text width=3.0cm] (stu) at (8.3,-7.0) {\T{\textbf{生徒}}{\textbf{Student}}\\ \T{A／V／T／AVT の識別器}{A / V / T / AVT classifier}\\ \T{（出発点を初期値にし，引き戻す）}{(start = initial value and anchor)}};
-  \node[testbox, text width=1.8cm, minimum height=1.0cm] (test) at (11.6,-7.0) {\T{テストで}{UAR on}\\ UAR \T{を測る}{the test set}};
+  \node[lab, text width=2.4cm, anchor=north] (k) at (1.4,-6.2) {\T{K 本の正解}{K true labels}\\ \T{（感情ごとに K 本）}{(K per emotion)}};
+  \node[mod, text width=2.6cm, anchor=north] (q2) at (4.6,-6.2) {\T{疑似ラベル Q}{Pseudo-labels Q}\\ \T{（感情ごとに総量をそろえる）}{(balanced per emotion)}};
+  \node[stu, text width=3.0cm, anchor=north] (stu) at (8.3,-6.2) {\T{\textbf{生徒}：A／V／T／AVT の識別器}{\textbf{Student}: A / V / T / AVT classifier}\\ \T{（出発点を初期値にし，引き戻す）}{(start = initial value and anchor)}};
+  \node[testbox, text width=1.8cm, minimum height=1.0cm, anchor=north] (test) at (11.6,-6.2) {\T{テストで\\ UAR を測る}{UAR on\\ the test set}};
   \draw[arr] (k) -- (q2); \draw[arr] (q2) -- (stu); \draw[arr] (stu) -- (test);
 \end{tikzpicture}
 \end{adjustbox}
