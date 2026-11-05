@@ -1,0 +1,172 @@
+%% 3. 結果（実験 1・2）
+\setband{\T{\S3 結果}{\S3 Results}}
+
+% 族の図：#1 = fam1|fam3，#2 = ymin，#3 = ymax，#4 = ylabel
+\newcommand{\fampanel}[3]{%
+  \nextgroupplot[title=#2]
+  \addplot[gray!60, no marks, forget plot] coordinates {(0.5,0) (4.5,0)};
+  \addplot[sK0] table[x expr=\thisrow{xi}-0.25, y=effect, y error plus expr=\thisrow{hi}-\thisrow{effect}, y error minus expr=\thisrow{effect}-\thisrow{lo}]{#1_#2_K0.csv};
+  \addplot[sK5] table[x expr=\thisrow{xi}, y=effect, y error plus expr=\thisrow{hi}-\thisrow{effect}, y error minus expr=\thisrow{effect}-\thisrow{lo}]{#1_#2_K5.csv};
+  \addplot[sK25] table[x expr=\thisrow{xi}+0.25, y=effect, y error plus expr=\thisrow{hi}-\thisrow{effect}, y error minus expr=\thisrow{effect}-\thisrow{lo}]{#1_#2_K25.csv};
+  #3}
+\newcommand{\famchart}[4]{%
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=4 by 1, horizontal sep=0.3cm, ylabels at=edge left, yticklabels at=edge left},
+  width=0.255\textwidth, height=4.3cm, xmin=0.5, xmax=4.5, ymin=#2, ymax=#3, xtick={1,2,3,4}, xticklabels={A,V,T,AVT},
+  ylabel={#4}, ylabel style={font=\tiny}, ymajorgrids, title style={font=\scriptsize, yshift=-4pt}, legend style={at={(0.03,0.97)}, anchor=north west, font=\tiny, cells={anchor=west}}]
+\fampanel{#1}{AFEW}{\legend{K = 0, K = 5, K = 25}}
+\fampanel{#1}{IEMOCAP}{}
+\fampanel{#1}{MELD}{}
+\fampanel{#1}{MOSEI}{}
+\end{groupplot}
+\end{tikzpicture}}
+
+\begin{frame}{\T{結果 1：別のモダリティの予測で学ぶと，音声の生徒は 4 コーパスすべてで上がる．顔と融合には効かない}{Result 1: learning from the other modalities' predictions helps the audio student in all 4 corpora, not the face or the fusion}}
+\rl{\T{実験 1，族 1}{Exp.~1, family 1}}
+\hosoku{appfam1}{\T{全セルの数値表}{full table of cells}}
+\centering
+\famchart{fam1}{-8}{13}{\T{提案 − K 本だけ（ポイント）}{proposal − K-only (points)}}
+\vspace{-0.3em}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{音声}：12 セルすべて正，10 セルで区間の下端が 0 より上（AFEW \N{famoneAFEWAfive}，MELD \N{famoneMELDAfive}，MOSEI \N{famoneMOSEIAfive} ポイント，K = 5）
+\item \textbf{言葉}：IEMOCAP だけ \N{famoneIEMOCAPTfive}（K = 5）．ほかは区間が 0 を含む
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Audio}: all 12 cells positive; 10 have the interval above 0 (AFEW \N{famoneAFEWAfive}, MELD \N{famoneMELDAfive}, MOSEI \N{famoneMOSEIAfive} points at K = 5)
+\item \textbf{Text}: only IEMOCAP, \N{famoneIEMOCAPTfive} (K = 5); elsewhere the interval contains 0
+\end{itemize}
+}
+\end{column}
+\begin{column}{0.5\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{顔}：下端が 0 より上なのは MOSEI の K = 25 だけ．IEMOCAP は負
+\item \textbf{AVT}：MELD だけ \N{famoneMELDAVTfive}（K = 5）．ほかは −0.8〜+1.7
+\item 検定で言えるのは MOSEI の音声（3 つの K，Holm 後 p < 0.001）だけ
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Face}: the interval is above 0 only for MOSEI at K = 25; IEMOCAP is negative
+\item \textbf{AVT}: only MELD, \N{famoneMELDAVTfive} (K = 5); elsewhere −0.8 to +1.7
+\item Only MOSEI audio survives the tests (all three K, Holm p < 0.001)
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\T{結果 2：提案と温度つき蒸留（同じ情報の相手）は同じ値になる}{Result 2: the proposal and temperature distillation (same-information baseline) score the same}}
+\rl{\T{実験 1，族 3}{Exp.~1, family 3}}
+\hosoku{appfam3}{\T{全セルの数値表}{full table of cells}}
+\centering
+\famchart{fam3}{-4}{4}{\T{提案 − 相手（ポイント）}{proposal − baseline (points)}}
+\vspace{-0.3em}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 48 セル中 40 セルで区間が 0 を含む．相手は 80 セル中 75 セルで温度つき蒸留（残りは「一致した発話だけ」）
+\item 含まない 8 セル：提案が高いのは MELD の AVT K = 5（\N{famthreetwodMELDAVTfive}）だけ．相手が高いのは MOSEI の言葉（\N{famthreetwodMOSEITzero}〜\N{famthreetwodMOSEITtwofive}），MELD の言葉 K = 25（\N{famthreetwodMELDTtwofive}）など
+\item 検定で言えるのは MOSEI の言葉 K = 0 で蒸留が高いこと（Holm 後 p = \N{famthreepMOSEITzero}）だけ．「このコーパスで提案は相手より良い」の文は書かない（事前の条件を満たさない）
+\end{itemize}
+}{%
+\begin{itemize}
+\item In 40 of 48 cells the interval contains 0. The baseline is temperature distillation in 75 of 80 cells (``agreed-only'' otherwise)
+\item Of the 8 other cells, the proposal is higher only for MELD AVT K = 5 (\N{famthreetwodMELDAVTfive}); the baseline is higher for MOSEI text (\N{famthreetwodMOSEITzero} to \N{famthreetwodMOSEITtwofive}), MELD text K = 25 (\N{famthreetwodMELDTtwofive}), etc.
+\item The only tested difference: distillation is higher for MOSEI text at K = 0 (Holm p = \N{famthreepMOSEITzero}). No ``proposal beats the baseline on this corpus'' sentence is written (pre-fixed condition not met)
+\end{itemize}
+}
+\end{frame}
+
+% 実験 2 の図：#1 = K，#2 = xmin，#3 = xmax
+\newcommand{\daipanel}[2]{%
+  \nextgroupplot[title=#2]
+  \addplot[gray!60, no marks, forget plot] coordinates {(0,0.3) (0,10.7)};
+  \addplot[xbar, bar width=4.2pt, fill=cProp!70, draw=cProp, error bars/.cd, x dir=both, x explicit, error bar style={mDarkTeal, line width=0.6pt}]
+    table[x=effect, y=yi, x error plus expr=\thisrow{hi}-\thisrow{effect}, x error minus expr=\thisrow{effect}-\thisrow{lo}]{dai2_#2_K#1.csv};}
+\newcommand{\daichart}[4]{%
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=4 by 1, horizontal sep=0.3cm, yticklabels at=edge left},
+  width=0.255\textwidth, height=#4, xmin=#2, xmax=#3, ymin=0.3, ymax=10.7, ytick={1,...,10},
+  yticklabels={\T{自己学習}{self-training}, \T{エントロピー最小化}{entropy min.}, IM, T3A, \T{ラベル伝播}{label prop.}, \T{自分の予測}{own prediction}, S+T, CORAL, DANN, MME},
+  y dir=reverse, xmajorgrids, title style={font=\scriptsize, yshift=-4pt}, tick label style={font=\tiny}]
+\daipanel{#1}{AFEW}
+\daipanel{#1}{IEMOCAP}
+\daipanel{#1}{MELD}
+\daipanel{#1}{MOSEI}
+\end{groupplot}
+\end{tikzpicture}}
+
+\begin{frame}{\T{結果 3：標準の適応手法と比べると，AVT の生徒で提案は多くに勝つが，全部ではない}{Result 3: against standard adaptation methods, the proposal (AVT student) beats most but not all}}
+\rl{\T{実験 2（K = 5，AVT の生徒）}{Exp.~2 (K = 5, AVT student)}}
+\hosoku{appdai2}{\T{K = 0・25 の図}{charts for K = 0 and 25}}
+\centering
+\daichart{5}{-9}{22}{4.5cm}
+\vspace{-0.2em}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 横軸は「提案 − 手法」（ポイント，95\% 区間．手法ごとに使う情報が違うので優劣でなく情報の違いとして読む）．右が提案に有利．12 セル（4 コーパス × K ∈ \{0,5,25\}）で下端が 0 より上の数：エントロピー最小化 \N{daitwoaboveentmin}，IM \N{daitwoaboveim}，MME \N{daitwoabovemme}，T3A \N{daitwoabovetthreea}，CORAL \N{daitwoabovecoral}，DANN \N{daitwoabovedann}，自己学習 \N{daitwoaboveself}，S+T \N{daitwoabovest}
+\item 提案が負けるセルは 4 つだけ：AFEW の K = 0 で T3A（\N{daitwoAFEWtthreeazero}），エントロピー最小化（\N{daitwoAFEWentminzero}），IM（\N{daitwoAFEWimzero}）と，MOSEI の K = 5 で CORAL（\N{daitwoMOSEIcoralfive}）
+\end{itemize}
+}{%
+\begin{itemize}
+\item x-axis: ``proposal − method'' (points, 95\% interval; methods use different information, so read as information differences, not a ranking); right favors the proposal. Cells (of 12 = 4 corpora × K ∈ \{0,5,25\}) with the lower end above 0: entropy min.\ \N{daitwoaboveentmin}, IM \N{daitwoaboveim}, MME \N{daitwoabovemme}, T3A \N{daitwoabovetthreea}, CORAL \N{daitwoabovecoral}, DANN \N{daitwoabovedann}, self-training \N{daitwoaboveself}, S+T \N{daitwoabovest}
+\item The proposal loses in only 4 cells: AFEW at K = 0 to T3A (\N{daitwoAFEWtthreeazero}), entropy min.\ (\N{daitwoAFEWentminzero}), IM (\N{daitwoAFEWimzero}); MOSEI at K = 5 to CORAL (\N{daitwoMOSEIcoralfive})
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}{\T{結果のまとめ：検定で言えるのは 2 つ，記述の傾向は 4 つ}{Results in brief: two tested statements, four descriptive trends}}
+\rl{\T{まとめ}{Summary}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\T{検定で言えること（Holm 後 p < 0.05）}{Tested statements (Holm p < 0.05)}}
+\T{%
+\begin{enumerate}
+\item MOSEI の音声の生徒で，提案は K 本だけを上回る（K = 0・5・25 で \N{famoneMOSEIAzero}〜\N{famoneMOSEIAtwofive} ポイント）
+\item MOSEI の言葉 K = 0 で，温度つき蒸留は提案より高い（\N{famthreetwodMOSEITzero}）
+\end{enumerate}
+\textbf{事前に立てた説明で支持されなかったもの}
+\begin{itemize}
+\item 「K 本は主に切片を直し，別のモダリティの予測が重みの向きを直す」→ K 本も向きを直していた（\S4）
+\end{itemize}
+}{%
+\begin{enumerate}
+\item For the MOSEI audio student, the proposal beats K-only (\N{famoneMOSEIAzero} to \N{famoneMOSEIAtwofive} points at K = 0, 5, 25)
+\item For MOSEI text at K = 0, temperature distillation is higher than the proposal (\N{famthreetwodMOSEITzero})
+\end{enumerate}
+\textbf{Pre-registered explanation not supported}
+\begin{itemize}
+\item ``K labels mainly fix the intercept; the other modalities' predictions fix the weight direction'' → K labels also fix the direction (\S4)
+\end{itemize}
+}
+\end{column}
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\T{区間つきの記述の傾向}{Descriptive trends (with intervals)}}
+\T{%
+\begin{enumerate}
+\item 音声の生徒には 4 コーパスで効く（+1.4〜+4.9）
+\item 言葉は IEMOCAP だけ（+5.0〜+7.5）．顔には効かない．AVT は MELD だけ
+\item 提案と温度つき蒸留は同じ値
+\item 標準の適応手法には多くで勝つが，AFEW の K = 0 ではラベル無しだけを使う手法が 4〜5 ポイント上
+\end{enumerate}
+}{%
+\begin{enumerate}
+\item Helps the audio student in all 4 corpora (+1.4 to +4.9)
+\item Text only in IEMOCAP (+5.0 to +7.5). No gain for the face. AVT only in MELD
+\item Proposal and temperature distillation score the same
+\item Beats most standard adaptation methods, but at AFEW K = 0 unlabeled-only methods are 4--5 points higher
+\end{enumerate}
+}
+\end{column}
+\end{columns}
+\takeaway{\T{次の問い：なぜ弱いモダリティにだけ効くのか．効く仕組みが分かれば，弱点も分かる（\S4，\S5）}{Next question: why only the weak modalities? Understanding the mechanism also reveals the weakness (\S4, \S5)}}
+\end{frame}

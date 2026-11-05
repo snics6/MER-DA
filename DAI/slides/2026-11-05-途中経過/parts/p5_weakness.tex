@@ -1,0 +1,95 @@
+%% 5. 普通の蒸留の弱点と実験 4
+\setband{\T{\S5 普通の蒸留の弱点}{\S5 Weakness of plain distillation}}
+
+\begin{frame}{\T{弱点：教師はラベル無しの発話すべてに同じ重みで疑似ラベルを付けるが，当たりやすさは発話で大きく違う}{Weakness: the teacher pseudo-labels every pool utterance with the same weight, yet its accuracy varies widely across utterances}}
+\rl{\T{探索（評価の後）}{Exploration (post-evaluation)}}
+\hosoku{appcons}{\T{全生徒・K = 25 の数値}{numbers for all students and K = 25}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+  \node[font=\scriptsize, anchor=west] at (-0.3,1.9) {\T{候補の発話と教師の疑似ラベル}{pool utterances and the teacher's pseudo-labels}};
+  \foreach \i/\lab/\agr in {0/H/1, 1/N/0, 2/S/1, 3/A/0, 4/H/1, 5/N/1, 6/A/0, 7/S/0} {
+    \node[utt] (u\i) at (0.7*\i,1.2) {\lab};
+    \fill[cMod] (0.7*\i-0.2,0) rectangle (0.7*\i+0.2,0.7);
+    \ifnum\agr=1 \node[font=\tiny, cAgree] at (0.7*\i,-0.3) {\checkmark}; \else \node[font=\tiny, cDis] at (0.7*\i,-0.3) {×}; \fi
+  }
+  \node[font=\tiny, anchor=west, color=mMuted] at (-0.3,0.35) {\rotatebox{90}{\T{重み}{weight}}};
+  \draw[mDarkTeal!50] (-0.1,0) -- (5.1,0);
+  \node[font=\tiny, anchor=west, align=left] at (-0.3,-0.75) {\T{普通の蒸留・提案：全部に同じ重み（上の帯）}{plain distillation / proposal: same weight for all (bars)}\\ \T{\checkmark{}／×：生徒以外の 2 モダリティの判定が一致するか}{\checkmark / ×: whether the other two modalities agree}};
+\end{tikzpicture}
+\notreal
+\end{column}
+\begin{column}{0.54\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.1cm, ybar, bar width=7pt, ymin=20, ymax=105, enlarge x limits=0.15,
+  xtick={1,2,3,4}, xticklabels={AFEW, IEMOCAP, MELD, MOSEI}, ylabel={\T{教師の正解率（候補，\%）}{teacher accuracy (pool, \%)}},
+  legend style={at={(0.98,0.97)}, anchor=north east, font=\tiny, cells={anchor=west}}, ymajorgrids,
+  title={\T{音声の生徒，K = 5}{audio student, K = 5}}, title style={font=\scriptsize, yshift=-4pt},
+  nodes near coords={\pgfmathprintnumber[fixed, precision=0]{\pgfplotspointmeta}}, every node near coord/.append style={font=\tiny}]
+\addplot[fill=cAgree!80, draw=cAgree] table[x=ci, y=acc_agree]{consensus_A_K5.csv};
+\addplot[fill=cDis!70, draw=cDis] table[x=ci, y=acc_dis]{consensus_A_K5.csv};
+\legend{\T{顔と言葉が一致する発話}{face and text agree}, \T{一致しない発話}{they disagree}}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 音声の生徒の教師は，顔と言葉の判定が一致する発話では AFEW \N{cagreeAFEWAfive}\%・IEMOCAP \N{cagreeIEMOCAPAfive}\% 当たり，一致しない発話では \N{cdisAFEWAfive}\%・\N{cdisIEMOCAPAfive}\% しか当たらない（言葉の生徒でも同じ：\N{cagreeAFEWTfive}／\N{cdisAFEWTfive}\%，\N{cagreeIEMOCAPTfive}／\N{cdisIEMOCAPTfive}\%）
+\item つまり「生徒以外のモダリティが一致するか」は，教師の当たりやすさをラベル無しで予言する．普通の蒸留はこれを使わず，当たらない発話にも同じ重みで学ばせる
+\end{itemize}
+}{%
+\begin{itemize}
+\item For the audio student, the teacher is right on \N{cagreeAFEWAfive}\% (AFEW) and \N{cagreeIEMOCAPAfive}\% (IEMOCAP) of utterances where face and text agree, but only \N{cdisAFEWAfive}\% and \N{cdisIEMOCAPAfive}\% where they disagree (text student: \N{cagreeAFEWTfive}/\N{cdisAFEWTfive}\%, \N{cagreeIEMOCAPTfive}/\N{cdisIEMOCAPTfive}\%)
+\item So ``do the other modalities agree'' predicts the teacher's accuracy without labels. Plain distillation ignores it and trains equally on the utterances it gets wrong
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}{\T{実験 4 の案：一致しない発話の重みを下げる（設計と台本は検査を通り，計算は保留）}{Experiment 4: down-weight the utterances where the other modalities disagree (design and code reviewed; computation on hold)}}
+\rl{\T{実験 4（未計算）}{Exp.~4 (not computed)}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+  \foreach \i/\lab/\agr in {0/H/1, 1/N/0, 2/S/1, 3/A/0, 4/H/1, 5/N/1, 6/A/0, 7/S/0} {
+    \node[utt] (u\i) at (0.7*\i,1.2) {\lab};
+    \ifnum\agr=1 \fill[cMod] (0.7*\i-0.2,0) rectangle (0.7*\i+0.2,0.9); \node[font=\tiny, cAgree] at (0.7*\i,-0.3) {\checkmark};
+    \else \fill[cMod!50] (0.7*\i-0.2,0) rectangle (0.7*\i+0.2,0.25); \node[font=\tiny, cDis] at (0.7*\i,-0.3) {×}; \fi
+  }
+  \draw[mDarkTeal!50] (-0.1,0) -- (5.1,0);
+  \node[font=\tiny, anchor=north west, align=left, text width=5.6cm] at (-0.3,-0.55) {\T{一致する発話：重み 1．一致しない発話：重み γ（0，1/4，1/2 から仮のターゲットで選ぶ）}{agree: weight 1. disagree: weight γ (0, 1/4 or 1/2, chosen on proxy targets)}\\ \T{感情ごとの総量はそろえたまま（感情の間の重みは変えない）}{per-emotion totals stay balanced (no shift between emotions)}};
+\end{tikzpicture}
+\notreal
+\vspace{0.3em}
+\footnotesize
+\T{%
+対照（印の定義だけを替えた版）も同じ格子で解く：生徒自身との一致，教師の確信度の上位，乱数で選んだ印．これが無いと「他モダリティの一致が効いた」と「確信度の高い発話を重くすれば効く」を区別できない．
+}{%
+Controls with only the mark changed are solved on the same grid: agreement with the student itself, top teacher confidence, random marks. Without them one cannot tell ``cross-modal agreement helped'' from ``up-weighting confident utterances helps''.
+}
+\end{column}
+\begin{column}{0.54\textwidth}
+\footnotesize
+\textbf{\T{状態}{Status}}
+\T{%
+\begin{itemize}
+\item 設計（第 3 版）と台本は，関門 4 体・台本の検査役・ML と感情認識の査読想定の両方を通った
+\item 見込みの得は \textbf{+1 ポイント以下}（一致しない発話で教師が壊す割合が一致する発話の約 2 倍で，その半分を避けると仮定）
+\item 案は評価の回の診断から出たので，\textbf{確認の検定にはならない}（論文では由来と限界を書く）
+\item 所要：H200 1 台で 4〜6 時間（約 50〜80 ドル）．研究者の判断で保留中（「まだ違う筋を探そう」）
+\end{itemize}
+}{%
+\begin{itemize}
+\item Design (v3) and scripts passed the four gate checkers, the code checker and both simulated reviewers (ML, affective computing)
+\item Expected gain \textbf{≤ +1 point} (the teacher harms about twice as often where the others disagree; assume half of that is avoided)
+\item The idea came from evaluation-round diagnostics, so it \textbf{cannot be a confirmatory test} (stated in the paper)
+\item Cost: one H200, 4--6 h (≈\$50--80). On hold by the researcher's decision
+\end{itemize}
+}
+\takeaway{\T{弱点は分かったが，直せる量は小さい．より大きな得は「どのモダリティを信じるか」にある（\S6）}{The weakness is identified, but the fixable amount is small. The larger gain lies in ``which modality to trust'' (\S6)}}
+\end{column}
+\end{columns}
+\end{frame}

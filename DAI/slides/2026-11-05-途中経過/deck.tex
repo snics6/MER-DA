@@ -1,0 +1,67 @@
+%% =====================================================================
+%%  2026-11-05-途中経過：DAI に出す研究（少数のターゲットラベルでのマルチモーダル感情認識の転移）の途中経過
+%%  日本語版 main_ja.tex と英語版 main_en.tex が同じこのファイルを読む．文は \T{日本語}{English} で書く
+%%  数値は figures/numbers.tex から \N{key} で引く（scripts/export_figdata.py が結果ファイルから書く．手で数を書かない）
+%%  図の値は figures/*.csv（同じ台本が書く．各 CSV の先頭に出どころ）
+%%  模式図（設定，手法の流れ，位置と向き，重みづけ，LOO）は実験の値ではない（図の下に書く）
+%% =====================================================================
+\input{preamble}   % common/preamble.tex（日本語・テーマ・パッケージ・マクロ）
+\input{merda}      % common/merda.tex（上端の帯，補足のページを指す命令，色，図の部品）
+\input{figures/numbers.tex}
+
+% ---------- 言語 ----------
+\newcommand{\T}[2]{\iflangja #1\else #2\fi}
+\newcommand{\N}[1]{\ifcsname NUM@#1\endcsname\csname NUM@#1\endcsname\else\PackageError{numbers}{no number #1}{}\fi}
+\renewcommand{\hosoku}[2]{\gdef\hosokutext{\textcolor{mDarkTeal}{\T{補足}{Appendix} p.~\pageref{#1}\T{：}{: }#2}}}
+\renewcommand{\toi}[1]{\band{cAsk}{\T{問い}{Question}}{#1}}
+\renewcommand{\imi}[1]{\band{mDarkTeal}{\T{この結果の意味}{What this means}}{#1}}
+\newcommand{\notreal}{\par{\tiny\color{mMuted}\T{模式図．実験の値ではない}{Schematic; not experimental values}}\par}
+\newcommand{\pt}{\T{ポイント}{pt}}
+\newcommand{\interim}{\textcolor{mLightBrown}{\textbf{\T{途中}{interim}}}}
+\newcommand{\emo}{\T{感情}{emotion}}
+
+% ---------- 色（手法と種類） ----------
+\definecolor{cNone}{HTML}{8A8985}    % K 本だけ（比較の基準）
+\definecolor{cProp}{HTML}{2A78D6}    % 提案（別のモダリティの予測で学ぶ）
+\definecolor{cKD}{HTML}{6250D6}      % 温度つき蒸留
+\definecolor{cUpper}{HTML}{1B7F5C}   % 上限
+\definecolor{kA}{HTML}{2A78D6}\definecolor{kV}{HTML}{EB6834}\definecolor{kT}{HTML}{1BAF7A}\definecolor{kAVT}{HTML}{6250D6}
+\definecolor{cK0}{HTML}{B0B0B0}\definecolor{cK5}{HTML}{2A78D6}\definecolor{cK25}{HTML}{0B3D6E}
+\definecolor{cAgree}{HTML}{1B7F5C}\definecolor{cDis}{HTML}{B3312B}
+\pgfplotsset{
+  sK0/.style={cK0, mark=*, mark size=1.6pt, only marks, error bars/.cd, y dir=both, y explicit, error bar style={cK0, line width=0.7pt}},
+  sK5/.style={cK5, mark=square*, mark size=1.6pt, only marks, error bars/.cd, y dir=both, y explicit, error bar style={cK5, line width=0.7pt}},
+  sK25/.style={cK25, mark=triangle*, mark size=2.0pt, only marks, error bars/.cd, y dir=both, y explicit, error bar style={cK25, line width=0.7pt}},
+}
+\tikzset{
+  lblbox/.style={draw=mDarkTeal!70, fill=cTgt, rounded corners=2pt, align=center, font=\scriptsize, inner sep=3pt},
+  unlbox/.style={draw=mDarkTeal!70, fill=white, rounded corners=2pt, align=center, font=\scriptsize, inner sep=3pt},
+  propbox/.style={draw=cProp, fill=cProp!10, rounded corners=2pt, align=center, font=\scriptsize, inner sep=3pt},
+  kdbox/.style={draw=cKD, fill=cKD!10, rounded corners=2pt, align=center, font=\scriptsize, inner sep=3pt},
+  utt/.style={draw=mDarkTeal!60, fill=white, minimum width=5mm, minimum height=5mm, font=\tiny, inner sep=1pt},
+}
+
+% ---------- 発表情報 ----------
+\title{\T{少数のターゲットラベルで学ぶマルチモーダル感情認識}{Multimodal Emotion Recognition with Few Target Labels}}
+\subtitle{\T{別のモダリティの予測で学ぶ手法の測定と説明 ── 途中経過と，いま進めていること}{Measuring and explaining learning from the other modalities' predictions --- interim results and current work}}
+\author{\T{杉浦 伸一}{Shinichi Sugiura}}
+\institute[\T{北陸先端大学}{JAIST}]{\T{北陸先端大学}{Japan Advanced Institute of Science and Technology}}
+\date{\T{2026年11月5日}{November 5, 2026}}
+
+\begin{document}
+\maketitle
+
+\input{parts/p0_overview}
+\input{parts/p1_setting}
+\input{parts/p2_methods}
+\input{parts/p3_results}
+\input{parts/p4_why}
+\input{parts/p5_weakness}
+\input{parts/p6_now}
+\input{parts/p7_end}
+
+\appendix
+\bandheadline
+\metroset{numbering=counter}\setbeamertemplate{frame numbering}{\insertpagenumber/\insertdocumentendpage}
+\input{parts/appendix}
+\end{document}

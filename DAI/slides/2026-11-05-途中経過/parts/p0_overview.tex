@@ -1,0 +1,66 @@
+%% 0. この資料について（構成と語）
+\setband{\T{はじめに}{Introduction}}
+
+\begin{frame}{\T{この資料の構成：論文の骨組み（6 項目）に沿って，途中経過を報告する}{Outline: interim report organized along the six-item paper skeleton}}
+\rl{\T{構成}{Outline}}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\small
+\begin{tabular}{@{}cp{0.86\linewidth}@{}}
+\toprule
+& \T{骨組みの項目 → この資料の節}{Skeleton item → section of this deck} \\
+\midrule
+1 & \T{なぜこの問題が重要か → \S1 目的と設定}{Why the problem matters → \S1 Goal and setting} \\
+2 & \T{どれほど解くのが難しいか → \S1}{How hard it is → \S1} \\
+3 & \T{既存研究のエラー原因 → \S2 手法}{What existing work misses → \S2 Methods} \\
+4 & \T{解決策の新規性 → \S3 結果，\S4 なぜ効くか}{Novelty → \S3 Results, \S4 Why it works} \\
+5 & \T{評価の尺度 → \S2}{Evaluation measure → \S2} \\
+6 & \T{比較と除去 → \S2，\S3}{Baselines and ablations → \S2, \S3} \\
+\midrule
+& \T{\S5 普通の蒸留の弱点，\S6 いま進めていること，\S7 まとめ}{\S5 Weakness of plain distillation, \S6 Current work, \S7 Summary} \\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.42\textwidth}
+\small
+\T{%
+\textbf{状態（2026-11-05）}
+\begin{itemize}
+\item 実験 1〜3 の評価の回は終わり，集計と照合を通した
+\item 検定で言える差は少なく，多くは区間つきの記述である
+\item 実験 4 は設計と台本の検査を通り，計算は未着手
+\item 「どのモダリティを信じるか」の測定は終わった．信頼度の見積もりは当たるが，積／AVT の選択は MOSEI の損を消せない（\S6）
+\end{itemize}
+}{%
+\textbf{Status (2026-11-05)}
+\begin{itemize}
+\item Evaluation round of Experiments 1--3 is done; aggregation and claim checks passed
+\item Few differences survive the tests; most results are descriptions with intervals
+\item Experiment 4 passed design and code review; not yet computed
+\item The ``which modality to trust'' measurement is done: the reliability estimate is right, but product/AVT selection does not remove the MOSEI loss (\S6)
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\vspace{0.3em}
+{\scriptsize\color{mMuted}\T{数値は評価の回（コミット ba98974，4 コーパス × 50 単位）の集計から台本で引いた．細かい表と規則は補足（Appendix）にある．}{All numbers are drawn by script from the evaluation-round aggregation (commit ba98974, 4 corpora × 50 units). Detailed tables and rules are in the Appendix.}}
+\end{frame}
+
+\begin{frame}{\T{この資料で使う語（8 つ）}{Terms used in this deck (8)}}
+\rl{\T{語}{Terms}}
+\footnotesize
+\begin{tabular}{@{}p{0.27\linewidth}p{0.70\linewidth}@{}}
+\toprule
+\T{語}{Term} & \T{意味}{Meaning} \\
+\midrule
+\T{ソース／ターゲット}{Source / target} & \T{ラベル付きの既存コーパス（3 つ）／新しいコーパス（1 つ）．4 つを順にターゲットにする}{The 3 labeled existing corpora / the 1 new corpus. Each of the 4 corpora takes the target role in turn} \\
+\T{K 本}{K labels} & \T{ターゲットの感情ごとに K 本のラベル付き発話（K = 25 なら 4 感情 × 25 = 100 本）}{K labeled target utterances per emotion (K = 25 means 4 × 25 = 100)} \\
+\T{候補}{Pool} & \T{ターゲットのラベル無しの発話（学習に使える．テストの話者は含まない）}{Unlabeled target utterances usable for training (test speakers excluded)} \\
+\T{出発点}{Start} & \T{ソースのコーパスごとの識別器の重みと切片の平均．学習の初期値であり，引き戻す先}{Mean of the per-source classifiers (weights and intercepts). Initial value and the anchor of the pull} \\
+\T{引き戻し}{Pull} & \T{出発点から離れすぎないようにする L2 正則化（強さは仮のターゲットで選んで固定）}{L2 regularization toward the start (strength fixed on proxy targets)} \\
+\T{教師／生徒}{Teacher / student} & \T{教師＝ラベル無しの発話に疑似ラベルを付けるモデル（3 モダリティの識別器の確率の積）．生徒＝ターゲットで使う識別器（音声・顔・言葉・AVT）}{Teacher = the model that pseudo-labels the pool (product of the three unimodal classifiers' probabilities). Student = the classifier to deploy (audio, face, text, AVT)} \\
+\T{単位}{Unit} & \T{（ターゲット，分割，種）の 1 組．コーパスごとに 5 分割 × 10 種 = 50 単位}{One (target, fold, seed) triple. 5 folds × 10 seeds = 50 units per corpus} \\
+UAR & \T{4 感情の再現率の平均（でたらめなら 25\%）．差は「ポイント」で書く}{Mean recall over the 4 emotions (chance = 25\%). Differences are in ``points''} \\
+\bottomrule
+\end{tabular}
+\end{frame}

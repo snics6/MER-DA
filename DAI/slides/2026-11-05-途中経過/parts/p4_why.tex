@@ -1,0 +1,187 @@
+%% 4. なぜ効くか（実験 3 と探索）
+\setband{\T{\S4 なぜ効くか}{\S4 Why it works}}
+
+\begin{frame}{\T{得が出るのは，教師が生徒より当たっているときである}{Gains appear where the teacher is more accurate than the student}}
+\rl{\T{探索（評価の後）}{Exploration (post-evaluation)}}
+\hosoku{appadv}{\T{K = 25 の図と数値}{chart and numbers for K = 25}}
+\begin{columns}[T]
+\begin{column}{0.54\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=6.2cm, xmin=-2, xmax=33, ymin=-3.5, ymax=9.5,
+  xlabel={\T{教師の先回り（候補での UAR，教師 − 生徒．ポイント）}{teacher lead (pool UAR, teacher − student, points)}},
+  ylabel={\T{提案の得（テスト UAR，提案 − K 本だけ）}{gain (test UAR, proposal − K-only)}},
+  legend style={at={(0.98,0.03)}, anchor=south east, font=\tiny, cells={anchor=west}}, legend columns=2, grid=major,
+  every node near coord/.append style={font=\tiny, anchor=west, xshift=2pt, color=mMuted}]
+\addplot[only marks, kA, mark=*, mark size=2pt, point meta=explicit symbolic, nodes near coords] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_A_K5.csv};
+\addplot[only marks, kV, mark=square*, mark size=2pt, point meta=explicit symbolic, nodes near coords] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_V_K5.csv};
+\addplot[only marks, kT, mark=triangle*, mark size=2.4pt, point meta=explicit symbolic, nodes near coords] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_T_K5.csv};
+\addplot[only marks, kAVT, mark=diamond*, mark size=2.4pt] table[x=adv_pool, y=gain_prop]{teacher_adv_AVT_K5.csv};
+\legend{\T{音声}{audio}, \T{顔}{face}, \T{言葉}{text}, AVT}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.46\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 横軸：教師（3 モダリティの積）が候補でどれだけ生徒（K 本だけ）より当たるか．縦軸：提案のテストでの得．K = 5，16 点（4 コーパス × 4 生徒）
+\item 順位の相関は \N{rhofive}（K = 25 で \N{rhotwofive}）．先回りが大きい弱いモダリティ（音声，IEMOCAP の言葉）に得が出る
+\item \textbf{AVT には学ぶものが無い}（図の菱形 4 点，コーパス名なし）：先回りは \N{advMOSEIAVTfive}〜\N{advAFEWAVTfive} ポイントで，教師と AVT の生徒の判定は候補の \N{agreeMOSEIAVTfive}〜\N{agreeAFEWAVTfive}\% で一致する
+\end{itemize}
+}{%
+\begin{itemize}
+\item x: how much the teacher (product of 3 modalities) beats the student (K-only) on the pool. y: the proposal's test gain. K = 5, 16 points (4 corpora × 4 students)
+\item Rank correlation \N{rhofive} (\N{rhotwofive} at K = 25). Gains appear for weak modalities with a large lead (audio, IEMOCAP text)
+\item \textbf{Nothing to learn for AVT} (the 4 unlabeled diamonds): the lead is \N{advMOSEIAVTfive} to \N{advAFEWAVTfive} points, and the teacher agrees with the AVT student on \N{agreeMOSEIAVTfive}--\N{agreeAFEWAVTfive}\% of the pool
+\end{itemize}
+}
+\end{column}
+\end{columns}
+{\tiny\color{mMuted}\T{評価の回を見た後の探索．16 点は独立でなく，p 値は付けない．MOSEI は途中の 39 単位．出どころ：figures/teacher\_adv\_*.csv}{Post-evaluation exploration; the 16 points are not independent and no p-value is attached. MOSEI: 39 interim units. Source: figures/teacher\_adv\_*.csv}}
+\end{frame}
+
+\begin{frame}{\T{損を「位置」と「向き」に分ける：出発点の損の大半は重みの向きのずれである}{Splitting the loss into ``position'' and ``direction'': most of the start's loss is a weight-direction error}}
+\rl{\T{実験 3}{Exp.~3}}
+\hosoku{appdecomp}{\T{全生徒・全 K の表}{tables for all students and K}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+  \pgfmathsetseed{7}
+  % 2 つの雲
+  \foreach \i in {1,...,14} {\pgfmathsetmacro{\px}{0.9+0.75*rand}\pgfmathsetmacro{\py}{1.7+0.5*rand}\fill[kA!70] (\px,\py) circle (1.3pt);}
+  \foreach \i in {1,...,14} {\pgfmathsetmacro{\px}{2.6+0.75*rand}\pgfmathsetmacro{\py}{0.5+0.5*rand}\fill[kV!70] (\px,\py) circle (1.3pt);}
+  \node[font=\tiny, kA] at (0.9,2.45) {\T{感情 1}{emotion 1}}; \node[font=\tiny, kV] at (2.6,-0.25) {\T{感情 2}{emotion 2}};
+  % 正しい境界
+  \draw[cUpper, line width=1pt] (0.2,-0.2) -- (3.4,2.6);
+  % 位置のずれ（平行移動）
+  \draw[cCrit, line width=1pt, densely dashed] (0.9,-0.2) -- (4.1,2.6);
+  % 向きのずれ（回転）
+  \draw[cDisc, line width=1pt, dotted] (-0.4,0.8) -- (4.0,1.6);
+  \node[font=\tiny, anchor=north, align=left] at (1.9,-0.55) {\textcolor{cUpper}{\rule[0.5ex]{2em}{1pt}} \T{正しい境界}{right boundary}\quad \textcolor{cCrit}{- - -} \T{位置のずれ（切片：平行に動く）}{position error (intercept: parallel shift)}\\ \textcolor{cDisc}{$\cdots$} \T{向きのずれ（重み：回る）}{direction error (weights: rotation)}};
+\end{tikzpicture}
+\notreal
+\vspace{0.2em}
+\scriptsize
+\T{測り方：識別器の切片だけをテストの感情の釣り合いで当て直す．当て直しで減る分＝位置の損，残る分＝向きの損（上限との差）．}{How measured: refit only the intercept on the test emotion balance. The reduction = position loss; what remains = direction loss (gap to the upper bound).}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.4cm, ybar stacked, bar width=14pt, ymin=0, ymax=18, enlarge x limits=0.2,
+  xtick={1,2,3,4}, xticklabels={AFEW, IEMOCAP, MELD, MOSEI}, ylabel={\T{出発点の損（AVT，ポイント）}{loss of the start (AVT, points)}},
+  legend style={at={(0.98,0.97)}, anchor=north east, font=\tiny, cells={anchor=west}}, ymajorgrids,
+  nodes near coords={\pgfmathprintnumber[fixed, precision=1]{\pgfplotspointmeta}}, every node near coord/.append style={font=\tiny, color=white}]
+\addplot[fill=cCrit, draw=cCrit] table[x=ci, y=position]{decomp_start_avt.csv};
+\addplot[fill=cDisc, draw=cDisc] table[x=ci, y=direction]{decomp_start_avt.csv};
+\legend{\T{位置（切片）}{position (intercept)}, \T{向き（重み）}{direction (weights)}}
+\end{axis}
+\end{tikzpicture}
+\footnotesize
+\T{%
+\begin{itemize}
+\item AVT の出発点：向きの損 \N{dirMOSEIAVTstart}〜\N{dirAFEWAVTstart}，位置の損 \N{posMOSEIAVTstart}〜\N{posIEMOCAPAVTstart} ポイント
+\item 向きの物差しの確かめに不合格の組（AFEW と IEMOCAP の AVT など 5 組）では，論文で「向き」と呼ばず「当て直した後に残る差」と書く
+\end{itemize}
+}{%
+\begin{itemize}
+\item AVT start: direction loss \N{dirMOSEIAVTstart} to \N{dirAFEWAVTstart}, position loss \N{posMOSEIAVTstart} to \N{posIEMOCAPAVTstart} points
+\item Where the direction measure failed its validity check (5 pairs incl.\ AFEW and IEMOCAP AVT), the paper says ``gap remaining after the refit'' instead of ``direction''
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\T{K 本も向きを直していた．提案は，弱いモダリティの向きの損をさらに減らす}{K labels also fix the direction; the proposal further shrinks the direction loss of weak modalities}}
+\rl{\T{実験 3}{Exp.~3}}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\footnotesize
+\T{向きの損（当て直した後に残る差，ポイント，K = 5）}{Direction loss (gap remaining after the refit, points, K = 5)}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{生徒}{Student} & \T{出発点}{Start} & \T{K 本だけ}{K-only} & \T{提案}{Proposal} \\
+\midrule
+AFEW & \T{音声}{audio} & \N{dirAFEWAstart} & \N{dirAFEWAnonefive} & \textbf{\N{dirAFEWApropfive}} \\
+IEMOCAP & \T{音声}{audio} & \N{dirIEMOCAPAstart} & \N{dirIEMOCAPAnonefive} & \textbf{\N{dirIEMOCAPApropfive}} \\
+MELD & \T{音声}{audio} & \N{dirMELDAstart} & \N{dirMELDAnonefive} & \textbf{\N{dirMELDApropfive}} \\
+MOSEI & \T{音声}{audio} & \N{dirMOSEIAstart} & \N{dirMOSEIAnonefive} & \textbf{\N{dirMOSEIApropfive}} \\
+IEMOCAP & \T{言葉}{text} & \N{dirIEMOCAPTstart} & \N{dirIEMOCAPTnonefive} & \textbf{\N{dirIEMOCAPTpropfive}} \\
+MELD & \T{言葉}{text} & \N{dirMELDTstart} & \N{dirMELDTnonefive} & \N{dirMELDTpropfive} \\
+MOSEI & \T{言葉}{text} & \N{dirMOSEITstart} & \N{dirMOSEITnonefive} & \N{dirMOSEITpropfive} \\
+MELD & AVT & \N{dirMELDAVTstart} & \N{dirMELDAVTnonefive} & \N{dirMELDAVTpropfive} \\
+MOSEI & AVT & \N{dirMOSEIAVTstart} & \N{dirMOSEIAVTnonefive} & \N{dirMOSEIAVTpropfive} \\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.44\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 事前に立てた説明「K 本は主に切片を直す」は 4 コーパスとも支持されない．K 本は向きも直す（例：IEMOCAP の言葉 \N{dirIEMOCAPTstart} → \N{dirIEMOCAPTnonefive}）
+\item 提案は，得の出る生徒で向きの損をさらに減らす（IEMOCAP の言葉 \N{dirIEMOCAPTnonefive} → \N{dirIEMOCAPTpropfive}，音声は 4 コーパスで減る）
+\item 得の出ない生徒では減らない，または増える（MELD・MOSEI の言葉，MOSEI の AVT）
+\item 「重みは予測で，切片は K 本で」と役割を分けた版は，同時に学ぶ版と差が無い（−0.4〜+1.7）
+\end{itemize}
+}{%
+\begin{itemize}
+\item The pre-registered ``K labels mainly fix the intercept'' is not supported in any corpus; K labels also fix the direction (e.g.\ IEMOCAP text \N{dirIEMOCAPTstart} → \N{dirIEMOCAPTnonefive})
+\item The proposal further reduces the direction loss where gains appear (IEMOCAP text \N{dirIEMOCAPTnonefive} → \N{dirIEMOCAPTpropfive}; audio in all 4 corpora)
+\item Where there is no gain, it does not shrink or grows (MELD and MOSEI text, MOSEI AVT)
+\item A version that learns weights from predictions and the intercept from K labels does not differ from learning both together (−0.4 to +1.7)
+\end{itemize}
+}
+\end{column}
+\end{columns}
+{\tiny\color{mMuted}\T{点の値．区間と判定の規則は補足．出どころ：figures/decomp.csv（版 four）}{Point values; intervals and decision rules in the appendix. Source: figures/decomp.csv (version four)}}
+\end{frame}
+
+\begin{frame}{\T{効かない所の理由：顔は学ぶものが無いか切片が悪くなる．MELD・MOSEI は教師そのものが弱い}{Why it fails: the face has nothing to learn or gets a worse intercept; in MELD and MOSEI the teacher itself is weak}}
+\rl{\T{実験 3・探索}{Exp.~3, exploration}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\T{顔の生徒}{Face student}}
+\T{%
+\begin{itemize}
+\item AFEW：教師の先回りは \N{advAFEWVfive} ポイントしかない（顔が最も強いモダリティ）→ 学ぶものが無い
+\item IEMOCAP：損の大半が位置（切片）で（\N{posIEMOCAPVnonefive} 対 向き \N{dirIEMOCAPVnonefive}），提案は位置の損を \N{posIEMOCAPVnonefive} → \N{posIEMOCAPVpropfive} と\textbf{悪くする}
+\item MELD：先回り \N{advMELDVfive} に対して得は \N{gainrMELDVfive}．理由は未解析
+\item 直す余地（上限 − K 本だけ）は顔で \N{roomMELDVfive}〜\N{roomMOSEIVfive}，音声で \N{roomAFEWAfive}〜\N{roomMOSEIAfive} ポイント
+\end{itemize}
+}{%
+\begin{itemize}
+\item AFEW: the teacher's lead is only \N{advAFEWVfive} points (the face is the strongest modality) → nothing to learn
+\item IEMOCAP: most of the loss is position (intercept; \N{posIEMOCAPVnonefive} vs direction \N{dirIEMOCAPVnonefive}), and the proposal \textbf{worsens} it (\N{posIEMOCAPVnonefive} → \N{posIEMOCAPVpropfive})
+\item MELD: lead \N{advMELDVfive} but gain \N{gainrMELDVfive}; not yet analyzed
+\item Room (upper bound − K-only): face \N{roomMELDVfive}--\N{roomMOSEIVfive}, audio \N{roomAFEWAfive}--\N{roomMOSEIAfive} points
+\end{itemize}
+}
+\end{column}
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\T{教師の強さ（候補での UAR，K = 5）}{Teacher strength (pool UAR, K = 5)}}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{教師}{Teacher} & \T{AVT の生徒（K 本だけ）}{AVT student (K-only)} \\
+\midrule
+AFEW & \N{tuarAFEWAVTfive} & \N{suarAFEWAVTfive} \\
+IEMOCAP & \N{tuarIEMOCAPAVTfive} & \N{suarIEMOCAPAVTfive} \\
+MELD & \N{tuarMELDAVTfive} & \N{suarMELDAVTfive} \\
+MOSEI & \N{tuarMOSEIAVTfive} & \N{suarMOSEIAVTfive} \\
+\bottomrule
+\end{tabular}
+\T{%
+\begin{itemize}
+\item MELD と MOSEI では教師が候補の半分も当てない．それでも音声には効く（音声の生徒がもっと弱いから）
+\item 教師の強さはコーパスで大きく違う．\textbf{どのモダリティをどれだけ信じるか}がコーパスごとに違うことが，次の問題になる（\S5，\S6）
+\end{itemize}
+}{%
+\begin{itemize}
+\item In MELD and MOSEI the teacher gets less than half the pool right, yet it still helps audio (the audio student is weaker still)
+\item Teacher strength differs widely across corpora. \textbf{Which modality to trust, and how much}, differs per corpus --- the next problem (\S5, \S6)
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\end{frame}

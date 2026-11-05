@@ -1,0 +1,159 @@
+%% 1. 目的と設定（骨組みの 1・2）
+\setband{\T{\S1 目的と設定}{\S1 Goal and setting}}
+
+\begin{frame}{\T{なぜ重要か：新しいコーパスでは，ラベル付きの発話が感情ごとに数本〜数十本しか用意できない}{Why it matters: a new corpus comes with only a handful of labeled utterances per emotion}}
+\rl{\T{目的（骨組み 1）}{Goal (skeleton 1)}}
+\begin{columns}[T]
+\begin{column}{0.60\textwidth}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+  % ソース
+  \foreach \n/\x in {AFEW/0, IEMOCAP/2.05, MELD/4.1} {
+    \node[srcbox, minimum width=1.9cm, minimum height=1.15cm] (s\n) at (\x,0) {\n\\ \T{全発話に}{all utterances}\\ \T{ラベル}{labeled}};
+  }
+  \node[font=\scriptsize\bfseries, color=mDarkTeal] at (2.05,1.0) {\T{ソース（3 つ）}{Sources (3)}};
+  % ターゲット
+  \node[draw=mDarkTeal!70, fill=cTgt!50, rounded corners=3pt, minimum width=3.0cm, minimum height=2.6cm] (tgt) at (7.2,-0.35) {};
+  \node[font=\scriptsize\bfseries, color=mDarkTeal] at (7.2,1.25) {\T{ターゲット（1 つ）}{Target (1)}: MOSEI};
+  \node[lblbox, minimum width=2.6cm] (k) at (7.2,0.45) {\T{K 本 × 4 感情（ラベル付き）}{K × 4 emotions (labeled)}};
+  \node[unlbox, minimum width=2.6cm] (u) at (7.2,-0.35) {\T{ラベル無しの発話（候補）}{unlabeled utterances (pool)}};
+  \node[testbox, minimum width=2.6cm] (t) at (7.2,-1.2) {\T{テスト（別の話者）}{test (other speakers)}};
+  % 矢印
+  \draw[arr] (4.1,-0.75) -- node[below, font=\tiny, align=center]{\T{識別器を作って持ち込む}{build classifiers,\\carry them over}} (5.7,-0.75);
+  % 回す
+  \node[font=\tiny, color=mMuted, align=center] at (3.6,-1.75) {\T{4 コーパスを順にターゲットにする（leave-one-corpus-out）}{each corpus takes the target role in turn (leave-one-corpus-out)}};
+\end{tikzpicture}
+\end{adjustbox}
+\end{column}
+\begin{column}{0.40\textwidth}
+\small
+\T{%
+\begin{itemize}
+\item 感情認識のラベル付けは高く，新しい場面（映画，対話，動画）ごとにコーパスを作れない
+\item そこで，\textbf{ほかのコーパスの識別器}と，\textbf{ターゲットのラベル無しの発話}で，K 本だけの識別器を補いたい
+\item 音声・顔・言葉の 3 モダリティがそろう 4 コーパスで測る
+\end{itemize}
+}{%
+\begin{itemize}
+\item Emotion labels are expensive; one cannot build a corpus for every new setting (films, dialogues, videos)
+\item So we want to improve a classifier trained on K labels using \textbf{classifiers from other corpora} and \textbf{unlabeled target utterances}
+\item Measured on 4 corpora where audio, face and text are all available
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\takeaway{\T{問い：ソースの識別器とラベル無しの発話は，K 本だけの識別器をどれだけ，どこで，なぜ良くするか}{Question: how much, where, and why do source classifiers and unlabeled utterances improve a classifier trained on K labels?}}
+\end{frame}
+
+\begin{frame}{\T{設定：凍結した特徴の上の線形の識別器を，4 つのコーパスで順に良くする}{Setting: linear classifiers on frozen features, each corpus in turn as the target}}
+\rl{\T{設定}{Setting}}
+\hosoku{appdata}{\T{コーパスの詳細（発話数，塊，分割）}{corpus details (utterances, clusters, folds)}}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]
+  \node[encbox, minimum width=1.5cm] (ea) at (0,1.2) {\T{音声}{audio}\\WavLM};
+  \node[encbox, minimum width=1.5cm] (ev) at (0,0.4) {\T{顔}{face}\\ResNet-50};
+  \node[encbox, minimum width=1.5cm] (et) at (0,-0.4) {\T{言葉}{text}\\RoBERTa};
+  \node[font=\tiny, color=mMuted, align=center] at (0,-1.1) {\T{凍結（微調整しない）}{frozen (no fine-tuning)}};
+  \node[clf, minimum width=1.7cm] (ca) at (2.6,1.2) {\T{音声の識別器}{audio classifier}};
+  \node[clf, minimum width=1.7cm] (cv) at (2.6,0.4) {\T{顔の識別器}{face classifier}};
+  \node[clf, minimum width=1.7cm] (ct) at (2.6,-0.4) {\T{言葉の識別器}{text classifier}};
+  \node[clf, minimum width=2.1cm, fill=kAVT!10] (cf) at (2.6,-1.35) {AVT\T{の識別器}{ classifier}\\ \T{（3 つの特徴をつないだ上）}{(on concatenated features)}};
+  \foreach \e/\c in {ea/ca, ev/cv, et/ct} {\draw[arr] (\e) -- (\c);}
+  \draw[arr] (0.8,-0.7) -- (1.5,-1.35) -- (cf);
+  \node[font=\scriptsize, align=left, anchor=west] at (-0.9,-2.35) {\T{どれも線形（ロジスティック回帰）}{all linear (logistic regression)}\\ \T{4 感情：Neutral，Happy，Sad，Angry}{4 emotions: Neutral, Happy, Sad, Angry}\\ \T{良くしたい識別器＝この 4 つ（A，V，T，AVT）}{classifiers to improve = these 4 (A, V, T, AVT)}};
+\end{tikzpicture}
+\end{adjustbox}
+\end{column}
+\begin{column}{0.45\textwidth}
+\scriptsize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{発話}{Utterances} & \T{話者の塊}{Clusters} \\
+\midrule
+AFEW (\T{映画}{films}) & 790 & 51 \\
+IEMOCAP (\T{即興の対話}{improvised}) & 2,943 & 5 \T{セッション}{sessions} \\
+MELD (\T{ドラマ}{TV series}) & 11,267 & 272 \\
+MOSEI (\T{動画}{online videos}) & 18,634 & 2,614 \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.4em}
+\T{%
+\begin{itemize}
+\item 話者を 5 つに分け，1 つをテストにする．テストの話者の発話は学習側に入れない
+\item K ∈ \{0, 5, 25\}．K 本の抜き方を 10 種類変える → コーパスごとに 50 単位
+\item 手法の形と設定は，評価の前に「仮のターゲット」（ソースの 1 つをターゲットの代わりにする回）で選んで固定し，評価の回は 1 回だけ流した
+\end{itemize}
+}{%
+\begin{itemize}
+\item Speakers are split into 5 folds; one fold is the test. Test speakers never enter training
+\item K ∈ \{0, 5, 25\}; 10 random draws of the K labels → 50 units per corpus
+\item Method forms and settings were chosen and frozen before evaluation on ``proxy targets'' (one source standing in for the target); the evaluation round was run once
+\end{itemize}
+}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\T{どれほど難しいか：ソースの識別器の平均は，最良の線形識別器より 12〜15 ポイント低い}{How hard: the mean of source classifiers is 12--15 points below the best linear classifier}}
+\rl{\T{難しさ（骨組み 2）}{Difficulty (skeleton 2)}}
+\hosoku{appdecomp}{\T{損の内訳の表（全生徒）}{loss decomposition tables (all students)}}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=5.6cm, ybar, bar width=8pt, ymin=30, ymax=118, enlarge x limits=0.18,
+  xtick={1,2,3,4}, xticklabels={AFEW, IEMOCAP, MELD, MOSEI}, ylabel={\T{UAR（AVT の生徒，\%）}{UAR (AVT student, \%)}},
+  legend style={at={(0.98,0.98)}, anchor=north east, font=\tiny, cells={anchor=west}}, legend columns=1,
+  nodes near coords={\pgfmathprintnumber[fixed, precision=0]{\pgfplotspointmeta}}, every node near coord/.append style={font=\tiny}, ymajorgrids]
+\addplot[fill=cNone, draw=cNone] table[x=ci, y=start]{difficulty.csv};
+\addplot[fill=cK25, draw=cK25] table[x=ci, y=k25]{difficulty.csv};
+\addplot[fill=cUpper, draw=cUpper] table[x=ci, y=upper]{difficulty.csv};
+\legend{\T{出発点（ソースの平均，K = 0）}{start (sources' mean, K = 0)}, \T{K = 25 で学び直し}{retrained, K = 25}, \T{上限（候補の全ラベルで学んだ重み）}{upper bound (all pool labels)}}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.44\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 出発点と上限の差：AFEW \N{gapstartAFEW}，IEMOCAP \N{gapstartIEMOCAP}，MELD \N{gapstartMELD}，MOSEI \N{gapstartMOSEI} ポイント
+\item K = 25（100 本）で学び直しても，差は \N{gapkAFEW}〜\N{gapkMELD} ポイント残る
+\item 差の大半は \textbf{重みの向き}のずれで，切片のずれは 0.4〜2.7 ポイント（\S4）．少数のラベルでは 2,304 次元の重みを直し切れない
+\item 標準のラベル無しの手法 14 種（自己学習，DANN，CORAL など）を足しても，AVT では 1〜3 ポイントしか埋まらない（\S3）
+\end{itemize}
+}{%
+\begin{itemize}
+\item Gap between start and upper bound: AFEW \N{gapstartAFEW}, IEMOCAP \N{gapstartIEMOCAP}, MELD \N{gapstartMELD}, MOSEI \N{gapstartMOSEI} points
+\item After retraining with K = 25 (100 labels), \N{gapkAFEW}--\N{gapkMELD} points remain
+\item Most of the gap is a \textbf{weight-direction} error; the intercept part is 0.4--2.7 points (\S4). A few labels cannot fix 2,304 weights
+\item Adding 14 standard unlabeled-data methods (self-training, DANN, CORAL, …) closes only 1--3 points for AVT (\S3)
+\end{itemize}
+}
+\end{column}
+\end{columns}
+{\tiny\color{mMuted}\T{上限＝候補の全ラベルで学んだ重みに，テストの感情の釣り合いで切片を当て直した識別器（点の値，区間なし）．出どころ：figures/difficulty.csv}{Upper bound = weights trained on all pool labels with the intercept refit on the test emotion balance (point values, no interval). Source: figures/difficulty.csv}}
+\end{frame}
+
+\begin{frame}{\T{実験の全体像：4 つの実験で「どれだけ・どこで・なぜ」を分けて測る}{Overview: four experiments separate ``how much'', ``where'' and ``why''}}
+\rl{\T{計画}{Plan}}
+\scriptsize
+\begin{tabular}{@{}p{0.07\linewidth}p{0.42\linewidth}p{0.27\linewidth}p{0.17\linewidth}@{}}
+\toprule
+& \T{何を測るか}{What is measured} & \T{相手}{Compared against} & \T{状態}{Status} \\
+\midrule
+\T{実験 1}{Exp.~1} & \T{別のモダリティの予測（疑似ラベル）で学ぶ手法の得}{Gain from learning on the other modalities' predictions (pseudo-labels)} & \T{K 本だけ；同じ情報を受け取る 5 手法（温度つき蒸留など）}{K-only; 5 methods using the same information (e.g.\ temperature distillation)} & \done \\
+\T{実験 2}{Exp.~2} & \T{標準のドメイン適応・半教師あり手法との差}{Difference from standard DA / semi-supervised methods} & \T{自己学習，エントロピー最小化，T3A，ラベル伝播，S+T，CORAL，DANN，MME など 14}{self-training, entropy min., T3A, label propagation, S+T, CORAL, DANN, MME, … (14)} & \done \\
+\T{実験 3}{Exp.~3} & \T{得の説明：損を切片（位置）と重みの向きに分ける，再現できる度合い}{Explanation: split the loss into intercept (position) and weight direction; reproducibility} & \T{事前に固定した判定の規則}{pre-fixed decision rules} & \done \\
+\T{実験 4}{Exp.~4} & \T{蒸留の弱点（全発話を同じ重みで信じる）を直した手法の得}{Gain from fixing a weakness of distillation (uniform trust in all pool utterances)} & \T{実験 1 の提案・蒸留}{Exp.~1 proposal / distillation} & \todo\ \T{設計済み}{designed} \\
+\T{探索}{Exploration} & \T{どのモダリティを信じるか（信頼度の見積もり）}{Which modality to trust (reliability estimation)} & --- & \done\ \T{測定済み}{measured} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\scriptsize
+\T{実験 1〜3 は設計・台本・集計の台本を評価の前に固定し，関門（統計・漏れ・比較・定義・台本）と ML・感情認識の査読想定の検査を通してから計算した．実験 4 と探索は評価の結果を見た後の案で，論文では節を分け，限界に由来を書く．}{Experiments 1--3: designs, scripts and aggregation were frozen before evaluation and passed the gate checks (statistics, leakage, fairness, definitions, code) and simulated ML / affective-computing review. Experiment 4 and the exploration arose after seeing the results; the paper separates them and states their origin.}
+\end{frame}

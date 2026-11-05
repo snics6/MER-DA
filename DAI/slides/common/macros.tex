@@ -1,0 +1,62 @@
+%% 2026-10-27 に ~/slides/common/ から写した（MER-DA を自己完結させるため）．以後は MER-DA/slides/common/ のこのファイルを正本とし，~/slides とは同期しない．
+%% =====================================================================
+%%  common/macros.tex — 全スライド共通のマクロ
+%%  ここに置くのは「どの発表でも使うもの」だけ．
+%%  その発表固有のマクロは deck 側の main.tex に書く．
+%% =====================================================================
+
+% ---------- 強調 ------------------------------------------------------
+\newcommand{\key}[1]{\textcolor{mAccentBlue}{\textbf{#1}}}  % 提案手法・注目対象
+\newcommand{\good}[1]{\textcolor{mGood}{#1}}                % 改善・良い結果
+\newcommand{\bad}[1]{\textcolor{mBad}{#1}}                  % 劣化・悪い結果
+\newcommand{\muted}[1]{\textcolor{mMuted}{#1}}              % 補足
+
+% 出典表示（右下に小さく．スライドの引用はこれで足りることが多い）
+\newcommand{\source}[1]{%
+  \vspace{-0.3em}\hfill{\tiny\color{mMuted}[#1]}\par}
+
+% 「ひとことメッセージ」帯：そのスライドで言いたいことを1行で置く
+\newcommand{\takeaway}[1]{%
+  \vspace{0.4em}%
+  \begin{beamercolorbox}[wd=\textwidth,sep=0.5em,rounded=true]{block body}%
+    \textbf{#1}%
+  \end{beamercolorbox}}
+
+% ---------- 数式（機械学習でよく使うもの）-----------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\vect}[1]{\bm{#1}}
+\newcommand{\mat}[1]{\bm{#1}}
+\newcommand{\normtwo}[1]{\left\lVert #1 \right\rVert_2}
+\newcommand{\norm}[2][]{\left\lVert #2 \right\rVert_{#1}}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\inner}[2]{\left\langle #1,\, #2 \right\rangle}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\loss}{\mathcal{L}}
+\newcommand{\dataset}{\mathcal{D}}
+\newcommand{\model}{f_{\bm{\theta}}}
+\newcommand{\given}{\,\vert\,}
+
+% ---------- 図の貼り込み ----------------------------------------------
+% \fig{ファイル名}{幅(\textwidth比)}  例: \fig{overview}{0.8}
+\newcommand{\fig}[2]{%
+  \begin{center}\includegraphics[width=#2\textwidth]{#1}\end{center}}
+
+% \figc{ファイル名}{幅}{キャプション}
+\newcommand{\figc}[3]{%
+  \begin{figure}\centering
+    \includegraphics[width=#2\textwidth]{#1}
+    \caption{#3}
+  \end{figure}}
+
+% ---------- 表 --------------------------------------------------------
+% 数値表の最良値を強調する（\best{0.812}）
+\newcommand{\best}[1]{\textbf{\textcolor{mAccentBlue}{#1}}}
+
+% ---------- 進捗報告でよく使う印 --------------------------------------
+\newcommand{\done}{\textcolor{mGood}{\textbf{[完了]}}}
+\newcommand{\wip}{\textcolor{mLightBrown}{\textbf{[進行中]}}}
+\newcommand{\todo}{\textcolor{mMuted}{\textbf{[未着手]}}}
+\newcommand{\blocked}{\textcolor{mBad}{\textbf{[停滞]}}}

@@ -72,3 +72,7 @@ DAI/checks/*/code_run*/out/
 DAI/docs/*.aux
 DAI/docs/*.log
 DAI/docs/*.out
+
+# ---- DAI/slides/（LaTeX の中間生成物と PDF） ----
+DAI/slides/*/build/
+DAI/slides/*/*.pdf

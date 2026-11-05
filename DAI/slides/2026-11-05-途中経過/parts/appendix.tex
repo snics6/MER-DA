@@ -1,0 +1,391 @@
+%% 補足（Appendix）
+\setband{\T{補足}{Appendix}}
+
+\begin{frame}[label=appdata]{\T{補足：コーパスの詳細}{Appendix: corpus details}}
+\rl{\T{データ}{Data}}
+\scriptsize
+\begin{tabular}{@{}lrrrrp{0.33\linewidth}@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{発話}{Utter.} & \T{塊}{Clusters} & \T{実効の塊}{Eff.\ clusters} & \T{感情ごとの最少}{Min.\ per emotion} & \T{塊の定義と注意}{Cluster definition and caveats} \\
+\midrule
+AFEW & 790 & 51 & 15.0 & 127 & \T{俳優と作品のつながり．言葉は Whisper large-v3 の書き起こし}{actor–film connectivity; text from Whisper large-v3 transcripts} \\
+IEMOCAP\T{（即興）}{ (improvised)} & 2,943 & 5 & 4.9 & 199 & \T{セッション．顔のマーカーの手がかりが入りうる}{sessions; face-marker cues may leak into face features} \\
+MELD & 11,267 & 272 & 8.6 & 465 & \T{話者．テストの対話の発話は学習側から除く．分割 0〜3 は主役 1 人が 70〜82\%}{speakers; test dialogues removed from training; one lead actor holds 70--82\% of folds 0--3} \\
+MOSEI & 18,634 & 2,614 & 783 & 1,080 & \T{チャンネルか動画（話者の代用．同じ人物の別の動画が分割をまたぎうる）}{channel or video (stand-in for speaker; the same person may cross folds in other videos)} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\T{%
+\begin{itemize}
+\item 特徴：音声 WavLM（1,024 次元），顔 ResNet-50 の平均（512），言葉 RoBERTa（768），AVT はつないで 2,304．エンコーダは微調整しない
+\item 4 感情（Neutral，Happy，Sad，Angry）．標準化は単位ごとに候補（K 本を含み，テストを含まない）の平均と標準偏差で行い，全手法で同じ
+\item K 本は学習側から感情ごとに乱数で抜く（K = 1，5，10，25 で入れ子）．評価の回は K ∈ \{0, 5, 25\} を主に報告
+\item 塊の数が少ないので，区間の自由度は AFEW 13，IEMOCAP 3，MELD 7（t 分布）．MOSEI は塊の引き直し 2,000 回
+\end{itemize}
+}{%
+\begin{itemize}
+\item Features: audio WavLM (1,024 dims), face ResNet-50 mean (512), text RoBERTa (768); AVT concatenates them (2,304). Encoders are not fine-tuned
+\item 4 emotions (Neutral, Happy, Sad, Angry). Standardization per unit with the pool's mean and SD (includes the K labels, excludes the test); identical for all methods
+\item K labels are drawn at random per emotion from the training side (nested over K = 1, 5, 10, 25); the evaluation round reports K ∈ \{0, 5, 25\}
+\item Few clusters: interval degrees of freedom AFEW 13, IEMOCAP 3, MELD 7 (t distribution); MOSEI uses 2,000 cluster resamples
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}[label=appsolver]{\T{補足：学習器，出発点，引き戻し，教師の作り方}{Appendix: solver, start, pull, and how the teacher is built}}
+\rl{\T{手法}{Method}}
+\scriptsize
+\T{%
+\begin{itemize}
+\item \textbf{識別器}：4 感情の多項ロジスティック回帰（重み W，切片 b）．float64 の L-BFGS で，問をまとめて解く
+\item \textbf{ソースの識別器}：コーパスごと・種類ごと（A，V，T，AV，AT，VT，AVT）に，感情の釣り合いの重みつき交差エントロピー ＋ L2 で学ぶ．強さ C はそのコーパスの塊の 5 分割の交差検証で選ぶ
+\item \textbf{出発点}：ソース 3 つの W と b の平均（等しい重み）
+\item \textbf{引き戻し}：W については $(C'/2)\,\|W - W_0\|^2$，b については $(C_b/2)\,\|b - b_0\|^2$．$(C', C_b)$ は 7 × 2 の格子から，仮のターゲットの「K 本だけ」の UAR で (コーパス，種類，K) ごとに選んで固定．全手法が同じ値を使う
+\item \textbf{教師 Q}：(1) 出発点の AVT を K 本で学び直して候補に予測を付ける．(2) A・V・T の識別器を出発点から「K 本 ＋ その予測（感情ごとに総量をそろえる）」で学び直す．(3) 3 つの確率を掛けて正規化する（指数は (1,1,1)．仮のターゲットで指数を選ぶ版も用意したが，主の版は 4 コーパス全 K で (1,1,1) が選ばれた）
+\item \textbf{生徒の損失}：K 本の交差エントロピー × a ＋ 疑似ラベル Q の交差エントロピー（重みの合計 ρn，感情ごとに総量をそろえる）＋ 引き戻し．ρ ∈ \{1/16, 1/4, 1, 4\}，a ∈ \{1, 4, 16\} から仮のターゲットで選ぶ（80 セル中 75 で ρ = 1，a = 1）
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Classifier}: 4-class multinomial logistic regression (weights W, intercept b), solved in float64 by batched L-BFGS
+\item \textbf{Source classifiers}: per corpus and per feature type (A, V, T, AV, AT, VT, AVT), class-balanced cross-entropy + L2; the strength C is chosen by 5-fold cluster cross-validation within that corpus
+\item \textbf{Start}: mean of the three sources' W and b (equal weights)
+\item \textbf{Pull}: $(C'/2)\,\|W - W_0\|^2$ for the weights and $(C_b/2)\,\|b - b_0\|^2$ for the intercept. $(C', C_b)$ chosen from a 7 × 2 grid on proxy targets by the K-only UAR, per (corpus, type, K), then frozen; every method uses the same values
+\item \textbf{Teacher Q}: (1) retrain the AVT start on the K labels and predict the pool; (2) retrain A, V, T from the start on ``K labels + those predictions (balanced per emotion)''; (3) multiply the three probabilities and normalize (exponents (1,1,1); a version with proxy-selected exponents exists, but (1,1,1) was selected for all corpora and K)
+\item \textbf{Student loss}: a × cross-entropy on K labels + cross-entropy to Q (total weight ρn, balanced per emotion) + pull. ρ ∈ \{1/16, 1/4, 1, 4\}, a ∈ \{1, 4, 16\}, chosen on proxy targets (ρ = 1, a = 1 in 75 of 80 cells)
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}[label=appmethods]{\T{補足：比較の手法と格子}{Appendix: baseline methods and grids}}
+\rl{\T{手法}{Method}}
+\tiny
+\begin{tabular}{@{}p{0.26\linewidth}p{0.50\linewidth}p{0.20\linewidth}@{}}
+\toprule
+\T{手法}{Method} & \T{形（すべて K 本と引き戻しを含む）}{Form (all include the K labels and the pull)} & \T{格子（点の数）}{Grid (points)} \\
+\midrule
+\T{温度つき蒸留}{Temperature distillation} & \T{Q を温度 T で柔らげ，総量はそろえない（Hinton 2015，Albanie 2018）}{Q softened at temperature T, no balancing (Hinton 2015; Albanie 2018)} & T ∈ \{1,2,4\}, ρ 4 (12) \\
+\T{一致した発話だけ}{Agreed-only} & \T{Q と生徒自身の判定が一致し確信度 ≥ τ の発話に硬いラベル}{hard labels where Q agrees with the student and confidence ≥ τ} & τ 3 × f 3 (9) \\
+\T{自分の予測と混ぜる}{Mixing with own prediction} & \T{α × 生徒の確率 ＋ (1−α) × Q の最大が 0.9 超の発話に硬いラベル（Zhang 2021 の形）}{hard label where α × own + (1−α) × Q exceeds 0.9 (Zhang 2021 form)} & α 3 × f 3 (9) \\
+\T{柔らかい共訓練}{Soft co-training} & \T{A・V・T を 3 巡，各々「ほかの 2 つの積」で学び直す}{A, V, T retrained for 3 rounds, each on the product of the other two} & ρ (4) \\
+\T{共正則化}{Co-regularization} & \T{3 つの識別器の点数の差の二乗を罰する（凸）}{penalize squared score differences among the three classifiers (convex)} & ρ (5) \\
+\midrule
+\T{自己学習}{Self-training} & \T{生徒自身の確信度 ≥ τ の候補に硬いラベル，3 巡}{hard labels on own confident pool utterances, 3 rounds} & τ 3 × ρ 4 (12) \\
+\T{エントロピー最小化／IM}{Entropy min.\ / IM} & \T{候補の予測のエントロピーを下げる（IM は周辺の項を足す）}{lower the pool prediction entropy (IM adds the marginal term)} & ρ 4 / α 3 × ρ 4 \\
+T3A & \T{支えの集合で分類する試験時適応（Iwasawa \& Matsuo 2021）}{test-time adaptation with a support set (Iwasawa \& Matsuo 2021)} & M (6) \\
+\T{ラベル伝播}{Label propagation} & \T{k 近傍グラフで K 本のラベルを伝播し疑似ラベルに}{propagate the K labels on a k-NN graph as pseudo-labels} & k 3 × α 2 × 2 (12) \\
+\T{自分の予測を提案の形で}{Own prediction, proposal form} & \T{Q を生徒自身の確率に替えた提案}{the proposal with Q replaced by the student's own probabilities} & ρ 4 × a 3 (12) \\
+S+T & \T{ソースの全ラベル付き発話と K 本（倍率 β）を合わせて学ぶ}{train on all labeled source utterances plus the K labels (multiplier β)} & β (3) \\
+CORAL & \T{ソースの共分散を候補にそろえ，出発点を作り直す}{align source covariance to the pool and rebuild the start} & r (3) \\
+DANN / MME / xMUDA\T{型}{-style} & \T{線形の写像 ＋ 領域の判別器／エントロピーの minimax／相互の模倣（勾配法，種 3）}{linear map + domain discriminator / entropy minimax / mutual mimicry (gradient methods, 3 seeds)} & 24 / 24 / 24 \\
+\bottomrule
+\end{tabular}
+\vspace{0.2em}
+{\tiny\T{すべて凍結した特徴の上の線形の形に移した版で，原論文と同じ手法とは書かない．つまみは仮のターゲットの 120 単位で選び，固定した．}{All are versions transposed to linear classifiers on frozen features and are not claimed to equal the original methods. Knobs were selected on 120 proxy-target units and frozen.}}
+\end{frame}
+
+\begin{frame}[label=appstats]{\T{補足：区間と検定の規則}{Appendix: interval and test rules}}
+\rl{\T{統計}{Statistics}}
+\scriptsize
+\T{%
+\begin{itemize}
+\item \textbf{族}：族 1 ＝ 提案 − K 本だけ，族 2 ＝ 役割を分ける版 − 同時に解く版，族 3 ＝ 提案 − 同じ情報の相手（仮のターゲットで最良だった 1 手法），族 4 ＝ 選んだ設定 − 選択なし．各族はコーパスごとに 12 セル（生徒 4 × K 3）で Holm
+\item \textbf{区間}：AFEW・IEMOCAP・MELD は塊の jackknife の分散 ＋ 種（K 本の抜き方）の分散に t 分布（自由度 13・3・7）．MOSEI は塊の引き直し 2,000 回 ＋ 種の分散に正規分布．学習側の揺れとソースの識別器の揺れは含まない
+\item \textbf{検出力による振り分け}：評価の前に，仮のターゲットの標準誤差から「検出できる差」を見積もり，見込みが足りるセルだけ検定に残した（族 1〜3 で 15 セル，族 4 で 40 セル）．残り 113 セルは区間つきの記述
+\item \textbf{族 4}：検定に残った 40 セルは全部「選んだ設定 ＝ 選択なし」で差が 0．選ぶ効果は測れていない
+\item \textbf{族 3 のコーパスの文}：「このコーパスで提案は相手より良い」は，事前の条件（全生徒で下端が 0 より上など）をどのコーパスも満たさず，書かない
+\item \textbf{p 値の意味}：手法の形は評価と同じ 4 コーパスで作ったので，確認の検定ではない
+\end{itemize}
+}{%
+\begin{itemize}
+\item \textbf{Families}: 1 = proposal − K-only; 2 = role-separated − joint; 3 = proposal − same-information baseline (the best of 5 on proxy targets); 4 = selected − unselected setting. Each family has 12 cells per corpus (4 students × 3 K), Holm-corrected
+\item \textbf{Intervals}: AFEW, IEMOCAP, MELD use cluster jackknife variance + seed variance with a t distribution (df 13, 3, 7); MOSEI uses 2,000 cluster resamples + seed variance with a normal. Training-side and source-classifier variability are not included
+\item \textbf{Power screening}: before evaluation, the detectable difference was estimated from proxy-target standard errors and only cells with sufficient expected power were kept for testing (15 cells in families 1--3, 40 in family 4); the other 113 cells are descriptions
+\item \textbf{Family 4}: all 40 tested cells have ``selected = unselected'' and a difference of exactly 0; the selection effect is not measured
+\item \textbf{Corpus-level sentence for family 3}: ``the proposal beats the baseline on this corpus'' is not written because no corpus meets the pre-fixed condition
+\item \textbf{Meaning of p-values}: not confirmatory, since method forms were built on the same 4 corpora
+\end{itemize}
+}
+\end{frame}
+
+% セルの値：#1 = famone|famthree，#2 = コーパス，#3 = 生徒，#4 = K（zero|five|twofive）
+\newcommand{\fc}[4]{\N{#1#2#3#4}\,{\color{mMuted}[\N{#1lo#2#3#4}, \N{#1hi#2#3#4}]}}
+\newcommand{\famtable}[1]{%
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+\T{生徒}{Student} & K & AFEW & IEMOCAP & MELD & MOSEI \\
+\midrule
+\T{音声}{audio} & 0 & \fc{#1}{AFEW}{A}{zero} & \fc{#1}{IEMOCAP}{A}{zero} & \fc{#1}{MELD}{A}{zero} & \fc{#1}{MOSEI}{A}{zero} \\
+ & 5 & \fc{#1}{AFEW}{A}{five} & \fc{#1}{IEMOCAP}{A}{five} & \fc{#1}{MELD}{A}{five} & \fc{#1}{MOSEI}{A}{five} \\
+ & 25 & \fc{#1}{AFEW}{A}{twofive} & \fc{#1}{IEMOCAP}{A}{twofive} & \fc{#1}{MELD}{A}{twofive} & \fc{#1}{MOSEI}{A}{twofive} \\
+\T{顔}{face} & 0 & \fc{#1}{AFEW}{V}{zero} & \fc{#1}{IEMOCAP}{V}{zero} & \fc{#1}{MELD}{V}{zero} & \fc{#1}{MOSEI}{V}{zero} \\
+ & 5 & \fc{#1}{AFEW}{V}{five} & \fc{#1}{IEMOCAP}{V}{five} & \fc{#1}{MELD}{V}{five} & \fc{#1}{MOSEI}{V}{five} \\
+ & 25 & \fc{#1}{AFEW}{V}{twofive} & \fc{#1}{IEMOCAP}{V}{twofive} & \fc{#1}{MELD}{V}{twofive} & \fc{#1}{MOSEI}{V}{twofive} \\
+\T{言葉}{text} & 0 & \fc{#1}{AFEW}{T}{zero} & \fc{#1}{IEMOCAP}{T}{zero} & \fc{#1}{MELD}{T}{zero} & \fc{#1}{MOSEI}{T}{zero} \\
+ & 5 & \fc{#1}{AFEW}{T}{five} & \fc{#1}{IEMOCAP}{T}{five} & \fc{#1}{MELD}{T}{five} & \fc{#1}{MOSEI}{T}{five} \\
+ & 25 & \fc{#1}{AFEW}{T}{twofive} & \fc{#1}{IEMOCAP}{T}{twofive} & \fc{#1}{MELD}{T}{twofive} & \fc{#1}{MOSEI}{T}{twofive} \\
+AVT & 0 & \fc{#1}{AFEW}{AVT}{zero} & \fc{#1}{IEMOCAP}{AVT}{zero} & \fc{#1}{MELD}{AVT}{zero} & \fc{#1}{MOSEI}{AVT}{zero} \\
+ & 5 & \fc{#1}{AFEW}{AVT}{five} & \fc{#1}{IEMOCAP}{AVT}{five} & \fc{#1}{MELD}{AVT}{five} & \fc{#1}{MOSEI}{AVT}{five} \\
+ & 25 & \fc{#1}{AFEW}{AVT}{twofive} & \fc{#1}{IEMOCAP}{AVT}{twofive} & \fc{#1}{MELD}{AVT}{twofive} & \fc{#1}{MOSEI}{AVT}{twofive} \\
+\bottomrule
+\end{tabular}}
+
+\begin{frame}[label=appfam1]{\T{補足：族 1（提案 − K 本だけ）の全セル}{Appendix: family 1 (proposal − K-only), all cells}}
+\rl{\T{実験 1}{Exp.~1}}
+\scriptsize\centering
+\famtable{famone}
+
+\vspace{0.3em}
+\T{UAR ポイント，[95\% 区間]．K = 0 は 5 単位，K = 5・25 は 50 単位．検定に残ったセルは MELD の音声 K = 0・5，MOSEI の音声 K = 0・5・25，MOSEI の言葉 K = 0・5，MOSEI の AVT K = 0・5・25（Holm 後に有意なのは MOSEI の音声の 3 セル）．}{UAR points, [95\% interval]. K = 0: 5 units; K = 5, 25: 50 units. Tested cells: MELD audio K = 0, 5; MOSEI audio K = 0, 5, 25; MOSEI text K = 0, 5; MOSEI AVT K = 0, 5, 25 (Holm-significant: the three MOSEI audio cells).}
+\end{frame}
+
+\begin{frame}[label=appfam3]{\T{補足：族 3（提案 − 同じ情報の相手）の全セル}{Appendix: family 3 (proposal − same-information baseline), all cells}}
+\rl{\T{実験 1}{Exp.~1}}
+\scriptsize\centering
+\famtable{famthree}
+
+\vspace{0.3em}
+\T{相手は 80 セル中 75 セルで温度つき蒸留（版は仮のターゲットで選ぶ），5 セルで「一致した発話だけ」．相手の版が提案の版（指数 (1,1,1)）と違う 10 セルでは，版をそろえた値も論文に並べる（例：MOSEI の言葉 K = 0 は −0.43 [−0.76, −0.11]）．検定に残ったのは MOSEI の AVT K = 0・5（有意でない）と MOSEI の言葉 K = 0（蒸留が高い）．}{The baseline is temperature distillation in 75 of 80 cells (version chosen on proxy targets) and ``agreed-only'' in 5. In the 10 cells where the baseline's version differs from the proposal's (exponents (1,1,1)), version-aligned values are also reported (e.g.\ MOSEI text K = 0: −0.43 [−0.76, −0.11]). Tested cells: MOSEI AVT K = 0, 5 (not significant) and MOSEI text K = 0 (distillation higher).}
+\end{frame}
+
+\begin{frame}[label=appdai2]{\T{補足：実験 2（AVT の生徒）の K = 0 と K = 25}{Appendix: Exp.~2 (AVT student) at K = 0 and K = 25}}
+\rl{\T{実験 2}{Exp.~2}}
+\centering
+{\scriptsize K = 0}\par
+\daichart{0}{-9}{30}{3.3cm}
+{\scriptsize K = 25}\par
+\daichart{25}{-9}{30}{3.3cm}
+\end{frame}
+
+\begin{frame}[label=appverdicts]{\T{補足：実験 3 の事前に固定した判定の結果}{Appendix: outcomes of the pre-fixed decision rules of Exp.~3}}
+\rl{\T{実験 3}{Exp.~3}}
+\scriptsize
+\begin{tabular}{@{}p{0.40\linewidth}p{0.18\linewidth}p{0.38\linewidth}@{}}
+\toprule
+\T{説明}{Explanation} & \T{判定}{Verdict} & \T{根拠}{Basis} \\
+\midrule
+\T{1. K 本は主に切片を直し，別のモダリティの予測は向きを直す}{1. K labels mainly fix the intercept; the other modalities' predictions fix the direction} & \T{判定できない（4 コーパス）}{undetermined (4 corpora)} & \T{支持の条件を満たすセル 0．切片だけの版は K 本だけを 18 セルで下回る．「向きの差」が上回るのは IEMOCAP 5／8，MOSEI 5／8 のみ}{0 cells meet the support condition; the intercept-only version is below K-only in 18 cells; the direction difference is positive in only IEMOCAP 5/8 and MOSEI 5/8} \\
+\T{2a. 積が強いのは学び直しのため／2b. 確率を掛けること自体が効く}{2a. The product is strong because of retraining / 2b. multiplying probabilities itself helps} & \T{判定できない}{undetermined} & \T{2b の条件を満たすのは MELD（5／8）だけ}{only MELD (5/8) meets the 2b condition} \\
+\T{3. 生徒は再現できる部分だけ受け取る}{3. The student takes only what it can reproduce} & \T{判定できない}{undetermined} & \T{Freedman–Lane の並べ替えで 4 コーパスとも}{Freedman–Lane permutation, all 4 corpora} \\
+\T{5. IEMOCAP の言葉の得は筋書きの話題では説明できない}{5. IEMOCAP text gain is not explained by scripted topics} & \T{判定できない}{undetermined} & \T{筋書きの対の区間が 0 を含む（幅は最大 72 ポイント）．言葉の文は IEMOCAP を含めた数と除いた数の両方で書く}{paired intervals contain 0 (width up to 72 points); text sentences report counts with and without IEMOCAP} \\
+\T{族 5：感情の対ごとの差（切片を当て直した後，K = 5）}{Family 5: per-emotion-pair differences after refit (K = 5)} & \T{5 セルが有意}{5 significant cells} & \T{MOSEI の音声・言葉の Neutral–Happy と Happy–Sad，MOSEI の AVT の Neutral–Happy}{MOSEI audio and text Neutral–Happy and Happy–Sad; MOSEI AVT Neutral–Happy} \\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
+{\scriptsize\T{説明 4（顔の切片）と 6 は記述のみ．向きの物差しの確かめ 2 に不合格の 5 組（AFEW の顔・言葉・AVT，IEMOCAP の顔・AVT）では「向き」と書かない．}{Explanations 4 (face intercept) and 6 are descriptive only. In the 5 pairs failing validity check 2 (AFEW face, text, AVT; IEMOCAP face, AVT), ``direction'' is not used.}}
+\end{frame}
+
+% 位置と向きの表：#1 = K（five|twofive），#2 = 見出し
+\newcommand{\dr}[3]{\N{pos#1#2#3} / \N{dir#1#2#3}}
+\newcommand{\decomptable}[2]{%
+\setlength{\tabcolsep}{3pt}\begin{tabular}{@{}llrrr@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{生徒}{Student} & \T{出発点}{Start} & \T{K 本}{K-only} & \T{提案}{Proposal} \\
+\midrule
+AFEW & A & \dr{AFEW}{A}{start} & \dr{AFEW}{A}{none#1} & \dr{AFEW}{A}{prop#1} \\
+ & V & \dr{AFEW}{V}{start} & \dr{AFEW}{V}{none#1} & \dr{AFEW}{V}{prop#1} \\
+ & T & \dr{AFEW}{T}{start} & \dr{AFEW}{T}{none#1} & \dr{AFEW}{T}{prop#1} \\
+ & AVT & \dr{AFEW}{AVT}{start} & \dr{AFEW}{AVT}{none#1} & \dr{AFEW}{AVT}{prop#1} \\
+IEMOCAP & A & \dr{IEMOCAP}{A}{start} & \dr{IEMOCAP}{A}{none#1} & \dr{IEMOCAP}{A}{prop#1} \\
+ & V & \dr{IEMOCAP}{V}{start} & \dr{IEMOCAP}{V}{none#1} & \dr{IEMOCAP}{V}{prop#1} \\
+ & T & \dr{IEMOCAP}{T}{start} & \dr{IEMOCAP}{T}{none#1} & \dr{IEMOCAP}{T}{prop#1} \\
+ & AVT & \dr{IEMOCAP}{AVT}{start} & \dr{IEMOCAP}{AVT}{none#1} & \dr{IEMOCAP}{AVT}{prop#1} \\
+MELD & A & \dr{MELD}{A}{start} & \dr{MELD}{A}{none#1} & \dr{MELD}{A}{prop#1} \\
+ & V & \dr{MELD}{V}{start} & \dr{MELD}{V}{none#1} & \dr{MELD}{V}{prop#1} \\
+ & T & \dr{MELD}{T}{start} & \dr{MELD}{T}{none#1} & \dr{MELD}{T}{prop#1} \\
+ & AVT & \dr{MELD}{AVT}{start} & \dr{MELD}{AVT}{none#1} & \dr{MELD}{AVT}{prop#1} \\
+MOSEI & A & \dr{MOSEI}{A}{start} & \dr{MOSEI}{A}{none#1} & \dr{MOSEI}{A}{prop#1} \\
+ & V & \dr{MOSEI}{V}{start} & \dr{MOSEI}{V}{none#1} & \dr{MOSEI}{V}{prop#1} \\
+ & T & \dr{MOSEI}{T}{start} & \dr{MOSEI}{T}{none#1} & \dr{MOSEI}{T}{prop#1} \\
+ & AVT & \dr{MOSEI}{AVT}{start} & \dr{MOSEI}{AVT}{none#1} & \dr{MOSEI}{AVT}{prop#1} \\
+\bottomrule
+\end{tabular}}
+
+\begin{frame}[label=appdecomp]{\T{補足：位置の損 / 向きの損（ポイント，点の値）}{Appendix: position loss / direction loss (points, point values)}}
+\rl{\T{実験 3}{Exp.~3}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}\centering\tiny K = 5\par\decomptable{five}{5}\end{column}
+\begin{column}{0.5\textwidth}\centering\tiny K = 25\par\decomptable{twofive}{25}\end{column}
+\end{columns}
+\vspace{0.1em}
+{\tiny\T{位置 ＝ テストの感情の釣り合いで切片を当て直すと減る UAR，向き ＝ 当て直した後に残る上限との差．版 four（4 感情すべてで当て直す）．位置は同じテストの話者で当て直した量なので，大きく見せる向きの偏りがある．区間は results/dai3/eval/decomp.csv．}{Position = UAR recovered by refitting the intercept on the test emotion balance; direction = gap to the upper bound remaining after the refit. Version four (all 4 emotions refit). Position is refit on the same test speakers and is therefore biased upward. Intervals in results/dai3/eval/decomp.csv.}}
+\end{frame}
+
+\begin{frame}[label=approom]{\T{補足：直す余地，提案の得，再現できる度合い}{Appendix: room, gain, and reproducibility}}
+\rl{\T{実験 3}{Exp.~3}}
+\scriptsize\centering
+\begin{tabular}{@{}llrrrrrr@{}}
+\toprule
+& & \multicolumn{3}{c}{K = 5} & \multicolumn{3}{c}{K = 25} \\
+\T{コーパス}{Corpus} & \T{生徒}{Student} & \T{余地}{Room} & \T{得}{Gain} & \T{割合}{Share} & \T{余地}{Room} & \T{得}{Gain} & \T{割合}{Share} \\
+\midrule
+AFEW & A & \N{roomAFEWAfive} & \N{gainrAFEWAfive} & \N{shareAFEWAfive}\% & \N{roomAFEWAtwofive} & \N{gainrAFEWAtwofive} & \N{shareAFEWAtwofive}\% \\
+ & V & \N{roomAFEWVfive} & \N{gainrAFEWVfive} & \N{shareAFEWVfive}\% & \N{roomAFEWVtwofive} & \N{gainrAFEWVtwofive} & \N{shareAFEWVtwofive}\% \\
+ & T & \N{roomAFEWTfive} & \N{gainrAFEWTfive} & \N{shareAFEWTfive}\% & \N{roomAFEWTtwofive} & \N{gainrAFEWTtwofive} & \N{shareAFEWTtwofive}\% \\
+IEMOCAP & A & \N{roomIEMOCAPAfive} & \N{gainrIEMOCAPAfive} & \N{shareIEMOCAPAfive}\% & \N{roomIEMOCAPAtwofive} & \N{gainrIEMOCAPAtwofive} & \N{shareIEMOCAPAtwofive}\% \\
+ & V & \N{roomIEMOCAPVfive} & \N{gainrIEMOCAPVfive} & \N{shareIEMOCAPVfive}\% & \N{roomIEMOCAPVtwofive} & \N{gainrIEMOCAPVtwofive} & \N{shareIEMOCAPVtwofive}\% \\
+ & T & \N{roomIEMOCAPTfive} & \N{gainrIEMOCAPTfive} & \N{shareIEMOCAPTfive}\% & \N{roomIEMOCAPTtwofive} & \N{gainrIEMOCAPTtwofive} & \N{shareIEMOCAPTtwofive}\% \\
+MELD & A & \N{roomMELDAfive} & \N{gainrMELDAfive} & \N{shareMELDAfive}\% & \N{roomMELDAtwofive} & \N{gainrMELDAtwofive} & \N{shareMELDAtwofive}\% \\
+ & V & \N{roomMELDVfive} & \N{gainrMELDVfive} & \N{shareMELDVfive}\% & \N{roomMELDVtwofive} & \N{gainrMELDVtwofive} & \N{shareMELDVtwofive}\% \\
+ & T & \N{roomMELDTfive} & \N{gainrMELDTfive} & \N{shareMELDTfive}\% & \N{roomMELDTtwofive} & \N{gainrMELDTtwofive} & \N{shareMELDTtwofive}\% \\
+MOSEI & A & \N{roomMOSEIAfive} & \N{gainrMOSEIAfive} & \N{shareMOSEIAfive}\% & \N{roomMOSEIAtwofive} & \N{gainrMOSEIAtwofive} & \N{shareMOSEIAtwofive}\% \\
+ & V & \N{roomMOSEIVfive} & \N{gainrMOSEIVfive} & \N{shareMOSEIVfive}\% & \N{roomMOSEIVtwofive} & \N{gainrMOSEIVtwofive} & \N{shareMOSEIVtwofive}\% \\
+ & T & \N{roomMOSEITfive} & \N{gainrMOSEITfive} & \N{shareMOSEITfive}\% & \N{roomMOSEITtwofive} & \N{gainrMOSEITtwofive} & \N{shareMOSEITtwofive}\% \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.2em}
+{\tiny\T{余地 ＝ 上限（候補の全ラベルで学んだ重み，切片を当て直し）− K 本だけ．得 ＝ 提案 − K 本だけ．割合 ＝ 得 / 余地．点の値，区間なし．AVT は表に無い（台本の列名の衝突で壊れた表を行の並びから復元したため，A・V・T のみ）．}{Room = upper bound (weights trained on all pool labels, intercept refit) − K-only. Gain = proposal − K-only. Share = gain / room. Point values, no intervals. AVT is absent (the table was restored from row order after a column-name collision in the script; only A, V, T are available).}}
+\end{frame}
+
+\begin{frame}[label=appadv]{\T{補足：教師の先回りと得（K = 25），一致の割合}{Appendix: teacher lead and gain (K = 25), agreement shares}}
+\rl{\T{探索}{Exploration}}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=5.0cm, xmin=-2, xmax=33, ymin=-3.5, ymax=9.5,
+  xlabel={\T{教師の先回り（ポイント）}{teacher lead (points)}}, ylabel={\T{提案の得（ポイント）}{gain (points)}},
+  legend style={at={(0.98,0.03)}, anchor=south east, font=\tiny, cells={anchor=west}}, legend columns=2, grid=major,
+  every node near coord/.append style={font=\tiny, anchor=west, xshift=2pt, color=mMuted}, point meta=explicit symbolic, nodes near coords]
+\addplot[only marks, kA, mark=*, mark size=2pt] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_A_K25.csv};
+\addplot[only marks, kV, mark=square*, mark size=2pt] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_V_K25.csv};
+\addplot[only marks, kT, mark=triangle*, mark size=2.4pt] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_T_K25.csv};
+\addplot[only marks, kAVT, mark=diamond*, mark size=2.4pt] table[x=adv_pool, y=gain_prop, meta=T]{teacher_adv_AVT_K25.csv};
+\legend{\T{音声}{audio}, \T{顔}{face}, \T{言葉}{text}, AVT}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.48\textwidth}
+\scriptsize
+\T{候補での教師と生徒（K 本だけ）の判定の一致の割合（\%，K = 5）}{Share of pool utterances where teacher and K-only student agree (\%, K = 5)}
+
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{音声}{audio} & \T{顔}{face} & \T{言葉}{text} & AVT \\
+\midrule
+AFEW & \N{agreeAFEWAfive} & \N{agreeAFEWVfive} & \N{agreeAFEWTfive} & \N{agreeAFEWAVTfive} \\
+IEMOCAP & \N{agreeIEMOCAPAfive} & \N{agreeIEMOCAPVfive} & \N{agreeIEMOCAPTfive} & \N{agreeIEMOCAPAVTfive} \\
+MELD & \N{agreeMELDAfive} & \N{agreeMELDVfive} & \N{agreeMELDTfive} & \N{agreeMELDAVTfive} \\
+MOSEI & \N{agreeMOSEIAfive} & \N{agreeMOSEIVfive} & \N{agreeMOSEITfive} & \N{agreeMOSEIAVTfive} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.4em}
+\T{教師が生徒の誤りを直す／正解を壊す割合（\%，K = 5，音声の生徒）}{Teacher fixes a student error / breaks a correct answer (\%, K = 5, audio student)}
+
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\T{コーパス}{Corpus} & \T{直す}{fixes} & \T{壊す}{breaks} \\
+\midrule
+AFEW & \N{fixAFEWAfive} & \N{harmAFEWAfive} \\
+IEMOCAP & \N{fixIEMOCAPAfive} & \N{harmIEMOCAPAfive} \\
+MELD & \N{fixMELDAfive} & \N{harmMELDAfive} \\
+MOSEI & \N{fixMOSEIAfive} & \N{harmMOSEIAfive} \\
+\bottomrule
+\end{tabular}
+\end{column}
+\end{columns}
+{\tiny\color{mMuted}\T{順位の相関：K = 5 で \N{rhofive}，K = 25 で \N{rhotwofive}（16 点，独立でない，p 値なし）．MOSEI は 39 単位．}{Rank correlation: \N{rhofive} at K = 5, \N{rhotwofive} at K = 25 (16 non-independent points, no p-value). MOSEI: 39 units.}}
+\end{frame}
+
+\begin{frame}[label=appcons]{\T{補足：生徒以外のモダリティの一致と教師の正解率（全生徒）}{Appendix: agreement of the other modalities vs teacher accuracy (all students)}}
+\rl{\T{探索}{Exploration}}
+\scriptsize\centering
+\T{教師の正解率（\%）：一致する発話 / 一致しない発話（一致する発話の割合）}{Teacher accuracy (\%): agreeing / disagreeing utterances (share of agreeing utterances)}
+
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+K & \T{生徒}{Student} & AFEW & IEMOCAP & MELD & MOSEI \\
+\midrule
+5 & \T{音声}{audio} & \N{cagreeAFEWAfive} / \N{cdisAFEWAfive} (\N{cshareAFEWAfive}\%) & \N{cagreeIEMOCAPAfive} / \N{cdisIEMOCAPAfive} (\N{cshareIEMOCAPAfive}\%) & \N{cagreeMELDAfive} / \N{cdisMELDAfive} (\N{cshareMELDAfive}\%) & \N{cagreeMOSEIAfive} / \N{cdisMOSEIAfive} (\N{cshareMOSEIAfive}\%) \\
+ & \T{顔}{face} & \N{cagreeAFEWVfive} / \N{cdisAFEWVfive} (\N{cshareAFEWVfive}\%) & \N{cagreeIEMOCAPVfive} / \N{cdisIEMOCAPVfive} (\N{cshareIEMOCAPVfive}\%) & \N{cagreeMELDVfive} / \N{cdisMELDVfive} (\N{cshareMELDVfive}\%) & \N{cagreeMOSEIVfive} / \N{cdisMOSEIVfive} (\N{cshareMOSEIVfive}\%) \\
+ & \T{言葉}{text} & \N{cagreeAFEWTfive} / \N{cdisAFEWTfive} (\N{cshareAFEWTfive}\%) & \N{cagreeIEMOCAPTfive} / \N{cdisIEMOCAPTfive} (\N{cshareIEMOCAPTfive}\%) & \N{cagreeMELDTfive} / \N{cdisMELDTfive} (\N{cshareMELDTfive}\%) & \N{cagreeMOSEITfive} / \N{cdisMOSEITfive} (\N{cshareMOSEITfive}\%) \\
+ & AVT & \N{cagreeAFEWAVTfive} / \N{cdisAFEWAVTfive} (\N{cshareAFEWAVTfive}\%) & \N{cagreeIEMOCAPAVTfive} / \N{cdisIEMOCAPAVTfive} (\N{cshareIEMOCAPAVTfive}\%) & \N{cagreeMELDAVTfive} / \N{cdisMELDAVTfive} (\N{cshareMELDAVTfive}\%) & \N{cagreeMOSEIAVTfive} / \N{cdisMOSEIAVTfive} (\N{cshareMOSEIAVTfive}\%) \\
+25 & \T{音声}{audio} & \N{cagreeAFEWAtwofive} / \N{cdisAFEWAtwofive} (\N{cshareAFEWAtwofive}\%) & \N{cagreeIEMOCAPAtwofive} / \N{cdisIEMOCAPAtwofive} (\N{cshareIEMOCAPAtwofive}\%) & \N{cagreeMELDAtwofive} / \N{cdisMELDAtwofive} (\N{cshareMELDAtwofive}\%) & \N{cagreeMOSEIAtwofive} / \N{cdisMOSEIAtwofive} (\N{cshareMOSEIAtwofive}\%) \\
+ & \T{顔}{face} & \N{cagreeAFEWVtwofive} / \N{cdisAFEWVtwofive} (\N{cshareAFEWVtwofive}\%) & \N{cagreeIEMOCAPVtwofive} / \N{cdisIEMOCAPVtwofive} (\N{cshareIEMOCAPVtwofive}\%) & \N{cagreeMELDVtwofive} / \N{cdisMELDVtwofive} (\N{cshareMELDVtwofive}\%) & \N{cagreeMOSEIVtwofive} / \N{cdisMOSEIVtwofive} (\N{cshareMOSEIVtwofive}\%) \\
+ & \T{言葉}{text} & \N{cagreeAFEWTtwofive} / \N{cdisAFEWTtwofive} (\N{cshareAFEWTtwofive}\%) & \N{cagreeIEMOCAPTtwofive} / \N{cdisIEMOCAPTtwofive} (\N{cshareIEMOCAPTtwofive}\%) & \N{cagreeMELDTtwofive} / \N{cdisMELDTtwofive} (\N{cshareMELDTtwofive}\%) & \N{cagreeMOSEITtwofive} / \N{cdisMOSEITtwofive} (\N{cshareMOSEITtwofive}\%) \\
+ & AVT & \N{cagreeAFEWAVTtwofive} / \N{cdisAFEWAVTtwofive} (\N{cshareAFEWAVTtwofive}\%) & \N{cagreeIEMOCAPAVTtwofive} / \N{cdisIEMOCAPAVTtwofive} (\N{cshareIEMOCAPAVTtwofive}\%) & \N{cagreeMELDAVTtwofive} / \N{cdisMELDAVTtwofive} (\N{cshareMELDAVTtwofive}\%) & \N{cagreeMOSEIAVTtwofive} / \N{cdisMOSEIAVTtwofive} (\N{cshareMOSEIAVTtwofive}\%) \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\T{「一致」＝生徒以外の 2 モダリティの学び直した識別器の判定が一致（AVT の生徒は 3 つすべて）．候補の全発話，評価の回．MELD の言葉は一致の有無で差が無い．}{``Agree'' = the retrained classifiers of the two modalities other than the student give the same label (all three for the AVT student). All pool utterances, evaluation round. For MELD text there is no difference.}
+\end{frame}
+
+\begin{frame}[label=appfusion]{\T{補足：融合の形の比べ（テスト UAR，50 単位の平均）}{Appendix: fusion forms compared (test UAR, mean over 50 units)}}
+\rl{\T{探索}{Exploration}}
+\scriptsize\centering
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{AFEW} & \multicolumn{2}{c}{IEMOCAP} & \multicolumn{2}{c}{MELD} & \multicolumn{2}{c}{MOSEI} \\
+K & 5 & 25 & 5 & 25 & 5 & 25 & 5 & 25 \\
+\midrule
+\T{AVT の生徒（提案）}{AVT student (proposal)} & \N{favtAFEWfive} & \N{favtAFEWtwofive} & \N{favtIEMOCAPfive} & \N{favtIEMOCAPtwofive} & \N{favtMELDfive} & \N{favtMELDtwofive} & \N{favtMOSEIfive} & \N{favtMOSEItwofive} \\
+\T{積，指数 (1,1,1)}{Product, exponents (1,1,1)} & \N{fprodAFEWfive} & \N{fprodAFEWtwofive} & \N{fprodIEMOCAPfive} & \N{fprodIEMOCAPtwofive} & \N{fprodMELDfive} & \N{fprodMELDtwofive} & \N{fprodMOSEIfive} & \N{fprodMOSEItwofive} \\
+\T{積，K 本で選んだ指数}{Product, exponents from the K labels} & \N{fkshotAFEWfive} & \N{fkshotAFEWtwofive} & \N{fkshotIEMOCAPfive} & \N{fkshotIEMOCAPtwofive} & \N{fkshotMELDfive} & \N{fkshotMELDtwofive} & \N{fkshotMOSEIfive} & \N{fkshotMOSEItwofive} \\
+\T{積，塊ごとの LOO の指数}{Product, cluster-LOO exponents} & \N{fruleAFEWfive} & \N{fruleAFEWtwofive} & \N{fruleIEMOCAPfive} & \N{fruleIEMOCAPtwofive} & \N{fruleMELDfive} & \N{fruleMELDtwofive} & \N{fruleMOSEIfive} & \N{fruleMOSEItwofive} \\
+\T{積，テストで選んだ上限}{Product, test-chosen upper bound} & \N{foracleAFEWfive} & \N{foracleAFEWtwofive} & \N{foracleIEMOCAPfive} & \N{foracleIEMOCAPtwofive} & \N{foracleMELDfive} & \N{foracleMELDtwofive} & \N{foracleMOSEIfive} & \N{foracleMOSEItwofive} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.4em}
+\T{%
+\begin{itemize}
+\item 積の中身：提案で直した A・V・T の生徒の確率．指数 e は信頼度 r（塊ごとの LOO の UAR）から e = max(r − 25, 0) / max の形
+\item 上限は 63 点の格子（各指数 ∈ \{0, 0.5, 1, 2\}）でテストの平均が最大の点．手法の性能ではない
+\item 発話ごとの LOO は話者が漏れる（塊ごとの LOO と比べて最強のモダリティを当てる割合が同じか少し高いが，MOSEI では 32〜45\% にとどまる）
+\end{itemize}
+}{%
+\begin{itemize}
+\item The product uses the probabilities of the adapted A, V, T students. Exponents e come from reliability r (cluster-LOO UAR) as e = max(r − 25, 0) / max
+\item The upper bound is the test-mean maximum over a 63-point grid (each exponent ∈ \{0, 0.5, 1, 2\}); not a method's performance
+\item Utterance-level LOO leaks speakers (its hit rate for the strongest modality is equal to or slightly above cluster LOO, but only 32--45\% in MOSEI)
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}[label=applimits]{\T{補足：限界として論文に書くこと}{Appendix: limitations to be stated in the paper}}
+\rl{\T{限界}{Limitations}}
+\scriptsize
+\T{%
+\begin{itemize}
+\item 手法の形・格子・選び方は，評価に使った同じ 4 コーパスの仮のターゲットの回で作った．各コーパスのテストの分割は，ほかの 3 つのターゲットの設定を選ぶ仮のターゲットとしても使った
+\item 評価の回の途中と集計の前に，著者は提案・相手・実験 2 の手法の UAR と差，実験 3 の表を見た（台帳 docs/seen-data.md）．集計の台本と設計は見る前に固定し，変えていない．実験 4 と \S6 の案は評価の回の解析から出た
+\item 検定に残るセルは 128 セル中 15．族 4 の 40 セルは構造的に差が 0 で情報を持たない
+\item 向きの物差しの確かめに不合格の 5 組では「向き」と呼ばない．IEMOCAP の顔にはマーカーの手がかりが入りうる．MOSEI の話者の代用は不完全．AFEW の言葉は Whisper の書き起こし
+\item float32 で保存した識別器から作り直した判定は，8 問で 1〜2 本（最大 0.6\%）保存の判定と違う
+\item エンコーダは 1 組（第 2 の組での繰り返しは保留）．凍結した特徴の上の線形の識別器に限る
+\end{itemize}
+}{%
+\begin{itemize}
+\item Method forms, grids and selection rules were built on proxy-target rounds over the same 4 corpora used for evaluation. Each corpus's test folds also served as proxy targets for selecting the other three targets' settings
+\item During the evaluation round and before aggregation, the author looked at UARs and differences of the proposal, the baseline and Exp.~2 methods, and at Exp.~3 tables (ledger docs/seen-data.md). Aggregation scripts and designs were frozen beforehand and not changed. Exp.~4 and the \S6 idea arose from these analyses
+\item 15 of 128 cells are tested; the 40 family-4 cells are structurally 0 and carry no information
+\item ``Direction'' is not used in the 5 pairs failing the validity check. IEMOCAP face features may carry marker cues. MOSEI's speaker stand-in is imperfect. AFEW text is a Whisper transcript
+\item Predictions rebuilt from float32-saved classifiers differ from the saved predictions by 1--2 utterances (≤0.6\%) in 8 problems
+\item One encoder set (replication with a second set is on hold). Conclusions are limited to linear classifiers on frozen features
+\end{itemize}
+}
+\end{frame}
+
+\begin{frame}[label=appterms]{\T{補足：この資料の語と文書・台本の記号の対応}{Appendix: terms in this deck vs symbols in the documents and scripts}}
+\rl{\T{語}{Terms}}
+\scriptsize
+\begin{tabular}{@{}p{0.33\linewidth}p{0.30\linewidth}p{0.30\linewidth}@{}}
+\toprule
+\T{この資料の語}{Term here} & \T{文書・台本の記号}{Symbol in documents / scripts} & \T{場所}{Where} \\
+\midrule
+\T{K 本だけ（比較の基準）}{K-only (baseline)} & \texttt{none[K]} & \T{実験 1 の設計 5 節}{Exp.~1 design §5} \\
+\T{提案（同時に解く版）}{Proposal (joint version)} & \texttt{joint}\T{，主の版}{, main version} \texttt{one} & \T{同 7 節}{§7} \\
+\T{温度つき蒸留}{Temperature distillation} & \texttt{kd} & \T{同 7 節}{§7} \\
+\T{役割を分ける版／切片だけ}{Role-separated / intercept-only} & \texttt{rolesep} / \texttt{kbias} & \T{同 5・7 節}{§5, §7} \\
+\T{教師（3 つの積）}{Teacher (product of three)} & \texttt{ret\_A}, \texttt{ret\_V}, \texttt{ret\_T} \T{の積}{product} & \T{同 6 節}{§6} \\
+\T{引き戻し}{Pull} & \texttt{(C′, C\_b)}, \texttt{tether} & \T{dai1\_frozen.json}{dai1\_frozen.json} \\
+\T{族 1〜5}{Families 1--5} & \texttt{families.csv}, \texttt{family5.csv} & results/dai1/stats, results/dai3/eval \\
+\T{位置／向きの損}{Position / direction loss} & \texttt{position}, \texttt{direction} (\texttt{decomp.csv}) & results/dai3/eval \\
+\T{教師の先回り}{Teacher lead} & \texttt{adv\_pool} & results/explore\_consensus \\
+\T{一致で重みづけた疑似ラベル（実験 4）}{Agreement-weighted pseudo-labels (Exp.~4)} & \texttt{cons}, \T{印}{mark} \texttt{c\_i}, γ & DAI/docs/実験4\_設計.md \\
+\T{塊ごとの LOO の信頼度／選択}{Cluster-LOO reliability / selection} & \texttt{cl\_uar\_m}, \texttt{select\_cl} & DAI/exp/explore\_fusion\_select.py \\
+\bottomrule
+\end{tabular}
+\end{frame}
