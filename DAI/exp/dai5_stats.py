@@ -650,7 +650,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
             rec["score_range_pseudo"] = float(pse.loc[K, "rng"]) if pse is not None and K in pse.index else np.nan
             rec["range_ratio_eval_over_pseudo"] = rec["score_range_mean"] / rec["score_range_pseudo"] if rec.get("score_range_pseudo") else np.nan
             rec["usable_rule"] = bool(K == 25 and np.isfinite(rec["regret_sel_mean"]) and rec["regret_sel_mean"] >= 0.5 * rec["null_mean_mean"]
-                                      and np.isfinite(rec["diff_vs_null_lo"]) and rec["diff_vs_null_lo"] > 0)   # 取りこぼしは 0 以下．半分以下＝ −0.5·null 以上．分割ごとの対の差（採点 − でたらめ）の区間が 0 より上
+                                      and np.isfinite(rec["diff_vs_null_lo"]) and rec["diff_vs_null_lo"] > 0)   # 採点で選んだ損は 0 以下．絶対値が半分以下＝ −0.5·null 以上．分割ごとの対の差（採点 − でたらめ）の区間が 0 より上
             rec.update({f"rank_{nm}": float(g[f"score_rank_{nm}"].mean()) for nm in names})
             srows.append(rec)
         print(f"{T}: 単位 {len(units)}，実効の数 {g_eff:.1f}，照合の食い違い {mism}/{total}，identical {len(ident)}", flush=True)
