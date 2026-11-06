@@ -503,11 +503,12 @@ def recall_rows(out5: Path, in_dir: Path, T: str, units, y_of, sb: dict, fz1T: d
                             top_neutral_below_median_10=bool(np.nanmean(top0) < np.nanmean(med0) - 0.10)))
         else:
             nm, s, K = key
-            CM = np.stack(lst).sum(0)                                        # 各テストの発話を 1 回ずつ（分割をまとめる．種は和になるので割合で読む）
-            rr = CM.diagonal() / np.clip(CM.sum(1), 1, None)
-            rec.append(dict(T=T, student=s, K=K, row=nm, n_test_total=int(CM.sum()), **{f"recall_{k}": float(rr[k]) for k in range(4)},
-                            **{f"n_{k}": int(CM.sum(1)[k]) for k in range(4)}))
-            conf.append(dict(T=T, student=s, K=K, row=nm, **{f"cm_{a}{b}": int(CM[a, b]) for a in range(4) for b in range(4)}))
+            R = len({r for _, r in units})
+            CM = np.stack(lst).sum(0) / R                                    # 各テストの発話を 1 回ずつ数える（5 分割を合わせ，種の数で割る．感情認識の第 2 回 b1）
+            rr = CM.diagonal() / np.clip(CM.sum(1), 1e-12, None)
+            rec.append(dict(T=T, student=s, K=K, row=nm, n_seeds=R, n_test_total=float(CM.sum()), **{f"recall_{k}": float(rr[k]) for k in range(4)},
+                            **{f"n_{k}": float(CM.sum(1)[k]) for k in range(4)}))
+            conf.append(dict(T=T, student=s, K=K, row=nm, n_seeds=R, **{f"cm_{a}{b}": float(CM[a, b]) for a in range(4) for b in range(4)}))
     return rec, conf, src
 
 
