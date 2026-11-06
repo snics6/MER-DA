@@ -102,6 +102,15 @@ def source_logprobs(u: dai1.Unit):
     return names, LP, np.stack(TP)
 
 
+def source_sharp_agree(LP: list) -> tuple[np.ndarray, np.ndarray]:
+    """各識別器の候補での鋭さ（最大の確率の平均，エントロピー）(|C|, 2) と，判定の一致率の行列 (|C|, |C|)（ラベルは使わない）。"""
+    P = [lp.exp() for lp in LP]
+    sharp = np.array([[float(p.max(1).values.mean()), float(-(p * lp).sum(1).mean())] for p, lp in zip(P, LP)])
+    am = [p.argmax(1) for p in P]
+    agree = np.array([[float((a == b).double().mean()) for b in am] for a in am])
+    return sharp, agree
+
+
 def teacher_stats_row(Q: torch.Tensor, n: int, w: np.ndarray, names: list, K: int, beta: float) -> dict:
     Wt = S.soft_rows(Q, float(n))
     colsum = Q.sum(0).cpu().numpy()
@@ -118,6 +127,7 @@ def solve_unit(u: dai1.Unit, tether: dict, fz1T: dict, store: dict, rows: list, 
     names, LP, TP = source_logprobs(u)
     store["p5_src_names"] = np.array(names)
     store["p5_src_test_pred"] = TP
+    store["p5_src_sharp"], store["p5_src_agree"] = source_sharp_agree(LP)
     zero = torch.zeros(u.n, 4, device=S.DEV, dtype=S.DT)
     for K in KS_ALL:
         gk = u.gK(K) if K else zero

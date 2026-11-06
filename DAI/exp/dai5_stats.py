@@ -7,7 +7,8 @@
       families7.csv（族 7．コーパスごとに Holm），desc.csv（記述：srcw − none・kd_one・partner・poe_none・joint_default・srcw_b0・srcw_student，β ごとの srcw(β) − joint，
       取りこぼし（srcw と joint の両方），K = 0〜25 の全部），weights.csv（(T, K) ごとの参照の割合 w_sm/3 の単位平均と最も重い識別器），scores.csv（採点の妥当性：
       単位の中の採点とテストの UAR の順位相関，最も高い識別器の一致），teacher_check(.summary).csv（評価の回の各識別器の候補での UAR と実験 1 の `_teacher_stats` の照合），
-      teacher_sharp.csv（Q の鋭さと実験 1 の教師の鋭さ），gpu_counts.csv，pairing.csv（対の照合）。
+      teacher_sharp.csv（Q の鋭さと実験 1 の教師の鋭さ），src_agree.csv（識別器どうしの候補での判定の一致率），gpu_counts.csv，pairing.csv（対の照合）。
+  python DAI/exp/dai5_stats.py premise [出力の置き場]  ：規則の前提の確かめ（実験 1 の仮のターゲットの回の段 3 の行だけを読む．評価の回は読まない）。
       判定は int8 の保存から作り直し，行の uar と全部の問で照合した数を残す。
 """
 
@@ -255,13 +256,53 @@ def holm(p):
     return ST.holm(np.asarray(p, float))
 
 
+def premise(out5: Path, in_dir: Path) -> None:
+    """規則の前提の確かめ（設計 2 節・9 節．関門 0 の報告の 5 節の 1）：実験 1 の仮のターゲットの回の段 3 の行（`method=tt`，`teacher=src_<c>_<m>`）で，
+    教師（1 つのソース × モダリティの識別器）の候補での UAR と，その疑似ラベルで学んだ生徒の UAR の，単位の中の順位相関（Spearman）と，
+    教師の UAR が最も高い識別器が生徒の UAR も最も高い割合を (T, 生徒, K) ごとに出す。単一モダリティの識別器だけの版（uni）と AVT を含む版（all）。
+    評価の回の行は読まない。出力：<out5>/stats/premise_pseudo.csv。"""
+    rows = []
+    for T in DD.CORPORA:
+        for f in sorted((in_dir / "pseudo" / "units").glob(f"{T}_*_p3.csv")):
+            r = pd.read_csv(f, low_memory=False)
+            ts = r[(r.method == "_teacher_stats") & r.teacher.astype(str).str.startswith("tt:src_")]
+            tt = r[(r.method == "tt") & r.teacher.astype(str).str.startswith("src_")]
+            c, fold, seed = str(r.c.iloc[0]), int(r.fold.iloc[0]), int(r.seed.iloc[0])
+            for (s, K), g in tt.groupby(["student", "K"]):
+                pairs = []
+                for _, row in g.iterrows():
+                    nm = str(row.teacher)
+                    ref = ts[(ts.student == s) & (ts.K == K) & (ts.teacher.astype(str) == "tt:" + nm)]
+                    if len(ref) == 1:
+                        pairs.append((nm, float(ref.uar_pool.iloc[0]), float(row.uar)))
+                for tag, sel in (("all", pairs), ("uni", [p for p in pairs if not p[0].endswith("_AVT")])):
+                    if len(sel) < 3:
+                        continue
+                    tu = np.array([p[1] for p in sel]); su = np.array([p[2] for p in sel])
+                    rho = float(pd.Series(tu).corr(pd.Series(su), method="spearman")) if tu.std() > 0 and su.std() > 0 else np.nan
+                    top_t, top_s = int(np.argmax(tu)), int(np.argmax(su))
+                    rows.append(dict(T=T, c=c, fold=fold, seed=seed, student=s, K=int(K), which=tag, n_teachers=len(sel), spearman=rho,
+                                     top_agree=float(top_t == top_s), top_teacher=sel[top_t][0], top_student=sel[top_s][0],
+                                     teacher_range=float(tu.max() - tu.min()), student_range=float(su.max() - su.min())))
+    d = pd.DataFrame(rows)
+    (out5 / "stats").mkdir(parents=True, exist_ok=True)
+    d.to_csv(out5 / "stats" / "premise_pseudo_units.csv", index=False)
+    agg = d.groupby(["T", "student", "K", "which"]).agg(n_units=("seed", "size"), spearman_mean=("spearman", "mean"),
+                                                        spearman_median=("spearman", "median"), top_agree=("top_agree", "mean"),
+                                                        teacher_range=("teacher_range", "mean"), student_range=("student_range", "mean")).reset_index()
+    cm, dt = dai1.git_commit()
+    agg.assign(commit=cm, dirty=dt).to_csv(out5 / "stats" / "premise_pseudo.csv", index=False)
+    print(f"premise: 単位の行 {len(d)}，セル {len(agg)}．書いた: {out5 / 'stats' / 'premise_pseudo.csv'}", flush=True)
+
+
 def evaluate(out5: Path, in_dir: Path) -> None:
     fz1 = json.load(open(D5.FROZEN1))
     ucommit = guard_eval(out5, fz1)
     pairing(out5, in_dir, fz1)
     frozen = json.load(open(out5 / "select" / "frozen.json"))
     rng = np.random.default_rng(20261105)
-    fam, desc, wrows, srows, tcheck, sharp = [], [], [], [], [], []
+    fam, desc, wrows, srows, tcheck, sharp, agrows = [], [], [], [], [], [], []
+    acc_sh, acc_ag = {}, {}
     for T in DD.CORPORA:
         g_eff, _ = ST.g_eff_of(T)
         R = int(fz1[T]["n_seeds_eval"])
@@ -326,6 +367,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
             yp = y_of(ids)
             p3rows = pd.read_csv(in_dir / "eval" / "units" / f"{name}_p3.csv", low_memory=False)
             rows5 = pd.read_csv(out5 / "eval" / "units" / f"{name}_p5.csv", low_memory=False)
+            acc_sh.setdefault(T, []).append(p5.z["p5_src_sharp"])
+            acc_ag.setdefault(T, []).append(p5.z["p5_src_agree"])
             for K in KS_ALL:
                 b = sb[K]
                 w = p5.z[f"p5_K{K}_w_b{D5.DEFAULT_BETA if K == 0 else b}"]
@@ -349,12 +392,20 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                                       maxp_joint=float(ref1.maxp.iloc[0]), entropy_joint=float(ref1.entropy.iloc[0]),
                                       **{f"neff_{k}_srcw": float(ts[f"neff_{k}"].iloc[0]) for k in range(4)}))
             names_T = names
+        SH = np.stack(acc_sh[T]).mean(0); AG = np.stack(acc_ag[T]).mean(0)
         for K, lst in acc_w.items():
             W = np.stack(lst)
             wrows.append(dict(T=T, K=K, beta=sb[K], n_units=len(lst), **{f"share_{nm}": float(W[:, j].mean()) for j, nm in enumerate(names_T)},
                               **{f"sd_{nm}": float(W[:, j].std(ddof=1)) for j, nm in enumerate(names_T)},
+                              **{f"maxp_{nm}": float(SH[j, 0]) for j, nm in enumerate(names_T)},
+                              **{f"entropy_{nm}": float(SH[j, 1]) for j, nm in enumerate(names_T)},
                               heaviest_mode=pd.Series([names_T[int(np.argmax(x))] for x in lst]).mode().iloc[0],
                               neff_w_mean=float(np.mean([(x.sum() ** 2) / (x ** 2).sum() for x in lst]))))
+        for i, a in enumerate(names_T):                                     # 識別器どうしの候補での判定の一致率（ラベルなし）
+            for j, b_ in enumerate(names_T):
+                if j > i:
+                    agrows.append(dict(T=T, a=a, b=b_, agree=float(AG[i, j]), same_source=a.split("_")[0] == b_.split("_")[0],
+                                       same_modality=a.split("_")[1] == b_.split("_")[1], n_units=len(acc_ag[T])))
         for K, lst in acc_s.items():
             dfk = pd.DataFrame(lst)
             srows.append(dict(T=T, K=K, n_units=len(dfk), spearman_mean=float(dfk.spearman.mean()), top_agree=float(dfk.top_agree.mean()),
@@ -382,7 +433,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
     tcs = recheck_sources(out5, in_dir, fz1, tc) if len(tc) else pd.DataFrame()
     print(f"計算機ごとの単位の数：{gpu.groupby('gpu').n_units.sum().to_dict()}", flush=True)
     for nm, rows in (("families7", fam), ("desc", desc), ("weights", wrows), ("scores", srows), ("teacher_check", tcs),
-                     ("teacher_sharp", sharp), ("gpu_counts", gpu)):
+                     ("teacher_sharp", sharp), ("src_agree", agrows), ("gpu_counts", gpu)):
         pd.DataFrame(rows).assign(commit=cm, dirty=dt, unit_commit=ucommit).to_csv(dest / f"{nm}.csv", index=False)
     print("書いた:", dest, "（families7.csv，desc.csv，weights.csv，scores.csv）")
 
@@ -424,5 +475,7 @@ if __name__ == "__main__":
         detect(out, D5.IN_DIR, sys.argv[3].split(",") if len(sys.argv) > 3 else list(DD.CORPORA))
     elif mode == "eval":
         evaluate(out, D5.IN_DIR)
+    elif mode == "premise":
+        premise(out, D5.IN_DIR)
     else:
-        sys.exit("detect か eval")
+        sys.exit("detect か eval か premise")
