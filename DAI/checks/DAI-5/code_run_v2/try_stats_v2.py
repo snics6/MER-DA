@@ -60,7 +60,9 @@ frozen = {"_meta": {"pseudo_gpu": [gpu]},
 json.dump(frozen, open(fout / "select" / "frozen.json", "w"))
 
 # 差し替え（本物の DAI/frozen には書かない）
+_orig_others = DD.others
 DD.CORPORA = ("AFEW",)
+DD.others = lambda T: [c for c in ("AFEW", "IEMOCAP", "MOSEI", "MELD") if c not in (T, "IEMOCAP")] if T == "AFEW" else _orig_others(T)   # 偽の評価の回のソースは試走の 2 つ
 orig_jload, orig_lm = S5.jload, ST.label_maps
 shas = {}
 
@@ -100,9 +102,9 @@ print("fixed_point_check：行", 0 if fp is None else len(fp), "一致の最小"
 print("identical_by_construction の行（B ごと）:", d[d.identical_by_construction.astype(bool)].groupby("B").size().to_dict())
 r = pd.read_csv(st / "regret.csv")
 print("regret：which ごとの行", r.which.value_counts().to_dict(), "effect < 0 の行", int((r.effect < -1e-9).sum()),
-      "null_level が NaN の行（which ごと）", r[r.null_level.isna()].which.value_counts().to_dict(), "n_grid", sorted(r.n_grid_points.unique()))
+      "split_half_regret が NaN の行（which ごと）", r[r.split_half_regret.isna()].which.value_counts().to_dict(), "selection_optimism の NaN", int(r.selection_optimism.isna().sum()), "n_grid", sorted(r.n_grid_points.unique()))
 rb = pd.read_csv(st / "rule_b_chance.csv")
-print("rule_b_chance：", rb[["T", "K", "n_cells", "chance_ge4", "observed_positive"]].to_dict("records"))
+print("rule_b_chance：", rb.drop(columns=[c for c in ("commit", "dirty", "unit_commit") if c in rb.columns] + ["observed_positive"]).to_dict("records"))
 w = pd.read_csv(st / "weights.csv")
 print("weights：K", w.K.tolist(), "uniform", w.uniform_by_construction.tolist(), "share の列", sum(c.startswith("share_") for c in w.columns),
       "rank の列", sum(c.startswith("rank_") for c in w.columns), "mag の列", sum(c.startswith("mag_") for c in w.columns))

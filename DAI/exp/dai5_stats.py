@@ -382,10 +382,13 @@ def scores_rows(p5: D5.P5, names: list, yt: np.ndarray, T: str, f: int, r: int, 
     tu = np.array([uar_fast(yt, tp[j]) for j in range(len(names))])
     out = []
     nm_ = len(names) // n_src
+    spl = pd.read_csv(ROOT / "DAI" / "splits" / f"{T}.csv", keep_default_na=False)
+    clmap = dict(zip(spl["sample_id"].astype(str), spl["cluster"].astype(str)))
     for K in KS_ALL:
         if K == 0:
             continue
         sc = p5.z[f"p5_K{K}_scores"]
+        n_cl_K = len({clmap[x] for x in p5.z[f"sample_K{K}"].astype(str)})       # K 本が属する塊の数（採点の揺れの下限の注．感情認識の査読 a1）
 
         def pick(ix):                                                  # 採点の 1 位（同点は平均）のテストの UAR − その集合の最良
             top = ix[np.flatnonzero(sc[ix] >= sc[ix].max() - 1e-12)]
@@ -400,7 +403,7 @@ def scores_rows(p5: D5.P5, names: list, yt: np.ndarray, T: str, f: int, r: int, 
         sp_all = float(pd.Series(sc).corr(pd.Series(tu), method="spearman")) if sc.std() > 0 and tu.std() > 0 else np.nan
         sp_mod = [float(pd.Series(sc[b]).corr(pd.Series(tu[b]), method="spearman")) for b in blocks_mod if sc[b].std() > 0 and tu[b].std() > 0]
         sp_src = [float(pd.Series(sc[b]).corr(pd.Series(tu[b]), method="spearman")) for b in blocks_src if sc[b].std() > 0 and tu[b].std() > 0]
-        out.append(dict(T=T, fold=f, seed=r, K=K, regret_sel=rg, n_top_tied=nt, null_mean=float(null_all.mean()), null_q05=float(np.percentile(null_all, 5)),
+        out.append(dict(T=T, fold=f, seed=r, K=K, n_clusters_K=n_cl_K, regret_sel=rg, n_top_tied=nt, null_mean=float(null_all.mean()), null_q05=float(np.percentile(null_all, 5)),
                         sign_note="regret_sel は損（0 以下）．null_* はでたらめに 1 つ選んだときの損の平均と 5% 点（並べ替えと同じ分布）",
                         regret_sel_within_mod=rg_mod, null_within_mod=null_mod, regret_sel_within_src=rg_src, null_within_src=null_src,
                         spearman_all=sp_all, spearman_within_mod=float(np.mean(sp_mod)) if sp_mod else np.nan, n_blocks_mod_defined=len(sp_mod),
@@ -421,14 +424,98 @@ def jk_folds(vals_by_fold: dict) -> dict:
     return dict(mean=float(v.mean()), lo=float(v.mean() - q * se), hi=float(v.mean() + q * se), n_folds=G)
 
 
+SUBSETS = {"AFEW": [("asr_excluded", "asr_suspect", None, ("T", "AVT"))],
+           "MELD": [("face_single", "face_compete", "single", ("V", "AVT"))],
+           "IEMOCAP": [("marker", "marker", "marker", DD.STUDENTS), ("nomarker", "marker", "nomarker", DD.STUDENTS)]}
+
+
+def sensitivity(out5: Path, in_dir: Path, T: str, units, y_of, cl_of, sb: dict, fz1T: dict, g_eff: float, rng, delta: float) -> list:
+    """感情認識の査読の A1：実験 1 の 9.4 節の部分集合（`DAI/frozen/subsets.csv`）に限った srcw − joint と srcw − srcw_b0（K ∈ {5, 25}．記述）．
+    1 回のテストが 30 本未満か感情が欠ける分割はその量から外す（実験 1 の 9.4 節の規則）。"""
+    out = []
+    sub = pd.read_csv(ROOT / "DAI" / "frozen" / "subsets.csv", keep_default_na=False)
+    sub = sub[sub["corpus"] == T]
+    for name, sname, val, studs in SUBSETS.get(T, []):
+        d = sub[sub["subset"] == sname]
+        if name == "asr_excluded":
+            drop = set(d["sample_id"]); fn = lambda sid, drop=drop: np.array([x not in drop for x in sid])      # noqa: E731
+        else:
+            keep = set(d[d["value"] == val]["sample_id"]); fn = lambda sid, keep=keep: np.array([x in keep for x in sid])   # noqa: E731
+        cells, _, _ = collect(out5, in_dir, "eval", T, T, units, y_of, cl_of, sb, fz1T, extras=True, mask_fn=fn)
+        for s in studs:
+            for K in KS_FAM:
+                A = cells[(s, K, "srcw")]
+                bad = {f for (f, r), (_, cor, tot) in A.items() if tot.sum(0).sum() < ST.MIN_TEST or (tot.sum(0) == 0).any()}
+                ks = [u for u in A if u[0] not in bad]
+                for B in ("joint", "srcw_b0"):
+                    row = dict(T=T, subset=name, student=s, K=K, A="srcw", B=B, folds_dropped=",".join(map(str, sorted(bad))), n_units=len(ks),
+                               identical_by_construction=bool(B == "srcw_b0" and sb[K] == D5.DEFAULT_BETA), delta_same=delta)
+                    if ks:
+                        e = ST.effect_stats({u: A[u] for u in ks}, {u: cells[(s, K, B)][u] for u in ks}, g_eff, rng)
+                        row.update({k: v for k, v in e.items() if k in ("effect", "lo", "hi", "se", "method", "df", "n_folds", "identical")})
+                    out.append(row)
+    return out
+
+
+def recall_rows(out5: Path, in_dir: Path, T: str, units, y_of, sb: dict, fz1T: dict) -> tuple[list, list, list]:
+    """感情認識の査読の A2：srcw・joint・srcw_b0 の感情ごとの再現率と混同行列（K ∈ {5, 25}．分割をまとめて数え，各テストの発話を 1 回ずつ数える），
+    9 個のソースの識別器のテストでの感情ごとの再現率（単位の平均），採点 1 位の識別器の Neutral の再現率と 9 個の中央値の差（記述の印）。"""
+    rec, conf, src = [], [], []
+    names = None
+    acc = {}
+    for f, r in units:
+        name = f"{T}_ALL_f{f}_r{r}"
+        p5 = D5.P5(out5 / "eval" / "units" / name)
+        up = ST.UnitPreds(in_dir / "eval" / "units" / name)
+        y = y_of(up.sid)
+        names = [str(x) for x in p5.z["p5_src_names"]]
+        tp = p5.z["p5_src_test_pred"].astype(int)
+        for K in KS_ALL:
+            if K == 0:
+                continue
+            sc = p5.z[f"p5_K{K}_scores"]
+            top = np.flatnonzero(sc >= sc.max() - 1e-12)
+            rc = np.array([[float((tp[j][y == k] == k).mean()) if (y == k).any() else np.nan for k in range(4)] for j in range(len(names))])
+            acc.setdefault(("src", K), []).append(dict(rc=rc, top=top))
+            if K not in KS_FAM:
+                continue
+            for s in DD.STUDENTS:
+                jj = D5.joint_sel(fz1T, s, K)
+                preds = {"srcw": p5.pred(s, K, sb[K]), "srcw_b0": p5.pred(s, K, D5.DEFAULT_BETA),
+                         "joint": up.p3item(s, K, method="joint", teacher=jj["teacher"], rho=jj["rho"], a=jj["a"])}
+                for nm, pr in preds.items():
+                    cm = np.zeros((4, 4), int)
+                    np.add.at(cm, (y, pr.astype(int)), 1)
+                    acc.setdefault((nm, s, K), []).append(cm)
+    for key, lst in acc.items():
+        if key[0] == "src":
+            K = key[1]
+            RC = np.stack([x["rc"] for x in lst])
+            med0 = np.nanmedian(RC[:, :, 0], axis=1)
+            top0 = np.array([np.nanmean(x["rc"][x["top"], 0]) for x in lst])
+            src.append(dict(T=T, K=K, n_units=len(lst), **{f"recall_{nm}_{k}": float(np.nanmean(RC[:, j, k])) for j, nm in enumerate(names) for k in range(4)},
+                            top_neutral_recall=float(np.nanmean(top0)), median_neutral_recall=float(np.nanmean(med0)),
+                            top_neutral_below_median_10=bool(np.nanmean(top0) < np.nanmean(med0) - 0.10)))
+        else:
+            nm, s, K = key
+            CM = np.stack(lst).sum(0)                                        # 各テストの発話を 1 回ずつ（分割をまとめる．種は和になるので割合で読む）
+            rr = CM.diagonal() / np.clip(CM.sum(1), 1, None)
+            rec.append(dict(T=T, student=s, K=K, row=nm, n_test_total=int(CM.sum()), **{f"recall_{k}": float(rr[k]) for k in range(4)},
+                            **{f"n_{k}": int(CM.sum(1)[k]) for k in range(4)}))
+            conf.append(dict(T=T, student=s, K=K, row=nm, **{f"cm_{a}{b}": int(CM[a, b]) for a in range(4) for b in range(4)}))
+    return rec, conf, src
+
+
 def evaluate(out5: Path, in_dir: Path) -> None:
     fz1 = jload(D5.FROZEN1)
     ucommit = guard_eval(out5, fz1)
     pairing(out5, in_dir, fz1)
     frozen = jload(out5 / "select" / "frozen.json")
     rng = np.random.default_rng(20261105)
-    fam, desc, regret, wrows, srows, tcheck, sharp, agrows, poe = [], [], [], [], [], [], [], [], []
+    fam, desc, regret, wrows, srows, tcheck, sharp, agrows, poe, sens, recs, confs, srcrec = [], [], [], [], [], [], [], [], [], [], [], [], []
     bvecs = {}
+    srcsum = pd.read_csv(ROOT / "results" / "dai1" / "source" / "summary.csv")
+    cv_uar = {f"{c}_{k}": float(v) for c, k, v in srcsum[["corpus", "kind", "cv_uar"]].itertuples(index=False)}
     for T in DD.CORPORA:
         g_eff, _ = ST.g_eff_of(T)
         R = int(fz1[T]["n_seeds_eval"])
@@ -616,7 +703,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                        top2_more_than_groups=bool(K in acc_top2 and np.mean(acc_top2[K]) > max(gmean.values())),
                        **{f"agree_{g}": v for g, v in gmean.items()})
             for j, nm in enumerate(names):
-                row.update({f"share_{nm}": float(W[:, j].mean()), f"mag_{nm}": float(mag[:, j].mean()), f"flip_{nm}": float(flip_share[:, j].mean()),
+                row.update({f"cv_uar_{nm}": cv_uar.get(nm, np.nan), f"score_mean_{nm}": float(np.nanmean([D5.P5(out5 / "eval" / "units" / f"{T}_ALL_f{f}_r{r}").z[f"p5_K{K}_scores"][j] for f, r in units])) if K else np.nan,
+                            f"share_{nm}": float(W[:, j].mean()), f"mag_{nm}": float(mag[:, j].mean()), f"flip_{nm}": float(flip_share[:, j].mean()),
                             f"flipraw_{nm}": float(flip[:, j].mean()), f"sd_between_fold_{nm}": float(Wf[:, j].std(ddof=1)) if len(Wf) > 1 else np.nan,
                             f"heavy_{nm}": float(heavy[j]), f"rank_{nm}": float(ranks[j]), f"maxp_{nm}": float(SH[j, 0]), f"entropy_{nm}": float(SH[j, 1]),
                             f"logit_sd_{nm}": float(SH[j, 2])})
@@ -638,7 +726,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
         pse = pd.DataFrame(pse).groupby("K").mean() if pse else None
         for K, g in dsc.groupby("K"):
             rec = dict(T=T, K=K, n_units=len(g), n_score_all_tied=int(g.score_all_tied.sum()), n_top_tied_mean=float(g.n_top_tied.mean()),
-                       n_spearman_nan=int(g.spearman_all.isna().sum()))
+                       n_spearman_nan=int(g.spearman_all.isna().sum()), n_clusters_K_mean=float(g.n_clusters_K.mean()), n_clusters_K_min=int(g.n_clusters_K.min()))
             for col in ("regret_sel", "null_mean", "null_q05", "regret_sel_within_mod", "null_within_mod", "regret_sel_within_src", "null_within_src",
                         "spearman_all", "spearman_within_mod", "spearman_within_src", "score_range", "score_sd", "test_range"):
                 j = jk_folds({f: g[g.fold == f][col].dropna().tolist() for f in sorted(g.fold.unique()) if g[g.fold == f][col].notna().any()})
@@ -653,6 +741,9 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                                       and np.isfinite(rec["diff_vs_null_lo"]) and rec["diff_vs_null_lo"] > 0)   # 採点で選んだ損は 0 以下．絶対値が半分以下＝ −0.5·null 以上．分割ごとの対の差（採点 − でたらめ）の区間が 0 より上
             rec.update({f"rank_{nm}": float(g[f"score_rank_{nm}"].mean()) for nm in names})
             srows.append(rec)
+        sens += sensitivity(out5, in_dir, T, units, y_of, cl_of, sb, fz1[T], g_eff, rng, delta)
+        r_, c_, s_ = recall_rows(out5, in_dir, T, units, y_of, sb, fz1[T])
+        recs += r_; confs += c_; srcrec += s_
         print(f"{T}: 単位 {len(units)}，実効の数 {g_eff:.1f}，照合の食い違い {mism}/{total}，identical {len(ident)}", flush=True)
     dest = out5 / "stats"
     dest.mkdir(exist_ok=True)
@@ -679,7 +770,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                                                                            pred_agree_min=("pred_agree", "min")).reset_index()
     print(f"計算機ごとの単位の数：{gpu.groupby('gpu').n_units.sum().to_dict()}", flush=True)
     for nm, rows in (("families7", fam), ("desc", desc), ("regret", regret), ("weights", wrows), ("scores", srows), ("teacher_check", tcs),
-                     ("teacher_sharp", sharp), ("src_agree", agrows), ("poe_check", poe_s), ("rule_b_chance", chance), ("gpu_counts", gpu)):
+                     ("teacher_sharp", sharp), ("src_agree", agrows), ("poe_check", poe_s), ("rule_b_chance", chance), ("gpu_counts", gpu),
+                     ("sensitivity", sens), ("recall", recs), ("confusion", confs), ("src_recall", srcrec)):
         pd.DataFrame(rows).assign(commit=cm, dirty=dt, unit_commit=ucommit).to_csv(dest / f"{nm}.csv", index=False)
     print("書いた:", dest, "（families7.csv，desc.csv，regret.csv，weights.csv，scores.csv）")
 
