@@ -92,6 +92,8 @@ def jload(p):
     p = Path(p)
     if p == D5.FROZEN1:
         return fz1
+    if p == D5.GATE5:
+        return {"input_sha256": {f"AFEW_ALL_f{f}_r0_p{w}.npz": dai1.sha(fin / "eval" / "units" / f"AFEW_ALL_f{f}_r0_p{w}.npz") for f in range(DD.N_FOLDS) for w in (1, 2, 3)}}
     return orig_jload(p)
 
 
