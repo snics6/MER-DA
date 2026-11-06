@@ -1,4 +1,4 @@
-"""DAI 実験 5：ソース × モダリティの識別器を K 本の採点で重みづけた疑似ラベル `srcw`（設計 `DAI/docs/実験5_設計.md` 第 1 版）。
+"""DAI 実験 5：ソース × モダリティの識別器を K 本の採点で重みづけた疑似ラベル `srcw`（設計 `DAI/docs/実験5_設計.md` 第 2 版）。
 
 実験 1 の保存（仮のターゲットの回と評価の回の段 1，段 source の識別器）を入力にして，生徒の学習（実験 1 の段 3 に相当）だけを新しく解く。
 段 1・段 2 は流し直さない。DAI/exp のほかの台本は import して使うだけで，書き換えない。
@@ -18,7 +18,7 @@
   1 節 疑似ラベル Q：softmax(Σ w_sm log p_sm)（対数線形プール）。候補の全発話（K 本を含む）に付ける。β = 0 の Q は出発点の 3 モダリティの積と同じ（D1）。
   2 節 軸を分けた版：srcw_mod（出発点のモダリティごとの識別器の採点 U_m で w_m = 3·softmax(β U_m/100)．各ソースに w_m/|S|），
                      srcw_src（モダリティの中でソースの採点を softmax．モダリティの重みは等しい），srcw_top1（採点の 1 位だけに重み 3．同点は等分）。
-                     保存の接頭辞は p5m・p5s・p5t。影響の割合（大きさの割合，判定を変える割合）は p5_K{K}_infl_b{β}（|C|, 2）。
+                     保存の接頭辞は p5m・p5s・p5o（srcw_top1）。評価の回の引き戻しの曲線（srcw_tether）は p5t。影響の割合（大きさの割合，判定を変える割合）は p5_K{K}_infl_b{β}（|C|, 2）。
   1 節 生徒        ：`dai1.solve_items`（`dai_solver.fit`）。G = a·gk + soft_rows(Q, ρ n, balance=True)。ρ・a は実験 1 の固定のファイルの `joint`（主の版）の選んだ点，
                      引き戻し (C′, C_b) は実験 1 の固定の値（K = 0 は K = 1 の値），出発点は Unit の start。新しく選ぶのは β だけ。
   4 節 保存        ：`results/dai5/<pseudo|eval>/units/<T>_<c|ALL>_f<f>_r<r>_p5.npz/.csv`。
@@ -98,7 +98,7 @@ def joint_sel(fz1T: dict, s: str, K: int) -> dict:
 
 
 def weights(scores: np.ndarray, beta: float) -> np.ndarray:
-    """w_sm = 3 · softmax(β U_sm / 100)．合計 3（実験 1 の 3 因子の積と同じ鋭さ）。"""
+    """w_sm = 3 · softmax(β U_sm / 100)．合計 3（β = 0 で各モダリティの指数の和が 1 になり，出発点の 3 モダリティの積と同じ．鋭さはそろわない．設計 1 節）。"""
     z = float(beta) * np.asarray(scores, float) / 100.0
     z = z - z.max()
     e = np.exp(z)
@@ -378,7 +378,7 @@ class P5:
         return f"{prefix}_{s}_K{K}_items" in self.z
 
     def pred(self, s: str, K: int, beta, prefix: str = "p5") -> np.ndarray:
-        """prefix: p5（srcw），p5m（srcw_mod），p5s（srcw_src），p5t（srcw_top1．β は inf）。β = 0 の軸を分けた版は srcw の β = 0 と同じ教師なので p5 から読む。"""
+        """prefix: p5（srcw），p5m（srcw_mod），p5s（srcw_src），p5o（srcw_top1．β は inf），p5t（srcw_tether．評価の回だけ）。β = 0 の軸を分けた版は srcw の β = 0 と同じ教師なので p5 から読む。"""
         if prefix in ("p5m", "p5s") and float(beta) == 0.0:
             prefix = "p5"
         b = DEFAULT_BETA if (K == 0 and prefix == "p5") else float(beta)
@@ -465,7 +465,8 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
             dmean = float(np.mean([fz1[T]["delta_sel"][f"{s}|{K}"] for s in DD.STUDENTS]))
             dbar[str(K)] = dmean
             b, used, mu = pick5(g, dmean)
-            select[str(K)] = dict(beta=b, pseudo_uar=mu)
+            mbest = float(g.groupby("beta")["uar"].mean().max())
+            select[str(K)] = dict(beta=b, pseudo_uar=mu, best_pseudo_uar=mbest, gap_to_best=mbest - mu)   # 3 節 (a) に添える値（統計の第 2 回の記録 5）
             tie_used += int(used)
             edge += int(K > 0 and b in (min(BETA_GRID), max(BETA_GRID)))
             for s in DD.STUDENTS:

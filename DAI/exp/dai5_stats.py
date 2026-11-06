@@ -183,11 +183,13 @@ def detect(out5: Path, in_dir: Path, targets=DD.CORPORA) -> None:
             g_eff, _ = ST.g_eff_of(c)
             units = [(f, r) for f in range(DD.N_FOLDS) for r in (0, 1)]
             y_of, cl_of = ST.label_maps(c)
-            cells, mism, total = collect(out5, in_dir, "pseudo", T, c, units, y_of, cl_of, sb, fz1[T], check_rows=True)
+            cells, mism, total = collect(out5, in_dir, "pseudo", T, c, units, y_of, cl_of, sb, fz1[T], check_rows=True, extras=True)
             for s in DD.STUDENTS:
                 for K in KS_FAM:
                     e = ST.effect_stats(cells[(s, K, "srcw")], cells[(s, K, "joint")], g_eff, rng)
-                    acc.setdefault(c, []).append(dict(T=T, family=7, student=s, K=K, **e, mismatch=mism, checked=total))
+                    e2 = ST.effect_stats(cells[(s, K, "srcw")], cells[(s, K, "srcw_b0")], g_eff, rng)      # srcw − srcw_b0 の揺れ（3 節 (d) の半幅の見込み）
+                    acc.setdefault(c, []).append(dict(T=T, family=7, student=s, K=K, **e, mismatch=mism, checked=total,
+                                                      v_jk_b0=e2["v_jk"], v_seed_b0=e2["v_seed"], v_seed_all_b0=e2["v_seed_all"]))
             print(f"detect {T} c={c}: 照合の食い違い {mism}/{total}", flush=True)
     for X, lst in acc.items():
         df = pd.DataFrame(lst)
@@ -203,8 +205,11 @@ def detect(out5: Path, in_dir: Path, targets=DD.CORPORA) -> None:
             vseed = float(g.v_seed_all.mean()) * 2 / n_seeds if K > 0 else 0.0
             se = float(np.sqrt(vjk + vseed))
             key = f"7|{s}|{K}"
+            vjk0 = float((g.v_jk_b0 - (g.v_seed_all_b0 - g.v_seed_b0)).clip(lower=0).mean())
+            vseed0 = float(g.v_seed_all_b0.mean()) * 2 / n_seeds if K > 0 else 0.0
             cells[key] = dict(se=se, v_cl_or_jk=vjk, v_seed=vseed, detectable_first=ST.crit_first(g_eff, len(KS_FAM) * 4) * se,
                               detectable_last=ST.crit_first(g_eff, 1) * se, halfwidth=crit95 * se,
+                              halfwidth_b0=crit95 * float(np.sqrt(vjk0 + vseed0)), same_level_possible_b0=bool(crit95 * float(np.sqrt(vjk0 + vseed0)) < delta),
                               expected_effect=exp_eff.get(key, float("nan")))
         for key, v in cells.items():
             v["same_level_possible"] = bool(int(key.split("|")[2]) > 0 and v["halfwidth"] < delta)
@@ -311,42 +316,59 @@ def theta_half(hcell: dict, which: int, folds_ok: set) -> float:
 
 
 def regret_rows(cells: dict, halves: dict, T: str, s: str, K: int, names_pts: list, chosen: str, label: str, g_eff: float, rng,
-                folds_ok: set, delta: float, n_grid: int) -> dict:
-    """取りこぼし（設計 2 節）：評価のテストで平均が最良の点 − 選んだ点（UAR の差，0 以上）と，2 組に分けた帰無の水準。"""
-    th = {p: theta_of(cells[(s, K, p)]) for p in names_pts}
+                folds_ok: set, delta: float, n_grid: int, th_override: dict | None = None, half_override=None) -> dict:
+    """取りこぼし（設計 2 節）：(i) 同じテストで測った取りこぼし＝評価のテストで平均が最良の点 − 選んだ点（UAR の差，0 以上．選びの楽観を含む），
+    (ii) 2 組で測った取りこぼし＝テストの組 A で最良を選んで組 B で測り，入れ替えて平均（選びの楽観を除いた推定）．規則は (ii) が δ 以上かで読む（統計の第 2 回 S8）。
+    th_override・half_override を渡すと，最良の点の選び方だけを替えられる（4 生徒の平均で選ぶ版）。"""
+    th = th_override if th_override is not None else {p: theta_of(cells[(s, K, p)]) for p in names_pts}
     best = max(names_pts, key=lambda p: (th[p], p))
     e = ST.effect_stats(cells[(s, K, best)], cells[(s, K, chosen)], g_eff, rng)
-    nulls = []
+    sh = []
     if folds_ok:
-        tA = {p: theta_half(halves[(s, K, p)], 0, folds_ok) for p in names_pts}
-        tB = {p: theta_half(halves[(s, K, p)], 1, folds_ok) for p in names_pts}
+        if half_override is not None:
+            tA, tB = half_override
+        else:
+            tA = {p: theta_half(halves[(s, K, p)], 0, folds_ok) for p in names_pts}
+            tB = {p: theta_half(halves[(s, K, p)], 1, folds_ok) for p in names_pts}
         bA = max(names_pts, key=lambda p: (tA[p], p)); bB = max(names_pts, key=lambda p: (tB[p], p))
-        nulls = [tB[bA] - tB[chosen], tA[bB] - tA[chosen]]
+        mA = {p: theta_half(halves[(s, K, p)], 0, folds_ok) for p in names_pts}      # 測るのは必ずこの生徒の値
+        mB = {p: theta_half(halves[(s, K, p)], 1, folds_ok) for p in names_pts}
+        sh = [mB[bA] - mB[chosen], mA[bB] - mA[chosen]]
+    shr = float(np.mean(sh)) if sh else np.nan
     return dict(T=T, student=s, K=K, which=label, chosen=chosen, best=best, best_is_chosen=best == chosen, n_grid_points=n_grid,
-                null_level=float(np.mean(nulls)) if nulls else np.nan, null_folds_used=len(folds_ok), delta_same=delta,
-                exceeds_null_by_delta=bool(nulls and (e["effect"] - float(np.mean(nulls)) >= delta)),
+                split_half_regret=shr, selection_optimism=(e["effect"] - shr) if sh else np.nan, split_half_folds_used=len(folds_ok), delta_same=delta,
+                split_half_regret_ge_delta=bool(sh and shr >= delta),
                 **{k: v for k, v in e.items() if k in ("effect", "lo", "hi", "se", "p", "method", "df", "n_units", "identical")})
 
 
-def rule_b_chance(cells: dict, T: str, K: int, students, ident: set) -> dict:
-    """3 節 (b) の偶然の見込み：分割を単位にした srcw − srcw_b0 の符号を，全セルに同じ反転を当てて 2^5 通り数え，「4 以上が正」の割合。"""
-    vec = {}
-    for s in students:
-        if (s, K) in ident:
-            continue
-        A, B = cells[(s, K, "srcw")], cells[(s, K, "srcw_b0")]
-        byf = {}
-        for (f, r) in A:
-            byf.setdefault(f, []).append(ST.uar_full(A[(f, r)]) - ST.uar_full(B[(f, r)]))
-        vec[s] = np.array([np.mean(byf[f]) for f in sorted(byf)])
-    if not vec:
-        return dict(T=T, K=K, n_cells=0, chance_ge4=np.nan, observed_positive=np.nan)
-    F = len(next(iter(vec.values())))
-    hits = 0; pats = list(itertools.product([1, -1], repeat=F))
-    for sg in pats:
-        sg = np.array(sg)
-        hits += int(sum(int((v * sg).mean() > 0) for v in vec.values()) >= 4)
-    return dict(T=T, K=K, n_cells=len(vec), chance_ge4=hits / len(pats), observed_positive=int(sum(int(v.mean() > 0) for v in vec.values())))
+def fold_vectors(cells: dict, s: str, K: int, A: str = "srcw", B: str = "srcw_b0") -> np.ndarray:
+    """分割を単位にした A − B の差（種で平均）。"""
+    byf = {}
+    for (f, r) in cells[(s, K, A)]:
+        byf.setdefault(f, []).append(ST.uar_full(cells[(s, K, A)][(f, r)]) - ST.uar_full(cells[(s, K, B)][(f, r)]))
+    return np.array([np.mean(byf[f]) for f in sorted(byf)])
+
+
+def rule_b_chance(vecs: dict) -> dict:
+    """3 節 (b) の偶然の見込み（統計の第 2 回 S10）：vecs = {(T, s): 分割ごとの srcw − srcw_b0}（AFEW・MELD の音声・顔・言葉の K = 25．identical を除く）．
+    同じコーパスの 3 セルには同じ符号の反転を，2 つのコーパスには別々の反転を当て（5 分割なら 32 × 32 通り），「4 以上が正」と「2 以下が正」の割合を出す。
+    自己検査：独立な 6 セル（コーパスごとの反転でなくセルごとの反転）なら「4 以上」は 22/64 = 34.4%。"""
+    Ts = sorted({t for t, _ in vecs})
+    if not vecs:
+        return dict(n_cells=0, chance_ge4=np.nan, chance_le2=np.nan, observed_positive=np.nan, selfcheck_indep_ge4=np.nan)
+    F = len(next(iter(vecs.values())))
+    pats = list(itertools.product([1, -1], repeat=F))
+    ge4 = le2 = 0
+    for combo in itertools.product(pats, repeat=len(Ts)):
+        sg = {t: np.array(c) for t, c in zip(Ts, combo)}
+        npos = sum(int((v * sg[t]).mean() > 0) for (t, _), v in vecs.items())
+        ge4 += int(npos >= 4); le2 += int(npos <= 2)
+    total = len(pats) ** len(Ts)
+    # 自己検査：セルごとに独立に反転（6 セルなら 2^(6F) は多いので，各セルの符号は分割の反転で決まる 2 通りの平均の符号 → 近似せず，独立の二項で理論値を出す）
+    n = len(vecs)
+    indep = sum(__import__("math").comb(n, k) for k in range(4, n + 1)) / 2 ** n if n >= 4 else np.nan
+    return dict(n_cells=n, chance_ge4=ge4 / total, chance_le2=le2 / total, observed_positive=int(sum(int(v.mean() > 0) for v in vecs.values())),
+                selfcheck_indep_ge4=indep, n_patterns=total)
 
 
 def scores_rows(p5: D5.P5, names: list, yt: np.ndarray, T: str, f: int, r: int, n_src: int) -> list:
@@ -374,6 +396,7 @@ def scores_rows(p5: D5.P5, names: list, yt: np.ndarray, T: str, f: int, r: int, 
         sp_mod = [float(pd.Series(sc[b]).corr(pd.Series(tu[b]), method="spearman")) for b in blocks_mod if sc[b].std() > 0 and tu[b].std() > 0]
         sp_src = [float(pd.Series(sc[b]).corr(pd.Series(tu[b]), method="spearman")) for b in blocks_src if sc[b].std() > 0 and tu[b].std() > 0]
         out.append(dict(T=T, fold=f, seed=r, K=K, regret_sel=rg, n_top_tied=nt, null_mean=float(null_all.mean()), null_q05=float(np.percentile(null_all, 5)),
+                        sign_note="regret_sel は損（0 以下）．null_* はでたらめに 1 つ選んだときの損の平均と 5% 点（並べ替えと同じ分布）",
                         regret_sel_within_mod=rg_mod, null_within_mod=null_mod, regret_sel_within_src=rg_src, null_within_src=null_src,
                         spearman_all=sp_all, spearman_within_mod=float(np.mean(sp_mod)) if sp_mod else np.nan, n_blocks_mod_defined=len(sp_mod),
                         spearman_within_src=float(np.mean(sp_src)) if sp_src else np.nan, n_blocks_src_defined=len(sp_src),
@@ -399,7 +422,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
     pairing(out5, in_dir, fz1)
     frozen = jload(out5 / "select" / "frozen.json")
     rng = np.random.default_rng(20261105)
-    fam, desc, regret, wrows, srows, tcheck, sharp, agrows, poe, chance = [], [], [], [], [], [], [], [], [], []
+    fam, desc, regret, wrows, srows, tcheck, sharp, agrows, poe = [], [], [], [], [], [], [], [], []
+    bvecs = {}
     for T in DD.CORPORA:
         g_eff, _ = ST.g_eff_of(T)
         R = int(fz1[T]["n_seeds_eval"])
@@ -444,9 +468,14 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                     e = ST.effect_stats(cells[(s, K, "srcw")], cells[(s, K, B)], g_eff, rng)
                     if K == 0:
                         e["n_units"] = DD.N_FOLDS
-                    desc.append(dict(T=T, student=s, K=K, A="srcw", B=B, beta=b_sel, beta_student=ss[(s, K)], read="",
+                    rule_d = ""
+                    if B == "srcw_b0" and s == "AVT" and K in KS_FAM and (s, K) not in ident:      # 3 節 (d)：1 通りの式（統計の第 2 回 S4）
+                        rule_d = ("差が小さい" if (-delta < e["lo"] and e["hi"] < delta) else
+                                  "見込みと違う" if ((e["lo"] > 0 or e["hi"] < 0) and abs(e["effect"]) > delta) else "判定できない")
+                    desc.append(dict(T=T, student=s, K=K, A="srcw", B=B, beta=b_sel, beta_student=ss[(s, K)], read="", rule_d=rule_d,
                                      beta_variant=sv.get((B, K), np.nan) if B in ("srcw_mod", "srcw_src") else np.nan,
-                                     identical_by_construction=bool(B == "srcw_b0" and (s, K) in ident),
+                                     identical_by_construction=bool((B == "srcw_b0" and (s, K) in ident) or
+                                                                    (B in ("srcw_mod", "srcw_src") and (s, K) in ident and sv.get((B, K)) == D5.DEFAULT_BETA)),
                                      partner_method=part["method"] if B == "partner" else "", partner_version=part["version"] if B == "partner" else "",
                                      delta_same=delta, interval_within_delta=bool(K > 0 and -delta < e["lo"] and e["hi"] < delta), g_eff=g_eff, **e))
                 for b in D5.betas_for(K):                                   # β の曲線（各 β − joint，各 β − β = 0）
@@ -457,6 +486,12 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                         desc.append(dict(T=T, student=s, K=K, A=f"srcw_beta{b}", B=B, beta=b, beta_student=ss[(s, K)], read=tag, beta_variant=np.nan,
                                          identical_by_construction=bool(B == "srcw_b0" and b == D5.DEFAULT_BETA), partner_method="", partner_version="",
                                          delta_same=delta, interval_within_delta=bool(K > 0 and -delta < e["lo"] and e["hi"] < delta), g_eff=g_eff, **e))
+                if K in D5.KS_VAR:                                           # 軸を分けた版（選んだ β）− β = 0．両方 β = 0 なら同じ識別器
+                    for meth in ("srcw_mod", "srcw_src"):
+                        e = ST.effect_stats(cells[(s, K, meth)], cells[(s, K, "srcw_b0")], g_eff, rng)
+                        desc.append(dict(T=T, student=s, K=K, A=meth, B="srcw_b0", beta=sv.get((meth, K), np.nan), beta_student=np.nan, read="variant_vs_b0",
+                                         beta_variant=sv.get((meth, K), np.nan), identical_by_construction=bool(sv.get((meth, K)) == D5.DEFAULT_BETA),
+                                         partner_method="", partner_version="", delta_same=delta, interval_within_delta=bool(-delta < e["lo"] and e["hi"] < delta), g_eff=g_eff, **e))
                 if K in D5.KS_VAR:                                           # 軸を分けた版の β の曲線（各 β − β = 0）
                     for tagc, meth in (("m", "srcw_mod"), ("s", "srcw_src")):
                         for b in D5.BETAS_VAR:
@@ -472,21 +507,34 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                 jj = D5.joint_sel(fz1[T], s, K)
                 ja = int(jj["a"]) if float(jj["a"]).is_integer() else jj["a"]
                 regret.append(regret_rows(cells, halves, T, s, K, jpts, f"jg|{jj['teacher']}|{jj['rho']}|{ja}", "joint_per_student", g_eff, rng, folds_ok, delta, len(jpts)))
+                if (s, K, "tc|0.001|1.0") in cells:                              # 固定の点の照合（比較の第 2 回の記録 3）：固定の (C′, C_b) の点は本番の srcw・joint と同じ問
+                    fcw, fcb = fz1[T]["tether"][f"{s}|{max(K, 1)}"]
+                    for A_, B_ in (("srcw", f"tc|{fcw}|{fcb}"), ("joint", f"tj|{fcw}|{fcb}")):
+                        ag = float(np.mean([(cells[(s, K, A_)][u][1] == cells[(s, K, B_)][u][1]).all() and (cells[(s, K, A_)][u][2] == cells[(s, K, B_)][u][2]).all() for u in cells[(s, K, A_)]]))
+                        desc.append(dict(T=T, student=s, K=K, A=A_, B=B_, beta=b_sel, beta_student=np.nan, read="fixed_point_check", Cw=fcw, Cb=fcb,
+                                         beta_variant=np.nan, identical_by_construction=True, partner_method="", partner_version="", delta_same=delta,
+                                         interval_within_delta=False, g_eff=g_eff, effect=0.0, n_units=len(cells[(s, K, A_)]), fixed_point_counts_agree=ag))
                 if (s, K, "tc|0.001|1.0") in cells:                              # 引き戻しの曲線（記述）：srcw の選んだ β − joint の選んだ点，14 点
                     for tcw, tcb in dai1.TETHER:
                         e = ST.effect_stats(cells[(s, K, f"tc|{tcw}|{tcb}")], cells[(s, K, f"tj|{tcw}|{tcb}")], g_eff, rng)
                         desc.append(dict(T=T, student=s, K=K, A="srcw_tether", B="joint_tether", beta=b_sel, beta_student=np.nan, read="tether_curve", Cw=tcw, Cb=tcb,
                                          beta_variant=np.nan, identical_by_construction=False, partner_method="", partner_version="", delta_same=delta,
                                          interval_within_delta=bool(-delta < e["lo"] and e["hi"] < delta), g_eff=g_eff, **e))
-            # 4 生徒の平均で最良の β（選び方と同じ自由度）
+        # 4 生徒の平均で最良の β（選び方と同じ自由度）：最良の点を 4 生徒の平均で決め，各生徒の区間と 2 組の値を出す
         for K in KS_ALL:
             pts = [f"b|{b}" for b in D5.betas_for(K)]
             mean_th = {p: float(np.mean([theta_of(cells[(s, K, p)]) for s in DD.STUDENTS])) for p in pts}
-            best = max(pts, key=lambda p: (mean_th[p], p)); chosen = f"b|{sb[K]}" if K > 0 else "b|0.0"
-            regret.append(dict(T=T, student="mean4", K=K, which="srcw_shared", chosen=chosen, best=best, best_is_chosen=best == chosen, n_grid_points=len(pts),
-                               effect=mean_th[best] - mean_th[chosen], delta_same=delta, null_level=np.nan, null_folds_used=len(folds_ok)))
-        # 3 節 (b) の偶然の見込み（K = 25 の音声・顔・言葉）
-        chance.append(rule_b_chance(cells, T, 25, ("A", "V", "T"), ident))
+            hA = {p: float(np.mean([theta_half(halves[(s, K, p)], 0, folds_ok) for s in DD.STUDENTS])) for p in pts} if folds_ok else None
+            hB = {p: float(np.mean([theta_half(halves[(s, K, p)], 1, folds_ok) for s in DD.STUDENTS])) for p in pts} if folds_ok else None
+            chosen = f"b|{sb[K]}" if K > 0 else "b|0.0"
+            for s in DD.STUDENTS:
+                regret.append(regret_rows(cells, halves, T, s, K, pts, chosen, "srcw_shared_best", g_eff, rng, folds_ok, delta, len(pts),
+                                          th_override=mean_th, half_override=(hA, hB) if folds_ok else None))
+        # 3 節 (b) の偶然の見込み（AFEW・MELD の K = 25 の音声・顔・言葉．ループの外で合わせて数える）
+        if T in ("AFEW", "MELD"):
+            for s_ in ("A", "V", "T"):
+                if (s_, 25) not in ident:
+                    bvecs[(T, s_)] = fold_vectors(cells, s_, 25)
         # 指数の割合の表，影響の割合，採点の妥当性，教師の検算，Q の鋭さ，識別器の一致率，K = 0 の tt:poe_none との一致
         acc_w, acc_i, acc_sh, acc_ag, acc_s, acc_top2 = {}, {}, [], [], [], {}
         names = None
@@ -513,8 +561,10 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                 acc_i.setdefault(K, []).append(p5.z[f"p5_K{K}_infl_b{b}"])
                 if K:
                     sc = p5.z[f"p5_K{K}_scores"]
-                    top2 = np.argsort(-sc, kind="stable")[:2]
-                    acc_top2.setdefault(K, []).append(float(p5.z["p5_src_agree"][top2[0], top2[1]]))
+                    second = np.sort(np.unique(sc))[-2] if len(np.unique(sc)) >= 2 else sc.max()    # 2 番目に高い採点以上の識別器の集合（同点は全部入れる．定義の第 2 回 3）
+                    top = np.flatnonzero(sc >= second - 1e-12)
+                    prs = [(i, j) for i in top for j in top if i < j]
+                    acc_top2.setdefault(K, []).append(float(np.mean([p5.z["p5_src_agree"][i, j] for i, j in prs])) if prs else np.nan)
                 nk = ~np.isin(ids, p5.z[f"sample_K{K}"].astype(str)) if K else np.ones(len(ids), bool)
                 for j, nm in enumerate(names):
                     ref = p3rows[(p3rows.method == "_teacher_stats") & (p3rows.teacher.astype(str) == f"tt:src_{nm}") & (p3rows.K == K)]
@@ -544,7 +594,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
             sd_within = float(np.mean([np.std(np.stack(v), axis=0, ddof=1).mean() for v in byf.values() if len(v) > 1])) if R > 1 else np.nan
             I = np.stack(acc_i[K])                                             # (単位, |C|, 2)
             mag, flip = I[:, :, 0], I[:, :, 1]
-            flip_share = flip / np.clip(flip.sum(1, keepdims=True), 1e-12, None)
+            flip_share = flip / np.clip(flip.sum(1, keepdims=True), 1e-12, None)        # C の中で正規化した割合．生の割合（判定が変わる候補の割合）は flipraw_
             heavy = np.zeros(len(names))
             for x in W:
                 top = np.flatnonzero(x >= x.max() - 1e-12)
@@ -560,6 +610,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                        **{f"agree_{g}": v for g, v in gmean.items()})
             for j, nm in enumerate(names):
                 row.update({f"share_{nm}": float(W[:, j].mean()), f"mag_{nm}": float(mag[:, j].mean()), f"flip_{nm}": float(flip_share[:, j].mean()),
+                            f"flipraw_{nm}": float(flip[:, j].mean()), f"sd_between_fold_{nm}": float(Wf[:, j].std(ddof=1)) if len(Wf) > 1 else np.nan,
                             f"heavy_{nm}": float(heavy[j]), f"rank_{nm}": float(ranks[j]), f"maxp_{nm}": float(SH[j, 0]), f"entropy_{nm}": float(SH[j, 1]),
                             f"logit_sd_{nm}": float(SH[j, 2])})
             for kind, M in (("share", W), ("mag", mag), ("flip", flip_share)):
@@ -585,10 +636,14 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                         "spearman_all", "spearman_within_mod", "spearman_within_src", "score_range", "score_sd", "test_range"):
                 j = jk_folds({f: g[g.fold == f][col].dropna().tolist() for f in sorted(g.fold.unique()) if g[g.fold == f][col].notna().any()})
                 rec.update({f"{col}_mean": j["mean"], f"{col}_lo": j["lo"], f"{col}_hi": j["hi"]})
+            for a_, b_, nm_ in (("regret_sel", "null_mean", "diff_vs_null"), ("regret_sel_within_mod", "null_within_mod", "diff_vs_null_within_mod"),
+                                ("regret_sel_within_src", "null_within_src", "diff_vs_null_within_src")):
+                j = jk_folds({f: (g[g.fold == f][a_] - g[g.fold == f][b_]).dropna().tolist() for f in sorted(g.fold.unique())})
+                rec.update({f"{nm_}_mean": j["mean"], f"{nm_}_lo": j["lo"], f"{nm_}_hi": j["hi"]})
             rec["score_range_pseudo"] = float(pse.loc[K, "rng"]) if pse is not None and K in pse.index else np.nan
             rec["range_ratio_eval_over_pseudo"] = rec["score_range_mean"] / rec["score_range_pseudo"] if rec.get("score_range_pseudo") else np.nan
             rec["usable_rule"] = bool(K == 25 and np.isfinite(rec["regret_sel_mean"]) and rec["regret_sel_mean"] >= 0.5 * rec["null_mean_mean"]
-                                      and not (rec["regret_sel_lo"] <= rec["null_mean_mean"] <= rec["regret_sel_hi"]))   # 取りこぼしは 0 以下．半分以下＝ −0.5·null 以上
+                                      and np.isfinite(rec["diff_vs_null_lo"]) and rec["diff_vs_null_lo"] > 0)   # 取りこぼしは 0 以下．半分以下＝ −0.5·null 以上．分割ごとの対の差（採点 − でたらめ）の区間が 0 より上
             rec.update({f"rank_{nm}": float(g[f"score_rank_{nm}"].mean()) for nm in names})
             srows.append(rec)
         print(f"{T}: 単位 {len(units)}，実効の数 {g_eff:.1f}，照合の食い違い {mism}/{total}，identical {len(ident)}", flush=True)
@@ -610,6 +665,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
     gpu = allrows.drop_duplicates(["T", "fold", "seed"]).groupby(["T", "gpu"]).size().rename("n_units").reset_index()
     gpu["pseudo_gpu"] = "|".join(frozen["_meta"].get("pseudo_gpu", []))
     gpu["same_as_pseudo"] = gpu.apply(lambda x: x["gpu"] in frozen["_meta"].get("pseudo_gpu", []), axis=1)
+    chance = [rule_b_chance(bvecs)]
     tc = pd.DataFrame(tcheck)
     tcs = recheck_sources(out5, in_dir, fz1, tc) if len(tc) else pd.DataFrame()
     poe_s = pd.DataFrame(poe).groupby(["T", "student", "same_problem"]).agg(n=("pred_agree", "size"), pred_agree_mean=("pred_agree", "mean"),
