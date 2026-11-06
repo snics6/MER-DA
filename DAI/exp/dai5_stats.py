@@ -6,7 +6,7 @@
   python DAI/exp/dai5_stats.py eval [出力の置き場]  ：評価の回の後。
       families7.csv（族 7．コーパスごとに Holm．探索の印つき），desc.csv（記述：srcw − none・kd_one・partner・poe_none・joint_default・srcw_b0・srcw_student・srcw_mod・srcw_src・srcw_top1・joint，
       β ごとの srcw(β) − joint と srcw(β) − srcw_b0，軸を分けた版の β の曲線，K = 0〜25 の全部．β = 0 が選ばれたセルは identical の印），
-      regret.csv（取りこぼし：生徒ごと／4 生徒の平均で最良の β，2 組に分けた帰無の水準．joint も），weights.csv（(T, K) ごとの指数の割合・影響の割合（大きさ，判定を変える）・
+      regret.csv（取りこぼし：同じテストで測った値と 2 組で測った値，選びの楽観．生徒ごと／4 生徒の平均で最良の β．joint も），weights.csv（(T, K) ごとの指数の割合・影響の割合（大きさ，判定を変える）・
       ばらつき（分割の中・間）・最も重い識別器の頻度・採点の順位・鋭さ．モダリティごと・ソースごとの和も），scores.csv（採点の妥当性：採点で選んだ識別器の取りこぼしと
       でたらめの水準（全体，モダリティの中，ソースの中），順位相関，同点の数．分割を単位にした区間），src_agree.csv（識別器どうしの候補での判定の一致率．群ごとの平均と採点の上位 2 個），
       poe_check.csv（K = 0 の srcw と実験 1 の tt:poe_none の判定の一致率．ラベルなし），rule_b_chance.csv（3 節 (b) の偶然の見込み．分割を単位にした符号の反転），
@@ -212,7 +212,12 @@ def detect(out5: Path, in_dir: Path, targets=DD.CORPORA) -> None:
                               halfwidth_b0=crit95 * float(np.sqrt(vjk0 + vseed0)), same_level_possible_b0=bool(crit95 * float(np.sqrt(vjk0 + vseed0)) < delta),
                               expected_effect=exp_eff.get(key, float("nan")))
         for key, v in cells.items():
-            v["same_level_possible"] = bool(int(key.split("|")[2]) > 0 and v["halfwidth"] < delta)
+            K_ = int(key.split("|")[2])
+            if sels_from(frozen[X])[K_] == D5.DEFAULT_BETA:                   # 選んだ β が 0 なら srcw − srcw_b0 は作りの上で 0（統計の第 3 回の記録 4）
+                v["halfwidth_b0"], v["same_level_possible_b0"], v["b0_identical"] = float("nan"), False, True
+            else:
+                v["b0_identical"] = False
+            v["same_level_possible"] = bool(K_ > 0 and v["halfwidth"] < delta)
             v["descriptive"] = bool(not np.isfinite(v["expected_effect"]) or v["detectable_first"] > abs(v["expected_effect"]))
         frozen.setdefault(X, {})["detect"] = dict(
             n_seeds_eval=n_seeds, g_eff=g_eff, delta_same=delta, cells=cells, n_cells=len(KS_FAM) * 4,
@@ -446,7 +451,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
         for x, a in zip(res, holm([x["p"] for x in res])):
             x["p_holm"] = float(a)
         fam += res
-        # 2 組に分けた帰無の水準に使える分割（両組が 30 本以上で 4 感情がそろう）
+        # 2 組で測った取りこぼしに使える分割（両組が 30 本以上で 4 感情がそろう）
         folds_ok = set()
         for f in range(DD.N_FOLDS):
             up = ST.UnitPreds(in_dir / "eval" / "units" / f"{T}_ALL_f{f}_r0")
