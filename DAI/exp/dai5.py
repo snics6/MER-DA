@@ -465,8 +465,9 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
             dmean = float(np.mean([fz1[T]["delta_sel"][f"{s}|{K}"] for s in DD.STUDENTS]))
             dbar[str(K)] = dmean
             b, used, mu = pick5(g, dmean)
-            mbest = float(g.groupby("beta")["uar"].mean().max())
-            select[str(K)] = dict(beta=b, pseudo_uar=mu, best_pseudo_uar=mbest, gap_to_best=mbest - mu)   # 3 節 (a) に添える値（統計の第 2 回の記録 5）
+            gm = g.groupby("beta")["uar"].mean()
+            mbest = float(gm.max())
+            select[str(K)] = dict(beta=b, pseudo_uar=mu, best_pseudo_uar=mbest, gap_to_best=mbest - mu, beta_argmax=float(gm.idxmax()))   # 3 節 (a) に添える値（統計の第 2 回の記録 5，定義の第 3 回 N2）
             tie_used += int(used)
             edge += int(K > 0 and b in (min(BETA_GRID), max(BETA_GRID)))
             for s in DD.STUDENTS:

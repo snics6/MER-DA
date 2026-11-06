@@ -536,7 +536,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                 if (s_, 25) not in ident:
                     bvecs[(T, s_)] = fold_vectors(cells, s_, 25)
         # 指数の割合の表，影響の割合，採点の妥当性，教師の検算，Q の鋭さ，識別器の一致率，K = 0 の tt:poe_none との一致
-        acc_w, acc_i, acc_sh, acc_ag, acc_s, acc_top2 = {}, {}, [], [], [], {}
+        acc_w, acc_i, acc_sh, acc_ag, acc_s, acc_top2, acc_top2n = {}, {}, [], [], [], {}, {}
         names = None
         for f, r in units:
             name = f"{T}_ALL_f{f}_r{r}"
@@ -561,10 +561,11 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                 acc_i.setdefault(K, []).append(p5.z[f"p5_K{K}_infl_b{b}"])
                 if K:
                     sc = p5.z[f"p5_K{K}_scores"]
-                    second = np.sort(np.unique(sc))[-2] if len(np.unique(sc)) >= 2 else sc.max()    # 2 番目に高い採点以上の識別器の集合（同点は全部入れる．定義の第 2 回 3）
+                    second = np.sort(sc)[-2]                                 # 重複を数えて 2 番目に高い採点以上の識別器の集合（同点は全部入れる．定義の第 3 回 1）
                     top = np.flatnonzero(sc >= second - 1e-12)
                     prs = [(i, j) for i in top for j in top if i < j]
                     acc_top2.setdefault(K, []).append(float(np.mean([p5.z["p5_src_agree"][i, j] for i, j in prs])) if prs else np.nan)
+                    acc_top2n.setdefault(K, []).append(int(len(top) >= 3))
                 nk = ~np.isin(ids, p5.z[f"sample_K{K}"].astype(str)) if K else np.ones(len(ids), bool)
                 for j, nm in enumerate(names):
                     ref = p3rows[(p3rows.method == "_teacher_stats") & (p3rows.teacher.astype(str) == f"tt:src_{nm}") & (p3rows.K == K)]
@@ -605,7 +606,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
             row = dict(T=T, K=K, beta=sb[K] if K else 0.0, n_units=len(W), uniform_by_construction=bool(K == 0 or sb[K] == D5.DEFAULT_BETA),
                        neff_w_mean=float(np.mean([(x.sum() ** 2) / (x ** 2).sum() for x in W])),
                        sd_within_fold=sd_within, sd_between_fold=float(Wf.std(0, ddof=1).mean()) if len(Wf) > 1 else np.nan,
-                       top2_agree=float(np.mean(acc_top2[K])) if K in acc_top2 else np.nan, group_agree_max=max(gmean.values()),
+                       top2_agree=float(np.mean(acc_top2[K])) if K in acc_top2 else np.nan, n_top2_set_ge3=int(np.sum(acc_top2n[K])) if K in acc_top2n else 0,
+                       group_agree_max=max(gmean.values()),
                        top2_more_than_groups=bool(K in acc_top2 and np.mean(acc_top2[K]) > max(gmean.values())),
                        **{f"agree_{g}": v for g, v in gmean.items()})
             for j, nm in enumerate(names):

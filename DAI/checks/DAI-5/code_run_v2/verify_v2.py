@@ -207,10 +207,10 @@ for s in DD.STUDENTS:
     it3 = [json.loads(x) for x in z3[f"p3_{s}_K0_items"]]
     j3 = [j for j, x in enumerate(it3) if x.get("method") == "tt" and x.get("teacher") == "poe_none"]
     agree.append((s, len(j3), float((z[f"p5_{s}_K0_pred"][0] == z3[f"p3_{s}_K0_pred"][j3[0]]).mean())))
-res["poecheck_rows"] = [(x.student, bool(x.same_problem), round(float(x.pred_agree), 6)) for x in pc.itertuples()]
+res["poecheck_rows"] = [(x.student, bool(x.same_problem), round(float(x.pred_agree), 6)) for x in pc.itertuples()] if len(pc) else []
 res["poecheck_independent"] = agree
 # ρ = 0 の自己検査
 r0 = rows[rows.method == "_rho0check"]
-res["rho0"] = (len(r0), float(r0.pred_agree.min()))
+res["rho0"] = (len(r0), float(r0.pred_agree.min()) if len(r0) else None)
 for k, v in res.items():
     print(k, v)
