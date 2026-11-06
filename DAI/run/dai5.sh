@@ -24,6 +24,10 @@ export OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 MERDA_GPU_FRACTION=${FRAC:-0.2}
   $PY -c "import numpy, pandas, sklearn, scipy, torch; print('numpy', numpy.__version__, 'pandas', pandas.__version__, 'sklearn', sklearn.__version__, 'scipy', scipy.__version__, 'torch', torch.__version__, 'cuda', torch.version.cuda, 'gpu', torch.cuda.get_device_name(0))"
   sha256sum data/cache/audio_wavlm_*.npz data/cache/video_*.npz data/cache/text_roberta_*.npz data/metadata/*.csv DAI/splits/* DAI/frozen/*.json
   sha256sum results/dai1/source/*.npz results/dai1/select/frozen.json
+  case "$STAGE" in
+    pseudo) sha256sum results/dai1/pseudo/units/*_p1.npz results/dai1/pseudo/units/*_p3.csv results/dai1/pseudo/*_tether_w.json ;;
+    eval) sha256sum results/dai1/eval/units/*_p1.npz results/dai1/eval/units/*_p3.npz results/dai1/eval/units/*_p3.csv results/dai5/select/frozen.json ;;
+  esac
 } >> "logs/dai5_${STAGE}.inputs" 2>&1 || fail "入力の記録を書けない"
 tail -n +"$(grep -n "^== " "logs/dai5_${STAGE}.inputs" | tail -1 | cut -d: -f1)" "logs/dai5_${STAGE}.inputs" | grep -qiE "No such file|cannot|error|Traceback" && fail "入力の記録に誤りの行がある（logs/dai5_${STAGE}.inputs）"
 case "$STAGE" in

@@ -351,9 +351,9 @@ def run_unit(in_dir: Path, out_dir: Path, tag: str, T: str, c: str, srcs: list, 
                                    frozen_sha256=run["frozen_sha256"], dai1_frozen_sha256=run["dai1_frozen_sha256"], gpu=run["gpu"],
                                    gate_sha256=run["gate_sha256"])
     df.to_csv(rpath, index=False)
-    cv = df[df.method == "srcw"]
-    nconv = int(((cv.grad <= 1e-5) & ~cv.stalled.astype(bool)).sum())
-    print(f"{tag} {name} p5: 問 {len(cv)}，収束 {nconv}，{time.time()-t0:.0f} 秒", flush=True)
+    cv = df[df.method.isin(["srcw", "srcw_mod", "srcw_src", "srcw_top1", "srcw_tether"])]
+    nconv = int(((cv.grad.astype(float) <= 1e-5) & ~cv.stalled.astype(bool)).sum())
+    print(f"{tag} {name} p5: 問 {len(cv)}，収束 {nconv}，{time.time()-t0:.0f} 秒" + ("" if nconv == len(cv) else "（収束しない問あり．行の grad・stalled を見る）"), flush=True)
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     return df
@@ -452,6 +452,9 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
         if bad:
             sys.exit(f"{T}: 収束していない問が {bad} ある（勾配 > 1e-5，行き詰まり，非有限）．選ぶ段は流さない")
         tc = raw[raw.method == "_teacher_check"]
+        n_c = len(DD.others(T)) - 1                                        # 仮のターゲットの回のソースは 2 つ → |C| = 6
+        if len(tc) != len(names) * 3 * n_c * len(KS_ALL):
+            sys.exit(f"{T}: 教師の検算の行が {len(tc)} で，期待 {len(names) * 3 * n_c * len(KS_ALL)} と違う（欠けた単位がある）")
         if (tc.match.astype(str) != "True").any():
             sys.exit(f"{T}: 教師の検算が一致しない行が {int((tc.match.astype(str) != 'True').sum())} ある")
         for K in KS_ALL:
@@ -493,7 +496,8 @@ def select_stage(out_dir: Path, targets, fz1: dict) -> None:
         sys.exit(f"pseudo の全単位の計算機名が 1 種でない：{sorted(gpus)}")
     frozen["_meta"]["pseudo_gpu"] = sorted(gpus)
     fzp = sel_dir / "frozen.json"
-    json.dump(frozen, open(fzp, "w"), indent=1, ensure_ascii=False)
+    with open(fzp, "w", encoding="utf-8") as fh:
+        json.dump(frozen, fh, indent=1, ensure_ascii=False)
     print("書いた:", fzp, "sha256", dai1.sha(fzp))
     if out_dir.resolve().parent == (ROOT / "results").resolve():
         fzd = ROOT / "DAI" / "frozen"
@@ -532,7 +536,8 @@ def check_eval_gate5(frozen_rel: str, out_dir: Path) -> str:
         latest = dai1.latest_report(fp.parent, role)
         if latest != fp.name:
             sys.exit(f"DAI-5 の {role} は新しい版 {latest} がある（{fp.name} を並べている）")
-        head = "\n".join(open(fp, encoding="utf-8").read().splitlines()[:12])
+        with open(fp, encoding="utf-8") as fh:
+            head = "\n".join(fh.read().splitlines()[:12])
         word = "OK" if role.startswith("review_") else "通す"
         ok = rf"^判定(?:（DAI-5）)?[：:]\s*\**{word}(?:\**)?(?:$|[．。（])"
         sec = re.search(rf"^## 判定\s*\n+\s*\**{word}(?:$|[．。（])", head, re.M)

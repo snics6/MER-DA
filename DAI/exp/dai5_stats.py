@@ -66,7 +66,8 @@ def uar_fast(y: np.ndarray, p: np.ndarray) -> float:
 
 
 def collect(out5: Path, in_dir: Path, tag: str, T: str, c: str, units, y_of, cl_of, sel_beta: dict, fz1T: dict, sel_joint=None,
-            extras: bool = False, check_rows: bool = False, sel_student=None, sel_var=None, mask_fn=None, halves: dict | None = None):
+            extras: bool = False, check_rows: bool = False, sel_student=None, sel_var=None, mask_fn=None, halves: dict | None = None,
+            fixed_agree: dict | None = None):
     """単位の判定を集める：(生徒, K, 行の名前) → {(f, r): 塊ごとの数}。halves（dict）を渡すと，2 組 A・B での UAR も (生徒, K, 行) → {(f, r): (uarA, uarB)} に溜める。"""
     cells, mism, total = {}, 0, 0
     cname = "ALL" if tag == "eval" else c
@@ -124,6 +125,9 @@ def collect(out5: Path, in_dir: Path, tag: str, T: str, c: str, units, y_of, cl_
                                 sys.exit(f"{name}: 引き戻しの点が 1 つに決まらない ({s}, K={K}, {tcw}, {tcb})")
                             put(f"tc|{tcw}|{tcb}", p5.z[f"{D5.TETHER_PREFIX}_{s}_K{K}_pred"][j5[0]])
                             put(f"tj|{tcw}|{tcb}", up.p3[f"p3t_{s}_K{K}_pred"][j3[0]])
+                            if fixed_agree is not None and (tcw, tcb) == tuple(fz1T["tether"][f"{s}|{max(K, 1)}"]):   # 固定の点：判定そのものの一致率
+                                fixed_agree.setdefault((s, K, "srcw"), []).append(float((p5.z[f"{D5.TETHER_PREFIX}_{s}_K{K}_pred"][j5[0]] == p5.pred(s, K, beta)).mean()))
+                                fixed_agree.setdefault((s, K, "joint"), []).append(float((up.p3[f"p3t_{s}_K{K}_pred"][j3[0]] == up.p3item(s, K, method="joint", teacher=jj["teacher"], rho=jj["rho"], a=jj["a"])).mean()))
                 if check_rows:
                     mine = np.sort([ST.uar_full(counts(y, pr, cl)) for pr in p5.z[f"p5_{s}_K{K}_pred"]])
                     rr = rows[(rows.method == "srcw") & (rows.student == s) & (rows.K == K)]
@@ -228,7 +232,8 @@ def detect(out5: Path, in_dir: Path, targets=DD.CORPORA) -> None:
               f"{len(frozen[X]['detect']['same_level_cells'])}", flush=True)
     frozen["_meta"]["detect"] = "dai5_stats.py detect"
     frozen["_meta"]["detect_commit"] = commit
-    json.dump(frozen, open(fzp, "w"), indent=1, ensure_ascii=False)
+    with open(fzp, "w", encoding="utf-8") as fh:
+        json.dump(frozen, fh, indent=1, ensure_ascii=False)
     if out5.resolve().parent == (ROOT / "results").resolve():
         shutil.copy(fzp, ROOT / "DAI" / "frozen" / f"{out5.name}_frozen.json")
     print("書いた:", fzp, dai1.sha(fzp))
@@ -404,7 +409,7 @@ def scores_rows(p5: D5.P5, names: list, yt: np.ndarray, T: str, f: int, r: int, 
         sp_mod = [float(pd.Series(sc[b]).corr(pd.Series(tu[b]), method="spearman")) for b in blocks_mod if sc[b].std() > 0 and tu[b].std() > 0]
         sp_src = [float(pd.Series(sc[b]).corr(pd.Series(tu[b]), method="spearman")) for b in blocks_src if sc[b].std() > 0 and tu[b].std() > 0]
         out.append(dict(T=T, fold=f, seed=r, K=K, n_clusters_K=n_cl_K, regret_sel=rg, n_top_tied=nt, null_mean=float(null_all.mean()), null_q05=float(np.percentile(null_all, 5)),
-                        sign_note="regret_sel は損（0 以下）．null_* はでたらめに 1 つ選んだときの損の平均と 5% 点（並べ替えと同じ分布）",
+                        sign_note="regret_sel は損（0 以下）．null_mean はでたらめに 1 つ選んだときの損の平均．null_q05 は 9 個（6 個）の損の 5% 点で，ほぼ最小値（規則には使わない）",
                         regret_sel_within_mod=rg_mod, null_within_mod=null_mod, regret_sel_within_src=rg_src, null_within_src=null_src,
                         spearman_all=sp_all, spearman_within_mod=float(np.mean(sp_mod)) if sp_mod else np.nan, n_blocks_mod_defined=len(sp_mod),
                         spearman_within_src=float(np.mean(sp_src)) if sp_src else np.nan, n_blocks_src_defined=len(sp_src),
@@ -522,9 +527,9 @@ def evaluate(out5: Path, in_dir: Path) -> None:
         units = [(f, r) for f in range(DD.N_FOLDS) for r in range(R)]
         y_of, cl_of = ST.label_maps(T)
         sb, ss, sv = sels_from(frozen[T]), sels_student(frozen[T]), sels_variants(frozen[T])
-        halves = {}
+        halves, fixed_agree = {}, {}
         cells, mism, total = collect(out5, in_dir, "eval", T, T, units, y_of, cl_of, sb, fz1[T], extras=True, check_rows=True,
-                                     sel_student=ss, sel_var=sv, halves=halves)
+                                     sel_student=ss, sel_var=sv, halves=halves, fixed_agree=fixed_agree)
         det = frozen[T].get("detect", {}).get("cells", {})
         delta = float(fz1[T]["detect"]["delta_same"])
         ident = set()
@@ -548,7 +553,7 @@ def evaluate(out5: Path, in_dir: Path) -> None:
         for s in DD.STUDENTS:
             for K in KS_ALL:
                 b_sel = sb[K]
-                if K > 0 and b_sel == D5.DEFAULT_BETA:
+                if K == 0 or b_sel == D5.DEFAULT_BETA:                       # K = 0 は β によらず同じ教師（srcw = srcw_b0）
                     ident.add((s, K))
                 part = fz1[T]["partner"][f"{s}|{K}"]
                 comps = ["none", "kd_one", "partner", "poe_none", "joint_default", "srcw_b0", "srcw_student", "joint"]
@@ -605,7 +610,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
                         ag = float(np.mean([(cells[(s, K, A_)][u][1] == cells[(s, K, B_)][u][1]).all() and (cells[(s, K, A_)][u][2] == cells[(s, K, B_)][u][2]).all() for u in cells[(s, K, A_)]]))
                         desc.append(dict(T=T, student=s, K=K, A=A_, B=B_, beta=b_sel, beta_student=np.nan, read="fixed_point_check", Cw=fcw, Cb=fcb,
                                          beta_variant=np.nan, identical_by_construction=True, partner_method="", partner_version="", delta_same=delta,
-                                         interval_within_delta=False, g_eff=g_eff, effect=0.0, n_units=len(cells[(s, K, A_)]), fixed_point_counts_agree=ag))
+                                         interval_within_delta=False, g_eff=g_eff, effect=0.0, n_units=len(cells[(s, K, A_)]), fixed_point_counts_agree=ag,
+                                         fixed_point_pred_agree=float(np.mean(fixed_agree.get((s, K, A_), [np.nan])))))
                 if (s, K, "tc|0.001|1.0") in cells:                              # 引き戻しの曲線（記述）：srcw の選んだ β − joint の選んだ点，14 点
                     for tcw, tcb in dai1.TETHER:
                         e = ST.effect_stats(cells[(s, K, f"tc|{tcw}|{tcb}")], cells[(s, K, f"tj|{tcw}|{tcb}")], g_eff, rng)
@@ -755,7 +761,8 @@ def evaluate(out5: Path, in_dir: Path) -> None:
     ish = dest / "eval_input_sha256.json"
     if ish.exists() and jload(ish) != shas:
         sys.exit("実験 1 の評価の回の保存の sha256 が前の集計のときと違う")
-    json.dump(shas, open(ish, "w"), indent=1)
+    with open(ish, "w", encoding="utf-8") as fh:
+        json.dump(shas, fh, indent=1)
     shutil.copy(ish, ROOT / "DAI" / "frozen" / "dai5_eval_inputs_sha256.json")
     cm, dt = dai1.git_commit()
     allrows = pd.concat([pd.read_csv(out5 / "eval" / "units" / f"{T}_ALL_f{f}_r{r}_p5.csv", low_memory=False)
