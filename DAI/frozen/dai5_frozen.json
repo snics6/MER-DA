@@ -1,0 +1,1627 @@
+{
+ "_meta": {
+  "time": "2026-11-06 21:46:45",
+  "commit": "d792982221f6a67896c7595f0c0e760bfe3144d8",
+  "dirty": false,
+  "rule": "DAI/docs/実験5_設計.md 1 節（(T, K) ごとに 1 つの β．生徒 4 × 30 単位の平均．同点は β = 0 に近い点）",
+  "default_beta": 0.0,
+  "beta_grid": [
+   0.0,
+   2.5,
+   5.0,
+   10.0,
+   20.0
+  ],
+  "dai1_frozen_sha256": "6926fb3e12638dd946ddfda8a260a33f089a400094ebdefdf37132fa1329dfdc",
+  "pseudo_gpu": [
+   "NVIDIA RTX A5000"
+  ],
+  "detect": "dai5_stats.py detect",
+  "detect_commit": "d792982221f6a67896c7595f0c0e760bfe3144d8"
+ },
+ "AFEW": {
+  "select": {
+   "0": {
+    "beta": 0.0,
+    "pseudo_uar": 46.59747701577895,
+    "best_pseudo_uar": 46.59747701577895,
+    "gap_to_best": 0.0,
+    "beta_argmax": 0.0
+   },
+   "1": {
+    "beta": 0.0,
+    "pseudo_uar": 46.59369141761444,
+    "best_pseudo_uar": 46.59369141761444,
+    "gap_to_best": 0.0,
+    "beta_argmax": 0.0
+   },
+   "5": {
+    "beta": 0.0,
+    "pseudo_uar": 46.68981217042411,
+    "best_pseudo_uar": 47.08882654405361,
+    "gap_to_best": 0.3990143736294982,
+    "beta_argmax": 5.0
+   },
+   "10": {
+    "beta": 2.5,
+    "pseudo_uar": 47.092051389766986,
+    "best_pseudo_uar": 47.35720030837728,
+    "gap_to_best": 0.26514891861029355,
+    "beta_argmax": 10.0
+   },
+   "25": {
+    "beta": 5.0,
+    "pseudo_uar": 47.6230790314111,
+    "best_pseudo_uar": 47.84187159751118,
+    "gap_to_best": 0.21879256610007758,
+    "beta_argmax": 10.0
+   }
+  },
+  "select_student": {
+   "A|0": {
+    "beta": 0.0,
+    "pseudo_uar": 48.0581795881866
+   },
+   "V|0": {
+    "beta": 0.0,
+    "pseudo_uar": 41.160585310879554
+   },
+   "T|0": {
+    "beta": 0.0,
+    "pseudo_uar": 45.41063062309309
+   },
+   "AVT|0": {
+    "beta": 0.0,
+    "pseudo_uar": 51.76051254095655
+   },
+   "A|1": {
+    "beta": 0.0,
+    "pseudo_uar": 48.04077693794741
+   },
+   "V|1": {
+    "beta": 0.0,
+    "pseudo_uar": 41.14775586613814
+   },
+   "T|1": {
+    "beta": 0.0,
+    "pseudo_uar": 45.45668139596215
+   },
+   "AVT|1": {
+    "beta": 0.0,
+    "pseudo_uar": 51.729551470410044
+   },
+   "A|5": {
+    "beta": 2.5,
+    "pseudo_uar": 48.42959505895759
+   },
+   "V|5": {
+    "beta": 0.0,
+    "pseudo_uar": 41.16783673796325
+   },
+   "T|5": {
+    "beta": 0.0,
+    "pseudo_uar": 45.43281955461821
+   },
+   "AVT|5": {
+    "beta": 0.0,
+    "pseudo_uar": 52.02886836375576
+   },
+   "A|10": {
+    "beta": 2.5,
+    "pseudo_uar": 48.58937458808237
+   },
+   "V|10": {
+    "beta": 2.5,
+    "pseudo_uar": 41.24356312394797
+   },
+   "T|10": {
+    "beta": 0.0,
+    "pseudo_uar": 45.6362835087493
+   },
+   "AVT|10": {
+    "beta": 2.5,
+    "pseudo_uar": 52.74399102915039
+   },
+   "A|25": {
+    "beta": 2.5,
+    "pseudo_uar": 48.93000100575758
+   },
+   "V|25": {
+    "beta": 2.5,
+    "pseudo_uar": 41.36145031170721
+   },
+   "T|25": {
+    "beta": 10.0,
+    "pseudo_uar": 46.647855296887705
+   },
+   "AVT|25": {
+    "beta": 5.0,
+    "pseudo_uar": 53.33832802610444
+   }
+  },
+  "select_variants": {
+   "srcw_mod|5": {
+    "beta": 0.0,
+    "pseudo_uar": 46.68981217042411,
+    "tie_used": true
+   },
+   "srcw_mod|25": {
+    "beta": 2.5,
+    "pseudo_uar": 47.25821623302455,
+    "tie_used": true
+   },
+   "srcw_src|5": {
+    "beta": 0.0,
+    "pseudo_uar": 46.68981217042411,
+    "tie_used": true
+   },
+   "srcw_src|25": {
+    "beta": 0.0,
+    "pseudo_uar": 47.018488742948215,
+    "tie_used": true
+   }
+  },
+  "delta_bar": {
+   "0": 0.6382803303937534,
+   "1": 0.6382803303937534,
+   "5": 0.5416383545242123,
+   "10": 0.5351429903237829,
+   "25": 0.45540394336583045
+  },
+  "delta_sel": {
+   "A|1": 0.6034537426930339,
+   "A|5": 0.4082248436776597,
+   "A|10": 0.6067673877628371,
+   "A|25": 0.565570137485382,
+   "A|0": 0.6034537426930339,
+   "V|1": 1.0429824686444609,
+   "V|5": 0.5230886961422685,
+   "V|10": 0.4474878918700042,
+   "V|25": 0.4511684403184437,
+   "V|0": 1.0429824686444609,
+   "T|1": 0.4614518476884408,
+   "T|5": 0.5938109698603334,
+   "T|10": 0.5784381324285748,
+   "T|25": 0.31646350265141626,
+   "T|0": 0.4614518476884408,
+   "AVT|1": 0.44523326254907836,
+   "AVT|5": 0.6414289084165876,
+   "AVT|10": 0.5078785492337153,
+   "AVT|25": 0.4884136930080799,
+   "AVT|0": 0.44523326254907836
+  },
+  "n_units": 30,
+  "tie_rule_used": 3,
+  "grid_edge_cells": 2,
+  "n_seeds_eval": 10,
+  "units": [
+   "IEMOCAP_f0_r0",
+   "IEMOCAP_f0_r1",
+   "IEMOCAP_f1_r0",
+   "IEMOCAP_f1_r1",
+   "IEMOCAP_f2_r0",
+   "IEMOCAP_f2_r1",
+   "IEMOCAP_f3_r0",
+   "IEMOCAP_f3_r1",
+   "IEMOCAP_f4_r0",
+   "IEMOCAP_f4_r1",
+   "MELD_f0_r0",
+   "MELD_f0_r1",
+   "MELD_f1_r0",
+   "MELD_f1_r1",
+   "MELD_f2_r0",
+   "MELD_f2_r1",
+   "MELD_f3_r0",
+   "MELD_f3_r1",
+   "MELD_f4_r0",
+   "MELD_f4_r1",
+   "MOSEI_f0_r0",
+   "MOSEI_f0_r1",
+   "MOSEI_f1_r0",
+   "MOSEI_f1_r1",
+   "MOSEI_f2_r0",
+   "MOSEI_f2_r1",
+   "MOSEI_f3_r0",
+   "MOSEI_f3_r1",
+   "MOSEI_f4_r0",
+   "MOSEI_f4_r1"
+  ],
+  "pseudo_commit": "d792982221f6a67896c7595f0c0e760bfe3144d8",
+  "pseudo_unit_sha256": {
+   "AFEW_IEMOCAP_f0_r0_p5.npz": "f8185a9358e627d4b5696d5ad30222d538bd7c720b233ce292bc7abb912c4f1f",
+   "AFEW_IEMOCAP_f0_r0_p5.csv": "2a7144d694a986177d73245d95692520930564592c98a018555bb0347b4895aa",
+   "AFEW_IEMOCAP_f0_r1_p5.npz": "7ecd1daabb73f5495cee6eb4b0dbb979a1c46a26035cd255e1147de6abe7a285",
+   "AFEW_IEMOCAP_f0_r1_p5.csv": "1a5074c30af8cb4f3b8d970008f2b434fbb4adabca678b85197c9f1f7e158320",
+   "AFEW_IEMOCAP_f1_r0_p5.npz": "ac62fa7a5d93906e712c4d425a100a449d23b0833b4bffb8ab60bbca1be9857d",
+   "AFEW_IEMOCAP_f1_r0_p5.csv": "12fcec2e81714dbe3301106f1f85b9e387b84cb93d791a57fafb967d5bb1689a",
+   "AFEW_IEMOCAP_f1_r1_p5.npz": "615634146d1e24d1a735991a78f6c202bb82744cd93b61de75b0d48c0898412a",
+   "AFEW_IEMOCAP_f1_r1_p5.csv": "763f22f425f29b643639fd606c4ba82228d3e4e7139404583276ced586329a2e",
+   "AFEW_IEMOCAP_f2_r0_p5.npz": "fba33a6123bbe72c31d04742be6867ecb0aa26859c20ffb0a9e3a3b1c56ef3cf",
+   "AFEW_IEMOCAP_f2_r0_p5.csv": "04d7b4afef4b232e430cd71214babd92e535e7f0e2b182711c8a46501922446f",
+   "AFEW_IEMOCAP_f2_r1_p5.npz": "dfcc020a99ac17f904ec60c9a2a3e026f8849267473679f1ef0d2a7287b74e26",
+   "AFEW_IEMOCAP_f2_r1_p5.csv": "5cfb0d37c0afd0690ebed979715d509fc53198626fc30b082a1409ff85bfdf34",
+   "AFEW_IEMOCAP_f3_r0_p5.npz": "ecfbc16d6ffe919ad7c730288340b6a66da46e168b3586554c0d1b58ec682f29",
+   "AFEW_IEMOCAP_f3_r0_p5.csv": "0101c7dfd9ffc211a59559c94112194b17033e6db35b8542a0fd6490a6bc2db6",
+   "AFEW_IEMOCAP_f3_r1_p5.npz": "9ebb41f6bea39acaf1c99ebf1c42ca60278afefdb763ae511c60fe10627e8547",
+   "AFEW_IEMOCAP_f3_r1_p5.csv": "7b2cf6094d08579007110ad96dc1be4f785d65c51114535e73cf07775daa79fb",
+   "AFEW_IEMOCAP_f4_r0_p5.npz": "988cf423050ea69058625e6abbf4bb94237c73d00aa71342047fd09965eb9d12",
+   "AFEW_IEMOCAP_f4_r0_p5.csv": "6a7a8ae6da6b016af75f75fbacb821df088b12a05f14a9e082dc3762cf0b6b0a",
+   "AFEW_IEMOCAP_f4_r1_p5.npz": "18f0f8fae553bfd40f15bacc0b75aa4494ea3fadd850b238f95694d214583114",
+   "AFEW_IEMOCAP_f4_r1_p5.csv": "c8752156789d875d6e6c13c5d833583ca1d8a25d3359dd79ce85bff6495a10f7",
+   "AFEW_MELD_f0_r0_p5.npz": "519bf655fb29e685c7a5a674fe8d90f49ddb91686b924087a469b0d955075311",
+   "AFEW_MELD_f0_r0_p5.csv": "614593a352ac30eb876f0139d8f3ec85d403a39195b9de768d681e07ebb7051f",
+   "AFEW_MELD_f0_r1_p5.npz": "8665847951e54dbd51afacebec1557bc08bbb97a00d79179777a943567c9c387",
+   "AFEW_MELD_f0_r1_p5.csv": "4532cfab761fefda4798026e94e3cdbc30f65b5b016963ba4d831d73a237ef4b",
+   "AFEW_MELD_f1_r0_p5.npz": "fcb0efb642789d101d2444cb15e03d321deb099a5685bde09525c4f79260e51d",
+   "AFEW_MELD_f1_r0_p5.csv": "37b85c90403eee983b0478b720db26aa1370083104eb4cd83d8dce55a3140360",
+   "AFEW_MELD_f1_r1_p5.npz": "56eca5797c78a17b780632d07e5d3db6efb09fdbcd0a710586a934b8fcc60320",
+   "AFEW_MELD_f1_r1_p5.csv": "313cf1696fedd8269aa655197ea06721367b96b8dd819e6dc4308652c294a94b",
+   "AFEW_MELD_f2_r0_p5.npz": "c6fc0bbacac884849f3fc02054e0988f5e01dc4fb6b687e5fb605f7f361b1fdb",
+   "AFEW_MELD_f2_r0_p5.csv": "21ce3b984d240f5dc7c44c095c8bb7b012cf7e7d3e3bc7cea5bf656d67bb7485",
+   "AFEW_MELD_f2_r1_p5.npz": "a719de27f8435878df02679d25db5c3c52177f8b24c8ceb15c877e1f38423f6d",
+   "AFEW_MELD_f2_r1_p5.csv": "1d746ee9bf5988a6110049927b81ef556206d879ee70da638fe15bd35d901c4d",
+   "AFEW_MELD_f3_r0_p5.npz": "8b68ae567bf1013b21bc893e3ceeddc6ff98962468645ff29b0f4944025d5e18",
+   "AFEW_MELD_f3_r0_p5.csv": "bc3896f3e7c2448e2a281454354f5ff2788217df0ecea71eaf5e82a227c50c4c",
+   "AFEW_MELD_f3_r1_p5.npz": "49f0678e8af48c5e2315d3c417439281c565d954820f9ca5e6f8922fd3999c8a",
+   "AFEW_MELD_f3_r1_p5.csv": "040297d4d0b968720b2cf157781b6447d83ae01b0a43f9f5eee142b543a0712f",
+   "AFEW_MELD_f4_r0_p5.npz": "33730639a355b54206f5484ee3560eed4d36f4e654eeed72760e809669feb4c6",
+   "AFEW_MELD_f4_r0_p5.csv": "fbe80198dbd6e4c2a1c424839ade642c638dc482e3a295a86e0da923555a1821",
+   "AFEW_MELD_f4_r1_p5.npz": "d12a9ae3aa8dde950ec2ec1a82bcc174acac2fd8025cc26863877562b7578e34",
+   "AFEW_MELD_f4_r1_p5.csv": "efd3258e3a867bcce889371b4dcff427694565a1220bebc3a996a353a9aecf52",
+   "AFEW_MOSEI_f0_r0_p5.npz": "b6eed3cbe4cd170e43f539d1e198f87966bf8639afa8153ef1a9b8081560e4e9",
+   "AFEW_MOSEI_f0_r0_p5.csv": "fc24971a242d33a14f96ffb918747d2bc316ddb27979e2cfcf352addf6874df3",
+   "AFEW_MOSEI_f0_r1_p5.npz": "9fa44dbc58898e7052e1b9ff26bdad97e86b920c3722f9fc0877688144c5e768",
+   "AFEW_MOSEI_f0_r1_p5.csv": "d0443bceef77df141705278aa84a1662b269e6fb99bd2b1028909a4cf4e31a70",
+   "AFEW_MOSEI_f1_r0_p5.npz": "a2ab1ebd3a8aa1d7ae62ff1ee218eeaaa5600c24f75e4bbc2e3faf9bbe06f00e",
+   "AFEW_MOSEI_f1_r0_p5.csv": "917e1e41750837e53dab8e3aed20145bd9bb11ca5da699660e5164443b526a97",
+   "AFEW_MOSEI_f1_r1_p5.npz": "1609d642de7f9f1cdafa08ca5125f5ad516f31bb376c375112d6c6bab77f050b",
+   "AFEW_MOSEI_f1_r1_p5.csv": "6146b192f65cd0248c69ff96b1b203c41fd827ba548167177a7bc25cde693f2c",
+   "AFEW_MOSEI_f2_r0_p5.npz": "d7c10243a2a1cc6ae319550496fa2e9bfcc4ea38d5c72fdfb2937273ea60d414",
+   "AFEW_MOSEI_f2_r0_p5.csv": "664982ec26bc88ab54cbd496a1b0c492c81949a760228745360cda0637caedb3",
+   "AFEW_MOSEI_f2_r1_p5.npz": "33c6c1a9ac2fb883be964ef15f2e20c9b69c67df29e5d776889b291201f84771",
+   "AFEW_MOSEI_f2_r1_p5.csv": "1b4708caf517cbec2223886e93253bec0d92bdf8877446ba84be143ae8c49d81",
+   "AFEW_MOSEI_f3_r0_p5.npz": "8bf98e4e807904c56591ec0c579cd2e429462ee2d4905e1ada8ef8e34fe0f93e",
+   "AFEW_MOSEI_f3_r0_p5.csv": "80ec3a53a363e7946825380a4e732cc4deb36c7a8b0929aad72d4d41a73f8ec4",
+   "AFEW_MOSEI_f3_r1_p5.npz": "7efaad47250b694d1fd1d3faf8fd68516ff605e342a6feb95f8df206cac41a96",
+   "AFEW_MOSEI_f3_r1_p5.csv": "4dcbbf4cf0aa1ea985b7216db705f9af26f944bc34864963c2c27811272c0d44",
+   "AFEW_MOSEI_f4_r0_p5.npz": "3ac788118975aeabb26c01ee736b55468b576acdadf708fdae5cff2ea50a9593",
+   "AFEW_MOSEI_f4_r0_p5.csv": "712c87dc643d1936c06a90ea2bc5fa93f131444e666b9e704afb826e4ccdec1a",
+   "AFEW_MOSEI_f4_r1_p5.npz": "a020edf11747fba5afa4d9915ddfea78d0b279a7873c65dd39dfc544cb448a40",
+   "AFEW_MOSEI_f4_r1_p5.csv": "8ffd0a83b85f4ec064278b51005eab7b6358a9a2754a1122d3f523b5177118e9"
+  },
+  "detect": {
+   "n_seeds_eval": 10,
+   "g_eff": 14.99159260148931,
+   "delta_same": 0.7538566929873923,
+   "cells": {
+    "7|A|5": {
+     "se": 1.099045345903293,
+     "v_cl_or_jk": 1.126437949910216,
+     "v_seed": 0.08146272244147275,
+     "detectable_first": 3.5790007494789693,
+     "detectable_last": 2.3743431173207807,
+     "halfwidth": 2.3743431173207807,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -2.2077846089944315,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|A|25": {
+     "se": 1.3807117731874134,
+     "v_cl_or_jk": 1.811014378202456,
+     "v_seed": 0.09535062241587582,
+     "detectable_first": 4.496237111118258,
+     "detectable_last": 2.9828464384032505,
+     "halfwidth": 2.9828464384032505,
+     "halfwidth_b0": 1.1638154659844542,
+     "same_level_possible_b0": false,
+     "expected_effect": -3.649526197423652,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|AVT|5": {
+     "se": 1.2070878133476854,
+     "v_cl_or_jk": 1.3592260234448157,
+     "v_seed": 0.09783496568768117,
+     "detectable_first": 3.9308370712471365,
+     "detectable_last": 2.607754677554548,
+     "halfwidth": 2.607754677554548,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -2.534907562495778,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|AVT|25": {
+     "se": 1.3570642365842933,
+     "v_cl_or_jk": 1.731875621025291,
+     "v_seed": 0.10974772119081996,
+     "detectable_first": 4.419229777852735,
+     "detectable_last": 2.9317590415233132,
+     "halfwidth": 2.9317590415233132,
+     "halfwidth_b0": 1.6912038981588566,
+     "same_level_possible_b0": false,
+     "expected_effect": -4.078942204313425,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|T|5": {
+     "se": 1.1940017475348967,
+     "v_cl_or_jk": 1.389205297858802,
+     "v_seed": 0.036434875257585236,
+     "detectable_first": 3.8882227791924184,
+     "detectable_last": 2.57948395113619,
+     "halfwidth": 2.57948395113619,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -0.9257979979742728,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|T|25": {
+     "se": 1.1955248837525165,
+     "v_cl_or_jk": 1.353814087774644,
+     "v_seed": 0.07546565989682405,
+     "detectable_first": 3.8931828162689044,
+     "detectable_last": 2.582774486880259,
+     "halfwidth": 2.582774486880259,
+     "halfwidth_b0": 0.9698771425654492,
+     "same_level_possible_b0": false,
+     "expected_effect": -1.6740736971177845,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|5": {
+     "se": 1.2086612489269422,
+     "v_cl_or_jk": 1.3973319502214727,
+     "v_seed": 0.06353006443616291,
+     "detectable_first": 3.93596090634494,
+     "detectable_last": 2.6111538784629373,
+     "halfwidth": 2.6111538784629373,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -0.5664351335864778,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|25": {
+     "se": 1.267033738375116,
+     "v_cl_or_jk": 1.557223958166417,
+     "v_seed": 0.04815053601440488,
+     "detectable_first": 4.126048771475075,
+     "detectable_last": 2.7372599750664772,
+     "halfwidth": 2.7372599750664772,
+     "halfwidth_b0": 0.9882663591477745,
+     "same_level_possible_b0": false,
+     "expected_effect": -1.9095370655886557,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    }
+   },
+   "n_cells": 8,
+   "delta_same_note": "実験 1 の固定のファイルの値（比較の基準の種の間の分散だけに依る）",
+   "descriptive_cells": [
+    "7|A|5",
+    "7|A|25",
+    "7|AVT|5",
+    "7|AVT|25",
+    "7|T|5",
+    "7|T|25",
+    "7|V|5",
+    "7|V|25"
+   ],
+   "same_level_cells": []
+  }
+ },
+ "IEMOCAP": {
+  "select": {
+   "0": {
+    "beta": 0.0,
+    "pseudo_uar": 45.72374564440616,
+    "best_pseudo_uar": 45.72374564440616,
+    "gap_to_best": 0.0,
+    "beta_argmax": 0.0
+   },
+   "1": {
+    "beta": 0.0,
+    "pseudo_uar": 45.82355425756953,
+    "best_pseudo_uar": 46.117491362465515,
+    "gap_to_best": 0.29393710489598135,
+    "beta_argmax": 2.5
+   },
+   "5": {
+    "beta": 2.5,
+    "pseudo_uar": 46.41672285061188,
+    "best_pseudo_uar": 46.673972791592725,
+    "gap_to_best": 0.25724994098084153,
+    "beta_argmax": 5.0
+   },
+   "10": {
+    "beta": 2.5,
+    "pseudo_uar": 46.730380731808104,
+    "best_pseudo_uar": 47.42996091295507,
+    "gap_to_best": 0.6995801811469633,
+    "beta_argmax": 10.0
+   },
+   "25": {
+    "beta": 5.0,
+    "pseudo_uar": 47.254950949033656,
+    "best_pseudo_uar": 47.65104225376804,
+    "gap_to_best": 0.3960913047343837,
+    "beta_argmax": 10.0
+   }
+  },
+  "select_student": {
+   "A|0": {
+    "beta": 0.0,
+    "pseudo_uar": 43.48367289870868
+   },
+   "V|0": {
+    "beta": 0.0,
+    "pseudo_uar": 46.2107741723603
+   },
+   "T|0": {
+    "beta": 0.0,
+    "pseudo_uar": 43.150774605220384
+   },
+   "AVT|0": {
+    "beta": 0.0,
+    "pseudo_uar": 50.04976090133528
+   },
+   "A|1": {
+    "beta": 0.0,
+    "pseudo_uar": 43.54729264556132
+   },
+   "V|1": {
+    "beta": 0.0,
+    "pseudo_uar": 46.44038419778197
+   },
+   "T|1": {
+    "beta": 0.0,
+    "pseudo_uar": 43.1448586281502
+   },
+   "AVT|1": {
+    "beta": 2.5,
+    "pseudo_uar": 51.27766528566828
+   },
+   "A|5": {
+    "beta": 2.5,
+    "pseudo_uar": 43.8109863766284
+   },
+   "V|5": {
+    "beta": 0.0,
+    "pseudo_uar": 46.37824674324825
+   },
+   "T|5": {
+    "beta": 0.0,
+    "pseudo_uar": 42.952941801092706
+   },
+   "AVT|5": {
+    "beta": 5.0,
+    "pseudo_uar": 52.83133993496094
+   },
+   "A|10": {
+    "beta": 2.5,
+    "pseudo_uar": 44.15424773153072
+   },
+   "V|10": {
+    "beta": 2.5,
+    "pseudo_uar": 47.104325135661156
+   },
+   "T|10": {
+    "beta": 0.0,
+    "pseudo_uar": 43.053445088567926
+   },
+   "AVT|10": {
+    "beta": 10.0,
+    "pseudo_uar": 54.4967544847138
+   },
+   "A|25": {
+    "beta": 0.0,
+    "pseudo_uar": 43.918693251598334
+   },
+   "V|25": {
+    "beta": 0.0,
+    "pseudo_uar": 47.15159591916325
+   },
+   "T|25": {
+    "beta": 0.0,
+    "pseudo_uar": 42.98389199975754
+   },
+   "AVT|25": {
+    "beta": 10.0,
+    "pseudo_uar": 54.8069758070626
+   }
+  },
+  "select_variants": {
+   "srcw_mod|5": {
+    "beta": 2.5,
+    "pseudo_uar": 46.32908866229153,
+    "tie_used": true
+   },
+   "srcw_mod|25": {
+    "beta": 2.5,
+    "pseudo_uar": 47.00075585843819,
+    "tie_used": true
+   },
+   "srcw_src|5": {
+    "beta": 0.0,
+    "pseudo_uar": 45.73920800525521,
+    "tie_used": true
+   },
+   "srcw_src|25": {
+    "beta": 0.0,
+    "pseudo_uar": 46.44871854195791,
+    "tie_used": true
+   }
+  },
+  "delta_bar": {
+   "0": 0.600632507791298,
+   "1": 0.600632507791298,
+   "5": 0.5857739352841752,
+   "10": 0.7214221690337379,
+   "25": 0.6960829596659351
+  },
+  "delta_sel": {
+   "A|1": 0.705458102771215,
+   "A|5": 0.518863121491937,
+   "A|10": 0.8514126060785456,
+   "A|25": 0.8140153035637304,
+   "A|0": 0.705458102771215,
+   "V|1": 0.7869018197934675,
+   "V|5": 0.647908612172418,
+   "V|10": 0.612803324051292,
+   "V|25": 0.6094087548896999,
+   "V|0": 0.7869018197934675,
+   "T|1": 0.3533584974106083,
+   "T|5": 0.46888476246768857,
+   "T|10": 0.523135390700503,
+   "T|25": 0.5345893295853607,
+   "T|0": 0.3533584974106083,
+   "AVT|1": 0.5568116111899012,
+   "AVT|5": 0.7074392450046572,
+   "AVT|10": 0.898337355304611,
+   "AVT|25": 0.8263184506249494,
+   "AVT|0": 0.5568116111899012
+  },
+  "n_units": 30,
+  "tie_rule_used": 4,
+  "grid_edge_cells": 1,
+  "n_seeds_eval": 10,
+  "units": [
+   "AFEW_f0_r0",
+   "AFEW_f0_r1",
+   "AFEW_f1_r0",
+   "AFEW_f1_r1",
+   "AFEW_f2_r0",
+   "AFEW_f2_r1",
+   "AFEW_f3_r0",
+   "AFEW_f3_r1",
+   "AFEW_f4_r0",
+   "AFEW_f4_r1",
+   "MELD_f0_r0",
+   "MELD_f0_r1",
+   "MELD_f1_r0",
+   "MELD_f1_r1",
+   "MELD_f2_r0",
+   "MELD_f2_r1",
+   "MELD_f3_r0",
+   "MELD_f3_r1",
+   "MELD_f4_r0",
+   "MELD_f4_r1",
+   "MOSEI_f0_r0",
+   "MOSEI_f0_r1",
+   "MOSEI_f1_r0",
+   "MOSEI_f1_r1",
+   "MOSEI_f2_r0",
+   "MOSEI_f2_r1",
+   "MOSEI_f3_r0",
+   "MOSEI_f3_r1",
+   "MOSEI_f4_r0",
+   "MOSEI_f4_r1"
+  ],
+  "pseudo_commit": "d792982221f6a67896c7595f0c0e760bfe3144d8",
+  "pseudo_unit_sha256": {
+   "IEMOCAP_AFEW_f0_r0_p5.npz": "47865bd58c2ce93311e511330b47181c32aa4257648de49c8efa98851e1188c7",
+   "IEMOCAP_AFEW_f0_r0_p5.csv": "17439ae6937b5285180cb0329d627feeedf0ecb556fb6981e7970e4d08dbf900",
+   "IEMOCAP_AFEW_f0_r1_p5.npz": "c9fddd91741bb7642ebb8ffb4735c36a8f6b992308c342abaea7ae75bd6faa85",
+   "IEMOCAP_AFEW_f0_r1_p5.csv": "9d431def9b8c28f3d5c791ec260965f64cd64369ee41a946e59920f29bbaf36a",
+   "IEMOCAP_AFEW_f1_r0_p5.npz": "67000b12300cfa0d2ef37b566a884e196d39fe16eb55b02807d0ba816585c59a",
+   "IEMOCAP_AFEW_f1_r0_p5.csv": "a77a2b1dff06e0849ed6270fdde7f56e4d45e527a03ed7e82e5e7b705036dafe",
+   "IEMOCAP_AFEW_f1_r1_p5.npz": "8bc2cc288b46d49be121e20f38fcf76759457226ef8cbc4855484d56d0ae93e5",
+   "IEMOCAP_AFEW_f1_r1_p5.csv": "18b9cca2c4050fefc650864cdbee4c6bd0df4e3a9516add815122ddc1bc52e71",
+   "IEMOCAP_AFEW_f2_r0_p5.npz": "a6b0420dac326317d3e7e9e811545c7f51164bd11d788a601c888a8596694345",
+   "IEMOCAP_AFEW_f2_r0_p5.csv": "63114a29cdf90fbb0abe29fe98e6c19b0600496491023e263744153d6f602f75",
+   "IEMOCAP_AFEW_f2_r1_p5.npz": "dd9df17f20e98bcdd9b1fe88b04e11589321365c70149b6fb5ead5ac1b051678",
+   "IEMOCAP_AFEW_f2_r1_p5.csv": "77bcd8fc680e1e5deb9a99ed309765e887b00eb6eeb4e0febb68d62702ca12bf",
+   "IEMOCAP_AFEW_f3_r0_p5.npz": "78d652cdf5b24331bc2d41333b2cf6316f4053538abe5c3ccd0f81a1ca09ff4e",
+   "IEMOCAP_AFEW_f3_r0_p5.csv": "fab811e3c33ecc02d93909d861120d4c7abf4276065279836e68749ce0a777bb",
+   "IEMOCAP_AFEW_f3_r1_p5.npz": "d8a2ef9d53ada44826191aee8e57670afd117c95d24520efc03adc16fbc59be3",
+   "IEMOCAP_AFEW_f3_r1_p5.csv": "573842bac3431f8349efabb4ea8b9609982e5b06039fdbad3e7d6f19218dda3f",
+   "IEMOCAP_AFEW_f4_r0_p5.npz": "dcccad00205139838d4d80fc86293e892b11b33ca6c74203e852af5fa5d1c554",
+   "IEMOCAP_AFEW_f4_r0_p5.csv": "55b71cf5449ee22a061964a6040aec97c37d96ac53509056ae70e82e4bcea31b",
+   "IEMOCAP_AFEW_f4_r1_p5.npz": "5aad2fa038d05bc8e6c26fe20609b15c70e7370a52a3f03c4bb0c06b6d90c62e",
+   "IEMOCAP_AFEW_f4_r1_p5.csv": "de221b005cfa214f2d1809b835f1146122c1c7af680f2545ad30a41eb0cf9f23",
+   "IEMOCAP_MELD_f0_r0_p5.npz": "72c24753d45575ce6b580ad2bedf69cf889a4724f91479743e5fb7764a4edc6e",
+   "IEMOCAP_MELD_f0_r0_p5.csv": "09221ce23413130ecfbdf402863e3ca9d5842cb43e106c42848dd2cf425ed941",
+   "IEMOCAP_MELD_f0_r1_p5.npz": "d97fb4276aa29378db0510bae564ea12908221368f540df756408c5485737dd0",
+   "IEMOCAP_MELD_f0_r1_p5.csv": "9116a09dfb8a76c3afd477ec1145f8f57c83699692879a57bb13c05ee5168134",
+   "IEMOCAP_MELD_f1_r0_p5.npz": "941cbf4f361edc6a777fb70a57ba5325230a7aa382ee5658cd2235feaa9e25a4",
+   "IEMOCAP_MELD_f1_r0_p5.csv": "83d683e80306e458b765ea5e2a3875cfb043caa00ea897e6f9d617d944fd2f3b",
+   "IEMOCAP_MELD_f1_r1_p5.npz": "578480a37c7fc2cdcf3ecc11852db9cb0111a78eb49939df807d01a919bacbb2",
+   "IEMOCAP_MELD_f1_r1_p5.csv": "2f8288bd4eef144d5bf0c08235d54e1334961716ed95134a80fd8db99b25072e",
+   "IEMOCAP_MELD_f2_r0_p5.npz": "d583b1eeaade55829f1b5ece994f28e34b6322673dacf708f2dbbb3fb0de1073",
+   "IEMOCAP_MELD_f2_r0_p5.csv": "9089c165e9b9a033703b80d6bf5d4af1e09953fb7ec8abe230448e2778a255c1",
+   "IEMOCAP_MELD_f2_r1_p5.npz": "6e57b8e60d6ff1637e14cd04db256cbeba22cd4ffb37630b99ebf76e19680ec3",
+   "IEMOCAP_MELD_f2_r1_p5.csv": "56a812605436e42ef66ba09d0ab7f65d68c7a52d145f7330afcbbbcf1cf7f2f2",
+   "IEMOCAP_MELD_f3_r0_p5.npz": "2dee4381aac17e1dc6569bdca604f65c6c6597c665854787529a0ddc125ae462",
+   "IEMOCAP_MELD_f3_r0_p5.csv": "ebace0d8cacc8d7dbd0aadfbb6e546c2ef2fa7a6a53a9a2d45a3f0e4410521de",
+   "IEMOCAP_MELD_f3_r1_p5.npz": "e12a8c06b94255a190fdf3667eadffc6fa78befb70e86cbb4ed882ffdf0ca348",
+   "IEMOCAP_MELD_f3_r1_p5.csv": "139f60a3245238859d0a87bf8adf2c4fa2e402e6ae82f8743fe27bd66647c86e",
+   "IEMOCAP_MELD_f4_r0_p5.npz": "a0298810ed5e28f9fd7ff1ce5cfb0398002a9f8b0124bfe2344433253c59bf41",
+   "IEMOCAP_MELD_f4_r0_p5.csv": "6cc0c0f4a55ba659fd79a21abf80b931d590b189f39d29ee1301417f930740b7",
+   "IEMOCAP_MELD_f4_r1_p5.npz": "ba6618efff1bf3b09732643731b167cc3ca3d45791fb8609fd65b5a8b0edb5e8",
+   "IEMOCAP_MELD_f4_r1_p5.csv": "3adb81b373a0ab1cf2be9241d37461100d53580b5264f57e398e149d159128d2",
+   "IEMOCAP_MOSEI_f0_r0_p5.npz": "290db00e59225bceb7e1e7419ea851091a7e98fa4b93df6d0286269cf03b46e0",
+   "IEMOCAP_MOSEI_f0_r0_p5.csv": "c363b751911fa32b1c193d25dd9948a1d2095744143da164321c400c9fc5d9a5",
+   "IEMOCAP_MOSEI_f0_r1_p5.npz": "56b7caae4d3a2916d4265a8793e52cfacd72090244dd86de305af8f503457b31",
+   "IEMOCAP_MOSEI_f0_r1_p5.csv": "58614955c305e1bc170ec12b063fcbe094d728e373f36e08acaee0721ff31719",
+   "IEMOCAP_MOSEI_f1_r0_p5.npz": "aeb76fa23e5ede9231c8a627c2ebb8d33b1aa754fc7d44fdbe4e488871f7bf17",
+   "IEMOCAP_MOSEI_f1_r0_p5.csv": "e5b2e6005fea662837be2982d44510c47128c79d8a1882544eb3182cf5553db4",
+   "IEMOCAP_MOSEI_f1_r1_p5.npz": "c3f3f27384a1b8af36e23ef9cd374ada38e8eb94acb32cbc17b71f992512e1ba",
+   "IEMOCAP_MOSEI_f1_r1_p5.csv": "64eb257a46c9c0738a428ca926957b032026d573bcd22a7c758283f9c090d1eb",
+   "IEMOCAP_MOSEI_f2_r0_p5.npz": "f45403cba8335368c21cfa372dc5aad0fe03085f41705b519deb05fe1c12a1a4",
+   "IEMOCAP_MOSEI_f2_r0_p5.csv": "9792ecfae119f503486a66fc563b6645071052876427a638e6481f792dadaaba",
+   "IEMOCAP_MOSEI_f2_r1_p5.npz": "36f94fd083e03b23825ba245aef43f2b26b8c99f883865936315765cda662523",
+   "IEMOCAP_MOSEI_f2_r1_p5.csv": "5e48a397fb3b2767321311b11bcdef0dfd704a93d2a6f91f2d23194970e32e8a",
+   "IEMOCAP_MOSEI_f3_r0_p5.npz": "9fd0508ac1693b63e640cd8089d9e7898267db35c59344541521a891dc33e066",
+   "IEMOCAP_MOSEI_f3_r0_p5.csv": "466bee77abf4f53b6612e811511d6b7f72ea3cd071abd7cb6fe00de49ab289ae",
+   "IEMOCAP_MOSEI_f3_r1_p5.npz": "b4a0ccd4d47fa358fcd7d9a43578c5f54f110284411e9283d40dea95510c2b07",
+   "IEMOCAP_MOSEI_f3_r1_p5.csv": "e91cc0718f2e371eeb6f77ef9b14df658eeb024afd1caf72d8d7359ad1c74952",
+   "IEMOCAP_MOSEI_f4_r0_p5.npz": "1ebf16ba8704d0678a72f9be01b8f5688b4ef1527436699c107a6bb4eb78e66f",
+   "IEMOCAP_MOSEI_f4_r0_p5.csv": "251f678e016598a5d8b6bf0b9127a5fa0b317bcd24a1a6acbed398e4a609fa88",
+   "IEMOCAP_MOSEI_f4_r1_p5.npz": "1a2d767cc4f9f3618879fd90f24c96952cfc6215027effa065b5fef9470e6b9b",
+   "IEMOCAP_MOSEI_f4_r1_p5.csv": "e9c9d2d684f181e2052c0121893498eadb6e4bfc3b26e9ddd06562a2fc967709"
+  },
+  "detect": {
+   "n_seeds_eval": 10,
+   "g_eff": 4.907259373581788,
+   "delta_same": 0.5684891753181581,
+   "cells": {
+    "7|A|5": {
+     "se": 0.6877303479842207,
+     "v_cl_or_jk": 0.4332484606926639,
+     "v_seed": 0.03972457084583346,
+     "detectable_first": 4.742059283774851,
+     "detectable_last": 2.188664904973862,
+     "halfwidth": 2.188664904973862,
+     "halfwidth_b0": 0.0,
+     "same_level_possible_b0": true,
+     "expected_effect": -2.372957505120539,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|A|25": {
+     "se": 1.0391527532261962,
+     "v_cl_or_jk": 1.053522417251908,
+     "v_seed": 0.026316027285675697,
+     "detectable_first": 7.1651977772101185,
+     "detectable_last": 3.3070478401301004,
+     "halfwidth": 3.3070478401301004,
+     "halfwidth_b0": 0.27724519721462587,
+     "same_level_possible_b0": true,
+     "expected_effect": -2.4375703760683485,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|AVT|5": {
+     "se": 1.003499630682819,
+     "v_cl_or_jk": 0.9474819113880816,
+     "v_seed": 0.05952959739247275,
+     "detectable_first": 6.919361278576699,
+     "detectable_last": 3.1935836920201024,
+     "halfwidth": 3.1935836920201024,
+     "halfwidth_b0": 0.0,
+     "same_level_possible_b0": true,
+     "expected_effect": -4.024826042412293,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|AVT|25": {
+     "se": 1.3695779619356188,
+     "v_cl_or_jk": 1.7468097401229947,
+     "v_seed": 0.12893405369672853,
+     "detectable_first": 9.4435557603156,
+     "detectable_last": 4.3586083247600005,
+     "halfwidth": 4.3586083247600005,
+     "halfwidth_b0": 0.5471613841489255,
+     "same_level_possible_b0": true,
+     "expected_effect": -3.8014516530582427,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|T|5": {
+     "se": 1.1903911280690103,
+     "v_cl_or_jk": 1.356392551465378,
+     "v_seed": 0.06063848632003275,
+     "detectable_first": 8.20802123496284,
+     "detectable_last": 3.7883558473657266,
+     "halfwidth": 3.7883558473657266,
+     "halfwidth_b0": 0.0,
+     "same_level_possible_b0": true,
+     "expected_effect": -1.0178997229621842,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|T|25": {
+     "se": 1.3957039783003296,
+     "v_cl_or_jk": 1.9221455387481876,
+     "v_seed": 0.025844056295178868,
+     "detectable_first": 9.623700665674892,
+     "detectable_last": 4.441752969011656,
+     "halfwidth": 4.441752969011656,
+     "halfwidth_b0": 0.4610414728577116,
+     "same_level_possible_b0": true,
+     "expected_effect": -1.7501690843435673,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|5": {
+     "se": 1.077196488071679,
+     "v_cl_or_jk": 1.1062023268277237,
+     "v_seed": 0.05414994708623505,
+     "detectable_first": 7.4275180987464156,
+     "detectable_last": 3.4281199835283003,
+     "halfwidth": 3.4281199835283003,
+     "halfwidth_b0": 0.0,
+     "same_level_possible_b0": true,
+     "expected_effect": -2.640750929604043,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|25": {
+     "se": 1.3260184475533237,
+     "v_cl_or_jk": 1.6813711428537756,
+     "v_seed": 0.07695378039795076,
+     "detectable_first": 9.143202867384916,
+     "detectable_last": 4.2199825091541125,
+     "halfwidth": 4.2199825091541125,
+     "halfwidth_b0": 0.2399874079903348,
+     "same_level_possible_b0": true,
+     "expected_effect": -2.4722644638128166,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    }
+   },
+   "n_cells": 8,
+   "delta_same_note": "実験 1 の固定のファイルの値（比較の基準の種の間の分散だけに依る）",
+   "descriptive_cells": [
+    "7|A|5",
+    "7|A|25",
+    "7|AVT|5",
+    "7|AVT|25",
+    "7|T|5",
+    "7|T|25",
+    "7|V|5",
+    "7|V|25"
+   ],
+   "same_level_cells": []
+  }
+ },
+ "MOSEI": {
+  "select": {
+   "0": {
+    "beta": 0.0,
+    "pseudo_uar": 53.90861650995052,
+    "best_pseudo_uar": 53.90861650995052,
+    "gap_to_best": 0.0,
+    "beta_argmax": 0.0
+   },
+   "1": {
+    "beta": 0.0,
+    "pseudo_uar": 53.984742653004936,
+    "best_pseudo_uar": 54.25891568142756,
+    "gap_to_best": 0.2741730284226236,
+    "beta_argmax": 2.5
+   },
+   "5": {
+    "beta": 0.0,
+    "pseudo_uar": 54.13584966009124,
+    "best_pseudo_uar": 54.82768330511125,
+    "gap_to_best": 0.6918336450200115,
+    "beta_argmax": 5.0
+   },
+   "10": {
+    "beta": 2.5,
+    "pseudo_uar": 54.72615376511312,
+    "best_pseudo_uar": 55.36842320680866,
+    "gap_to_best": 0.6422694416955395,
+    "beta_argmax": 10.0
+   },
+   "25": {
+    "beta": 2.5,
+    "pseudo_uar": 55.07858602152452,
+    "best_pseudo_uar": 55.58386559202566,
+    "gap_to_best": 0.5052795705011377,
+    "beta_argmax": 10.0
+   }
+  },
+  "select_student": {
+   "A|0": {
+    "beta": 0.0,
+    "pseudo_uar": 53.328839167430715
+   },
+   "V|0": {
+    "beta": 0.0,
+    "pseudo_uar": 53.175320621537125
+   },
+   "T|0": {
+    "beta": 0.0,
+    "pseudo_uar": 50.49634006254026
+   },
+   "AVT|0": {
+    "beta": 0.0,
+    "pseudo_uar": 58.63396618829399
+   },
+   "A|1": {
+    "beta": 0.0,
+    "pseudo_uar": 53.3993414375206
+   },
+   "V|1": {
+    "beta": 0.0,
+    "pseudo_uar": 53.05099980684903
+   },
+   "T|1": {
+    "beta": 0.0,
+    "pseudo_uar": 50.941038028057214
+   },
+   "AVT|1": {
+    "beta": 2.5,
+    "pseudo_uar": 59.447117153703275
+   },
+   "A|5": {
+    "beta": 0.0,
+    "pseudo_uar": 53.52814514820073
+   },
+   "V|5": {
+    "beta": 0.0,
+    "pseudo_uar": 53.08491625960644
+   },
+   "T|5": {
+    "beta": 0.0,
+    "pseudo_uar": 50.7173687735578
+   },
+   "AVT|5": {
+    "beta": 5.0,
+    "pseudo_uar": 61.09213507473485
+   },
+   "A|10": {
+    "beta": 0.0,
+    "pseudo_uar": 53.55949361504965
+   },
+   "V|10": {
+    "beta": 0.0,
+    "pseudo_uar": 53.3094446365371
+   },
+   "T|10": {
+    "beta": 0.0,
+    "pseudo_uar": 50.89525225202846
+   },
+   "AVT|10": {
+    "beta": 10.0,
+    "pseudo_uar": 62.87035273797789
+   },
+   "A|25": {
+    "beta": 2.5,
+    "pseudo_uar": 54.22026367558348
+   },
+   "V|25": {
+    "beta": 0.0,
+    "pseudo_uar": 53.4730680689531
+   },
+   "T|25": {
+    "beta": 0.0,
+    "pseudo_uar": 51.15947154869766
+   },
+   "AVT|25": {
+    "beta": 10.0,
+    "pseudo_uar": 63.04289105191118
+   }
+  },
+  "select_variants": {
+   "srcw_mod|5": {
+    "beta": 2.5,
+    "pseudo_uar": 54.49861068076532,
+    "tie_used": true
+   },
+   "srcw_mod|25": {
+    "beta": 2.5,
+    "pseudo_uar": 55.16068576569724,
+    "tie_used": true
+   },
+   "srcw_src|5": {
+    "beta": 0.0,
+    "pseudo_uar": 54.13584966009124,
+    "tie_used": false
+   },
+   "srcw_src|25": {
+    "beta": 0.0,
+    "pseudo_uar": 54.57664504703335,
+    "tie_used": true
+   }
+  },
+  "delta_bar": {
+   "0": 0.7053146399922305,
+   "1": 0.7053146399922305,
+   "5": 0.7400543020558766,
+   "10": 0.6944370887657856,
+   "25": 0.6305254670048901
+  },
+  "delta_sel": {
+   "A|1": 0.7643356699354097,
+   "A|5": 0.6260117526879087,
+   "A|10": 0.6652699749742313,
+   "A|25": 0.5055067438762282,
+   "A|0": 0.7643356699354097,
+   "V|1": 0.7404369573453918,
+   "V|5": 0.7707636011379967,
+   "V|10": 0.5245108632794553,
+   "V|25": 0.4542689824906718,
+   "V|0": 0.7404369573453918,
+   "T|1": 0.5944311850993887,
+   "T|5": 0.9247564288930112,
+   "T|10": 0.7430564872960613,
+   "T|25": 0.501562232355729,
+   "T|0": 0.5944311850993887,
+   "AVT|1": 0.722054747588732,
+   "AVT|5": 0.6386854255045901,
+   "AVT|10": 0.8449110295133939,
+   "AVT|25": 1.0607639092969312,
+   "AVT|0": 0.722054747588732
+  },
+  "n_units": 30,
+  "tie_rule_used": 4,
+  "grid_edge_cells": 2,
+  "n_seeds_eval": 10,
+  "units": [
+   "AFEW_f0_r0",
+   "AFEW_f0_r1",
+   "AFEW_f1_r0",
+   "AFEW_f1_r1",
+   "AFEW_f2_r0",
+   "AFEW_f2_r1",
+   "AFEW_f3_r0",
+   "AFEW_f3_r1",
+   "AFEW_f4_r0",
+   "AFEW_f4_r1",
+   "IEMOCAP_f0_r0",
+   "IEMOCAP_f0_r1",
+   "IEMOCAP_f1_r0",
+   "IEMOCAP_f1_r1",
+   "IEMOCAP_f2_r0",
+   "IEMOCAP_f2_r1",
+   "IEMOCAP_f3_r0",
+   "IEMOCAP_f3_r1",
+   "IEMOCAP_f4_r0",
+   "IEMOCAP_f4_r1",
+   "MELD_f0_r0",
+   "MELD_f0_r1",
+   "MELD_f1_r0",
+   "MELD_f1_r1",
+   "MELD_f2_r0",
+   "MELD_f2_r1",
+   "MELD_f3_r0",
+   "MELD_f3_r1",
+   "MELD_f4_r0",
+   "MELD_f4_r1"
+  ],
+  "pseudo_commit": "d792982221f6a67896c7595f0c0e760bfe3144d8",
+  "pseudo_unit_sha256": {
+   "MOSEI_AFEW_f0_r0_p5.npz": "180deb416dbc84c272a068a5b9e8eca4e4d0bac6d2f407b75af35ad575740f5c",
+   "MOSEI_AFEW_f0_r0_p5.csv": "82e6f28069d40233c0074d7141610d4d9c692af615e4a9b77c5ec0ec9204bf94",
+   "MOSEI_AFEW_f0_r1_p5.npz": "f65762feb7375612c2fe5ebf58474f8e187e363339cdee5fd59bce3941c87c27",
+   "MOSEI_AFEW_f0_r1_p5.csv": "1a6e6188ea39c1ee7d6c7df6f67341a7383085888fa1b1d28ffdbf9621485c21",
+   "MOSEI_AFEW_f1_r0_p5.npz": "6d04151fe728e0faece9a8bfed0755ae4a7cbf9144ea3507d83d030d7bb0da95",
+   "MOSEI_AFEW_f1_r0_p5.csv": "52b112c6a7baba08a88c0b05ba9fc471371470b9d56f45f4e1a78fd29a7cc1a0",
+   "MOSEI_AFEW_f1_r1_p5.npz": "a49dfff4f81307b19a19f30fe190119204e4985828f87ec09f18682cbacc66be",
+   "MOSEI_AFEW_f1_r1_p5.csv": "ecf441abceb172236970a3b37bd45847211040d1af873564d0b8d57cd9208249",
+   "MOSEI_AFEW_f2_r0_p5.npz": "3f9558caddb4b2df45c11f599b8450e24b1cb48f6a28deba90fbdd716ab36e5f",
+   "MOSEI_AFEW_f2_r0_p5.csv": "7b08ddfb7e70ed6ffdfe07a34c470b180355c00a8aef399a499dc712852e873c",
+   "MOSEI_AFEW_f2_r1_p5.npz": "8f93a6d9d3e3de277b02c49a724d0ef5ce316d48ede6ccf010ac19ed3f2a3a58",
+   "MOSEI_AFEW_f2_r1_p5.csv": "0b3b984e961d984ca08969e8e3fb9b2a59f0c5732b570d98cff43135eb8bbc97",
+   "MOSEI_AFEW_f3_r0_p5.npz": "58c820a1c638d4e3d3689d4bdfba8b18373db6c96a45d52bb654ded39019c10e",
+   "MOSEI_AFEW_f3_r0_p5.csv": "a42a2220fabeedbcbc1f82ab765bddbb234e4c96c56c589c87650850242870e8",
+   "MOSEI_AFEW_f3_r1_p5.npz": "f1ffff96f33fa31f3ba46ba784eca1d6017b13c3d3e0bfe08848d89ddb384d9e",
+   "MOSEI_AFEW_f3_r1_p5.csv": "db067b9a31bab30260c263d4f3324f1160ac148d61d479d45715406fe228c982",
+   "MOSEI_AFEW_f4_r0_p5.npz": "1d6c462244a5921f5b52c13b19a1f326df644cdc1dfa5f37d58dc6b77d772b66",
+   "MOSEI_AFEW_f4_r0_p5.csv": "75a7453acc89394af596c59c04c19718023c8304c69ee431a003488118ebf27a",
+   "MOSEI_AFEW_f4_r1_p5.npz": "e1cfb9dcf06791a7bc5bd2a13cbf46fc2a1697b9e9c85d2b2c55ce587c4be8aa",
+   "MOSEI_AFEW_f4_r1_p5.csv": "90e8447312a15505139ec1ec20ecd0e4e972127b29241a919bca39bb08d6537f",
+   "MOSEI_IEMOCAP_f0_r0_p5.npz": "83a9e8e53116c4a7d67081a8778dcba6f449c1db4cf0ac602a3c2d8d35dc20fc",
+   "MOSEI_IEMOCAP_f0_r0_p5.csv": "9813138f67bc32d88ad8a618231c730652039f85e97ba37c109015172a37d178",
+   "MOSEI_IEMOCAP_f0_r1_p5.npz": "4896bcb30ae9d6b5f17d18648c8db23ff2cc5e579625a7352b2871e34cfba36d",
+   "MOSEI_IEMOCAP_f0_r1_p5.csv": "ea0794fb899ed210f167799433a2f02fbed0e6993e27b908e1e6b0b1b8e9cfe2",
+   "MOSEI_IEMOCAP_f1_r0_p5.npz": "5e01f4ba3c872822de046520be7525c4c4068dba6c97feb81b56520291c5c6a2",
+   "MOSEI_IEMOCAP_f1_r0_p5.csv": "3b66d50e1597c0bef16f1446454b8f4548234de7417a637583f6260f8da74e6b",
+   "MOSEI_IEMOCAP_f1_r1_p5.npz": "e4dfba60e415207048220f0e1a7753866a354433d266a38f79afc055bb1606a8",
+   "MOSEI_IEMOCAP_f1_r1_p5.csv": "e6a5eb402ff939e49616e6e26244adf24cdf0fb19e6625a5af409b1820887113",
+   "MOSEI_IEMOCAP_f2_r0_p5.npz": "c25f84bf9f53a99f686ca9d51f7b53fb022e1a6f5cca67426483bdd2ccc438a5",
+   "MOSEI_IEMOCAP_f2_r0_p5.csv": "c2be73668d8ec03f1b61432bba919f5e0f099d6c0d255479abe27ce45faa32fc",
+   "MOSEI_IEMOCAP_f2_r1_p5.npz": "f02345e440bb3f46f9530924cf46654b12bf1b3892e48c4437d849a3249f8f42",
+   "MOSEI_IEMOCAP_f2_r1_p5.csv": "cc95b217a447f0c8e5deaf73c696dc40ca7e257aa78d98aea8b75e3a24142beb",
+   "MOSEI_IEMOCAP_f3_r0_p5.npz": "5301c5830eaa1f5c5fee22e0103fc5e3ab9a0cf3c07263722d2e358e6f5d6492",
+   "MOSEI_IEMOCAP_f3_r0_p5.csv": "627b082e992ce3fda7f24680ce839d3e43d4eabae1f584143c7dcd500b8a0869",
+   "MOSEI_IEMOCAP_f3_r1_p5.npz": "bd8203ff73c3a350c6924a7688f79b510d91dae8f07a921bcda2956638541491",
+   "MOSEI_IEMOCAP_f3_r1_p5.csv": "2ad9c9c7719b6057ca0e4315826018bca703d8416d1e9074b5bf54b874623663",
+   "MOSEI_IEMOCAP_f4_r0_p5.npz": "dbfca6b3db735a20ad7b0942ac3501a33dcf2513395a1477730046b780cd8d1e",
+   "MOSEI_IEMOCAP_f4_r0_p5.csv": "e30c06912135809797e66b8161b09856ffe7864b767daaddddacd42a838b6b5e",
+   "MOSEI_IEMOCAP_f4_r1_p5.npz": "08b7f15b4667f71d1a55375cdf2127a366be5e51064199ec23097dc722079b3c",
+   "MOSEI_IEMOCAP_f4_r1_p5.csv": "6bda05b153fde5c35197c91b59f0027b7077a5087ba00c7e793043b59a103b46",
+   "MOSEI_MELD_f0_r0_p5.npz": "1c661c157db03ea6256a597a3fcf035b2f782fa1c966194e8ed4953e7c81c4e3",
+   "MOSEI_MELD_f0_r0_p5.csv": "216d384aab2c6261d6c4c9b8c4d146796cd49ac7f1d3d955bea1aa3b33b9554f",
+   "MOSEI_MELD_f0_r1_p5.npz": "b5f5bbb4e5aaeed6f8ea3a74d57e197d530f125435cb6dbf2affb68b69564d3e",
+   "MOSEI_MELD_f0_r1_p5.csv": "16f9485d415859b6e258b1eaa037e0714e704587257ddbf225f94a56524d295e",
+   "MOSEI_MELD_f1_r0_p5.npz": "624039b41a148868bc827e7e41daed62557dbda4664b838ff1ba65beafabff6d",
+   "MOSEI_MELD_f1_r0_p5.csv": "16a844f476a65d0f929cbfd3e7dc800a37083e4bc1bc295a94ea2c3578daff42",
+   "MOSEI_MELD_f1_r1_p5.npz": "09a72a9449a898c7a08819c733a4a9e07ed0713fa2a6e222feacf6e5652f0d51",
+   "MOSEI_MELD_f1_r1_p5.csv": "c37bc460ee02ee0224e5cbcd7cd61b0072677740623a33c6f29b2c9f744456fc",
+   "MOSEI_MELD_f2_r0_p5.npz": "bedcc9462c3d899c0af555e0a390ae72e97941843b089de345159c7de327a33d",
+   "MOSEI_MELD_f2_r0_p5.csv": "6c328d3ad267b5a6ffe83c66c20f732ce062b9122f4d7dfbfab266e904cde940",
+   "MOSEI_MELD_f2_r1_p5.npz": "d2aee7c20924097915e61a638a2542575e73ff192d43da85a97e30ea4094d7a6",
+   "MOSEI_MELD_f2_r1_p5.csv": "6e47b40ec53c0c03a0dae2e23d505083c0e8a571fe433fb6e2fd4e4535e5f96c",
+   "MOSEI_MELD_f3_r0_p5.npz": "362f57410f8bb9b3f0dcf8803a8c5178454499e9f0d9cec193d77750d89982a3",
+   "MOSEI_MELD_f3_r0_p5.csv": "e7398035fd1cd45d54b9df648829d4ed9af1c94f1989db5ec40aa076dbd67ab1",
+   "MOSEI_MELD_f3_r1_p5.npz": "8504e3eb2e342de567555c071dfdff129369fcef1206fb7a33ec9f1ba3ec8c4a",
+   "MOSEI_MELD_f3_r1_p5.csv": "38a600d4cd7c9cd98e0f1e6caa5dc2bfa6c2680b47db11f5580b01637e3e8ca6",
+   "MOSEI_MELD_f4_r0_p5.npz": "e8ab414dc68d42f15f5043dc81fc8a8faf584aa46798c3ffb286b6cb279b519c",
+   "MOSEI_MELD_f4_r0_p5.csv": "97489b37bb7822b82b614f5fa566e0540dab719778bce58d24ae2b6afe68e5a5",
+   "MOSEI_MELD_f4_r1_p5.npz": "cc5953a960b1ddb0ba1204ca99c76787273e2caaaed5513cddeeb141c54d7ba0",
+   "MOSEI_MELD_f4_r1_p5.csv": "f8953e66ae40d0d29a9d55f0f3383b0a861a6f478628ac9aeb2c4369fc6dce88"
+  },
+  "detect": {
+   "n_seeds_eval": 10,
+   "g_eff": 783.2187976505193,
+   "delta_same": 0.26863352271335256,
+   "cells": {
+    "7|A|5": {
+     "se": 0.5410776668425415,
+     "v_cl_or_jk": 0.24987313574135384,
+     "v_seed": 0.042891905814414606,
+     "detectable_first": 1.4795058833044428,
+     "detectable_last": 1.0604927398503436,
+     "halfwidth": 1.0604927482153752,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -2.3313337634326516,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|A|25": {
+     "se": 0.5889254936793132,
+     "v_cl_or_jk": 0.32177408788816453,
+     "v_seed": 0.02505914921725828,
+     "detectable_first": 1.6103394875103558,
+     "detectable_last": 1.1542727571889253,
+     "halfwidth": 1.1542727662936816,
+     "halfwidth_b0": 0.24748071034930394,
+     "same_level_possible_b0": true,
+     "expected_effect": -3.1290329880515597,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|AVT|5": {
+     "se": 0.5805251508771313,
+     "v_cl_or_jk": 0.2945408107437804,
+     "v_seed": 0.042468640057135694,
+     "detectable_first": 1.5873698523558908,
+     "detectable_last": 1.1378083878388583,
+     "halfwidth": 1.1378083968137458,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -4.592533440799695,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|AVT|25": {
+     "se": 0.68273582935198,
+     "v_cl_or_jk": 0.44892419268055367,
+     "v_seed": 0.017204020000382177,
+     "detectable_first": 1.8668515412278954,
+     "detectable_last": 1.338137636484965,
+     "halfwidth": 1.3381376470400241,
+     "halfwidth_b0": 0.2936565886860221,
+     "same_level_possible_b0": false,
+     "expected_effect": -7.774125083648699,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|T|5": {
+     "se": 0.5317468730625713,
+     "v_cl_or_jk": 0.24209698758490705,
+     "v_seed": 0.040657749426915225,
+     "detectable_first": 1.4539920520389142,
+     "detectable_last": 1.0422047200944315,
+     "halfwidth": 1.0422047283152096,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -0.8864867001414004,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|T|25": {
+     "se": 0.5879714521574146,
+     "v_cl_or_jk": 0.31186007009005495,
+     "v_seed": 0.03385035846204403,
+     "detectable_first": 1.6077307861518197,
+     "detectable_last": 1.152402870166248,
+     "halfwidth": 1.152402879256255,
+     "halfwidth_b0": 0.2586317988301989,
+     "same_level_possible_b0": true,
+     "expected_effect": -0.8289978043367207,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|5": {
+     "se": 0.6405982059774609,
+     "v_cl_or_jk": 0.3460927586550678,
+     "v_seed": 0.0642733028464735,
+     "detectable_first": 1.7516317391339196,
+     "detectable_last": 1.2555494122767945,
+     "halfwidth": 1.2555494221804082,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -0.20438012153029803,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|25": {
+     "se": 0.7653647377281345,
+     "v_cl_or_jk": 0.542696173309683,
+     "v_seed": 0.043087008447973175,
+     "detectable_first": 2.092789449156962,
+     "detectable_last": 1.500087320984088,
+     "halfwidth": 1.5000873328165856,
+     "halfwidth_b0": 0.2654847560032706,
+     "same_level_possible_b0": true,
+     "expected_effect": -1.0399051829992776,
+     "b0_identical": false,
+     "same_level_possible": false,
+     "descriptive": true
+    }
+   },
+   "n_cells": 8,
+   "delta_same_note": "実験 1 の固定のファイルの値（比較の基準の種の間の分散だけに依る）",
+   "descriptive_cells": [
+    "7|T|5",
+    "7|T|25",
+    "7|V|5",
+    "7|V|25"
+   ],
+   "same_level_cells": []
+  }
+ },
+ "MELD": {
+  "select": {
+   "0": {
+    "beta": 0.0,
+    "pseudo_uar": 49.961098462344324,
+    "best_pseudo_uar": 49.961098462344324,
+    "gap_to_best": 0.0,
+    "beta_argmax": 0.0
+   },
+   "1": {
+    "beta": 0.0,
+    "pseudo_uar": 49.87601656461406,
+    "best_pseudo_uar": 49.93086627182263,
+    "gap_to_best": 0.05484970720856808,
+    "beta_argmax": 2.5
+   },
+   "5": {
+    "beta": 0.0,
+    "pseudo_uar": 50.099118826404464,
+    "best_pseudo_uar": 50.655035155356224,
+    "gap_to_best": 0.5559163289517599,
+    "beta_argmax": 5.0
+   },
+   "10": {
+    "beta": 0.0,
+    "pseudo_uar": 50.27941793842384,
+    "best_pseudo_uar": 50.95306264527614,
+    "gap_to_best": 0.6736447068523006,
+    "beta_argmax": 5.0
+   },
+   "25": {
+    "beta": 0.0,
+    "pseudo_uar": 51.00916971076183,
+    "best_pseudo_uar": 51.22080017834059,
+    "gap_to_best": 0.21163046757875748,
+    "beta_argmax": 5.0
+   }
+  },
+  "select_student": {
+   "A|0": {
+    "beta": 0.0,
+    "pseudo_uar": 49.84964473583027
+   },
+   "V|0": {
+    "beta": 0.0,
+    "pseudo_uar": 51.445934923473686
+   },
+   "T|0": {
+    "beta": 0.0,
+    "pseudo_uar": 43.95623114072506
+   },
+   "AVT|0": {
+    "beta": 0.0,
+    "pseudo_uar": 54.592583049348285
+   },
+   "A|1": {
+    "beta": 0.0,
+    "pseudo_uar": 49.97523678824223
+   },
+   "V|1": {
+    "beta": 0.0,
+    "pseudo_uar": 51.4688398183314
+   },
+   "T|1": {
+    "beta": 0.0,
+    "pseudo_uar": 43.45959661059021
+   },
+   "AVT|1": {
+    "beta": 0.0,
+    "pseudo_uar": 54.600393041292406
+   },
+   "A|5": {
+    "beta": 0.0,
+    "pseudo_uar": 50.073515209373035
+   },
+   "V|5": {
+    "beta": 2.5,
+    "pseudo_uar": 52.49546229739282
+   },
+   "T|5": {
+    "beta": 0.0,
+    "pseudo_uar": 43.395156647884725
+   },
+   "AVT|5": {
+    "beta": 5.0,
+    "pseudo_uar": 56.879888358055354
+   },
+   "A|10": {
+    "beta": 0.0,
+    "pseudo_uar": 50.30764588496749
+   },
+   "V|10": {
+    "beta": 2.5,
+    "pseudo_uar": 52.51745003411833
+   },
+   "T|10": {
+    "beta": 0.0,
+    "pseudo_uar": 43.23958256134775
+   },
+   "AVT|10": {
+    "beta": 5.0,
+    "pseudo_uar": 57.15953091468722
+   },
+   "A|25": {
+    "beta": 0.0,
+    "pseudo_uar": 50.62135996824169
+   },
+   "V|25": {
+    "beta": 5.0,
+    "pseudo_uar": 53.270559472144306
+   },
+   "T|25": {
+    "beta": 0.0,
+    "pseudo_uar": 43.88466084936163
+   },
+   "AVT|25": {
+    "beta": 2.5,
+    "pseudo_uar": 57.38035834323657
+   }
+  },
+  "select_variants": {
+   "srcw_mod|5": {
+    "beta": 0.0,
+    "pseudo_uar": 50.099118826404464,
+    "tie_used": true
+   },
+   "srcw_mod|25": {
+    "beta": 0.0,
+    "pseudo_uar": 51.00916971076183,
+    "tie_used": true
+   },
+   "srcw_src|5": {
+    "beta": 0.0,
+    "pseudo_uar": 50.099118826404464,
+    "tie_used": false
+   },
+   "srcw_src|25": {
+    "beta": 0.0,
+    "pseudo_uar": 51.00916971076183,
+    "tie_used": false
+   }
+  },
+  "delta_bar": {
+   "0": 0.9004179654215232,
+   "1": 0.9004179654215232,
+   "5": 0.8079313382515134,
+   "10": 0.7799756308557787,
+   "25": 0.697448924629348
+  },
+  "delta_sel": {
+   "A|1": 0.8756112002625137,
+   "A|5": 0.8384746428597469,
+   "A|10": 0.8292950192819813,
+   "A|25": 0.8958727532331386,
+   "A|0": 0.8756112002625137,
+   "V|1": 1.2950622672420948,
+   "V|5": 0.7591184810844205,
+   "V|10": 0.721399879174015,
+   "V|25": 0.47247995475205445,
+   "V|0": 1.2950622672420948,
+   "T|1": 0.6448488445094814,
+   "T|5": 0.9238631277839245,
+   "T|10": 0.8297535511275417,
+   "T|25": 0.5953205839005752,
+   "T|0": 0.6448488445094814,
+   "AVT|1": 0.7861495496720025,
+   "AVT|5": 0.7102691012779618,
+   "AVT|10": 0.739454073839577,
+   "AVT|25": 0.826122406631624,
+   "AVT|0": 0.7861495496720025
+  },
+  "n_units": 30,
+  "tie_rule_used": 4,
+  "grid_edge_cells": 4,
+  "n_seeds_eval": 10,
+  "units": [
+   "AFEW_f0_r0",
+   "AFEW_f0_r1",
+   "AFEW_f1_r0",
+   "AFEW_f1_r1",
+   "AFEW_f2_r0",
+   "AFEW_f2_r1",
+   "AFEW_f3_r0",
+   "AFEW_f3_r1",
+   "AFEW_f4_r0",
+   "AFEW_f4_r1",
+   "IEMOCAP_f0_r0",
+   "IEMOCAP_f0_r1",
+   "IEMOCAP_f1_r0",
+   "IEMOCAP_f1_r1",
+   "IEMOCAP_f2_r0",
+   "IEMOCAP_f2_r1",
+   "IEMOCAP_f3_r0",
+   "IEMOCAP_f3_r1",
+   "IEMOCAP_f4_r0",
+   "IEMOCAP_f4_r1",
+   "MOSEI_f0_r0",
+   "MOSEI_f0_r1",
+   "MOSEI_f1_r0",
+   "MOSEI_f1_r1",
+   "MOSEI_f2_r0",
+   "MOSEI_f2_r1",
+   "MOSEI_f3_r0",
+   "MOSEI_f3_r1",
+   "MOSEI_f4_r0",
+   "MOSEI_f4_r1"
+  ],
+  "pseudo_commit": "d792982221f6a67896c7595f0c0e760bfe3144d8",
+  "pseudo_unit_sha256": {
+   "MELD_AFEW_f0_r0_p5.npz": "15001b3d133c0c9fff8369f331180ce71c0512aa689dbab8af5c46fc32baf826",
+   "MELD_AFEW_f0_r0_p5.csv": "0379e299453973496358fba1b5135470177b901b11706bd7c116f998d3f6d77b",
+   "MELD_AFEW_f0_r1_p5.npz": "13e475f8a18dcea4d458f24a6ef7b00ca9e5d648001c592516ef0de197acabd1",
+   "MELD_AFEW_f0_r1_p5.csv": "98d849403f60c01d8e2834800c94e3b7f35e4650ac674f688c2639307bde5508",
+   "MELD_AFEW_f1_r0_p5.npz": "306fd220ea3f31451cd56f21086f97f2801acd10ec66f052876fec1651699e0e",
+   "MELD_AFEW_f1_r0_p5.csv": "577bcc06e8fce7a5d2ba4112240a79cd8eae8bfd7b46127751327b0b18505a4b",
+   "MELD_AFEW_f1_r1_p5.npz": "6cdb47aa758976b30ef36edb42e141e0b59f2f1e51fc9f32b59b1be1a1539391",
+   "MELD_AFEW_f1_r1_p5.csv": "620856afdb75e2f680e20db1865cabd32871e8c37be1128836c1d73835953c1c",
+   "MELD_AFEW_f2_r0_p5.npz": "44d703259b6b4310d6b9533aa0dfa7bcf74afafea705df7839d87b3eebd77b23",
+   "MELD_AFEW_f2_r0_p5.csv": "20291a6b08cd393d128d4dc1ff1289f06b6e87d9c469060ddb65c0ee2e412a5a",
+   "MELD_AFEW_f2_r1_p5.npz": "e016fdeb3fcab9474ede6eefba8b4361a2c003221cd86649d8bc3e53d3db7f9c",
+   "MELD_AFEW_f2_r1_p5.csv": "40993bc026cc50a8a566b2b40cd893b0a024bb858859b44459452301508c3552",
+   "MELD_AFEW_f3_r0_p5.npz": "285bfb9c613a8464737d8a524b21ec12787085d4a5d5a2cfdd4d19e1a3224208",
+   "MELD_AFEW_f3_r0_p5.csv": "f1e58cc512388c13ddc3d91c74d59cfb7e64c99597cdcc26a0f2a77632fc48a2",
+   "MELD_AFEW_f3_r1_p5.npz": "b0d069a24ef0b84c3deac46ee58de52d7628d2a63c9d02b539cce5a12d58970a",
+   "MELD_AFEW_f3_r1_p5.csv": "981bb90684d1a6ffa88ee3bf297a63700dff750ff14911e56cacccbf017dec75",
+   "MELD_AFEW_f4_r0_p5.npz": "19092e80a9df72b1c1a3e4de3bcb274390c9369aa7ed34370536b72ac6f45348",
+   "MELD_AFEW_f4_r0_p5.csv": "8ec5bf5d6550aba644c6e2058d14e698a1d8b87ac8813df56fcf984e06b2cae1",
+   "MELD_AFEW_f4_r1_p5.npz": "3dc164a311ce56ccc2e8c9431e4fe455b655e584891529bedba2098d22d986da",
+   "MELD_AFEW_f4_r1_p5.csv": "345bccd1c206524829837aa1a71ec15c1834d27413a8bb23f4747e837b5ae618",
+   "MELD_IEMOCAP_f0_r0_p5.npz": "be422999fb0091f3f3d29f85bd76744ff8ffc6307bd8d72da2b8234757e1f58f",
+   "MELD_IEMOCAP_f0_r0_p5.csv": "c9c1f0a7d88a84d5ff9ea196a2c9d0deafb553a79ed478625671f8d3b3a4865c",
+   "MELD_IEMOCAP_f0_r1_p5.npz": "6fbb756ca8180841a406a3dbcf805dd867d9c7b93006fe61414361990dfc5bd7",
+   "MELD_IEMOCAP_f0_r1_p5.csv": "23386946d94bee59038a1476dbcb232f6c7119b2d18e798cf791593c6bb76435",
+   "MELD_IEMOCAP_f1_r0_p5.npz": "e777597495076e2ced6ec78398cb8d7d2fc62decc6cab43bd9d4a6602cd0d2a0",
+   "MELD_IEMOCAP_f1_r0_p5.csv": "99804039dbd079d0b75b13a11f95509b285e9c1a3b7e6b0231f91c38d4fce06b",
+   "MELD_IEMOCAP_f1_r1_p5.npz": "094ef35d31d0aaf1db3313fb658332112d76638dfef57311d873a112b1586327",
+   "MELD_IEMOCAP_f1_r1_p5.csv": "e9f33725c85d76a01bea93cadd3b2feb9eeb993c2222723c2d27fd4ec12aea23",
+   "MELD_IEMOCAP_f2_r0_p5.npz": "0c72f81148f82bda5e3738fb012016ebc11658582d97f570cdd7651054e2a57a",
+   "MELD_IEMOCAP_f2_r0_p5.csv": "2cd497d6d1393c0eda3c3bac73c559393e2045c246bfa2d58750a2cc43b74e41",
+   "MELD_IEMOCAP_f2_r1_p5.npz": "f2e8fe2acaf83b0be286dcb07c0c6576e69af6da67ec342f37711da9a5300872",
+   "MELD_IEMOCAP_f2_r1_p5.csv": "4ba1af0bef688776df6f968d7e20cea3b2041a0b9879d3ff900baf5e19ab0476",
+   "MELD_IEMOCAP_f3_r0_p5.npz": "7dc136386a7d5cf1b1234ce9e6ae074cd2367fab6b8030c4434507126e40cb3b",
+   "MELD_IEMOCAP_f3_r0_p5.csv": "27e04ad9929a6abbdc63bafdd563704a47426ccee690031570346037d8ce3a32",
+   "MELD_IEMOCAP_f3_r1_p5.npz": "9da44de23c1e25882de13e9ae62e4cd947485187cd7b74d2c330f0377209c337",
+   "MELD_IEMOCAP_f3_r1_p5.csv": "2849df5121bb63cd3878f7b65f04c692e1430bed9490f9ecb15b6f1a18ad28bc",
+   "MELD_IEMOCAP_f4_r0_p5.npz": "f307a5471bd09f7aa00283d8dc47359fc45fe942f979325828819d5fcf124720",
+   "MELD_IEMOCAP_f4_r0_p5.csv": "af260dc63fe9b338e2cb9154006fdcf368c58a1a8e703adca81ecf7f50ffee9a",
+   "MELD_IEMOCAP_f4_r1_p5.npz": "2501e7cb1e2f4185540d409fcf0996e7dc310218841010399668a4c337063e71",
+   "MELD_IEMOCAP_f4_r1_p5.csv": "945997d7cc27516d7f3f92a52fc6bc21787f8330c5662a4c293f1aa0f17d2785",
+   "MELD_MOSEI_f0_r0_p5.npz": "9cdfb36d961c334469c5cbad32db12f3637fecc89b01c95434be13257bbd1cdb",
+   "MELD_MOSEI_f0_r0_p5.csv": "c2fdf2720e7cf09d303d88932d05bdf0ebcf758501582e83cfeea08bf1f3fcea",
+   "MELD_MOSEI_f0_r1_p5.npz": "938d250e510148f96ab8feab9025c5ad79d553284f750d36d2fee47c447407e6",
+   "MELD_MOSEI_f0_r1_p5.csv": "96f5cb4e6241fd78283da7f38e36e61294fb61e8b646925e8da7fab450eb9b61",
+   "MELD_MOSEI_f1_r0_p5.npz": "5750de5611cbe7223b3e41cd219030ac25b562560ff6fa6a363067da69ec770b",
+   "MELD_MOSEI_f1_r0_p5.csv": "eab3022e1b893b60e96045909db1d99033bacb5d58c7c14c5ff526d776914fd7",
+   "MELD_MOSEI_f1_r1_p5.npz": "3fe8bfb93528b6030813144c18cdcc34b1831babb6c587061339f0a57159ca68",
+   "MELD_MOSEI_f1_r1_p5.csv": "7b08d673f4082288ffe22a2be5f78dfb855e99436e9912b5dc9cefa0fdb325ba",
+   "MELD_MOSEI_f2_r0_p5.npz": "e890bfc6396ce5fca36ccea9e92e9e89acc0c951555eb145c150226d9ab3ae02",
+   "MELD_MOSEI_f2_r0_p5.csv": "7e9f04924f12fe36a2727e7673d1c4187f0736a4b2c234c3c3c5e152b2f74c59",
+   "MELD_MOSEI_f2_r1_p5.npz": "3412e39f8e77015b95177480bc4283607fa3a75e5097ea2aa7f9137dcbae2412",
+   "MELD_MOSEI_f2_r1_p5.csv": "924001ea90882e8c8125388c0d471a016e2d2f22cfa62a16ff2d9e87e6493482",
+   "MELD_MOSEI_f3_r0_p5.npz": "ea5cf25639143d9d1a2f925a18960bb7c05741fcdfda06edb9f641d71ced761e",
+   "MELD_MOSEI_f3_r0_p5.csv": "249a4019a360971d64d8b871bf84079b2e19e5ddd3c4c1dbefb3d0ec945890c4",
+   "MELD_MOSEI_f3_r1_p5.npz": "8a2f27dad3a0ad05ecaa2c88e71ce5651480adc49e7d443969406ea4bf43aafa",
+   "MELD_MOSEI_f3_r1_p5.csv": "746399ce445fe4b3ccdca6fef48b1e326a131edbdb75de61754b82a332561d96",
+   "MELD_MOSEI_f4_r0_p5.npz": "02b9eaaebf2703674e7ed956ad089b8d23436c7dc4338a7ad52a3aeef888ee34",
+   "MELD_MOSEI_f4_r0_p5.csv": "743bd2f7f26e8916f29b3932e1d20644737e3aaac9ad9265d4a79f4bc5434ffc",
+   "MELD_MOSEI_f4_r1_p5.npz": "5210200460e51c1d3e4da18fd3f79a13d7b4ade0181e4986f528d49872d62e34",
+   "MELD_MOSEI_f4_r1_p5.csv": "59c640e475528fd431602f3b459097eca9ef5c4e28df561559a01c8dfebb9eb4"
+  },
+  "detect": {
+   "n_seeds_eval": 10,
+   "g_eff": 8.588438524693032,
+   "delta_same": 0.3260584590880523,
+   "cells": {
+    "7|A|5": {
+     "se": 1.184062375947019,
+     "v_cl_or_jk": 1.379046688312071,
+     "v_seed": 0.022957021821228725,
+     "detectable_first": 4.564827768538225,
+     "detectable_last": 2.7998626095628936,
+     "halfwidth": 2.7998626095628936,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -2.7419869356859277,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|A|25": {
+     "se": 1.1001887726741197,
+     "v_cl_or_jk": 1.1891957399629984,
+     "v_seed": 0.021219595555187376,
+     "detectable_first": 4.241476092946583,
+     "detectable_last": 2.601533053195324,
+     "halfwidth": 2.601533053195324,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -4.3259814736238065,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|AVT|5": {
+     "se": 0.559451233994796,
+     "v_cl_or_jk": 0.28330066285231625,
+     "v_seed": 0.02968502036598371,
+     "detectable_first": 2.1568108065589704,
+     "detectable_last": 1.322891955487604,
+     "halfwidth": 1.322891955487604,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -5.6911470182329325,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|AVT|25": {
+     "se": 0.7868467852580207,
+     "v_cl_or_jk": 0.5569692718078049,
+     "v_seed": 0.062158591663076836,
+     "detectable_first": 3.033471992603507,
+     "detectable_last": 1.860596990708935,
+     "halfwidth": 1.860596990708935,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -7.767632670054918,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": false
+    },
+    "7|T|5": {
+     "se": 0.7467213819284896,
+     "v_cl_or_jk": 0.5382758778247376,
+     "v_seed": 0.019316944404455604,
+     "detectable_first": 2.8787795042150104,
+     "detectable_last": 1.765715488890984,
+     "halfwidth": 1.765715488890984,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -1.0853219589610654,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|T|25": {
+     "se": 0.9514769423802404,
+     "v_cl_or_jk": 0.879325859054162,
+     "v_seed": 0.02598251282708931,
+     "detectable_first": 3.6681584145660824,
+     "detectable_last": 2.2498854527836665,
+     "halfwidth": 2.2498854527836665,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -2.7271280176620762,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|5": {
+     "se": 0.7116496576709542,
+     "v_cl_or_jk": 0.4964943952841523,
+     "v_seed": 0.009950839979034076,
+     "detectable_first": 2.7435700895477577,
+     "detectable_last": 1.682784039166441,
+     "halfwidth": 1.682784039166441,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -1.1265783673192578,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    },
+    "7|V|25": {
+     "se": 0.6697222370120378,
+     "v_cl_or_jk": 0.4274532260124824,
+     "v_seed": 0.021074648735925672,
+     "detectable_first": 2.58193041753814,
+     "detectable_last": 1.583641443469635,
+     "halfwidth": 1.583641443469635,
+     "halfwidth_b0": NaN,
+     "same_level_possible_b0": false,
+     "expected_effect": -1.954546360479073,
+     "b0_identical": true,
+     "same_level_possible": false,
+     "descriptive": true
+    }
+   },
+   "n_cells": 8,
+   "delta_same_note": "実験 1 の固定のファイルの値（比較の基準の種の間の分散だけに依る）",
+   "descriptive_cells": [
+    "7|A|5",
+    "7|T|5",
+    "7|T|25",
+    "7|V|5",
+    "7|V|25"
+   ],
+   "same_level_cells": []
+  }
+ }
+}
