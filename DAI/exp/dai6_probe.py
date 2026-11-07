@@ -728,27 +728,17 @@ def _s3_lda_cos2(Za: torch.Tensor, Zb: torch.Tensor, y: np.ndarray) -> tuple[flo
 
 
 def a1prime(Za: torch.Tensor, Zb: torch.Tensor, y: np.ndarray, seed: int, n_ref: int = N_REF) -> dict:
-    """3.4.1 の A1′（ML の査読の再検査 M1′）：観測の S3–LDA の値を，同じ n・p・感情の並びで「前提が成り立つ」とした参照の分布と比べる．
-    参照は，白色化した主成分の座標で推定した感情ごとの平均に，モダリティごとに独立な正規の雑音（感情の中の共分散を推定したもの）を足して作る。"""
+    """3.4.1 の A1′（ML の査読の再検査 M1″）：観測の S3–LDA の値を，b の側の行を感情の中だけで並べ替えた参照（A1 の帰無と同じ並べ替え．
+    感情ごとの平均も感情の中の分布もそのまま残し，感情の中の対応だけを壊す）の分布と比べる．A1 と同じ仮説の 2 つ目の検定である。"""
     obs_a, obs_b = _s3_lda_cos2(Za, Zb, y)
-    gen = torch.Generator(device=DEV).manual_seed(seed)
-    yt_ = torch.as_tensor(y, device=DEV)
-    parts = []
-    for Z in (Za, Zb):
-        mu = torch.stack([Z[yt_ == k].mean(0) for k in range(4)])
-        R = Z - mu[yt_]
-        Sw = R.T @ R / (len(y) - 4) + 1e-8 * torch.eye(Z.shape[1], device=DEV, dtype=DT)
-        parts.append((mu, torch.linalg.cholesky(Sw)))
+    perms = make_perms(len(y), n_ref, y, seed)
     ref_a, ref_b = [], []
-    for _ in range(n_ref):
-        Zs = [mu[yt_] + torch.randn(len(y), L.shape[0], generator=gen, device=DEV, dtype=DT) @ L.T for mu, L in parts]
-        Zs = [Z - Z.mean(0) for Z in Zs]
-        ra, rb = _s3_lda_cos2(Zs[0], Zs[1], y)
+    for P in perms:
+        ra, rb = _s3_lda_cos2(Za, Zb[torch.as_tensor(P, device=DEV)], y)
         ref_a.append(ra); ref_b.append(rb)
     ref_a, ref_b = np.array(ref_a), np.array(ref_b)
-    pa, pb = Za.shape[1], Zb.shape[1]
     out = {}
-    for side, ob, rf, pp_ in (("a", obs_a, ref_a, pa), ("b", obs_b, ref_b, pb)):
+    for side, ob, rf, pp_ in (("a", obs_a, ref_a, Za.shape[1]), ("b", obs_b, ref_b, Zb.shape[1])):
         q05 = float(np.quantile(rf, 0.05))
         out[side] = {"cos2_S3_lda": ob, "ref_mean": float(rf.mean()), "ref_q05": q05, "below_ref_q05": bool(ob < q05),
                      "cos2_random": 3.0 / pp_, "n_ref": n_ref, "ref_seed": seed}
@@ -1054,29 +1044,30 @@ def selftest() -> None:
         A_ = tt(rng.normal(size=(400, 8))); B_ = tt(rng.normal(size=(400, 8)))
         hits += seq_test(A_ - A_.mean(0), B_ - B_.mean(0), 200, None, 100 + j)[0] >= 1
     assert hits / 60 <= 0.15, hits
-    # (8) A1′ の規則（ML の査読の再検査 M1′）：設計の次元の規則の大きさ（n/p ≈ 45）で，前提が成り立つときに「離れている」が出る割合が
-    #     名目の 5% 程度で，感情の中の共有の要因が強いときに多く出る
+    # (8) A1′ の規則（ML の査読の再検査 M1″）：n/p ≈ 45（p = 48）で，前提が成り立つときに「離れている」が出る割合が名目の 5% 程度で，
+    #     感情の中の共有の要因が強いときに多く出る．p = 13・131 の大きさの検算は `DAI/checks/DAI-6/review_ml_run/a1prime_perm_check.log`
     def simz(shared, seed2):
         g2 = np.random.default_rng(seed2)
-        n2, d2 = 2250, 50
+        n2, d2 = 2200, 48
         y2 = g2.integers(0, 4, n2)
         zf = g2.normal(size=n2)
         Zs2 = []
         for m in "ab":
-            mu2 = np.zeros((4, d2)); mu2[:, :3] = 0.6 * np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, -1, -1]])
+            mu2 = np.zeros((4, d2)); mu2[:, :3] = 1.2 * np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, -1, -1]])   # 感情の方向が検出の目安を越える強さ
             X2 = mu2[y2] + g2.normal(size=(n2, d2))
             X2[:, 10] += shared * zf
             Zs2.append(pca(tt(X2 - X2.mean(0)), d2)[2])
         return Zs2, y2
     below_null = below_shared = 0
-    for j in range(10):
+    for j in range(20):
         (Za3, Zb3), y3 = simz(0.0, 500 + j)
         below_null += a1prime(Za3, Zb3, y3, seed=j, n_ref=40)["a"]["below_ref_q05"]
+    for j in range(10):
         (Za3, Zb3), y3 = simz(2.0, 600 + j)
         below_shared += a1prime(Za3, Zb3, y3, seed=j, n_ref=40)["a"]["below_ref_q05"]
-    assert below_null <= 3 and below_shared >= 6, (below_null, below_shared)
+    assert below_null <= 4 and below_shared >= 7, (below_null, below_shared)
     print(f"selftest OK：r = {r}（無相関），主角の余弦の 2 乗の平均 {c2:.4f}，話者を足すと r = {r2}，塊の中で中心化すると r = {r3}，"
-          f"無関係な組で r ≥ 1 の割合 {hits / 60:.3f}，A1′ の「離れている」：前提が成り立つとき 10 回中 {below_null}，共有が強いとき 10 回中 {below_shared}")
+          f"無関係な組で r ≥ 1 の割合 {hits / 60:.3f}，A1′ の「離れている」：前提が成り立つとき 20 回中 {below_null}，共有が強いとき 10 回中 {below_shared}")
 
 
 def main() -> None:
