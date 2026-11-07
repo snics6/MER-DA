@@ -1105,7 +1105,7 @@ def main() -> None:
         for f in a.folds:
             U = ProbeUnit(c, f)
             res = run_unit(U, a.n_perm, fz3, a.out, commit, dirty)
-            prov["units"].append({**res, "commit": commit, "dirty": dirty})
+            prov["units"].append({**res, "commit": commit, "dirty": dirty, "n_perm": a.n_perm})
             pp.write_text(json.dumps(prov, ensure_ascii=False, indent=1), encoding="utf-8")
             print(f"{c} 分割 {f}：候補 {U.n}，p = {U.p}，{res['sec']:.0f} 秒", flush=True)
             if S.DEV == "cuda":
