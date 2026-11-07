@@ -714,6 +714,47 @@ def _lda_basis(Z: torch.Tensor, y: np.ndarray) -> torch.Tensor:
     return torch.linalg.solve(Sw, (mu - mu.mean(0)).T)[:, :3]
 
 
+N_REF = 100
+
+
+def _s3_lda_cos2(Za: torch.Tensor, Zb: torch.Tensor, y: np.ndarray) -> tuple[float, float]:
+    """組 (a, b) の上位 3 個の正準の方向と，その側の候補のラベルの Fisher の判別の 3 次元の部分空間の主角の余弦の 2 乗の平均（a の側，b の側）。"""
+    _, Da, Db = cca(Za, Zb)
+    res = []
+    for Z, D_ in ((Za, Da), (Zb, Db)):
+        Sg = Z.T @ Z / (Z.shape[0] - 1)
+        res.append(principal_cos2(sigma_orth(D_[:, :3], Sg), sigma_orth(_lda_basis(Z, y), Sg), Sg))
+    return res[0], res[1]
+
+
+def a1prime(Za: torch.Tensor, Zb: torch.Tensor, y: np.ndarray, seed: int, n_ref: int = N_REF) -> dict:
+    """3.4.1 の A1′（ML の査読の再検査 M1′）：観測の S3–LDA の値を，同じ n・p・感情の並びで「前提が成り立つ」とした参照の分布と比べる．
+    参照は，白色化した主成分の座標で推定した感情ごとの平均に，モダリティごとに独立な正規の雑音（感情の中の共分散を推定したもの）を足して作る。"""
+    obs_a, obs_b = _s3_lda_cos2(Za, Zb, y)
+    gen = torch.Generator(device=DEV).manual_seed(seed)
+    yt_ = torch.as_tensor(y, device=DEV)
+    parts = []
+    for Z in (Za, Zb):
+        mu = torch.stack([Z[yt_ == k].mean(0) for k in range(4)])
+        R = Z - mu[yt_]
+        Sw = R.T @ R / (len(y) - 4) + 1e-8 * torch.eye(Z.shape[1], device=DEV, dtype=DT)
+        parts.append((mu, torch.linalg.cholesky(Sw)))
+    ref_a, ref_b = [], []
+    for _ in range(n_ref):
+        Zs = [mu[yt_] + torch.randn(len(y), L.shape[0], generator=gen, device=DEV, dtype=DT) @ L.T for mu, L in parts]
+        Zs = [Z - Z.mean(0) for Z in Zs]
+        ra, rb = _s3_lda_cos2(Zs[0], Zs[1], y)
+        ref_a.append(ra); ref_b.append(rb)
+    ref_a, ref_b = np.array(ref_a), np.array(ref_b)
+    pa, pb = Za.shape[1], Zb.shape[1]
+    out = {}
+    for side, ob, rf, pp_ in (("a", obs_a, ref_a, pa), ("b", obs_b, ref_b, pb)):
+        q05 = float(np.quantile(rf, 0.05))
+        out[side] = {"cos2_S3_lda": ob, "ref_mean": float(rf.mean()), "ref_q05": q05, "below_ref_q05": bool(ob < q05),
+                     "cos2_random": 3.0 / pp_, "n_ref": n_ref, "ref_seed": seed}
+    return out
+
+
 def summarize(out: Path, allow_partial: bool = False) -> None:
     """4 節の判定（criteria.csv），仮定の表（assumptions.csv），ラベル無しの診断（diagnostics.csv），Q2 の割合（q2_shares.csv），
     感情ごとの再現率と混同（per_emotion.csv・confusion.csv），部分集合（subsets.csv），IEMOCAP の筋書きの中の対（scenario_pairs.csv）。"""
@@ -761,6 +802,7 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
         cr["n_pass"] = n_pass
         cr["proceed"] = bool(len(cr) == 4 and n_pass >= 2)
         cr["n_pass_excl_IEMOCAP"] = int(cr.loc[cr.c != "IEMOCAP", "pass"].sum())            # 感情認識の査読 A1
+        cr["proceed_excl_IEMOCAP"] = bool((cr.c != "IEMOCAP").sum() == 3 and cr["n_pass_excl_IEMOCAP"].iloc[0] >= 2)   # 同 b1
         cr["proceed_if_unstable_flipped"] = bool(len(cr) == 4 and int(flipped.sum()) >= 2)  # ML の査読 m5
         cr["n_pass_cv"] = int(cr["pass_cv"].sum())                                           # ML の査読 m4
     cr.assign(**tag).to_csv(out / "criteria.csv", index=False)
@@ -769,30 +811,31 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
     de["A1"] = np.where(de["sv_within_1"] <= de["wnull_q95_sv_within_1"], "not_rejected", "rejected")
     de["A1_threshold"] = de["wnull_q95_sv_within_1"]
     de["A2"] = np.where(de["sv_between_3"] > de["null_q95_sv_between_3"], "holds", "unconfirmed")
+    de["A2_eq"] = np.where(de["sv_between_eq_3"] > de["null_q95_sv_between_eq_3"], "holds", "unconfirmed")   # 同じ重みの版（感情認識の査読 b5）
     for col in ("fro2_total", "fro2_between", "fro2_within", "fro2_between_eq"):
         de[f"{col}_minus_null"] = de[col] - de[f"null_mean_{col}"]
     lda_rows = []
     for (c, f) in sorted(set(zip(su["c"], su["fold"]))):
         U = ProbeUnit(c, f)
         z = np.load(out / "fits" / f"{c}_f{f}.npz", allow_pickle=False)
+        Zw = {}
         for m in MODS:
-            key = f"S3_i_{m}"
-            if key not in z.files:
-                continue
             E = tt(z[f"pca_n_{m}"])
             lam = ((U.Xp[m] @ E) ** 2).sum(0) / (U.n - 1)
-            Zm = (U.Xp[m] @ E) * lam.rsqrt()
-            L = sigma_orth((E * lam.rsqrt()) @ _lda_basis(Zm, U.y), U.Sig[m])
-            B3 = sigma_orth(tt(z[key]), U.Sig[m])
-            P3 = sigma_orth(E[:, :B3.shape[1]], U.Sig[m])
-            c_s3, c_p3 = principal_cos2(B3, L, U.Sig[m]), principal_cos2(P3, L, U.Sig[m])
-            lda_rows.append({"c": c, "fold": f, "mod": m, "r3": int(B3.shape[1]), "cos2_S3_lda": c_s3, "cos2_pca3_lda": c_p3,
-                             "S3_closer_than_pca": bool(c_s3 > c_p3), "top3_emotion": bool(c_s3 >= 0.8)})      # 0.8 は人工データの検算で固定
+            Zw[m] = (U.Xp[m] @ E) * lam.rsqrt()                               # 白色化した主成分の座標（版 (i) と同じ）
+        for (a, b) in PAIRS["i"]:                                             # A1′ は版 (i) だけ．言葉は組ごとに 3 次元どうしで比べる
+            res = a1prime(Zw[a], Zw[b], U.y, seed=9973 * DD.CORPUS_ID[c] + 37 * f + MODS.index(a))
+            for side, mod in (("a", a), ("b", b)):
+                Zm = Zw[mod]
+                Sg = Zm.T @ Zm / (U.n - 1)
+                c_p3 = principal_cos2(sigma_orth(torch.eye(Zm.shape[1], device=DEV, dtype=DT)[:, :3], Sg), sigma_orth(_lda_basis(Zm, U.y), Sg), Sg)
+                lda_rows.append({"c": c, "fold": f, "pair": f"{a}-{b}", "side": side, "mod": mod, **res[side], "cos2_pca3_lda": c_p3,
+                                 "reading": "離れている" if res[side]["below_ref_q05"] else "離れているとは言えない（検出力の範囲で）"})
         del U
         if S.DEV == "cuda":
             torch.cuda.empty_cache()
-    keep = ["c", "fold", "version", "a", "b", "r", "A1", "A1_threshold", "A2", "sv_within_1", "wnull_q95_sv_within_1", "sv_between_3",
-            "null_q95_sv_between_3"] + [x for x in de.columns if x.endswith("_minus_null")]
+    keep = ["c", "fold", "version", "a", "b", "r", "A1", "A1_threshold", "A2", "A2_eq", "sv_within_1", "wnull_q95_sv_within_1", "sv_between_3",
+            "null_q95_sv_between_3", "sv_between_eq_3", "null_q95_sv_between_eq_3"] + [x for x in de.columns if x.endswith("_minus_null")]
     de[keep].assign(**tag).to_csv(out / "assumptions.csv", index=False)
     pd.DataFrame(lda_rows).assign(**tag).to_csv(out / "assumptions_lda.csv", index=False)
     # Q2 の割合と，ラベル無しの診断（3.5 の印の規則）
@@ -813,7 +856,9 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
 
     va["mark"], va["mark_res"] = marks(va, ""), marks(va, "res_")                # 残りの印は感情を除いた版（感情認識の査読 A2）
     va["mod"] = np.where(va["side"] == "a", va["a"], va["b"])
+    va["mark_not_res"] = va["mark"] & ~va["mark_res"]                         # ラベル無しの印が付き，感情を除いた残りの印が付かない（同 b4）
     va.groupby(["c", "version", "a", "b", "side"]).agg(n=("mark", "size"), share_mark=("mark", "mean"), share_mark_res=("mark_res", "mean"),
+                                                       n_mark_not_res=("mark_not_res", "sum"),
                                                        mean_eta2_emotion=("eta2_emotion", "mean")).reset_index().assign(**tag).to_csv(out / "q2_shares.csv", index=False)
     vi = va[va.version == "i"]
     allu = pd.MultiIndex.from_tuples(sorted(set(zip(su["c"], su["fold"]))), names=["c", "fold"])
@@ -846,7 +891,7 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
         dg = dg.merge(agg, on="c", how="left")
     dg.assign(**tag).to_csv(out / "diagnostics.csv", index=False)
     # 感情ごとの再現率と混同，部分集合，IEMOCAP の筋書きの中の対（記述．感情認識の査読 A1・A3）
-    main = {"full": "pred_-_AVT_full", "S": "pred_i_AVT_S", "pca_r": "pred_i_AVT_pca_r"}
+    mains = {st_: {"full": f"pred_-_{st_}_full", "S": f"pred_i_{st_}_S", "pca_r": f"pred_i_{st_}_pca_r"} for st_ in ("A", "V", "T", "AVT")}
     sub = pd.read_csv(ROOT / "DAI" / "frozen" / "subsets.csv")
     mosei_src = pd.read_csv(common.META_DIR / "mosei_utterance_manifest.csv", usecols=["sample_id", "speaker_source"])
     pe, cf, sb, sc_rows = [], [], [], []
@@ -861,33 +906,35 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
         sid = np.concatenate([z["test_sample_id"] for z in zs])
         codes = pd.factorize(cl)[0]; K = codes.max() + 1
         W = rng.multinomial(K, np.full(K, 1.0 / K), size=2000).astype(float)
-        for nm, key in main.items():
+        for (st_, nm), key in ((k_, v_) for st_ in mains for k_, v_ in (((st_, n_), kk) for n_, kk in mains[st_].items())):
+            if not all(key in z.files for z in zs):
+                continue
             pr = np.concatenate([z[key] for z in zs]).astype(int)
             for k in range(4):
                 n_kc = np.bincount(codes[y == k], minlength=K).astype(float); c_kc = np.bincount(codes[(y == k) & (pr == k)], minlength=K).astype(float)
                 with np.errstate(invalid="ignore", divide="ignore"):
                     bs = 100 * (W @ c_kc) / (W @ n_kc)
                 lo, hi = np.nanpercentile(bs, [2.5, 97.5])
-                pe.append({"c": c, "space": nm, "emotion": k, "n": int((y == k).sum()), "recall": 100 * ((pr == k) & (y == k)).sum() / max((y == k).sum(), 1),
+                pe.append({"c": c, "student": st_, "space": nm, "emotion": k, "n": int((y == k).sum()), "recall": 100 * ((pr == k) & (y == k)).sum() / max((y == k).sum(), 1),
                            "lo": lo, "hi": hi})
                 for j in range(4):
-                    cf.append({"c": c, "space": nm, "true": k, "pred": j, "count": int(((y == k) & (pr == j)).sum())})
-            masks = {}
+                    cf.append({"c": c, "student": st_, "space": nm, "true": k, "pred": j, "count": int(((y == k) & (pr == j)).sum())})
+            masks = {"all": np.ones(len(sid), bool)}
             if c == "IEMOCAP":
                 mk = dict(zip(sub[sub.subset == "marker"].sample_id, sub[sub.subset == "marker"].value))
-                masks = {f"marker_{v}": np.array([mk.get(s_) == v for s_ in sid]) for v in ("marker", "nomarker")}
+                masks.update({f"marker_{v}": np.array([mk.get(s_) == v for s_ in sid]) for v in ("marker", "nomarker")})
             if c == "MELD":
                 fc = dict(zip(sub[sub.subset == "face_compete"].sample_id, sub[sub.subset == "face_compete"].value))
-                masks = {f"face_{v}": np.array([fc.get(s_) == v for s_ in sid]) for v in ("compete", "single")}
+                masks.update({f"face_{v}": np.array([fc.get(s_) == v for s_ in sid]) for v in ("compete", "single")})
             if c == "AFEW":
                 bad = set(sub[sub.subset == "asr_suspect"].sample_id)
-                masks = {"asr_ok": np.array([s_ not in bad for s_ in sid])}
+                masks["asr_ok"] = np.array([s_ not in bad for s_ in sid])
             if c == "MOSEI":
                 ch = dict(zip(mosei_src.sample_id, mosei_src.speaker_source))
-                masks = {"channel_known": np.array([ch.get(s_) == "youtube_channel" for s_ in sid])}
+                masks["channel_known"] = np.array([ch.get(s_) == "youtube_channel" for s_ in sid])
             for mnm, msk in masks.items():
                 if msk.sum() and all(((y == k) & msk).any() for k in range(4)):
-                    sb.append({"c": c, "space": nm, "subset": mnm, "n": int(msk.sum()), "uar": 100 * S.uar(y[msk], pr[msk])})
+                    sb.append({"c": c, "student": st_, "space": nm, "subset": mnm, "n": int(msk.sum()), "uar": 100 * S.uar(y[msk], pr[msk])})
     pd.DataFrame(pe).assign(**tag).to_csv(out / "per_emotion.csv", index=False)
     pd.DataFrame(cf).assign(**tag).to_csv(out / "confusion.csv", index=False)
     pd.DataFrame(sb).assign(**tag).to_csv(out / "subsets.csv", index=False)
@@ -899,29 +946,32 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
         z = np.load(fp, allow_pickle=False)
         U = ProbeUnit("IEMOCAP", f)
         scen = pd.Series(U.cp.df["sample_id"].to_numpy()[U.test]).str.extract(r"_impro(\d+)")[0].to_numpy()
-        feats = {"full": torch.cat([U.Xt[m] for m in MODS], 1),
-                 "S": torch.cat([U.Xt[m] @ tt(z[f"S_i_{m}"]) for m in MODS], 1)}
         rm = {m: z[f"S_i_{m}"].shape[1] for m in MODS}
         pcs = {}
         for m in MODS:
             E = tt(z[f"pca_n_{m}"])[:, :rm[m]]
             lam = ((U.Xp[m] @ E) ** 2).sum(0) / (U.n - 1)
             pcs[m] = E * lam.rsqrt()
-        feats["pca_r"] = torch.cat([U.Xt[m] @ pcs[m] for m in MODS], 1)
-        for nm, F_ in feats.items():
-            key = {"full": "-_AVT_full", "S": "i_AVT_S", "pca_r": "i_AVT_pca_r"}[nm]
-            Zt = F_ @ tt(z[f"W_{key}"]).T + tt(z[f"b_{key}"])
-            assert (Zt.argmax(1).cpu().numpy() == z[f"pred_{key}"]).mean() > 0.999
-            Zt = Zt.cpu().numpy()
-            for sc in sorted(set(scen)):
-                for k in range(4):
-                    for l in range(k + 1, 4):
-                        mk_, ml_ = (scen == sc) & (U.yt == k), (scen == sc) & (U.yt == l)
-                        if mk_.sum() < 10 or ml_.sum() < 10:
-                            continue
-                        rk = float((Zt[mk_, k] > Zt[mk_, l]).mean()); rl = float((Zt[ml_, l] > Zt[ml_, k]).mean())
-                        sc_rows.append({"fold": f, "space": nm, "scenario": sc, "pair": f"{k}-{l}", "n_k": int(mk_.sum()), "n_l": int(ml_.sum()),
-                                        "pair_uar": 50 * (rk + rl)})
+        for st_, mods in (("AVT", list(MODS)), ("T", ["T"])):                 # 言葉の生徒も（感情認識の査読 b2）
+            feats = {"full": torch.cat([U.Xt[m] for m in mods], 1),
+                     "S": torch.cat([U.Xt[m] @ tt(z[f"S_i_{m}"]) for m in mods], 1),
+                     "pca_r": torch.cat([U.Xt[m] @ pcs[m] for m in mods], 1)}
+            for nm, F_ in feats.items():
+                key = {"full": f"-_{st_}_full", "S": f"i_{st_}_S", "pca_r": f"i_{st_}_pca_r"}[nm]
+                if f"W_{key}" not in z.files:
+                    continue
+                Zt = F_ @ tt(z[f"W_{key}"]).T + tt(z[f"b_{key}"])
+                assert (Zt.argmax(1).cpu().numpy() == z[f"pred_{key}"]).mean() > 0.999
+                Zt = Zt.cpu().numpy()
+                for sc in sorted(set(scen)):
+                    for k in range(4):
+                        for l in range(k + 1, 4):
+                            mk_, ml_ = (scen == sc) & (U.yt == k), (scen == sc) & (U.yt == l)
+                            if mk_.sum() < 10 or ml_.sum() < 10:
+                                continue
+                            rk = float((Zt[mk_, k] > Zt[mk_, l]).mean()); rl = float((Zt[ml_, l] > Zt[ml_, k]).mean())
+                            sc_rows.append({"fold": f, "student": st_, "space": nm, "scenario": sc, "pair": f"{k}-{l}", "n_k": int(mk_.sum()),
+                                            "n_l": int(ml_.sum()), "pair_uar": 50 * (rk + rl)})
         del U
     pd.DataFrame(sc_rows).assign(**tag).to_csv(out / "scenario_pairs.csv", index=False)
     print("書いた:", ", ".join(x + ".csv" for x in ("criteria", "assumptions", "assumptions_lda", "q2_shares", "diagnostics", "per_emotion",
@@ -995,32 +1045,29 @@ def selftest() -> None:
         A_ = tt(rng.normal(size=(400, 8))); B_ = tt(rng.normal(size=(400, 8)))
         hits += seq_test(A_ - A_.mean(0), B_ - B_.mean(0), 200, None, 100 + j)[0] >= 1
     assert hits / 60 <= 0.15, hits
-    # (8) 仮定の表の S3 と LDA の主角（ML の査読 M1）：感情の部分が強いときは S3 が LDA の部分空間に近く，主成分より近い．
-    #     感情の中の共有の要因が強いときは S3 と LDA の主角の余弦の 2 乗が下がる
-    def sim(gam):
-        n2, d2 = 5000, 30
-        y2 = rng.integers(0, 4, n2)
-        out = {}
-        Xs2 = {}
-        zf = rng.normal(size=n2)                                             # 感情の中の共有の要因
+    # (8) A1′ の規則（ML の査読の再検査 M1′）：設計の次元の規則の大きさ（n/p ≈ 45）で，前提が成り立つときに「離れている」が出る割合が
+    #     名目の 5% 程度で，感情の中の共有の要因が強いときに多く出る
+    def simz(shared, seed2):
+        g2 = np.random.default_rng(seed2)
+        n2, d2 = 2250, 50
+        y2 = g2.integers(0, 4, n2)
+        zf = g2.normal(size=n2)
+        Zs2 = []
         for m in "ab":
-            mu2 = np.zeros((4, d2)); mu2[:, 10:13] = 1.2 * np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, -1, -1]])   # 3 方向とも同じ強さ
-            sd2 = np.ones(d2); sd2[:6] = 3.0                                            # 分散の大きい方向は見方ごとに独立の雑音
-            dirz = np.zeros(d2); dirz[20] = 1.0                                         # 感情の中の共有の要因の方向
-            Xs2[m] = mu2[y2] + rng.normal(size=(n2, d2)) * sd2 + gam * zf[:, None] * dirz[None]
-        Ea2, la2, Za2, _ = pca(tt(Xs2["a"] - Xs2["a"].mean(0)), d2)
-        Zb2_ = pca(tt(Xs2["b"] - Xs2["b"].mean(0)), d2)[2]
-        _, Da2, _ = cca(Za2, Zb2_)
-        Xa = tt(Xs2["a"] - Xs2["a"].mean(0)); Sg = Xa.T @ Xa / (n2 - 1)
-        B3_ = sigma_orth((Ea2 * la2.rsqrt()) @ Da2[:, :3], Sg)
-        L_ = sigma_orth((Ea2 * la2.rsqrt()) @ _lda_basis(Za2, y2), Sg)
-        P3_ = sigma_orth(Ea2[:, :3], Sg)
-        return principal_cos2(B3_, L_, Sg), principal_cos2(P3_, L_, Sg)
-    cA, pA = sim(0.3)
-    cB, pB = sim(6.0)
-    assert cA > 0.8 and cA > pA and cB < cA - 0.1, (cA, pA, cB, pB)
+            mu2 = np.zeros((4, d2)); mu2[:, :3] = 0.6 * np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, -1, -1]])
+            X2 = mu2[y2] + g2.normal(size=(n2, d2))
+            X2[:, 10] += shared * zf
+            Zs2.append(pca(tt(X2 - X2.mean(0)), d2)[2])
+        return Zs2, y2
+    below_null = below_shared = 0
+    for j in range(10):
+        (Za3, Zb3), y3 = simz(0.0, 500 + j)
+        below_null += a1prime(Za3, Zb3, y3, seed=j, n_ref=40)["a"]["below_ref_q05"]
+        (Za3, Zb3), y3 = simz(2.0, 600 + j)
+        below_shared += a1prime(Za3, Zb3, y3, seed=j, n_ref=40)["a"]["below_ref_q05"]
+    assert below_null <= 3 and below_shared >= 6, (below_null, below_shared)
     print(f"selftest OK：r = {r}（無相関），主角の余弦の 2 乗の平均 {c2:.4f}，話者を足すと r = {r2}，塊の中で中心化すると r = {r3}，"
-          f"無関係な組で r ≥ 1 の割合 {hits / 60:.3f}，S3 と LDA（感情が強い {cA:.3f}・主成分 {pA:.3f}，共有が強い {cB:.3f}）")
+          f"無関係な組で r ≥ 1 の割合 {hits / 60:.3f}，A1′ の「離れている」：前提が成り立つとき 10 回中 {below_null}，共有が強いとき 10 回中 {below_shared}")
 
 
 def main() -> None:
