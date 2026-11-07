@@ -102,6 +102,23 @@ def unit_rows(path):
         lostp = (pred["none", "prod"] == y) & (pred["joint_a1", "prod"] != y)
         row["prod_new_right"] = float(newp.mean())
         row["prod_new_wrong"] = float(lostp.mean())
+        # (d) 過信
+        for s in SETS:
+            mods = str(f[f"K{K}_{s}_mods"])
+            z = f[f"K{K}_{s}_z"].astype(np.float64)
+            Zs = sum(z[:, 3 * j:3 * j + 3] @ H.T for j in range(len(mods)))
+            P3 = softmax(Zs / 3.0)
+            row[f"ll3_{s}_prod"] = bal_logloss(y, P3)
+            conf = P[s, "prod"].max(1)
+            row[f"conf_{s}_prod"] = float(conf.mean())
+            row[f"wrongconf_{s}_prod"] = float(conf[pred[s, "prod"] != y].mean())
+            row[f"acc_{s}_prod"] = float(np.mean(pred[s, "prod"] == y))
+        # (e) 1 つのほかのモダリティの疑似ラベル
+        for src in "AVT":
+            for m in "AVT":
+                if m == src:
+                    continue
+                row[f"uar_single_{src}_to_{m}"] = uar(y, f[f"K{K}_tt_single_{src}_pred_{m}"].astype(int))
         rows.append(row)
     return rows, checks
 
