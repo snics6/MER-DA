@@ -40,6 +40,8 @@ HYP_GAIN = 2.0                # 予想の書き方：EM_truth^τ − LDA_O^τ �
 MIN_GROUP = 3                 # gc：これ未満の本数のグループは全体の平均を引く
 N_UNITS = 40
 SEED = 0
+HYP_FOLDS = 4                 # 予想の書き方：差の差が正の分割が 5 つのうち 4 つ以上（gate-probe の 2）
+NAP_USED = [0]                # 直前の nap で実際に消した向きの数
 
 
 # ------------------------------------------------------------------ 取り除き方
@@ -77,7 +79,10 @@ def transform(tau: str, Xp, Xt, gp, gt):
         M = M / torch.as_tensor(cnt, dtype=Xp.dtype, device=Xp.device)[:, None]
         Sg = (M.T * w) @ M
         ev, V = torch.linalg.eigh((Sg + Sg.T) / 2)
-        V = V[:, -r:]
+        rank = int((ev > 1e-10 * ev.max()).sum())                          # 階数はグループの数 − 1 以下（gate-probe の 1）
+        r_eff = min(r, rank, len(cnt) - 1)
+        NAP_USED[0] = r_eff
+        V = V[:, -r_eff:] if r_eff > 0 else V[:, :0]
         return _restd(Xp - (Xp @ V) @ V.T, Xt - (Xt @ V) @ V.T)
     if tau.startswith("pca"):
         p = int(tau[3:])
@@ -139,6 +144,8 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
         if not (torch.isfinite(Xp).all() and torch.isfinite(Xt).all()):
             raise FloatingPointError(f"{name} {tau}：取り除いた特徴に有限でない値がある")
         XtX = Xp.T @ Xp
+        diag[f"{tau}_info"] = dict(nap_r_used=(NAP_USED[0] if tau.startswith("nap") else None), dim=int(Xp.shape[1]),
+                                   n_over_d=float(Xp.shape[0] / Xp.shape[1]))
         fO = P8.lda_from_R(Xp, onehot_all, XtX, ALPHA)
         pred[f"{tau}_ldaO"] = P8.delta(Xt, fO).argmax(1)
         diag[f"{tau}_ldaO"] = dict(pool_uar=P8._uar_pool(yp, P8.delta(Xp, fO).argmax(1).cpu().numpy()))
@@ -163,8 +170,10 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
             Um = np.ones(len(yp), bool)
             Um[kpos] = False
             prU = res["snapR"][N_EM].argmax(1).cpu().numpy()[Um]
+            qU = q0.argmax(1).cpu().numpy()[Um]
             diag[f"K{K}_{tau}_emK"] = dict(pool_uar=P8._uar_pool(yp[Um], prU), n_iter_done=res["info"]["n_iter_done"],
-                                           pool_uar_init=P8._uar_pool(yp[Um], q0.argmax(1).cpu().numpy()[Um]))
+                                           pool_uar_init=P8._uar_pool(yp[Um], qU), moved_at10=float((prU != qU).mean()),
+                                           hist_at10=(res["hist"][N_EM - 1] if len(res["hist"]) >= N_EM else (res["hist"][-1] if res["hist"] else 0.0)))
         if r == 0:                                                           # Q3 は (c, f) ごとに 1 回
             T_ = Xp.T @ Xp / Xp.shape[0]
             Ach = torch.linalg.cholesky((1 - ALPHA) * T_ + ALPHA * torch.eye(Xp.shape[1], dtype=DT, device=DEV))
@@ -266,12 +275,26 @@ def summarize(out: Path, allow_partial: bool) -> None:
             r_[f"S4_{tau}_nonemo_separates"] = bool(int((qq[f"top3_{tx}"] > qq[f"top3nullmax_{tx}"]).sum()) >= 3
                                                     and r_[f"S4_{tau}_top3ex_{tx}"] >= r_[f"S4_{tau}_top3ex_emo"])
         hyp = []
+        Uc = U[U.c == c].pivot_table(index=["fold", "seed"], columns="key", values="uar")
         for tau in ("gc", "nap10", "nap50"):
+            dd = (Uc[f"{tau}_emtruth"] - Uc[f"{tau}_ldaO"]) - (Uc["raw_emtruth"] - Uc["raw_ldaO"])
+            n_pos = int((dd.groupby(level="fold").mean() > 0).sum())
+            r_[f"HYP_{tau}_n_fold_pos"] = n_pos
             if (r_["S2_raw"] == "b_optimum_away_from_emotion" and r_[f"S2_{tau}"] != "b_optimum_away_from_emotion"
-                    and r_[f"S2_{tau}_truth_minus_ldaO"] >= r_["S2_raw_truth_minus_ldaO"] + HYP_GAIN):
+                    and r_[f"S2_{tau}_truth_minus_ldaO"] >= r_["S2_raw_truth_minus_ldaO"] + HYP_GAIN and n_pos >= HYP_FOLDS):
                 hyp.append(tau)
         r_["HYP_taus"] = ",".join(hyp)
+        r_["HYP_n_taus"] = len(hyp)
         r_["HYP"] = bool(hyp)
+        info = DG[(DG.c == c) & DG.key.str.endswith("_info")]
+        for tau in TAUS:
+            ii = info[info.key == f"{tau}_info"]
+            if len(ii) and tau.startswith("nap"):
+                r_[f"{tau}_r_used_min"] = int(ii.nap_r_used.min())
+            em = DG[(DG.c == c) & DG.key.isin([f"K{K}_{tau}_emK" for K in KS_RULE])]
+            r_[f"S0_{tau}_moved_at10"] = float(em.moved_at10.mean()) if len(em) else np.nan
+            r_[f"S0_{tau}_n_not_conv_at10"] = int((em.hist_at10 >= 0.01).sum()) if len(em) else 0
+            r_[f"S0_{tau}_n_over_d"] = float(ii.n_over_d.mean()) if len(ii) else np.nan
         crit.append(r_)
     Cr = pd.DataFrame(crit)
     Cr["HYP_n_corpora"] = int(Cr.HYP.sum())
