@@ -164,6 +164,7 @@ E1〜E73 の 1 件ずつの記録は無い．台帳を始めた 2026-10-28 の�
 | DAI-8 の第 2 回の検査が見たもの（gate-probe `probe_v2.md`，dai-review-affect `review_affect_v2.md`，dai-review-ml `review_ml_v2.md`） | 2026-11-08 | 下調べ（設計と台本の再検査） | gate-probe：設計の全文と差分，台帳の DAI-8 の行，台本の一部，`DAI/checks/DAI-8/` のファイル名，人工データ 2 つ．感情認識：splits と `load_corpus` の dialogue 列の値の種類と空の割合，AFEW の作品名の空の割合と作品の数，人工データでの `knn_stats` の値．ML：`dai1_frozen.json` の選んだ引き戻しの点の数，人工データ `review_ml_run/r9_reading_sim`．どの役もモデルの判定，UAR，`results/` の中身は見ていない | 検査だけ |
 | DAI-8 の値を含む試走の出力の消去（gate-probe の第 2 回の記録 L11） | 2026-11-08 04:15 | 下調べ（試走の後始末） | `DAI/checks/DAI-8/code_run/main/`（gate-code の第 1 回の 4 単位の試走の cells・criteria・diffs・diag・knn の csv と rows）と `DAI/checks/DAI-8/code_run_smoke/rows/` を消した．本体は値を見ていない．第 4 版の台本の本体の試走（作業用のフォルダ，IEMOCAP_AFEW_f0_r0 と AFEW_MOSEI_f0_r0．所要 95 秒と 141 秒，照合の不一致 0）も値は見ていない | 台本の検査だけ |
 | DAI-8 の第 3・4 回の検査が見たもの（gate-probe `probe_v3.md`・`probe_v4.md`，dai-review-ml `review_ml_v3.md`，dai-review-affect `review_affect_v3.md`） | 2026-11-08 | 下調べ（再検査） | gate-probe：差分，台帳の DAI-8 の行，台本の一部，起動の台本，`code_run*` のファイル名，人工データ．ML：人工のラベル `review_ml_run/ami_norm_sim`．感情認識：`dialogue_ids` を候補に当てた結果（止まったか，対話の数），splits のラベルから数えた感情と対話の重なり（AMI 0.318 など），人工データ．どの役もモデルの判定，UAR，`results/` の中身は見ていない．本体の第 5 版の試走（作業用のフォルダ，2 単位．所要 71 秒と 208 秒，照合の不一致 0）も値は見ていない | 検査だけ |
+| DAI-8 の感情認識の査読想定の第 4 回が見たもの（`review_affect_v4.md`．OK） | 2026-11-08 | 下調べ（再検査） | 人工データでの条件つき相互情報量の割合 x の値だけ（台本は作業用のフォルダの `cmi_sim.py`）．実データのラベル，モデルの判定，UAR，`results/`，ログ，試走の出力は見ていない．本体の d1〜d3 の直しの後の試走（作業用のフォルダ，1 単位．66 秒，照合の不一致 0）も値は見ていない | 検査だけ |
 
 ## 3. 確認に使えるデータ
 

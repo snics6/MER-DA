@@ -204,7 +204,8 @@ def _top3(X, lab, Ach):
 
 
 def _top3_null(X, lab, Ach, n_perm=N_PERM):
-    return float(np.mean([_top3(X, np.random.default_rng(SEED + 1 + i).permutation(lab), Ach) for i in range(n_perm)]))
+    v = [_top3(X, np.random.default_rng(SEED + 1 + i).permutation(lab), Ach) for i in range(n_perm)]
+    return float(np.mean(v)), float(np.max(v))
 
 
 def _perm_within(lab, strata, seed):
@@ -227,8 +228,8 @@ def _top3_resid(X, lab, other, Ach, n_perm=N_PERM):
     Mo, _ = _means(X - X.mean(0), other)
     Xr = X - X.mean(0) - Mo[torch.as_tensor(other, device=X.device)]
     v = _top3(Xr, _pair(lab, other), Ach)
-    nul = float(np.mean([_top3(Xr, _pair(_perm_within(lab, other, SEED + 11 + i), other), Ach) for i in range(n_perm)]))
-    return v, nul
+    nl = [_top3(Xr, _pair(_perm_within(lab, other, SEED + 11 + i), other), Ach) for i in range(n_perm)]
+    return v, float(np.mean(nl)), float(np.max(nl))
 
 
 def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, scen=None, k=KNN) -> dict:
@@ -269,11 +270,12 @@ def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, sc
     Ach = torch.linalg.cholesky((1 - FIX[0]) * T + FIX[0] * torch.eye(Xd.shape[1], dtype=Xd.dtype, device=X.device))
     for nm, lab in (("emo", y), ("grp", gi), ("dlg", di)):
         out[f"fisher_{nm}"], out[f"fisher0_{nm}"] = _fisher(Xd, lab, Ach), _fisher(Xd, _perm(lab), Ach)
-        out[f"top3_{nm}"], out[f"top3null_{nm}"] = _top3(Xd, lab, Ach), _top3_null(Xd, lab, Ach)
+        out[f"top3_{nm}"] = _top3(Xd, lab, Ach)
+        out[f"top3null_{nm}"], out[f"top3nullmax_{nm}"] = _top3_null(Xd, lab, Ach)
         out[f"top3ex_{nm}"] = out[f"top3_{nm}"] - out[f"top3null_{nm}"]
     for nm, lab, other in (("grp_xe", gi, y), ("dlg_xe", di, y), ("emo_xd", y, di)):   # 感情で（対話で）説明されない分
-        v, nul = _top3_resid(Xd, lab, other, Ach)
-        out[f"top3_{nm}"], out[f"top3null_{nm}"], out[f"top3ex_{nm}"] = v, nul, v - nul
+        v, nul, nmax = _top3_resid(Xd, lab, other, Ach)
+        out[f"top3_{nm}"], out[f"top3null_{nm}"], out[f"top3nullmax_{nm}"], out[f"top3ex_{nm}"] = v, nul, nmax, v - nul
     Gm, _ = _means(Xd, gi)                                                   # グループの平均を引いた版（次の試しの手がかり）
     Xg = Xd - Gm[torch.as_tensor(gi, device=X.device)]
     nbg = _topk(torch.nn.functional.normalize(Xg.float(), dim=1), k)
@@ -653,9 +655,10 @@ def summarize(out: Path, allow_partial: bool) -> None:
         E = z["pool_y"].astype(int)
         G = np.unique(z["pool_group"].astype(str), return_inverse=True)[1]
         Dl = np.unique(z["pool_dialogue"].astype(str), return_inverse=True)[1]
-        for k in [x for x in z.files if x.startswith("P_") and "_AVT_" in x or x.startswith("P_AVT_")]:
-            A_ = z[k].astype(int)
-            row = dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key=k[2:])
+        refs = {"ref_emotion": E, "ref_dialogue": np.random.default_rng(SEED).integers(0, 4, Dl.max() + 1)[Dl]}   # 上限の参照（d3）
+        items = [(k[2:], z[k].astype(int)) for k in z.files if (k.startswith("P_") and "_AVT_" in k) or k.startswith("P_AVT_")]
+        for key_, A_ in items + list(refs.items()):
+            row = dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key=key_)
             for nm, L, S_ in (("D_given_E", Dl, E), ("G_given_E", G, E), ("E_given_D", E, Dl)):
                 v = _cmi(A_, L, S_)
                 nul = float(np.mean([_cmi(A_, _perm_within(L, S_, SEED + 21 + i), S_) for i in range(N_PERM)]))
@@ -749,13 +752,21 @@ def summarize(out: Path, allow_partial: bool) -> None:
             r[f"R10_x_{nm}"] = float(cm[f"x_{nm}"].mean()) if len(cm) else np.nan
         xs = {"dialogue": r["R10_x_D_given_E"], "group": r["R10_x_G_given_E"], "emotion": r["R10_x_E_given_D"]}
         r["R10_top"] = max(xs, key=lambda k_: xs[k_] if np.isfinite(xs[k_]) else -np.inf)
+        for ref in ("ref_emotion", "ref_dialogue"):                          # 上限の参照（review_affect の第 4 回の d3）
+            cr = CM[(CM.c == c) & (CM.key == ref)] if len(CM) else CM
+            for nm in ("D_given_E", "E_given_D"):
+                r[f"R10_{ref}_x_{nm}"] = float(cr[f"x_{nm}"].mean()) if len(cr) else np.nan
+        ami_map = {"emo": "emotion", "grp": "group", "dlg": "dialogue"}       # d1：AMI の文は x と同じ向きのときだけ．IEMOCAP では書かない
+        r["R10_ami_sentence_ok"] = bool(c != "IEMOCAP" and ami_map.get(r["R10_em_top_ami"], "") == r["R10_top"])
         kq = knn[(knn.c == c) & (knn.space == "AVT")]
         r["R5_top3ex_emo"], r["R5_top3ex_grp"], r["R5_top3ex_dlg"] = (float(kq[f"top3ex_{x}"].mean()) for x in ("emo", "grp", "dlg"))
         r["R5_top3_top"] = max(("emo", "grp", "dlg"), key=lambda x: r[f"R5_top3ex_{x}"])
         for x in ("grp_xe", "dlg_xe", "emo_xd"):
             r[f"R5_top3ex_{x}"] = float(kq[f"top3ex_{x}"].mean())
         r["R5_nonemo_top_xe"] = max(("grp_xe", "dlg_xe"), key=lambda x: r[f"R5_top3ex_{x}"])
-        r["R5_nonemo_separates"] = bool(r[f"R5_top3ex_{r['R5_nonemo_top_xe']}"] > 0)
+        tx = r["R5_nonemo_top_xe"]                                            # review_affect の第 4 回の d2：帰無の 5 回の最大を超え，感情の top3ex 以上
+        r["R5_n_fold_above_nullmax"] = int((kq[f"top3_{tx}"] > kq[f"top3nullmax_{tx}"]).sum())
+        r["R5_nonemo_separates"] = bool(r["R5_n_fold_above_nullmax"] >= 3 and r[f"R5_top3ex_{tx}"] >= r["R5_top3ex_emo"])
         crit.append(r)
     Cr = pd.DataFrame(crit)
     for tag in ("R1", "R2", "R3", "R4", "R7", "R8", "not_moved"):
@@ -854,8 +865,8 @@ def selftest() -> None:
     X6 = X6 - X6.mean(0)
     T6 = X6.T @ X6 / n
     Ach6 = torch.linalg.cholesky(0.5 * T6 + 0.5 * torch.eye(d, dtype=DT, device=DEV))
-    raw = _top3(X6, dlg6, Ach6) - _top3_null(X6, dlg6, Ach6)
-    v6, n6 = _top3_resid(X6, dlg6, y6, Ach6)
+    raw = _top3(X6, dlg6, Ach6) - _top3_null(X6, dlg6, Ach6)[0]
+    v6, n6, _ = _top3_resid(X6, dlg6, y6, Ach6)
     print(f"(6) 対話の上位 3 の帰無を引いた値：そのまま {raw:.3f}，感情で説明されない分 {v6 - n6:.3f}")
     assert raw > 0.3 and abs(v6 - n6) < 0.15
     # (7) 条件つき相互情報量（C1）：割り当てが対話だけで決まるとき x_D|E は大きく，x_E|D は小さい
