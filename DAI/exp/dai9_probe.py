@@ -40,11 +40,26 @@ HYP_GAIN = 2.0                # 予想の書き方：EM_truth^τ − LDA_O^τ �
 MIN_GROUP = 3                 # gc：これ未満の本数のグループは全体の平均を引く
 N_UNITS = 40
 SEED = 0
+LDAO_DROP = -2.0              # LDA_O^τ − LDA_O^raw がこれ以下なら「τ は感情の違いも消した」（review_affect の E1）
+NAP_TOL = 1e-10               # NAP の階数：固有値が最大の固有値のこの倍を超える数
+MOVED_MIN = 0.05              # S0：t = 10 で動いた割合がこれ未満なら「EM は初期値からほとんど動かなかった」
 HYP_FOLDS = 4                 # 予想の書き方：差の差が正の分割が 5 つのうち 4 つ以上（gate-probe の 2）
 NAP_USED = [0]                # 直前の nap で実際に消した向きの数
 
 
 # ------------------------------------------------------------------ 取り除き方
+
+TAU_INFO = {}
+
+
+def _mod_share(V):
+    """向きの 2 乗の重みのモダリティごとの割合（音声 0:1024，顔 1024:1536，言葉 1536:2304．review_affect の e4）。"""
+    if V.shape[1] == 0 or V.shape[0] != 2304:
+        return None
+    w = (V ** 2).sum(1)
+    tot = float(w.sum())
+    return [float(w[:1024].sum()) / tot, float(w[1024:1536].sum()) / tot, float(w[1536:].sum()) / tot]
+
 
 def _restd(Xp, Xt):
     sd = Xp.std(0).clamp(min=1e-6)
@@ -68,6 +83,9 @@ def transform(tau: str, Xp, Xt, gp, gt):
     if tau == "raw":
         return Xp, Xt
     if tau == "gc":
+        for nm, g_ in (("pool", gp), ("test", gt)):                             # 3 本未満のグループの発話の割合（e5）
+            _, gi_, cnt_ = np.unique(g_, return_inverse=True, return_counts=True)
+            TAU_INFO[f"small_group_share_{nm}"] = float((cnt_[gi_] < MIN_GROUP).mean())
         return _restd(_center_groups(Xp, gp), _center_groups(Xt, gt))
     if tau.startswith("nap"):
         r = int(tau[3:])
@@ -79,10 +97,12 @@ def transform(tau: str, Xp, Xt, gp, gt):
         M = M / torch.as_tensor(cnt, dtype=Xp.dtype, device=Xp.device)[:, None]
         Sg = (M.T * w) @ M
         ev, V = torch.linalg.eigh((Sg + Sg.T) / 2)
-        rank = int((ev > 1e-10 * ev.max()).sum())                          # 階数はグループの数 − 1 以下（gate-probe の 1）
+        rank = int((ev > NAP_TOL * ev.max()).sum())                          # 階数はグループの数 − 1 以下（gate-probe の 1）
         r_eff = min(r, rank, len(cnt) - 1)
         NAP_USED[0] = r_eff
         V = V[:, -r_eff:] if r_eff > 0 else V[:, :0]
+        TAU_INFO["eig_top"] = ev.sort(descending=True).values[:min(60, len(ev))].cpu().tolist()
+        TAU_INFO["mod_share"] = _mod_share(V)
         return _restd(Xp - (Xp @ V) @ V.T, Xt - (Xt @ V) @ V.T)
     if tau.startswith("pca"):
         p = int(tau[3:])
@@ -90,6 +110,7 @@ def transform(tau: str, Xp, Xt, gp, gt):
         C = (Xp - mu).T @ (Xp - mu) / Xp.shape[0]
         ev, V = torch.linalg.eigh((C + C.T) / 2)
         V = V[:, -p:]
+        TAU_INFO["mod_share"] = _mod_share(V)
         return _restd((Xp - mu) @ V, (Xt - mu) @ V)
     raise ValueError(tau)
 
@@ -140,12 +161,13 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
     _, gi = np.unique(gp, return_inverse=True)
     _, di = np.unique(dlg_p, return_inverse=True)
     for tau in TAUS:
+        TAU_INFO.clear()
         Xp, Xt = transform(tau, X0p, X0t, gp, gt)
         if not (torch.isfinite(Xp).all() and torch.isfinite(Xt).all()):
             raise FloatingPointError(f"{name} {tau}：取り除いた特徴に有限でない値がある")
         XtX = Xp.T @ Xp
         diag[f"{tau}_info"] = dict(nap_r_used=(NAP_USED[0] if tau.startswith("nap") else None), dim=int(Xp.shape[1]),
-                                   n_over_d=float(Xp.shape[0] / Xp.shape[1]))
+                                   n_over_d=float(Xp.shape[0] / Xp.shape[1]), **dict(TAU_INFO))
         fO = P8.lda_from_R(Xp, onehot_all, XtX, ALPHA)
         pred[f"{tau}_ldaO"] = P8.delta(Xt, fO).argmax(1)
         diag[f"{tau}_ldaO"] = dict(pool_uar=P8._uar_pool(yp, P8.delta(Xp, fO).argmax(1).cpu().numpy()))
@@ -232,6 +254,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
     for tau in TAUS:
         comps.append((f"{tau}_ldaO_vs_raw", 0, f"{tau}_ldaO", "raw_ldaO"))
         comps.append((f"{tau}_emtruth_ldaO", 0, f"{tau}_emtruth", f"{tau}_ldaO"))
+        comps.append((f"{tau}_emtruth_vs_raw", 0, f"{tau}_emtruth", "raw_emtruth"))   # review_affect の E1
         for K in KS_RULE:
             comps.append((f"{tau}_emK_ldaK", K, f"K{K}_{tau}_emK", f"K{K}_{tau}_ldaK"))
             comps.append((f"{tau}_emKconv_ldaK", K, f"K{K}_{tau}_emKconv", f"K{K}_{tau}_ldaK"))
@@ -280,9 +303,21 @@ def summarize(out: Path, allow_partial: bool) -> None:
             dd = (Uc[f"{tau}_emtruth"] - Uc[f"{tau}_ldaO"]) - (Uc["raw_emtruth"] - Uc["raw_ldaO"])
             n_pos = int((dd.groupby(level="fold").mean() > 0).sum())
             r_[f"HYP_{tau}_n_fold_pos"] = n_pos
-            if (r_["S2_raw"] == "b_optimum_away_from_emotion" and r_[f"S2_{tau}"] != "b_optimum_away_from_emotion"
-                    and r_[f"S2_{tau}_truth_minus_ldaO"] >= r_["S2_raw_truth_minus_ldaO"] + HYP_GAIN and n_pos >= HYP_FOLDS):
+            et = D[(D.c == c) & (D["compare"] == f"{tau}_emtruth_vs_raw")]
+            r_[f"HYP_{tau}_emtruth_vs_raw"] = float(et.effect.iloc[0]) if len(et) else np.nan
+            lo_ = D[(D.c == c) & (D["compare"] == f"{tau}_ldaO_vs_raw")]
+            r_[f"S5_{tau}_ldaO_vs_raw"] = float(lo_.effect.iloc[0]) if len(lo_) else np.nan
+            r_[f"S5_{tau}_removed_emotion"] = bool(r_[f"S5_{tau}_ldaO_vs_raw"] <= LDAO_DROP)   # 「τ は感情の違いも消した」（E1）
+            if (r_["S2_raw"] == "b_optimum_away_from_emotion" and r_[f"S2_{tau}"] == "a_init_or_other"
+                    and r_[f"S2_{tau}_truth_minus_ldaO"] >= r_["S2_raw_truth_minus_ldaO"] + HYP_GAIN and n_pos >= HYP_FOLDS
+                    and r_[f"HYP_{tau}_emtruth_vs_raw"] >= 0):
                 hyp.append(tau)
+        if "nap10" in hyp and "nap50" in hyp:                                  # 同じ操作になったら 1 つとして数える（gate-probe の第 2 回の 2）
+            u10 = DG[(DG.c == c) & (DG.key == "nap10_info")].nap_r_used.to_numpy()
+            u50 = DG[(DG.c == c) & (DG.key == "nap50_info")].nap_r_used.to_numpy()
+            if len(u10) and len(u10) == len(u50) and (u10 == u50).all():
+                hyp.remove("nap50")
+                r_["HYP_nap_same"] = True
         r_["HYP_taus"] = ",".join(hyp)
         r_["HYP_n_taus"] = len(hyp)
         r_["HYP"] = bool(hyp)
@@ -293,6 +328,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
                 r_[f"{tau}_r_used_min"] = int(ii.nap_r_used.min())
             em = DG[(DG.c == c) & DG.key.isin([f"K{K}_{tau}_emK" for K in KS_RULE])]
             r_[f"S0_{tau}_moved_at10"] = float(em.moved_at10.mean()) if len(em) else np.nan
+            r_[f"S0_{tau}_not_moved"] = bool(r_[f"S0_{tau}_moved_at10"] < MOVED_MIN)
             r_[f"S0_{tau}_n_not_conv_at10"] = int((em.hist_at10 >= 0.01).sum()) if len(em) else 0
             r_[f"S0_{tau}_n_over_d"] = float(ii.n_over_d.mean()) if len(ii) else np.nan
         crit.append(r_)
@@ -332,9 +368,14 @@ def selftest() -> None:
     gm = torch.zeros((30, d), dtype=DT, device=DEV).index_add_(0, torch.as_tensor(gi, device=DEV), Xg)
     print(f"(1) gc の後のグループの平均の大きさの最大 {float(gm.abs().max() / 100):.2e}（0 に近い）")
     assert float(gm.abs().max()) / 100 < 1e-6
-    # (2) nap：消した向きの成分が 0
-    Xn, _ = transform("nap10", X, Xt, grp, grp[:500])
-    print("(2) nap10 の後の値は有限")
+    # (2) nap：グループが 8 個なら消す向きは 7 個まで（review_affect の E2）
+    g8 = grp % 8
+    transform("nap10", X, Xt, g8, g8[:500])
+    used10 = NAP_USED[0]
+    transform("nap50", X, Xt, g8, g8[:500])
+    used50 = NAP_USED[0]
+    print(f"(2) グループ 8 個で nap10 が消した向き {used10}，nap50 が消した向き {used50}")
+    assert used10 == 7 and used50 == 7
     # (3) グループの成分が大きい人工データで，gc は全ラベルの LDA を良くする
     yt = torch.as_tensor(y, device=DEV)
     oh = torch.nn.functional.one_hot(yt, 4).to(DT)
@@ -388,6 +429,7 @@ def main() -> None:
                 script_sha256=sha(Path(__file__)), dai8_sha256=sha(HERE / "dai8_probe.py"), frozen_sha256=sha(FROZEN),
                 alpha=ALPHA, taus=TAUS, n_em=N_EM, max_em=MAX_EM, tol_em=TOL_EM, min_d=MIN_D, r9_test_drop=R9_TEST_DROP,
                 keep_rand=KEEP_RAND, keep_gap=KEEP_GAP, hyp_gain=HYP_GAIN, min_group=MIN_GROUP,
+                hyp_folds=HYP_FOLDS, nap_tol=NAP_TOL, ldao_drop=LDAO_DROP, moved_min=MOVED_MIN,
                 units=[f"{x[1]}_f{x[2]}_r{x[3]}" for x in units],
                 inputs_sha256={f"{x[0]}_{x[1]}_f{x[2]}_r{x[3]}": sha(UD / f"{x[0]}_{x[1]}_f{x[2]}_r{x[3]}_p1.npz") for x in units})
     pname = f"provenance_partial_{time.strftime('%Y%m%d-%H%M%S')}.json" if partial else "provenance.json"
