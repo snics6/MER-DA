@@ -1,6 +1,6 @@
 """実験 7 の下調べ（DAI-7）：ほかのモダリティの疑似ラベルで蒸留すると，単独の分類器どうしの点数の依存が増えるか．
 
-設計は `DAI/docs/実験7_下調べ_設計.md`（第 3 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
+設計は `DAI/docs/実験7_下調べ_設計.md`（第 4 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
 保存した W・b を候補とテストの特徴に当てて点数を作り直す．新しく学ぶのは 3.5 節の 9 次元の判別分析と，3.3 節の教師の点数への回帰だけである．
 評価の回の保存は読まない．
 
@@ -537,14 +537,14 @@ def summarize(out: Path, allow_partial: bool) -> None:
             bD = {s: {p: {} for p in ("AV", "AT", "VT", "all")} for s in BOOT_SETS}
             bphi = {s: {} for s in BOOT_SETS}
             bL = {s: {} for s in L_SETS}
-            bG = {}
+            bG, bG1 = {}, {}
             for f in sorted(cl_by_fold):
                 cols = np.flatnonzero(fold_of == f)
                 wcl = w[:, cols]
                 acc = {s: {p: [] for p in ("AV", "AT", "VT", "all")} for s in BOOT_SETS}
                 accphi = {s: [] for s in BOOT_SETS}
                 accL = {s: [] for s in L_SETS}
-                accG = []
+                accG, accG1 = [], []
                 for (T, ff, r), z in fits.items():
                     if ff != f:
                         continue
@@ -567,8 +567,11 @@ def summarize(out: Path, allow_partial: bool) -> None:
                                        - boot_uar_unit(z[f"K{K}_{s}_pred_blk"].astype(int), y, codes, wcl))
                     bu = {(s, q): boot_uar_unit(z[f"K{K}_{s}_pred_{q}"].astype(int), y, codes, wcl)
                           for s in ("joint_a1", "none") for q in ("prod", *MODS)}
+                    bu.update({("rho1", q): boot_uar_unit(z[f"K{K}_joint_a1_rho1.0_pred_{q}"].astype(int), y, codes, wcl) for q in ("prod", *MODS)})
                     accG.append((bu[("joint_a1", "prod")] - bu[("none", "prod")])
                                 - np.mean([bu[("joint_a1", m)] - bu[("none", m)] for m in MODS], 0))
+                    accG1.append((bu[("rho1", "prod")] - bu[("none", "prod")])
+                                 - np.mean([bu[("rho1", m)] - bu[("none", m)] for m in MODS], 0))
                 for s in BOOT_SETS:                                         # 4 節の 3：分割の値は 6 単位の平均
                     for p in acc[s]:
                         bD[s][p][f] = nanmean_stack(acc[s][p])
@@ -576,10 +579,12 @@ def summarize(out: Path, allow_partial: bool) -> None:
                 for s in L_SETS:
                     bL[s][f] = nanmean_stack(accL[s])
                 bG[f] = nanmean_stack(accG)
+                bG1[f] = nanmean_stack(accG1)
             Bd = {s: {p: fold_combine(bD[s][p], w, fold_of) for p in bD[s]} for s in BOOT_SETS}
             Bphi = {s: fold_combine(bphi[s], w, fold_of) for s in BOOT_SETS}
             BL = {s: fold_combine(bL[s], w, fold_of) for s in L_SETS}
             BG = fold_combine(bG, w, fold_of)
+            BG1 = fold_combine(bG1, w, fold_of)
             pt = cells[(cells.c == c) & (cells.K == K)].set_index(["set", "pair"])
             ptA = acells[(acells.c == c) & (acells.K == K)].set_index("set")
             dd_pairs = {"dD_joint_a1_none": ("joint_a1", "none"), "dD_joint_none": ("joint", "none"), "dD_joint_a1_oracle": ("joint_a1", "oracle"),
@@ -601,11 +606,11 @@ def summarize(out: Path, allow_partial: bool) -> None:
             for s in L_SETS:
                 lo, hi, nv = ci(BL[s])
                 diffs.append(dict(c=c, K=K, pair="all", quantity=f"Ldep_{s}", est=ptA.loc[s, "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
-            for s in ("joint", "joint_a1"):                                 # 得の足し合わせ（3.5 節，3.6 節の (iv)）
+            for s in ("joint", "joint_a1", "joint_a1_rho1.0"):              # 得の足し合わせ（3.5 節，3.6 節の (iv)．rho1.0 は選んでいない対照）
                 G = {m: ptA.loc[s, f"uar_{m}"] - ptA.loc["none", f"uar_{m}"] for m in MODS}
                 gp = ptA.loc[s, "uar_prod"] - ptA.loc["none", "uar_prod"]
                 gf = ptA.loc[s, "uar_full"] - ptA.loc["none", "uar_full"]
-                lo, hi, nv = ci(BG) if s == "joint_a1" else (np.nan, np.nan, 0)
+                lo, hi, nv = ci(BG) if s == "joint_a1" else ci(BG1) if s == "joint_a1_rho1.0" else (np.nan, np.nan, 0)
                 diffs.append(dict(c=c, K=K, pair="all", quantity=f"G_{s}", est=gp - np.mean(list(G.values())), lo=lo, hi=hi, n_boot_valid=nv,
                                   **{f"G_{m}": G[m] for m in MODS}, G_prod=gp, G_full=gf, G_max=max(G.values())))
             for s1, s2 in (("joint_a1", "none"),):                          # 教師の点数を除いた依存の差（4 節の書き方 2．点推定）
@@ -641,7 +646,10 @@ def summarize(out: Path, allow_partial: bool) -> None:
         r["H2"] = bool(sum((v >= 0.8 - 1e-9) and s_ for v, s_ in zip(sp, size_ok)) >= 3)
         dD = Df[(Df.c == c) & (Df.quantity == "dD_joint_a1_none") & (Df.pair == "all") & Df.K.isin(KS_RULE)].set_index("K")["est"]
         dDt = Df[(Df.c == c) & (Df.quantity == "dDt_joint_a1_none") & Df.K.isin(KS_RULE)].set_index("K")["est"]
-        r["n_K_teacher_explains"] = int(sum(dDt[K] <= HALF_T * dD[K] for K in KS_RULE if dD[K] > 0))
+        dDr = Df[(Df.c == c) & (Df.quantity == "dD_joint_a1_none") & (Df.pair == "all") & Df.K.isin(KS_RULE)].set_index("K")
+        h1_ok = [K for K in KS_RULE if dDr.loc[K, "lo"] > 0 and dDr.loc[K, "est"] >= FLOOR_D
+                 and abs(dDr.loc[K, "d_null_diff"]) < NULL_RATIO * abs(dDr.loc[K, "est"])]
+        r["n_K_teacher_explains"] = int(sum(dDt[K] <= HALF_T * dD[K] for K in h1_ok))          # H1 の条件を満たした K だけで数える
         phi_small = r["phi_n_lo_pos"] - r["phi_n_lo_pos_floor"] >= 3
         if not r["H1"]:
             r["H1_wording"] = "満たさなかった"

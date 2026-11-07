@@ -133,6 +133,7 @@ E1〜E73 の 1 件ずつの記録は無い．台帳を始めた 2026-10-28 の�
 | DAI-7 の gate-probe が見たもの（`DAI/checks/DAI-7/probe.md`） | 2026-11-07 | 下調べ（設計の検査） | `AFEW_IEMOCAP_f0_r0_p{1,2,3}.npz` の鍵の名前・形・型と文字列の配列（格子の点の名前，この単位の選んだ引き戻しと指数，`agree`・`mix` の `n_kept`），同じ単位の CSV と `results/explore_depfusion/*.csv` の見出しの行，固定のファイルの鍵の構造，`DAI/splits/*.csv` の `sample_id`・`cluster`・`fold`（分割ごとのテストの本数，塊の数，最大の塊の割合，貪欲に割った半分の大きさ）．UAR・依存の値と `label_4` は開いていない | 設計の直しに使う |
 | DAI-7 の本計算（関門の前の第 1 版．研究者の指示「通る前にとりあえず本計算してみて．あかんかったらやりなおすからさ」） | 2026-11-07 22:00 | 下調べ（関門の前の計算） | `bash DAI/run/dai7_probe.sh`（コミット 28b1c63）を tmux `mer-da:dai7` で起動した．出力 `results/dai7_probe/`．値はまだ見ていない（見たら行を足す） | gate-probe の指摘で直した版で流し直す前提 |
 | DAI-7 の gate-probe の再検査が見たもの（`DAI/checks/DAI-7/probe_v2.md`） | 2026-11-07 | 下調べ（設計の再検査） | `results/dai7_probe/` の一覧の 1 段目と走っている処理の一覧（中のファイルは開いていない），起動の台本と第 1 版の台本の 256〜270 行，1 単位（AFEW_IEMOCAP_f0_r0）での固定のファイルの `w` と `wsel` の一致の真偽．本体は第 3 版の台本の試走（IEMOCAP_AFEW_f0_r0，scratchpad の `dai7_v3smoke/`）で，分け方・半分の本数・出力の行数だけを見た | 設計の直しに使う |
+| DAI-7 の試走の出力の削除と第 3 版の再検査（`DAI/checks/DAI-7/probe_v3.md`） | 2026-11-07 | 下調べ（設計の再検査） | gate-probe の第 3 版の再検査（L11）を受けて，本体の試走の出力（scratchpad の `dai7_smoke/`，`dai7_v3smoke/`，第 4 版の台本の試走 `dai7_v4smoke/`）を消した．第 4 版の試走で見たのは終了の符号と出力の行数だけ．再検査は `results/dai7_probe/` の中とログを開いていない | 設計の直しに使う |
 
 ## 3. 確認に使えるデータ
 
