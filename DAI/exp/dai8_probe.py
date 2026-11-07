@@ -111,7 +111,7 @@ def em_fit(X, XtX, kpos, ylab, q, alpha, beta, block=None, n_iter=N_EM, fix_sigm
     U = torch.ones(n, dtype=torch.bool, device=X.device)
     U[kpos] = False
     logq = torch.log(q[U].clamp(min=1e-12))
-    hist, pool_hist, snap, chol, ratio, beta_flip = [], [], {}, None, float("nan"), 0.0
+    hist, pool_hist, snap, snapR, chol, ratio, beta_flip = [], [], {}, {}, None, float("nan"), 0.0
     t = 0
     while True:
         f = lda_from_R(X, R, XtX, alpha, block, chol=chol)
@@ -119,6 +119,7 @@ def em_fit(X, XtX, kpos, ylab, q, alpha, beta, block=None, n_iter=N_EM, fix_sigm
             chol = f["chol"]                                                 # 最初の M 段の Σ を固定する（gate-probe の 5）
         if t in snaps:
             snap[t] = f
+            snapR[t] = R.clone()
         if yU is not None:
             pool_hist.append(float(ST.uar_full(ST.counts(yU, R[U].argmax(1).cpu().numpy(), np.zeros(len(yU), int)))))
         stop = (t == n_iter) or (tol is not None and t > 0 and hist[-1] < tol)
@@ -135,11 +136,14 @@ def em_fit(X, XtX, kpos, ylab, q, alpha, beta, block=None, n_iter=N_EM, fix_sigm
         hist.append(float((newU - R[U]).abs().sum(1).mean()))
         R[U] = newU
         t += 1
+    for t_ in snaps:                                                         # 早く収束したときは，残りの回の保存を収束した解で埋める（gate-code の第 2 回の記録）
+        if t_ not in snap:
+            snap[t_], snapR[t_] = f, R.clone()
     rU = R[U]
     info = dict(ratio=ratio, moved=float((rU.argmax(1) != q[U].argmax(1)).double().mean()),
                 entropy=float(-(rU.clamp(min=1e-12).log() * rU).sum(1).mean()), n_iter_done=t,
                 beta_flip_last=beta_flip)                                       # 最後の E 段で β の項が判定を変えた割合（review_ml の m1）
-    return dict(fit=f, snap=snap, R=R, hist=hist, pool_hist=pool_hist, info=info, U=U)
+    return dict(fit=f, snap=snap, snapR=snapR, R=R, hist=hist, pool_hist=pool_hist, info=info, U=U)
 
 
 # ------------------------------------------------------------------ 近傍と散らばり（Q1）
@@ -474,6 +478,9 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
                         record(key, res)
                         ph = res["pool_hist"]
                         diag[key]["pool_uar_at10"] = ph[N_EM] if len(ph) > N_EM else ph[-1]   # 「流れた」は t = 10 で数える（review_ml の第 3 回の n4）
+                        R10 = res["snapR"][N_EM]                                # t = 10 の割り当て（gate-code の第 2 回の 2）
+                        diag[key]["moved_at10"] = float((R10[res["U"]].argmax(1) != q[res["U"]].argmax(1)).double().mean())
+                        poolpred[f"K{K}_{s}_em10_a{a}_b{b}"] = R10.argmax(1).cpu().numpy()
                         poolpred[f"K{K}_{s}_emconv_a{a}_b{b}"] = res["R"].argmax(1).cpu().numpy()   # 候補の全部（gate-probe の第 2 回の 2）
                         h = res["hist"]
                         diag[key]["hist_at_rule"] = h[N_EM - 1] if len(h) >= N_EM else (h[-1] if h else 0.0)
@@ -575,13 +582,20 @@ def _cond_entropy(a, s_):
 
 
 def _add(d, key, cnt, label):
+    """同じ (f, r) の 3 つの T の数を平均するために足し，件数を数える（_finish で割る．gate-code の第 2 回の記録：足したままだと最小の本数の基準が緩む）。"""
     if key in d:
-        n0, c0, t0 = d[key]
+        n0, c0, t0, m = d[key]
         if not (n0 == cnt[0]).all():
             raise SystemExit(f"{label}：塊の並びが同じ (f, r) のほかの T と違う")
-        d[key] = (n0, c0 + cnt[1], t0 + cnt[2])
+        d[key] = (n0, c0 + cnt[1], t0 + cnt[2], m + 1)
     else:
-        d[key] = cnt
+        d[key] = (cnt[0], cnt[1].astype(float), cnt[2].astype(float), 1)
+
+
+def _finish(cells):
+    for k in cells:
+        for kk, (n0, c0, t0, m) in cells[k].items():
+            cells[k][kk] = (n0, c0 / m, t0 / m)
 
 
 def summarize(out: Path, allow_partial: bool) -> None:
@@ -589,6 +603,10 @@ def summarize(out: Path, allow_partial: bool) -> None:
     if len(files) != N_UNITS and not allow_partial:
         raise SystemExit(f"単位の出力が {len(files)} 個（{N_UNITS} のはず）．試走なら --allow-partial")
     rng = np.random.default_rng(SEED)
+    rc = {str(np.load(p, allow_pickle=False)["commit"]) for p in files}          # 行のコミットの照合を最初に（gate-code の第 2 回の 3）
+    sh = {json.loads(x.read_text())["commit"] for x in out.glob("provenance_shard*.json")}
+    if len(rc) != 1 or (sh and sh != rc):
+        raise SystemExit(f"行のコミットが 1 つでないか，組の provenance と違う：行 {rc}，組 {sh}")
     cells, cellrows, diagrows, commits = {}, [], [], set()
     same_cf, cf_mism = {}, []                                                # 同じ (c, f) の単位の一致（gate-code の 5）
     for p in files:
@@ -621,13 +639,14 @@ def summarize(out: Path, allow_partial: bool) -> None:
                        hist_at_rule=d.get("hist_at_rule", h[-1] if h else np.nan),
                        pi_err=float(np.abs(np.array(d["pi"]) - z["pool_prop"]).sum()) if "pi" in d else np.nan,
                        tr_sinv_s=d.get("tr_sinv_s"), n_k_min=min(d["n_k"]) if "n_k" in d else np.nan)
-            for nm in ("pool_uar", "pool_uar_none", "pool_uar_at10", "n_iter_done", "ratio", "moved", "entropy", "beta_flip_last",
+            for nm in ("pool_uar", "pool_uar_none", "pool_uar_at10", "n_iter_done", "ratio", "moved", "moved_at10", "entropy", "beta_flip_last",
                        "agree_none_test", "keep_init", "keep_init_at10"):
                 row[nm] = d.get(nm, np.nan)
             for e in range(4):
                 row[f"pool_rec_e{e}"] = d["pool_rec"][e] if "pool_rec" in d else np.nan
                 row[f"pool_rec_none_e{e}"] = d["pool_rec_none"][e] if "pool_rec_none" in d else np.nan
             diagrows.append(row)
+    _finish(cells)
     knn = pd.concat([pd.read_csv(p) for p in sorted((out / "rows").glob("*_knn.csv"))])
     if knn.groupby(["c", "fold", "space"]).size().max() != 1 or (not allow_partial and len(knn) != 20 * len(SPACES)):
         raise SystemExit(f"Q1 の行が (c, f, 空間) ごとに 1 行でない（{len(knn)} 行）")
@@ -699,24 +718,25 @@ def summarize(out: Path, allow_partial: bool) -> None:
         r = dict(c=c)
         for tag, nm in (("R1", "em_none"), ("R2", "em_joint"), ("R3", "emfromK_ldaK"), ("R3x", "em_ldaK"), ("R6", "em_emmu"),
                         ("R7", "em_ttfused"), ("R8", "emT_noneT")):
-            d = D[(D.c == c) & (D.space == "AVT") & (D.compare == nm) & (D.subset == "all") & D.K.isin(KS_RULE)]
+            d = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "all") & D.K.isin(KS_RULE)]
             ok = (d.lo > 0) & (d.effect >= MIN_D)
             r[f"{tag}_n_K"], r[f"{tag}_n_lo_pos"], r[f"{tag}_n_hi_neg"] = int(ok.sum()), int((d.lo > 0).sum()), int((d.hi < 0).sum())
             r[tag] = bool(ok.sum() >= 3)
         r["R3_harm"] = bool(r["R3_n_hi_neg"] >= 3)
         for tag, nm in (("R1", "em_none"), ("R3", "emfromK_ldaK"), ("R8", "emT_noneT")):   # MOSEI の channel の確かめ（review_affect の b4）
-            full = D[(D.c == c) & (D.space == "AVT") & (D.compare == nm) & (D.subset == "all") & D.K.isin(KS_RULE)].set_index("K")
-            ch = D[(D.c == c) & (D.space == "AVT") & (D.compare == nm) & (D.subset == "channel") & D.K.isin(KS_RULE)].set_index("K")
+            full = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "all") & D.K.isin(KS_RULE)].set_index("K")
+            ch = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "channel") & D.K.isin(KS_RULE)].set_index("K")
             okK = [K for K in KS_RULE if K in full.index and full.loc[K, "lo"] > 0 and full.loc[K, "effect"] >= MIN_D]
             r[f"{tag}_chan_n_K_robust"] = (int(sum(1 for K in okK if K in ch.index and ch.loc[K, "lo"] > 0
                                                    and ch.loc[K, "effect"] >= 0.5 * full.loc[K, "effect"])) if c == "MOSEI" else np.nan)
-        d4 = D[(D.c == c) & (D.space == "AVT") & (D.compare == "ldaO_oracle")]
+        d4 = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == "ldaO_oracle")]
         r["R4_effect"] = float(d4.effect.iloc[0]) if len(d4) else np.nan
         r["R4"] = bool(len(d4) and d4.effect.iloc[0] >= R4_TOL)
         kf = knn[(knn.c == c) & (knn.space == "AVT")].groupby("fold")[["emo_gain_xdlg", "grp_gain"]].mean()
         r["R5_n_fold_emo_lt_grp"], r["R5_n_fold"] = int((kf.emo_gain_xdlg < kf.grp_gain).sum()), int(len(kf))
         fx = DGu[(DGu.c == c) & DGu.key.isin([f"K{K}_AVT_em_{FX}" for K in KS_RULE])]
-        r["moved_AVT_fix"] = float(fx.moved.mean())
+        r["moved_AVT_fix"] = float(fx.moved_at10.mean()) if "moved_at10" in fx else float(fx.moved.mean())
+        r["moved_AVT_fix_conv"] = float(fx.moved.mean())
         r["not_moved"] = bool(r["moved_AVT_fix"] < MOVED_MIN)
         r["n_not_conv_at_rule"] = int((DGu[(DGu.c == c) & DGu.key.str.endswith(f"_em_{FX}")].hist_at_rule >= CONV).sum())
         # review_ml の M1：流れた理由の読み分け（AVT，候補の上．テストのラベルは使わない）
@@ -725,7 +745,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
         rnd = DGu[(DGu.c == c) & (DGu.key == f"AVT_emrand_a{FIX[0]}_b0.0")]
         r["M1_pool_uar_ldaO"], r["M1_pool_uar_truth"], r["M1_pool_uar_rand"] = float(o), float(tru.pool_uar.mean()), float(rnd.pool_uar.mean())
         r["M1_keep_truth"], r["M1_keep_rand"] = float(tru.keep_init.mean()), float(rnd.keep_init.mean())
-        dt9 = D[(D.c == c) & (D.space == "AVT") & (D.compare == "emtruth_ldaO")]
+        dt9 = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == "emtruth_ldaO")]
         r["M1_test_truth_minus_ldaO"] = float(dt9.effect.iloc[0]) if len(dt9) else np.nan
         if r["M1_test_truth_minus_ldaO"] <= R9_TEST_DROP:                      # review_ml の第 2 回の N1：段の順と基準
             r["M1_reading"] = "b_optimum_away_from_emotion"
@@ -769,6 +789,13 @@ def summarize(out: Path, allow_partial: bool) -> None:
         r["R5_nonemo_separates"] = bool(r["R5_n_fold_above_nullmax"] >= 3 and r[f"R5_top3ex_{tx}"] >= r["R5_top3ex_emo"])
         crit.append(r)
     Cr = pd.DataFrame(crit)
+    if not allow_partial:                                                    # 規則の行がそろっているか（gate-code の第 2 回の 1）
+        for nm in ("em_none", "em_joint", "emfromK_ldaK", "em_ldaK", "em_emmu", "em_ttfused", "emT_noneT"):
+            n_ = D[(D["compare"] == nm) & (D.space == "AVT") & (D.subset == "all") & D.K.isin(KS_RULE)].groupby("c").size()
+            if len(n_) != 4 or (n_ != 4).any():
+                raise SystemExit(f"規則の比べ {nm} の行が各コーパス 4 行でない：{n_.to_dict()}")
+        if Cr.R4_effect.isna().any() or Cr.M1_test_truth_minus_ldaO.isna().any():
+            raise SystemExit("R4 か R9 の段 1 の値に NaN がある")
     for tag in ("R1", "R2", "R3", "R4", "R7", "R8", "not_moved"):
         Cr[f"{tag}_n_corpora"] = int(Cr[tag].sum())
         Cr[f"{tag}_n_corpora_excl_IEMOCAP"] = int(Cr.loc[Cr.c != "IEMOCAP", tag].sum())
@@ -918,7 +945,7 @@ def main() -> None:
             shard = (i, n)
             if (out / f"provenance_shard{i}.json").exists():
                 raise SystemExit(f"組 {i} の provenance が既にある")
-            p3s = p3s[i::n]
+            p3s = [p for j, p in enumerate(p3s) if (j // 2) % n == i]       # 同じ (T, c, f) の 2 つの種を同じ組に．Q1 の単位を両方の組へ
         elif out.exists():
             raise SystemExit(f"{out} は既にある（本計算は空の出力先に書く）")
     out.mkdir(parents=True, exist_ok=True)

@@ -3,6 +3,7 @@
 # 単位を 2 組に分けて同じ GPU で並べて流し，両方が終わったら集計する．終わると logs/dai8_probe.done を作る．
 set -euo pipefail
 cd /home/snics/MER-DA
+trap 'touch logs/dai8_probe.failed' ERR
 OUT=results/dai8_probe
 if [ -e "$OUT" ]; then
   echo "$OUT は既にある（本計算は空の出力先に書く）"
