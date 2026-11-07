@@ -295,6 +295,7 @@ def load_meta(c: str, sids: np.ndarray) -> pd.DataFrame:
     if c == "IEMOCAP":
         mk = sub[(sub.corpus == "IEMOCAP") & (sub.subset == "marker")][["sample_id", "value"]]
         out = out.merge(mk.assign(marker=(mk["value"] == "marker").astype(float))[["sample_id", "marker"]], on="sample_id", how="left")
+        out["scenario"] = out["sample_id"].str.extract(r"_impro(\d+)")[0].astype(str)     # 即興の筋書きの番号（感情認識の査読 A1）
     if c == "AFEW":
         w = pd.read_csv(common.META_DIR / "afew_transcript_whisper.csv")[["sample_id", "compression_ratio"]]
         out = out.merge(w, on="sample_id", how="left")
@@ -317,22 +318,68 @@ def spearman(a: np.ndarray, b: np.ndarray) -> float:
     return float(pd.Series(a[ok]).rank().corr(pd.Series(b[ok]).rank()))
 
 
-def variate_rows(u: np.ndarray, side: str, k: int, U: ProbeUnit, base: dict, rng: np.random.Generator) -> dict:
+def _marks(u: np.ndarray, U: ProbeUnit, rng: np.random.Generator, prefix: str, with_null: bool = True) -> dict:
+    """印の規則（3.5）に使う量．prefix で，変量そのもの（""），感情の平均に置き換えた変量（"emo_"），感情を除いた残り（"res_"）を分ける。"""
     g = U.cluster_codes
-    e = eta2(u, g)
-    null = np.array([eta2(u, rng.permutation(g)) for _ in range(N_PERM_ETA)])
-    row = {**base, "side": side, "k": k, "eta2_cluster": e, "eta2_cluster_chance": (g.max()) / (len(u) - 1),
-           "eta2_cluster_null_q95": float(np.quantile(null, 0.95)), "eta2_emotion": eta2(u, U.y.astype(np.int64)),
-           "rho_duration": spearman(u, U.meta["duration_sec"].to_numpy(float)), "rho_ntoken": spearman(u, U.meta["n_token"].to_numpy(float))}
+    row = {f"{prefix}eta2_cluster": eta2(u, g), f"{prefix}eta2_cluster_chance": g.max() / (len(u) - 1),
+           f"{prefix}rho_duration": spearman(u, U.meta["duration_sec"].to_numpy(float)),
+           f"{prefix}rho_ntoken": spearman(u, U.meta["n_token"].to_numpy(float))}
+    if with_null:
+        row[f"{prefix}eta2_cluster_null_q95"] = float(np.quantile([eta2(u, rng.permutation(g)) for _ in range(N_PERM_ETA)], 0.95))
     if U.c == "IEMOCAP":
         sc = U.center_codes
-        row["eta2_speaker"] = eta2(u, sc)
-        row["eta2_speaker_chance"] = sc.max() / (len(u) - 1)
-        row["eta2_speaker_null_q95"] = float(np.quantile([eta2(u, rng.permutation(sc)) for _ in range(N_PERM_ETA)], 0.95))
-        row["rho_marker"] = spearman(u, U.meta["marker"].to_numpy(float))
+        row[f"{prefix}eta2_speaker"] = eta2(u, sc)
+        row[f"{prefix}eta2_speaker_chance"] = sc.max() / (len(u) - 1)
+        if with_null:
+            row[f"{prefix}eta2_speaker_null_q95"] = float(np.quantile([eta2(u, rng.permutation(sc)) for _ in range(N_PERM_ETA)], 0.95))
+        row[f"{prefix}rho_marker"] = spearman(u, U.meta["marker"].to_numpy(float))
+        row[f"{prefix}eta2_scenario"] = eta2(u, pd.factorize(U.meta["scenario"].to_numpy())[0])
     if U.c == "AFEW":
-        row["rho_compression"] = spearman(u, U.meta["compression_ratio"].to_numpy(float))
+        row[f"{prefix}rho_compression"] = spearman(u, U.meta["compression_ratio"].to_numpy(float))
     return row
+
+
+def variate_rows(u: np.ndarray, side: str, k: int, U: ProbeUnit, base: dict, rng: np.random.Generator) -> dict:
+    """帰無を越えた変量の行：印の量（そのもの・感情の平均に置き換えた版・感情を除いた残り．感情認識の査読 A2），感情の η²，
+    感情ごとの平均（同 A3）．感情を使う量は測るためだけで，部分空間には使わない。"""
+    y = U.y.astype(np.int64)
+    means = np.array([u[y == c].mean() if (y == c).any() else np.nan for c in range(4)])
+    u_emo = means[y]
+    row = {**base, "side": side, "k": k, "eta2_emotion": eta2(u, y), **{f"mean_e{c}": float(means[c]) for c in range(4)},
+           **_marks(u, U, rng, ""), **_marks(u_emo, U, rng, "emo_", with_null=False), **_marks(u - u_emo, U, rng, "res_")}
+    return row
+
+
+def emotion_only_range(U: ProbeUnit) -> dict:
+    """感情だけで決まる変量（感情の指示変数の線形の組み合わせ）が取りうる印の量の最小と最大（感情認識の査読 A2）．
+    塊の η² は感情の指示変数の塊の間の共分散と全体の共分散の一般化固有値，順位相関の上限は順位にした付帯の量を
+    感情の指示変数に回帰した重相関で近似する。"""
+    y = U.y.astype(np.int64)
+    Y = np.eye(4)[y][:, 1:]                                                     # 3 本の対比（全体の平均を引く）
+    Y = Y - Y.mean(0)
+    out = {}
+    for nm, codes in (("cluster", U.cluster_codes), ("speaker", U.center_codes)):
+        if nm == "speaker" and U.c != "IEMOCAP":
+            continue
+        k = codes.max() + 1
+        M = np.zeros((k, 3)); np.add.at(M, codes, Y)
+        cnt = np.bincount(codes, minlength=k).astype(float)
+        Mb = M / cnt[:, None]
+        SB = (Mb * cnt[:, None]).T @ Mb
+        ST = Y.T @ Y
+        ev = np.linalg.eigvalsh(np.linalg.solve(np.linalg.cholesky(ST), np.linalg.solve(np.linalg.cholesky(ST), SB).T))
+        out[f"emo_eta2_{nm}_min"], out[f"emo_eta2_{nm}_max"] = float(ev.min()), float(ev.max())
+        out[f"emo_eta2_{nm}_chance"] = (k - 1) / (len(y) - 1)
+    cols = {"duration": "duration_sec", "ntoken": "n_token", "marker": "marker", "compression": "compression_ratio"}
+    for nm, col in cols.items():
+        if col not in U.meta:
+            continue
+        x = U.meta[col].to_numpy(float)
+        ok = np.isfinite(x)
+        r = pd.Series(x[ok]).rank().to_numpy(); r = r - r.mean()
+        beta, *_ = np.linalg.lstsq(Y[ok], r, rcond=None)
+        out[f"emo_R_{nm}"] = float(np.sqrt(max(0.0, 1 - ((r - Y[ok] @ beta) ** 2).sum() / (r ** 2).sum())))
+    return out
 
 
 def _parts(Ya: torch.Tensor, Yb: torch.Tensor, y: np.ndarray):
@@ -344,9 +391,14 @@ def _parts(Ya: torch.Tensor, Yb: torch.Tensor, y: np.ndarray):
         if len(ix):
             Bt += (len(ix) / n) * torch.outer(Ya[ix].mean(0), Yb[ix].mean(0))
     Wt = T - Bt
-    out = {"fro_total": float(T.norm()), "fro_between": float(Bt.norm()), "fro_within": float(Wt.norm()),
-           "fro2_total": float(T.norm() ** 2), "fro2_between": float(Bt.norm() ** 2), "fro2_within": float(Wt.norm() ** 2)}
-    for nm, M in (("total", T), ("between", Bt), ("within", Wt)):
+    ma = torch.stack([Ya[torch.as_tensor(np.flatnonzero(y == k), device=DEV)].mean(0) for k in range(4) if (y == k).any()])
+    mb = torch.stack([Yb[torch.as_tensor(np.flatnonzero(y == k), device=DEV)].mean(0) for k in range(4) if (y == k).any()])
+    ma, mb = ma - ma.mean(0), mb - mb.mean(0)
+    Be = ma.T @ mb / ma.shape[0]                                              # 4 感情を同じ重みで足した感情の間の部分（感情認識の査読 A3）
+    out = {"fro_total": float(T.norm()), "fro_between": float(Bt.norm()), "fro_within": float(Wt.norm()), "fro_between_eq": float(Be.norm()),
+           "fro2_total": float(T.norm() ** 2), "fro2_between": float(Bt.norm() ** 2), "fro2_within": float(Wt.norm() ** 2),
+           "fro2_between_eq": float(Be.norm() ** 2)}
+    for nm, M in (("total", T), ("between", Bt), ("within", Wt), ("between_eq", Be)):
         for j, x in enumerate(torch.linalg.svdvals(M)[:5].cpu().numpy()):
             out[f"sv_{nm}_{j + 1}"] = float(x)
     return out
@@ -381,6 +433,8 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
     ubase = {"c": U.c, "fold": U.f, "n_pool": U.n, "n_test": len(U.test), "p": U.p, "commit": commit, "dirty": dirty}
     preds = {}                                     # fits/ に保存する配列
     rng = np.random.default_rng(1000 * DD.CORPUS_ID[U.c] + U.f)
+    tabs["units"].append({**ubase, "kind": "emotion_only_range", **emotion_only_range(U),
+                          "emo_share": json.dumps(np.bincount(U.y, minlength=4).tolist())})
     # 主成分（中心化しない版と，塊の中で中心化した版）
     pc = {}
     for cen in (False, True):
@@ -631,33 +685,60 @@ def _boot_fold_mean(per_fold: list, n_boot: int = 2000, seed: int = 0):
             warnings.simplefilter("ignore", RuntimeWarning)                       # 抜かれなかった分割の空の平均
             u = 100.0 * np.nanmean(np.where(den > 0, num / den, np.nan), 2)          # (n_boot, 分割)
             u = np.where(drawn, u, np.nan)
-            out[nm] = np.nanmean(u, 1)[valid]
+            wf = (w @ F) / F.sum(0)[None, :]                                      # 分割の重み = 引かれた回数 ÷ 塊の数（ML の査読 m2）
+            out[nm] = (np.nansum(u * wf, 1) / np.where(drawn, wf, 0).sum(1))[valid]
     return out, int(valid.sum())
 
 
+def _crit(Sx, full, pr, pp):
+    ratio = (Sx - 25) / (full - 25)
+    return ratio, (Sx - 25) / (pp - 25), Sx - pr
+
+
+def _hypergeom_p(n_agree_obs: int, a: int, b: int, n: int = 4) -> float:
+    """診断の「見込みあり」の数 a と基準の合格の数 b を固定して並びをでたらめにしたとき，一致の数が観測以上になる確率（ML の査読 m3）。"""
+    import itertools
+    tot = hit = 0
+    for P in itertools.combinations(range(n), a):
+        for Q in itertools.combinations(range(n), b):
+            agree = sum((i in P) == (i in Q) for i in range(n))
+            tot += 1; hit += agree >= n_agree_obs
+    return hit / tot
+
+
+def _lda_basis(Z: torch.Tensor, y: np.ndarray) -> torch.Tensor:
+    """主成分の白色化した座標 Z（候補）で，候補のラベルの Fisher の判別の 3 次元の方向（Z の座標）。"""
+    mu = torch.stack([Z[torch.as_tensor(np.flatnonzero(y == k), device=DEV)].mean(0) for k in range(4)])
+    R = Z - mu[torch.as_tensor(y, device=DEV)]
+    Sw = R.T @ R / (len(y) - 4) + 1e-6 * torch.eye(Z.shape[1], device=DEV, dtype=DT)
+    return torch.linalg.solve(Sw, (mu - mu.mean(0)).T)[:, :3]
+
+
 def summarize(out: Path, allow_partial: bool = False) -> None:
-    """4 節の判定（criteria.csv），仮定の表（assumptions.csv），ラベル無しの診断（diagnostics.csv）。"""
+    """4 節の判定（criteria.csv），仮定の表（assumptions.csv），ラベル無しの診断（diagnostics.csv），Q2 の割合（q2_shares.csv），
+    感情ごとの再現率と混同（per_emotion.csv・confusion.csv），部分集合（subsets.csv），IEMOCAP の筋書きの中の対（scenario_pairs.csv）。"""
     su = pd.read_csv(out / "subspace_uar.csv", low_memory=False)
     done = set(zip(su["c"], su["fold"]))
     want = {(c, f) for c in DD.CORPORA for f in range(DD.N_FOLDS)}
     commits = set(su["commit"].astype(str))
     if (done != want or len(commits) != 1) and not allow_partial:       # I12（gate-code の 10）
         sys.exit(f"単位がそろっていないかコミットが 1 つでない：欠け {sorted(want - done)}，コミット {sorted(commits)}")
-    info = su[(su.row == "info") & (su.student == "AVT")]
     cm, dt = dai1.git_commit()
+    tag = {"commit": cm, "dirty": dt, "unit_commits": ";".join(sorted(commits))}          # ML の査読 m10
+    info = su[(su.row == "info") & (su.student == "AVT")]
     rows = []
     for c in DD.CORPORA:
         x = info[info.c == c]
         if x.empty:
             continue
-        full = x[x.space == "full"].set_index("fold")["uar"]
-        Sx = x[(x.version == "i") & (x.space == "S")].set_index("fold")["uar"]
-        pr = x[(x.version == "i") & (x.space == "pca_r")].set_index("fold")["uar"]
-        folds = sorted(set(full.index) & set(Sx.index) & set(pr.index))
+        get = lambda v, sp, col="uar": x[(x.version == v) & (x.space == sp)].set_index("fold")[col]
+        full, pp, Sx, pr = get("-", "full"), get("-", "pca_p"), get("i", "S"), get("i", "pca_r")
+        folds = sorted(set(full.index) & set(Sx.index) & set(pr.index) & set(pp.index))
         if not folds:
             continue
-        ratio = (Sx[folds].mean() - 25) / (full[folds].mean() - 25)
-        gap = Sx[folds].mean() - pr[folds].mean()
+        ratio, ratio_pp, gap = _crit(Sx[folds].mean(), full[folds].mean(), pr[folds].mean(), pp[folds].mean())
+        cvf, cvp, cvs, cvr = (get(v, sp, "cv_uar")[folds].mean() for v, sp in (("-", "full"), ("-", "pca_p"), ("i", "S"), ("i", "pca_r")))
+        ratio_cv, _, gap_cv = _crit(cvs, cvf, cvr, cvp)
         per_fold = []
         for f in folds:
             z = np.load(out / "fits" / f"{c}_f{f}.npz", allow_pickle=False)
@@ -666,59 +747,185 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
         bt, n_valid = _boot_fold_mean(per_fold, seed=DD.CORPUS_ID[c])
         rb = (bt["S"] - 25) / (bt["full"] - 25); gb = bt["S"] - bt["pca_r"]
         r_lo, r_hi = np.nanpercentile(rb, [2.5, 97.5]); g_lo, g_hi = np.nanpercentile(gb, [2.5, 97.5])
-        rows.append({"c": c, "n_folds": len(folds), "uar_full": full[folds].mean(), "uar_S": Sx[folds].mean(), "uar_pca_r": pr[folds].mean(),
-                     "ratio": ratio, "ratio_lo": r_lo, "ratio_hi": r_hi, "gap_vs_pca": gap, "gap_lo": g_lo, "gap_hi": g_hi,
-                     "cond1": bool(ratio >= 0.8), "cond2": bool(gap >= 3.0), "pass": bool(ratio >= 0.8 and gap >= 3.0),
+        ok = bool(ratio >= 0.8 and gap >= 3.0)
+        rows.append({"c": c, "n_folds": len(folds), "uar_full": full[folds].mean(), "uar_pca_p": pp[folds].mean(), "uar_S": Sx[folds].mean(),
+                     "uar_pca_r": pr[folds].mean(), "ratio": ratio, "ratio_pca_p": ratio_pp, "ratio_lo": r_lo, "ratio_hi": r_hi,
+                     "gap_vs_pca": gap, "gap_lo": g_lo, "gap_hi": g_hi, "cond1": bool(ratio >= 0.8), "cond2": bool(gap >= 3.0), "pass": ok,
                      "unstable": bool((r_lo < 0.8 < r_hi) or (g_lo < 3.0 < g_hi)), "n_boot_valid": n_valid,
+                     "ratio_cv": ratio_cv, "gap_cv": gap_cv, "pass_cv": bool(ratio_cv >= 0.8 and gap_cv >= 3.0),
                      **{f"ratio_f{f}": (Sx[f] - 25) / (full[f] - 25) for f in folds}, **{f"gap_f{f}": Sx[f] - pr[f] for f in folds}})
     cr = pd.DataFrame(rows)
     if len(cr):
-        cr["n_pass"] = int(cr["pass"].sum())
-        cr["proceed"] = bool(len(cr) == 4 and cr["pass"].sum() >= 2)
-    cr.assign(commit=cm, dirty=dt).to_csv(out / "criteria.csv", index=False)
-    # 仮定の表（3.4.1）
+        n_pass = int(cr["pass"].sum())
+        flipped = cr["pass"] ^ cr["unstable"]
+        cr["n_pass"] = n_pass
+        cr["proceed"] = bool(len(cr) == 4 and n_pass >= 2)
+        cr["n_pass_excl_IEMOCAP"] = int(cr.loc[cr.c != "IEMOCAP", "pass"].sum())            # 感情認識の査読 A1
+        cr["proceed_if_unstable_flipped"] = bool(len(cr) == 4 and int(flipped.sum()) >= 2)  # ML の査読 m5
+        cr["n_pass_cv"] = int(cr["pass_cv"].sum())                                           # ML の査読 m4
+    cr.assign(**tag).to_csv(out / "criteria.csv", index=False)
+    # 仮定の表（3.4.1．ML の査読 M1 の直し）
     de = pd.read_csv(out / "decomp.csv", low_memory=False)
-    de = de[de.version.isin(["i", "ii", "iii", "iv"])].copy()
-    de["A1"] = np.where(de["sv_within_1"] <= de["wnull_q95_sv_within_1"], "holds",
-                        np.where(de["sv_within_1"] < de["sv_between_3"], "broken_top3_emotion", "broken_within_stronger"))
-    de["A2"] = np.where(de["sv_between_3"] > de["null_q95_sv_between_3"], "holds", "not")
-    for col in ("fro_total", "fro_between", "fro_within"):
+    de["A1"] = np.where(de["sv_within_1"] <= de["wnull_q95_sv_within_1"], "not_rejected", "rejected")
+    de["A1_threshold"] = de["wnull_q95_sv_within_1"]
+    de["A2"] = np.where(de["sv_between_3"] > de["null_q95_sv_between_3"], "holds", "unconfirmed")
+    for col in ("fro2_total", "fro2_between", "fro2_within", "fro2_between_eq"):
         de[f"{col}_minus_null"] = de[col] - de[f"null_mean_{col}"]
-    de[["c", "fold", "version", "a", "b", "r", "A1", "A2", "sv_within_1", "wnull_q95_sv_within_1", "sv_between_3", "null_q95_sv_between_3",
-        "fro_total_minus_null", "fro_between_minus_null", "fro_within_minus_null"]].assign(commit=cm, dirty=dt).to_csv(out / "assumptions.csv", index=False)
-    # ラベル無しの診断（3.5 の印の規則）
+    lda_rows = []
+    for (c, f) in sorted(set(zip(su["c"], su["fold"]))):
+        U = ProbeUnit(c, f)
+        z = np.load(out / "fits" / f"{c}_f{f}.npz", allow_pickle=False)
+        for m in MODS:
+            key = f"S3_i_{m}"
+            if key not in z.files:
+                continue
+            E = tt(z[f"pca_n_{m}"])
+            lam = ((U.Xp[m] @ E) ** 2).sum(0) / (U.n - 1)
+            Zm = (U.Xp[m] @ E) * lam.rsqrt()
+            L = sigma_orth((E * lam.rsqrt()) @ _lda_basis(Zm, U.y), U.Sig[m])
+            B3 = sigma_orth(tt(z[key]), U.Sig[m])
+            P3 = sigma_orth(E[:, :B3.shape[1]], U.Sig[m])
+            c_s3, c_p3 = principal_cos2(B3, L, U.Sig[m]), principal_cos2(P3, L, U.Sig[m])
+            lda_rows.append({"c": c, "fold": f, "mod": m, "r3": int(B3.shape[1]), "cos2_S3_lda": c_s3, "cos2_pca3_lda": c_p3,
+                             "S3_closer_than_pca": bool(c_s3 > c_p3), "top3_emotion": bool(c_s3 >= 0.8)})      # 0.8 は人工データの検算で固定
+        del U
+        if S.DEV == "cuda":
+            torch.cuda.empty_cache()
+    keep = ["c", "fold", "version", "a", "b", "r", "A1", "A1_threshold", "A2", "sv_within_1", "wnull_q95_sv_within_1", "sv_between_3",
+            "null_q95_sv_between_3"] + [x for x in de.columns if x.endswith("_minus_null")]
+    de[keep].assign(**tag).to_csv(out / "assumptions.csv", index=False)
+    pd.DataFrame(lda_rows).assign(**tag).to_csv(out / "assumptions_lda.csv", index=False)
+    # Q2 の割合と，ラベル無しの診断（3.5 の印の規則）
     va = pd.read_csv(out / "variates.csv", low_memory=False)
-    va = va[va.version == "i"].copy()
-    eta_col = np.where(va["c"] == "IEMOCAP", "speaker", "cluster")
-    e = np.where(eta_col == "speaker", va.get("eta2_speaker", np.nan), va["eta2_cluster"])
-    eq = np.where(eta_col == "speaker", va.get("eta2_speaker_null_q95", np.nan), va["eta2_cluster_null_q95"])
-    ec = np.where(eta_col == "speaker", va.get("eta2_speaker_chance", np.nan), va["eta2_cluster_chance"])
-    mark = (e > eq) & (e - ec >= 0.10)
-    for col in ("rho_duration", "rho_ntoken", "rho_marker", "rho_compression"):
-        if col in va:
-            mark |= va[col].abs().fillna(0) >= 0.30
-    va["mark"] = mark
+    un = pd.read_csv(out / "units.csv", low_memory=False)
+    er = un[un.get("kind") == "emotion_only_range"].set_index(["c", "fold"])
+
+    def marks(d: pd.DataFrame, pre: str) -> pd.Series:
+        sp = d["c"] == "IEMOCAP"
+        e = np.where(sp, d.get(f"{pre}eta2_speaker", np.nan), d[f"{pre}eta2_cluster"])
+        eq = np.where(sp, d.get(f"{pre}eta2_speaker_null_q95", np.nan), d[f"{pre}eta2_cluster_null_q95"])
+        ec = np.where(sp, d.get(f"{pre}eta2_speaker_chance", np.nan), d[f"{pre}eta2_cluster_chance"])
+        mk = (e > eq) & (e - ec >= 0.10)
+        for col in ("rho_duration", "rho_ntoken", "rho_marker", "rho_compression"):
+            if f"{pre}{col}" in d:
+                mk |= d[f"{pre}{col}"].abs().fillna(0) >= 0.30
+        return pd.Series(mk, index=d.index)
+
+    va["mark"], va["mark_res"] = marks(va, ""), marks(va, "res_")                # 残りの印は感情を除いた版（感情認識の査読 A2）
     va["mod"] = np.where(va["side"] == "a", va["a"], va["b"])
+    va.groupby(["c", "version", "a", "b", "side"]).agg(n=("mark", "size"), share_mark=("mark", "mean"), share_mark_res=("mark_res", "mean"),
+                                                       mean_eta2_emotion=("eta2_emotion", "mean")).reset_index().assign(**tag).to_csv(out / "q2_shares.csv", index=False)
+    vi = va[va.version == "i"]
     allu = pd.MultiIndex.from_tuples(sorted(set(zip(su["c"], su["fold"]))), names=["c", "fold"])
-    rc = (va[~va["mark"]].groupby(["c", "fold", "mod"]).size().unstack("mod").reindex(columns=list(MODS))
-          .reindex(allu).fillna(0))                                   # 印の無い変量が 0 の単位も残す（gate-code の 11）
+    rc = vi[~vi["mark"]].groupby(["c", "fold", "mod"]).size().unstack("mod").reindex(columns=list(MODS)).reindex(allu).fillna(0)
     st = pd.read_csv(out / "stability.csv", low_memory=False)
     st = st[st.version == "i"].set_index(["c", "fold", "mod"])
     drows = []
     for (c, f), r in rc.iterrows():
         stab_ok = all((c, f, m) in st.index and st.loc[(c, f, m), "cos2_mean"] >= st.loc[(c, f, m), "cos2_mean_pca"] for m in MODS)
+        nm = "speaker" if c == "IEMOCAP" else "cluster"
+        insep = bool((c, f) in er.index and er.loc[(c, f), f"emo_eta2_{nm}_min"] - er.loc[(c, f), f"emo_eta2_{nm}_chance"] >= 0.10)
         drows.append({"c": c, "fold": f, **{f"r_clean_{m}": int(r[m]) for m in MODS}, "stab_ok": bool(stab_ok),
-                      "fold_ok": bool(all(r[m] >= 3 for m in MODS) and stab_ok)})
+                      "fold_ok": bool(all(r[m] >= 3 for m in MODS) and stab_ok), "inseparable_a": insep})
     dg = pd.DataFrame(drows)
     if len(dg):
-        agg = dg.groupby("c")["fold_ok"].sum().rename("n_folds_ok").reset_index()
+        agg = dg.groupby("c").agg(n_folds_ok=("fold_ok", "sum"), n_insep=("inseparable_a", "sum")).reset_index()
         agg["predict_pass"] = agg["n_folds_ok"] >= 3
+        agg["inseparable"] = agg["n_insep"] >= 3
         if len(cr):
             agg = agg.merge(cr[["c", "pass"]], on="c", how="left")
             agg["agree"] = agg["predict_pass"] == agg["pass"]
+            if len(agg) == 4:
+                na, a_, b_ = int(agg["agree"].sum()), int(agg["predict_pass"].sum()), int(agg["pass"].sum())
+                agg["n_agree"] = na
+                agg["p_chance_agree"] = _hypergeom_p(na, a_, b_)
+                agg["uninformative"] = bool(a_ in (0, 4) or b_ in (0, 4))
+                sub = agg[~agg["inseparable"]]
+                agg["n_agree_excl_inseparable"] = int(sub["agree"].sum())
+                agg["n_excl_inseparable"] = len(sub)
         dg = dg.merge(agg, on="c", how="left")
-    dg.assign(commit=cm, dirty=dt).to_csv(out / "diagnostics.csv", index=False)
-    print("書いた:", out / "criteria.csv", out / "assumptions.csv", out / "diagnostics.csv")
+    dg.assign(**tag).to_csv(out / "diagnostics.csv", index=False)
+    # 感情ごとの再現率と混同，部分集合，IEMOCAP の筋書きの中の対（記述．感情認識の査読 A1・A3）
+    main = {"full": "pred_-_AVT_full", "S": "pred_i_AVT_S", "pca_r": "pred_i_AVT_pca_r"}
+    sub = pd.read_csv(ROOT / "DAI" / "frozen" / "subsets.csv")
+    mosei_src = pd.read_csv(common.META_DIR / "mosei_utterance_manifest.csv", usecols=["sample_id", "speaker_source"])
+    pe, cf, sb, sc_rows = [], [], [], []
+    rng = np.random.default_rng(5)
+    for c in DD.CORPORA:
+        fs = [f for f in range(DD.N_FOLDS) if (out / "fits" / f"{c}_f{f}.npz").exists()]
+        if not fs:
+            continue
+        zs = [np.load(out / "fits" / f"{c}_f{f}.npz", allow_pickle=False) for f in fs]
+        y = np.concatenate([z["test_y"] for z in zs]).astype(int)
+        cl = np.concatenate([z["test_cluster"] for z in zs])
+        sid = np.concatenate([z["test_sample_id"] for z in zs])
+        codes = pd.factorize(cl)[0]; K = codes.max() + 1
+        W = rng.multinomial(K, np.full(K, 1.0 / K), size=2000).astype(float)
+        for nm, key in main.items():
+            pr = np.concatenate([z[key] for z in zs]).astype(int)
+            for k in range(4):
+                n_kc = np.bincount(codes[y == k], minlength=K).astype(float); c_kc = np.bincount(codes[(y == k) & (pr == k)], minlength=K).astype(float)
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    bs = 100 * (W @ c_kc) / (W @ n_kc)
+                lo, hi = np.nanpercentile(bs, [2.5, 97.5])
+                pe.append({"c": c, "space": nm, "emotion": k, "n": int((y == k).sum()), "recall": 100 * ((pr == k) & (y == k)).sum() / max((y == k).sum(), 1),
+                           "lo": lo, "hi": hi})
+                for j in range(4):
+                    cf.append({"c": c, "space": nm, "true": k, "pred": j, "count": int(((y == k) & (pr == j)).sum())})
+            masks = {}
+            if c == "IEMOCAP":
+                mk = dict(zip(sub[sub.subset == "marker"].sample_id, sub[sub.subset == "marker"].value))
+                masks = {f"marker_{v}": np.array([mk.get(s_) == v for s_ in sid]) for v in ("marker", "nomarker")}
+            if c == "MELD":
+                fc = dict(zip(sub[sub.subset == "face_compete"].sample_id, sub[sub.subset == "face_compete"].value))
+                masks = {f"face_{v}": np.array([fc.get(s_) == v for s_ in sid]) for v in ("compete", "single")}
+            if c == "AFEW":
+                bad = set(sub[sub.subset == "asr_suspect"].sample_id)
+                masks = {"asr_ok": np.array([s_ not in bad for s_ in sid])}
+            if c == "MOSEI":
+                ch = dict(zip(mosei_src.sample_id, mosei_src.speaker_source))
+                masks = {"channel_known": np.array([ch.get(s_) == "youtube_channel" for s_ in sid])}
+            for mnm, msk in masks.items():
+                if msk.sum() and all(((y == k) & msk).any() for k in range(4)):
+                    sb.append({"c": c, "space": nm, "subset": mnm, "n": int(msk.sum()), "uar": 100 * S.uar(y[msk], pr[msk])})
+    pd.DataFrame(pe).assign(**tag).to_csv(out / "per_emotion.csv", index=False)
+    pd.DataFrame(cf).assign(**tag).to_csv(out / "confusion.csv", index=False)
+    pd.DataFrame(sb).assign(**tag).to_csv(out / "subsets.csv", index=False)
+    # IEMOCAP の筋書きの中の対：保存した W・b と基底からテストの点数を作り直し，同じ筋書きの中の 2 感情だけで判定した対の UAR
+    for f in range(DD.N_FOLDS):
+        fp = out / "fits" / f"IEMOCAP_f{f}.npz"
+        if not fp.exists():
+            continue
+        z = np.load(fp, allow_pickle=False)
+        U = ProbeUnit("IEMOCAP", f)
+        scen = pd.Series(U.cp.df["sample_id"].to_numpy()[U.test]).str.extract(r"_impro(\d+)")[0].to_numpy()
+        feats = {"full": torch.cat([U.Xt[m] for m in MODS], 1),
+                 "S": torch.cat([U.Xt[m] @ tt(z[f"S_i_{m}"]) for m in MODS], 1)}
+        rm = {m: z[f"S_i_{m}"].shape[1] for m in MODS}
+        pcs = {}
+        for m in MODS:
+            E = tt(z[f"pca_n_{m}"])[:, :rm[m]]
+            lam = ((U.Xp[m] @ E) ** 2).sum(0) / (U.n - 1)
+            pcs[m] = E * lam.rsqrt()
+        feats["pca_r"] = torch.cat([U.Xt[m] @ pcs[m] for m in MODS], 1)
+        for nm, F_ in feats.items():
+            key = {"full": "-_AVT_full", "S": "i_AVT_S", "pca_r": "i_AVT_pca_r"}[nm]
+            Zt = F_ @ tt(z[f"W_{key}"]).T + tt(z[f"b_{key}"])
+            assert (Zt.argmax(1).cpu().numpy() == z[f"pred_{key}"]).mean() > 0.999
+            Zt = Zt.cpu().numpy()
+            for sc in sorted(set(scen)):
+                for k in range(4):
+                    for l in range(k + 1, 4):
+                        mk_, ml_ = (scen == sc) & (U.yt == k), (scen == sc) & (U.yt == l)
+                        if mk_.sum() < 10 or ml_.sum() < 10:
+                            continue
+                        rk = float((Zt[mk_, k] > Zt[mk_, l]).mean()); rl = float((Zt[ml_, l] > Zt[ml_, k]).mean())
+                        sc_rows.append({"fold": f, "space": nm, "scenario": sc, "pair": f"{k}-{l}", "n_k": int(mk_.sum()), "n_l": int(ml_.sum()),
+                                        "pair_uar": 50 * (rk + rl)})
+        del U
+    pd.DataFrame(sc_rows).assign(**tag).to_csv(out / "scenario_pairs.csv", index=False)
+    print("書いた:", ", ".join(x + ".csv" for x in ("criteria", "assumptions", "assumptions_lda", "q2_shares", "diagnostics", "per_emotion",
+                                                     "confusion", "subsets", "scenario_pairs")))
 
 
 # ------------------------------------------------------------------ 検算（人工データ）
@@ -782,7 +989,38 @@ def selftest() -> None:
     bt, nv = _boot_fold_mean(pf, n_boot=500, seed=1)
     wd = np.percentile(bt["x"] - bt["z"], 97.5) - np.percentile(bt["x"] - bt["z"], 2.5)
     assert nv > 400 and wd > 0.5, (nv, wd)
-    print(f"selftest OK：r = {r}（無相関），主角の余弦の 2 乗の平均 {c2:.4f}，話者を足すと r = {r2}，塊の中で中心化すると r = {r3}")
+    # (7) 無関係な 2 つの組で，順の検定が r ≥ 1 を出す割合が約 5%（ML の査読 m9）
+    hits = 0
+    for j in range(60):
+        A_ = tt(rng.normal(size=(400, 8))); B_ = tt(rng.normal(size=(400, 8)))
+        hits += seq_test(A_ - A_.mean(0), B_ - B_.mean(0), 200, None, 100 + j)[0] >= 1
+    assert hits / 60 <= 0.15, hits
+    # (8) 仮定の表の S3 と LDA の主角（ML の査読 M1）：感情の部分が強いときは S3 が LDA の部分空間に近く，主成分より近い．
+    #     感情の中の共有の要因が強いときは S3 と LDA の主角の余弦の 2 乗が下がる
+    def sim(gam):
+        n2, d2 = 5000, 30
+        y2 = rng.integers(0, 4, n2)
+        out = {}
+        Xs2 = {}
+        zf = rng.normal(size=n2)                                             # 感情の中の共有の要因
+        for m in "ab":
+            mu2 = np.zeros((4, d2)); mu2[:, 10:13] = 1.2 * np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, -1, -1]])   # 3 方向とも同じ強さ
+            sd2 = np.ones(d2); sd2[:6] = 3.0                                            # 分散の大きい方向は見方ごとに独立の雑音
+            dirz = np.zeros(d2); dirz[20] = 1.0                                         # 感情の中の共有の要因の方向
+            Xs2[m] = mu2[y2] + rng.normal(size=(n2, d2)) * sd2 + gam * zf[:, None] * dirz[None]
+        Ea2, la2, Za2, _ = pca(tt(Xs2["a"] - Xs2["a"].mean(0)), d2)
+        Zb2_ = pca(tt(Xs2["b"] - Xs2["b"].mean(0)), d2)[2]
+        _, Da2, _ = cca(Za2, Zb2_)
+        Xa = tt(Xs2["a"] - Xs2["a"].mean(0)); Sg = Xa.T @ Xa / (n2 - 1)
+        B3_ = sigma_orth((Ea2 * la2.rsqrt()) @ Da2[:, :3], Sg)
+        L_ = sigma_orth((Ea2 * la2.rsqrt()) @ _lda_basis(Za2, y2), Sg)
+        P3_ = sigma_orth(Ea2[:, :3], Sg)
+        return principal_cos2(B3_, L_, Sg), principal_cos2(P3_, L_, Sg)
+    cA, pA = sim(0.3)
+    cB, pB = sim(6.0)
+    assert cA > 0.8 and cA > pA and cB < cA - 0.1, (cA, pA, cB, pB)
+    print(f"selftest OK：r = {r}（無相関），主角の余弦の 2 乗の平均 {c2:.4f}，話者を足すと r = {r2}，塊の中で中心化すると r = {r3}，"
+          f"無関係な組で r ≥ 1 の割合 {hits / 60:.3f}，S3 と LDA（感情が強い {cA:.3f}・主成分 {pA:.3f}，共有が強い {cB:.3f}）")
 
 
 def main() -> None:
@@ -810,7 +1048,9 @@ def main() -> None:
             "source_sha256": {p.name: dai1.sha(p) for p in sorted((SRC_OUT / "source").glob("*.npz"))},
             "splits_sha256": {p.name: dai1.sha(p) for p in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
             "features_sha256": {f"{k}_{c}": dai1.sha(common.out_path(k, D.GROUP_SPEC[DD.GROUP[c]][0])) for c in DD.CORPORA for k in DD.ENC1.values()},
-            "src_out": str(SRC_OUT), "units": []}
+            "src_out": str(SRC_OUT), "argv": sys.argv, "host": __import__("platform").node(),
+            "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", "torch": torch.__version__,
+            "cuda": torch.version.cuda, "numpy": np.__version__, "pandas": pd.__version__, "units": []}
     pp = a.out / "provenance.json"
     if pp.exists():
         old = json.loads(pp.read_text(encoding="utf-8"))
