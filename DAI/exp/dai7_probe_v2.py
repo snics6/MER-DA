@@ -1,6 +1,6 @@
 """実験 7 の下調べ（DAI-7）：ほかのモダリティの疑似ラベルで蒸留すると，単独の分類器どうしの点数の依存が増えるか．
 
-設計は `DAI/docs/実験7_下調べ_設計.md`（第 6 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
+設計は `DAI/docs/実験7_下調べ_設計.md`（第 7 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
 保存した W・b を候補とテストの特徴に当てて点数を作り直す．新しく学ぶのは 3.5 節の 9 次元の判別分析と，3.3 節の教師の点数への回帰だけである．
 評価の回の保存は読まない．
 
@@ -24,6 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+from scipy import stats as SS
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -57,6 +58,8 @@ H_MAX = 0.5           # 3.6 節：h − h⁰ ≥ 0.5 のセルは L_dep を「�
 R_SHARE = 0.25       # 4 節の H4：依存を無視した損が足し合わさらない分の「一部」を説明すると書く割合の下限（dai-review-ml の M3）
 R_SHARE_HI = 0.5     # 同じく「半分以上」
 R_HALF = 0.5         # 4 節の H1 の添え書き：変種の ΔD が全体の ΔD の半分以上なら頑健とみなす（dai-review-affect の A2）
+NEFF_JK = 20         # 4 節：実効の塊の数がこれ未満のコーパスに jackknife と t の区間を感度として足す（計画 8 節．dai-review-ml の m9）
+PART_ORDER = ("Scal", "S1b", "dLdep", "dLcal")                         # H4 の 4 つの分（同点は全部をこの順で書く．m8）
 EPS_D = 1e-6
 EPS_LDA = 1e-3
 H = np.linalg.svd(np.eye(4) - 0.25)[0][:, :3]           # 4×3．列は 1 のベクトルに直交
@@ -64,7 +67,7 @@ RHO_SETS = tuple(f"joint_a1_rho{r}" for r in RHOS)
 RHO1 = RHO_SETS[2]                                                     # joint_a1_rho1.0（ρ と a を選んでいない対照）
 OWN = "tt_ownret"                                                      # 各モダリティが自分の ret の予測だけで学んだ対照（dai-review-ml の M2）
 BOOT_SETS = ("none", "joint", "joint_a1", "oracle", RHO_SETS[0], RHO1, RHO_SETS[-1], OWN)   # 4 節の区間を作る組
-POOL_SETS = ("none", "joint", "joint_a1", "oracle", RHO_SETS[0], RHO_SETS[-1], "ret")      # 候補の上の点数を残す組（gate-code の R1）
+POOL_SETS = ("none", "joint", "joint_a1", "oracle", RHO_SETS[0], RHO1, RHO_SETS[-1], OWN, "ret")   # 候補の上の点数を残す組（gate-code の R1．第 7 版で RHO1 と OWN を足した）
 L_SETS = ("none", "joint", "joint_a1", RHO1)
 M3_SETS = ("joint_a1", RHO1)                                            # 得の足し合わせの分け方（3.5 節）
 PKEYS = ("AV", "AT", "VT", "all")
@@ -426,6 +429,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                            n_emotions=int(np.isfinite(d).sum()),
                            D_pool=float(np.nanmean(dp - dp0)),
                            n_dropped_cent=int((~keep_cent).sum()), D_partial_t=float(np.nanmean(dr - dr0)),
+                           n_dropped_scen=int((~variants["scen"][0]).sum()) if "scen" in variants else np.nan,
                            phi=ph, n_emotions_phi=nph, **vrow)
                 for e in range(4):
                     row.update({f"d_e{e}": d[e], f"d0_e{e}": d0[e], f"n_e{e}": int(n[e])})
@@ -440,14 +444,17 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                 z9 = np.concatenate([zt[m] for m in MODS], 1)
                 p_prod = sum(Zt.values()).argmax(1)
                 p_blk, p_full = crossfit(z9, yt, half, True), crossfit(z9, yt, half, False)
+                p_lda = {m: crossfit(zt[m], yt, half, False) for m in MODS}   # 各モダリティだけの判別分析（3.5 節．dai-review-ml の M4）
                 store.update({f"K{K}_{sname}_pred_prod": p_prod.astype(np.int8), f"K{K}_{sname}_pred_blk": p_blk.astype(np.int8),
                               f"K{K}_{sname}_pred_full": p_full.astype(np.int8)})
+                store.update({f"K{K}_{sname}_pred_lda_{m}": p_lda[m].astype(np.int8) for m in MODS})
                 arows.append(dict(**base, K=K, set=sname, teacher_version=ver, split=split_kind,
                                   n_half0=n_half[0], n_half1=n_half[1], n_per_param=min(n_half) / 9,
                                   **{f"uar_{m}": uar(yt, pr[m]) for m in MODS},
+                                  **{f"uar_lda_{m}": uar(yt, p_lda[m]) for m in MODS},
                                   uar_prod=uar(yt, p_prod), uar_blk=uar(yt, p_blk), uar_full=uar(yt, p_full),
                                   **{f"rec_{q}_e{e}": float(np.mean(pq[yt == e] == e)) if (yt == e).any() else np.nan
-                                     for q, pq in (*pr.items(), ("prod", p_prod), ("blk", p_blk), ("full", p_full)) for e in range(4)},
+                                     for q, pq in (*pr.items(), *[(f"lda_{m}", p_lda[m]) for m in MODS], ("prod", p_prod), ("blk", p_blk), ("full", p_full)) for e in range(4)},
                                   **{f"n_test_e{e}": int((yt == e).sum()) for e in range(4)},
                                   L_dep=uar(yt, p_full) - uar(yt, p_blk), L_cal=uar(yt, p_blk) - uar(yt, p_prod),
                                   heterogeneity=heterogeneity(z9, yt), heterogeneity_null=heterogeneity_null(z9, yt, crn(seed, K, 9, 4))))
@@ -580,20 +587,26 @@ DD_VAR = ("dD_joint_a1_none", "dD_joint_none", "dD_joint_a1_oracle", "dD_rho1_ow
 DD_EMO = ("dD_joint_a1_none", "dD_joint_a1_oracle")                                       # 感情ごとに区間を作る差（a2）
 DPHI = {"dphi_joint_a1_none": ("joint_a1", "none"), "dphi_joint_none": ("joint", "none"),
         "dphi_rho1_ownret": (RHO1, OWN), "dphi_ownret_none": (OWN, "none")}
-PART_NAME = {"S1": "依存を入れた結合器でも足し合わさらない分（生徒どうしの情報の重なりか UAR の天井）",
-             "dLdep": "依存を無視した損の増加", "dLcal": "較正と感情の事前の分の増加"}
+PART_NAME = {"Scal": "単独の分類器の較正と感情の事前の得（判別分析が none にも与える分）",
+             "S1b": "較正をそろえた単独の分類器の得が完全な結合器で足し合わさらない分（情報の重なりか UAR の天井．この 2 つは分けない）",
+             "dLdep": "依存を無視した損の増加", "dLcal": "3 つの点数の結合の較正と感情の事前の分の増加"}
+DD_JK = ("dD_joint_a1_none", "dD_joint_a1_oracle", "dD_rho1_ownret")       # jackknife と t の区間を足す差（m9）
 
 
 def decompose(us: dict, un: dict) -> dict:
-    """3.5 節の恒等式 S = (Ḡ − G_full) + ΔL_dep + ΔL_cal（dai-review-ml の M3）．us・un は組 s と none の UAR（A・V・T・prod・blk・full）。
-    配列でも数でもよい。"""
+    """3.5 節の恒等式 S = (Ḡ − Ḡ_cal) + (Ḡ_cal − G_full) + ΔL_dep + ΔL_cal（dai-review-ml の M3・M4）．
+    us・un は組 s と none の UAR（A・V・T・lda_A・lda_V・lda_T・prod・blk・full）．配列でも数でもよい。
+    Scal = Ḡ − Ḡ_cal は単独の分類器の較正と感情の事前の得（各モダリティだけの判別分析が none にも与える分），
+    S1b = Ḡ_cal − G_full は較正をそろえた単独の得が完全な結合器で足し合わさらない分．S1 = Scal + S1b。"""
     Gbar = np.mean([us[m] - un[m] for m in MODS], 0)
+    Gcal = np.mean([us[f"lda_{m}"] - un[f"lda_{m}"] for m in MODS], 0)
     Gp, Gf = us["prod"] - un["prod"], us["full"] - un["full"]
-    return dict(S=Gbar - Gp, S1=Gbar - Gf, dLdep=(us["full"] - us["blk"]) - (un["full"] - un["blk"]),
-                dLcal=(us["blk"] - us["prod"]) - (un["blk"] - un["prod"]), Gbar=Gbar, G_prod=Gp, G_full=Gf)
+    return dict(S=Gbar - Gp, S1=Gbar - Gf, Scal=Gbar - Gcal, S1b=Gcal - Gf,
+                dLdep=(us["full"] - us["blk"]) - (un["full"] - un["blk"]),
+                dLcal=(us["blk"] - us["prod"]) - (un["blk"] - un["prod"]), Gbar=Gbar, Gcal=Gcal, G_prod=Gp, G_full=Gf)
 
 
-def boot_D(fits: dict, Uc: pd.DataFrame, K: int, var: str = "main"):
+def boot_D(fits: dict, Uc: pd.DataFrame, K: int, var: str = "main", jk: bool = False):
     """4 節の手順で D の抜き直しを作る．var は main（テストの全部の発話，塊はテストの塊），spk（全部の発話，塊は fits の test_group．
     IEMOCAP の話者を塊にした感度．dai-review-ml の m2），または fits の mask_<var> の発話に限る変種（cent・scen はその中で
     (グループ, 感情) の平均を引く．3.3 節）．塊の抜き直しは，変種の発話を持つ塊だけで作る（種 0）。
@@ -610,6 +623,8 @@ def boot_D(fits: dict, Uc: pd.DataFrame, K: int, var: str = "main"):
         if len(cl):
             cl_by_fold.setdefault(f, list(cl))
     w, fold_of, code_of = boot_weights(cl_by_fold)
+    if jk:                                                                  # 塊を 1 つずつ抜く jackknife（行 i は塊 i だけ重み 0．m9）
+        w = 1.0 - np.eye(w.shape[1])
     bD = {s: {p: {} for p in PKEYS} for s in BOOT_SETS}
     bE = {s: {} for s in BOOT_SETS}
     for f in sorted(cl_by_fold):
@@ -648,6 +663,17 @@ def boot_D(fits: dict, Uc: pd.DataFrame, K: int, var: str = "main"):
     Bd = {s: {p: fold_combine(bD[s][p], w, fold_of) for p in PKEYS} for s in BOOT_SETS}
     Be = {s: np.stack([fold_combine({f: v[:, e] for f, v in bE[s].items()}, w, fold_of) for e in range(4)], 1) for s in BOOT_SETS}
     return Bd, Be, w, fold_of, code_of, cl_by_fold
+
+
+def jk_interval(theta_i: np.ndarray, est: float, n_eff: float):
+    """jackknife の分散と自由度 max(1, ⌊実効の塊の数⌋ − 1) の t の 95% 区間（計画 8 節．dai-review-ml の m9）。"""
+    th = theta_i[np.isfinite(theta_i)]
+    n = len(th)
+    if n < 2 or not np.isfinite(est):
+        return np.nan, np.nan, n
+    se = np.sqrt((n - 1) / n * np.sum((th - th.mean()) ** 2))
+    q = SS.t.ppf(0.975, max(1, int(np.floor(n_eff)) - 1))
+    return float(est - q * se), float(est + q * se), n
 
 
 def tether_table(have: set, fz: dict, out: Path) -> pd.DataFrame:
@@ -704,6 +730,9 @@ def summarize(out: Path, allow_partial: bool) -> None:
             z = next(v for (T, ff, r), v in sorted(fits.items()) if ff == f)
             n5 += np.bincount(z["test_y"].astype(int), minlength=4)
         z0 = next(iter(fits.values()))
+        ncl = pd.Series(np.concatenate([next(v for (T, ff, r), v in sorted(fits.items()) if ff == f)["test_cluster"].astype(str)
+                                        for f in sorted({f for _, f, _ in units})])).value_counts().to_numpy().astype(float)
+        n_eff = float(ncl.sum() ** 2 / (ncl ** 2).sum())                    # 実効の塊の数 (Σn)²/Σn²（計画 8 節）
         variants_c = [v for v in vnames if f"mask_{v}" in z0.files] + (["spk"] if c == "IEMOCAP" else [])
         for K in KS:
             pt = cells[(cells.c == c) & (cells.K == K)].set_index(["set", "pair"])
@@ -711,7 +740,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
             Bd, Be, w, fold_of, code_of, cl_by_fold = boot_D(fits, Uc, K, "main")
             bphi = {s: {} for s in BOOT_SETS}
             bL = {s: {} for s in L_SETS}
-            bP = {s: {q: {} for q in ("S", "S1", "dLdep", "dLcal")} for s in M3_SETS}
+            bP = {s: {q: {} for q in ("S", "S1", "Scal", "S1b", "dLdep", "dLcal")} for s in M3_SETS}
             for f in sorted(cl_by_fold):
                 cols = np.flatnonzero(fold_of == f)
                 wcl = w[:, cols]
@@ -725,8 +754,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
                     codes = np.array([code_of[f][x] for x in z["test_cluster"].astype(str)]) - cols[0]
                     for s in BOOT_SETS:
                         accphi[s].append(boot_phi_unit(z, y, codes, wcl, K, s))
-                    bu = {s: {q: boot_uar_unit(z[f"K{K}_{s}_pred_{q}"].astype(int), y, codes, wcl) for q in ("prod", "blk", "full", *MODS)}
-                          for s in L_SETS}
+                    bu = {s: {q: boot_uar_unit(z[f"K{K}_{s}_pred_{q}"].astype(int), y, codes, wcl)
+                              for q in ("prod", "blk", "full", *MODS, *[f"lda_{m}" for m in MODS])} for s in L_SETS}
                     for s in L_SETS:
                         accL[s].append(bu[s]["full"] - bu[s]["blk"])
                     for s in M3_SETS:
@@ -768,15 +797,16 @@ def summarize(out: Path, allow_partial: bool) -> None:
                 lo, hi, nv = ci(BL[s])
                 diffs.append(dict(**base, pair="all", quantity=f"Ldep_{s}", est=ptA.loc[s, "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
             for s in ("joint", *M3_SETS):                                   # 得の足し合わせ（3.5 節，3.6 節の (iv)．rho1.0 は選んでいない対照）
-                us = {q: ptA.loc[s, f"uar_{q}"] for q in ("prod", "blk", "full", *MODS)}
-                un = {q: ptA.loc["none", f"uar_{q}"] for q in ("prod", "blk", "full", *MODS)}
+                qs = ("prod", "blk", "full", *MODS, *[f"lda_{m}" for m in MODS])
+                us = {q: ptA.loc[s, f"uar_{q}"] for q in qs}
+                un = {q: ptA.loc["none", f"uar_{q}"] for q in qs}
                 dec = decompose(us, un)
                 G = {m: us[m] - un[m] for m in MODS}
                 lo, hi, nv = ci(-BP[s]["S"]) if s in M3_SETS else (np.nan, np.nan, 0)
                 diffs.append(dict(**base, pair="all", quantity=f"G_{s}", est=-dec["S"], lo=lo, hi=hi, n_boot_valid=nv,
-                                  **{f"G_{m}": G[m] for m in MODS}, G_prod=dec["G_prod"], G_full=dec["G_full"], G_max=max(G.values())))
+                                  **{f"G_{m}": G[m] for m in MODS}, G_prod=dec["G_prod"], G_full=dec["G_full"], G_cal=dec["Gcal"], G_max=max(G.values())))
                 if s in M3_SETS:                                            # S = (Ḡ − G_full) + ΔL_dep + ΔL_cal と ΔL_dep の割合（M3）
-                    for q in ("S", "S1", "dLdep", "dLcal"):
+                    for q in ("S", "S1", "Scal", "S1b", "dLdep", "dLcal"):
                         lo, hi, nv = ci(BP[s][q])
                         diffs.append(dict(**base, pair="all", quantity=f"{q}_{s}", est=dec[q], lo=lo, hi=hi, n_boot_valid=nv))
                     with np.errstate(invalid="ignore", divide="ignore"):
@@ -785,6 +815,14 @@ def summarize(out: Path, allow_partial: bool) -> None:
                                       lo=lo, hi=hi, n_boot_valid=nv))
             diffs.append(dict(**base, pair="all", quantity="dDt_joint_a1_none",           # 記述だけ（3.3 節．依存が無くても正になる．M1）
                               est=pt.loc[("joint_a1", "all"), "D_partial_t"] - pt.loc[("none", "all"), "D_partial_t"]))
+            if n_eff < NEFF_JK:                                             # jackknife と t の区間（計画 8 節．m9．記述）
+                Bj = boot_D(fits, Uc, K, "main", jk=True)[0]
+                for nm in DD_JK:
+                    s1, s2 = DD_MAIN[nm]
+                    lo, hi, nv = jk_interval(Bj[s1]["all"] - Bj[s2]["all"], pt.loc[(s1, "all"), "D"] - pt.loc[(s2, "all"), "D"], n_eff)
+                    diffs.append(dict(c=c, K=K, variant="jk", pair="all", quantity=nm, est=pt.loc[(s1, "all"), "D"] - pt.loc[(s2, "all"), "D"],
+                                      lo=lo, hi=hi, n_boot_valid=nv, n_eff=n_eff, df=max(1, int(np.floor(n_eff)) - 1),
+                                      d_null_diff=pt.loc[(s1, "all"), "D_null"] - pt.loc[(s2, "all"), "D_null"]))
             for var in variants_c:                                          # 感度の変種（A1・A2・a5・m2．記述と 4 節の添え書き）
                 Bv = boot_D(fits, Uc, K, var)[0]
                 col, ncol = ("D", "D_null") if var == "spk" else (f"D_{var}", f"Dnull_{var}")
@@ -796,6 +834,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
                                           lo=lo, hi=hi, n_boot_valid=nv, d_null_diff=pt.loc[(s1, p), ncol] - pt.loc[(s2, p), ncol]))
         print(f"{c}：区間を作った", flush=True)
     Df = pd.DataFrame(diffs)
+    TW = tether_table(have, json.load(open(FROZEN)), out)                  # 引き戻しの弱まり（m4）と ρ が 1 でないセルの数（m10）
     crit = []
 
     def rows_of(c, q, pair="all", var="main"):
@@ -829,15 +868,19 @@ def summarize(out: Path, allow_partial: bool) -> None:
             size_ok.append(K in ok_K(c, "dD_rho_hi_lo", FLOOR_D))
         r.update({f"H2_spearman_K{K}": v for K, v in zip(KS_RULE, sp)})
         r["H2"] = bool(sum((v >= 0.8 - 1e-9) and s_ for v, s_ in zip(sp, size_ok)) >= 3)
-        # H1 の書き方（4 節．M1・M2・A2）
+        # H1 の書き方（4 節．M1・M2・A2，第 7 版で b2・b3・m10）
         h1K = ok_K(c, "dD_joint_a1_none", FLOOR_D, True)
-        main = rows_of(c, "dD_joint_a1_none")
+        shK = ok_K(c, "dD_rho1_ownret", FLOOR_D, True)
         phi_small = r["phi_n_lo_pos"] - r["phi_n_lo_pos_floor"] >= 3
-        if c == "MOSEI":
-            ch = rows_of(c, "dD_joint_a1_none", var="chan")
-            r["chan_n_K_robust"] = int(sum(ch.loc[K, "lo"] > 0 and ch.loc[K, "est"] >= R_HALF * main.loc[K, "est"] for K in h1K))
-        ce, kp = rows_of(c, "dD_joint_a1_none", var="cent"), rows_of(c, "dD_joint_a1_none", var="keep")
-        r["cent_n_K_small"] = int(sum(ce.loc[K, "est"] < R_HALF * kp.loc[K, "est"] for K in h1K))
+        for q, Ks, tag in (("dD_joint_a1_none", h1K, ""), ("dD_rho1_ownret", shK, "_share")):
+            main = rows_of(c, q)
+            if c == "MOSEI":
+                ch = rows_of(c, q, var="chan")
+                r[f"chan{tag}_n_K_robust"] = int(sum(ch.loc[K, "lo"] > 0 and ch.loc[K, "est"] >= R_HALF * main.loc[K, "est"] for K in Ks))
+            ce, kp = rows_of(c, q, var="cent"), rows_of(c, q, var="keep")
+            r[f"cent{tag}_n_K_small"] = int(sum(ce.loc[K, "est"] < R_HALF * kp.loc[K, "est"] for K in Ks))
+        n_rho_not1 = int((TW[(TW.c == c)].rho_joint_a1 != 1.0).sum())
+        r["n_unit_cells_rho_not1"], r["n_unit_cells"] = n_rho_not1, int((TW.c == c).sum())     # m10：joint_a1 の ρ が 1 でない (単位, K, モダリティ)
         if not r["H1"]:
             wd = "満たさなかった"
         elif not r["H1p"]:
@@ -845,39 +888,62 @@ def summarize(out: Path, allow_partial: bool) -> None:
         else:
             wd = "依存の増加（誤りの相関の増加を伴う）" if r["phi"] else \
                 "依存の増加" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "（誤りの相関の増加は規則を満たさない）")
-            wd += ("．同じ疑似ラベルを共有したことが依存を増やした（段 3 の共有．段 2 の共有は分けていない）" if r["share"]
-                   else "．依存の増加は，同じ重みで各モダリティ自身の疑似ラベルで学んだ場合と分けられない")
-            if r["share"] and r["phi_share"]:
-                wd += "．誤りの相関も共有で増えた"
+            if r["share"]:
+                wd += "．同じ疑似ラベルを共有したことが依存を増やした（段 3 の共有．段 2 の共有は分けていない．ρ = 1，a = 1 の点で比べた）"
+                if r["phi_share"]:
+                    wd += "．誤りの相関も共有で増えた"
+                if c == "MOSEI" and r["chan_share_n_K_robust"] < 3:
+                    wd += "．共有の比べも，同じ人物の別の動画が候補に残る漏れと分けられない"
+                if r["cent_share_n_K_small"] >= 3:
+                    wd += "．共有で増えた依存の多くは話者（塊）の水準の共有である"
+            else:
+                wd += "．依存の増加は，同じ重みで各モダリティ自身の疑似ラベルで学んだ場合と分けられない（ρ = 1，a = 1 の点で比べた）"
             if c == "MOSEI" and r["chan_n_K_robust"] < 3:
                 wd += "．同じ人物の別の動画が候補に残る漏れと分けられない"
             if r["cent_n_K_small"] >= 3:
                 wd += "．増えた依存の多くは話者（塊）の水準の共有である"
+            if c == "IEMOCAP":                                              # 結果に依らない固定の添え書き（b2）
+                wd += "．IEMOCAP 即興の依存の増加は筋書きの話題の共有と分けられない（筋書きで中心化した D を並べる）"
         r["H1_wording"] = wd
+        for q, nm in (("dD_joint_a1_none", "H1"), ("dD_joint_a1_oracle", "H1p"), ("dD_rho1_ownret", "share")):   # m9：jackknife で合否が変わる K
+            jj = rows_of(c, q, var="jk")
+            if len(jj):
+                mm = rows_of(c, q)
+                r[f"jk_{nm}_n_K_flip"] = int(sum((mm.loc[K, "lo"] > 0) != (jj.loc[K, "lo"] > 0) for K in KS_RULE))
+                r[f"jk_{nm}_n_lo_pos"] = int((jj.lo > 0).sum())
         g = rows_of(c, "G_joint_a1")
         r["additivity_n_hi_neg"] = int((g.hi < 0).sum())
         r["additivity_fails"] = bool(r["additivity_n_hi_neg"] >= 3)
-        for s, tag in (("joint_a1", "H4"), (RHO1, "H4_rho1")):            # H4：依存を無視した損が足し合わさらない分をどれだけ説明するか（M3）
-            S_, sh, dl = rows_of(c, f"S_{s}"), rows_of(c, f"share_dep_{s}"), rows_of(c, f"dLdep_{s}_none")
-            base_ok = [K for K in KS_RULE if S_.loc[K, "est"] > 0 and dl.loc[K, "lo"] > 0]
+        ivK = [K for K in KS_RULE if g.loc[K, "hi"] < 0]                    # m8：前提 (iv) の区間の条件を満たした K だけで数える
+        h = acells[(acells.c == c) & acells.K.isin(KS_RULE) & acells.set.isin(L_SETS)]
+        r["n_cells_h_excess_ge_0.5"] = int((h.h_excess >= H_MAX).sum())
+        for s, tag in (("joint_a1", "H4"), (RHO1, "H4_rho1")):            # H4：依存を無視した損が足し合わさらない分をどれだけ説明するか（M3・M4）
+            gs = rows_of(c, f"G_{s}")
+            ivs = [K for K in KS_RULE if gs.loc[K, "hi"] < 0]
+            sh, dl = rows_of(c, f"share_dep_{s}"), rows_of(c, f"dLdep_{s}_none")
+            base_ok = [K for K in ivs if dl.loc[K, "lo"] > 0]
+            r[f"{tag}_n_K_iv"] = len(ivs)
             r[f"{tag}_n_K_half"] = int(sum(sh.loc[K, "est"] >= R_SHARE_HI for K in base_ok))
             r[f"{tag}_n_K_part"] = int(sum(sh.loc[K, "est"] >= R_SHARE for K in base_ok))
-            big = [max(("S1", "dLdep", "dLcal"), key=lambda q: rows_of(c, f"{q}_{s}" if q != "dLdep" else f"dLdep_{s}_none").loc[K, "est"])
-                   for K in KS_RULE]
-            r[f"{tag}_largest_by_K"] = ";".join(big)
+            part_est = {q: rows_of(c, f"{q}_{s}" if q != "dLdep" else f"dLdep_{s}_none") for q in PART_ORDER}
+            big = {K: [q for q in PART_ORDER if part_est[q].loc[K, "est"] == max(part_est[p].loc[K, "est"] for p in PART_ORDER)] for K in ivs}
+            r[f"{tag}_largest_by_K"] = ";".join(f"K{K}:" + "+".join(v) for K, v in big.items())
+            r[f"{tag}_share_by_K"] = ";".join(f"K{K}:{sh.loc[K, 'est']:.2f}" for K in ivs)
             if s == "joint_a1":
                 if not r["additivity_fails"]:
                     wd4 = "前提 (iv) を満たさない（足し合わさらない理由を書かない）"
-                elif r[f"{tag}_n_K_half"] >= 3:
-                    wd4 = "依存を無視した損が，足し合わさらない分の半分以上を説明する"
-                elif r[f"{tag}_n_K_part"] >= 3:
-                    wd4 = "依存を無視した損が，足し合わさらない分の一部（4 分の 1 以上）を説明する"
                 else:
-                    top = max(set(big), key=big.count)
-                    wd4 = f"足し合わさらない分のうち最も大きいのは「{PART_NAME[top]}」である（K の 4 つのうち {big.count(top)} つ）"
+                    if r[f"{tag}_n_K_half"] >= 3:
+                        wd4 = "依存を無視した損が，足し合わさらない分の半分以上を説明する"
+                    elif r[f"{tag}_n_K_part"] >= 3:
+                        wd4 = "依存を無視した損が，足し合わさらない分の一部（4 分の 1 以上）を説明する"
+                    else:
+                        cnt = {q: sum(q in v for v in big.values()) for q in PART_ORDER}
+                        top = [q for q in PART_ORDER if cnt[q] == max(cnt.values())]            # 同点は全部をこの順で書く（m8）
+                        wd4 = "足し合わさらない分のうち最も大きいのは" + "と".join(f"「{PART_NAME[q]}」" for q in top) + \
+                            f"である（前提 (iv) を満たした K の {len(ivs)} つのうち {max(cnt.values())} つ）"
+                    wd4 += f"（K ごとの割合 ΔL_dep / S：{r[f'{tag}_share_by_K']}．h − h⁰ ≥ 0.5 のセル {r['n_cells_h_excess_ge_0.5']} 個）"
                 r["H4_wording"] = wd4
-        h = acells[(acells.c == c) & acells.K.isin(KS_RULE) & acells.set.isin(L_SETS)]
-        r["n_cells_h_excess_ge_0.5"] = int((h.h_excess >= H_MAX).sum())
         crit.append(r)
     C = pd.DataFrame(crit)
     for nm in ("H1", "H1_joint", "H1p", "H1_AV", "share", "H2", "H3", "additivity_fails"):   # 全体の数（A1：IEMOCAP 即興を除いた数も）
@@ -885,13 +951,13 @@ def summarize(out: Path, allow_partial: bool) -> None:
         C[f"{nm}_n_corpora"], C[f"{nm}_n_corpora_excl_IEMOCAP"] = n_all, n_ex
         C[f"{nm}_overall"] = n_all >= 3
         C[f"{nm}_depends_on_IEMOCAP"] = (n_all >= 3) and (n_ex <= 2)
-    TW = tether_table(have, json.load(open(FROZEN)), out)
     TWc = TW.groupby(["c", "K", "mod"])[["n_pool", "rho_joint_a1", "weakening_joint_a1", "weakening_rho1", "C_none", "tw_range"]].mean().reset_index()
     commit = sorted(commits)[0] if len(commits) == 1 else "multiple"
     s_commit, s_dirty = dai1.git_commit()                                  # 集計の段のコミット（gate-code の I9）
-    for df_, fn in ((cells, "cells.csv"), (acells, "uar_cells.csv"), (Df, "diffs.csv"), (C, "criteria.csv"), (TWc, "tether_weakening.csv")):
+    for df_, fn in ((cells, "cells.csv"), (acells, "uar_cells.csv"), (Df, "diffs.csv"), (C, "criteria.csv"), (TWc, "tether_weakening.csv"),
+                    (TW, "tether_weakening_units.csv")):
         df_.assign(commit=commit, summarize_commit=s_commit, summarize_dirty=s_dirty, boot_seed=0, n_boot=N_BOOT).to_csv(out / fn, index=False)
-    print(f"書いた：cells.csv，uar_cells.csv，diffs.csv，criteria.csv，tether_weakening.csv（{len(have)} 単位）", flush=True)
+    print(f"書いた：cells.csv，uar_cells.csv，diffs.csv，criteria.csv，tether_weakening.csv，tether_weakening_units.csv（{len(have)} 単位）", flush=True)
 
 
 # ------------------------------------------------------------------ 検算
@@ -956,18 +1022,40 @@ def selftest() -> None:
     dr, dr0, _ = d_with_null(residualize(a3, a3 + b3 + c3, y), residualize(b3, a3 + b3 + c3, y), y, rng)
     dd, dd0, _ = d_with_null(a3, b3, y, rng)
     assert np.all(np.abs(dd - dd0) < 0.01) and np.all(np.abs((dr - dr0) - 0.25) < 0.04), (dd - dd0, dr - dr0)
-    # (11) 得の足し合わせの恒等式 S = (Ḡ − G_full) + ΔL_dep + ΔL_cal（M3）が配列でも数でも成り立つ
-    us = {q: rng.normal(size=7) for q in ("prod", "blk", "full", *MODS)}
-    un = {q: rng.normal(size=7) for q in ("prod", "blk", "full", *MODS)}
+    # (11) 得の足し合わせの恒等式 S = (Ḡ − Ḡ_cal) + (Ḡ_cal − G_full) + ΔL_dep + ΔL_cal（M3・M4）が配列でも数でも成り立つ
+    qs = ("prod", "blk", "full", *MODS, *[f"lda_{m}" for m in MODS])
+    us = {q: rng.normal(size=7) for q in qs}
+    un = {q: rng.normal(size=7) for q in qs}
     dc = decompose(us, un)
-    assert np.allclose(dc["S"], dc["S1"] + dc["dLdep"] + dc["dLcal"])
+    assert np.allclose(dc["S"], dc["S1"] + dc["dLdep"] + dc["dLcal"]) and np.allclose(dc["S1"], dc["Scal"] + dc["S1b"])
     dc1 = decompose({q: float(v[0]) for q, v in us.items()}, {q: float(v[0]) for q, v in un.items()})
     assert abs(dc1["S"] - dc["S"][0]) < 1e-12
     # (12) 感情ごとの抜き直しの値の平均は対の値と一致し，重み 1 なら直接の値と一致する
     res, rese = boot_D_unit(z, y, codes, {"AV": ((BLK["A"], BLK["V"]), np.zeros(4))}, np.ones((2, 20)), per_emotion=True)
     assert np.allclose(np.nanmean(rese["AV"], 1), res["AV"])
     assert all(abs(rese["AV"][0, e] - float(dstat(a[y == e], b[y == e]))) < 1e-8 for e in range(4))
-    print("検算：12 項目すべて通った")
+    # (13) jackknife：塊ごとの値の平均なら，jackknife の標準誤差は sd/√n と一致し，区間は t の点で作る（m9）
+    v = rng.normal(size=12)
+    th = np.array([np.delete(v, i).mean() for i in range(12)])
+    lo, hi, nn = jk_interval(th, v.mean(), 12.0)
+    se = v.std(ddof=1) / np.sqrt(12)
+    assert nn == 12 and abs((hi - lo) / 2 - SS.t.ppf(0.975, 11) * se) < 1e-12, (lo, hi)
+    # (14) 情報が同じで none の単独の点数にだけ感情の偏りがあるとき，偏りは Ḡ − Ḡ_cal に入り，Ḡ_cal − G_full は 0 になる（M4）
+    yy = rng.integers(0, 4, 3000)
+    Z = {m: 1.2 * np.eye(4)[yy] + rng.normal(size=(3000, 4)) for m in MODS}
+    bias = {"A": np.array([1.5, 0, 0, 0]), "V": np.array([0, 1.5, 0, 0]), "T": np.zeros(4)}
+    hh = np.arange(3000) % 2
+
+    def uars(Zs):
+        zz = {m: Zs[m] @ H for m in MODS}
+        z9_ = np.concatenate([zz[m] for m in MODS], 1)
+        out_ = {m: uar(yy, Zs[m].argmax(1)) for m in MODS}
+        out_.update({f"lda_{m}": uar(yy, crossfit(zz[m], yy, hh, False)) for m in MODS})
+        out_.update(prod=uar(yy, sum(Zs.values()).argmax(1)), blk=uar(yy, crossfit(z9_, yy, hh, True)), full=uar(yy, crossfit(z9_, yy, hh, False)))
+        return out_
+    dc = decompose(uars(Z), uars({m: Z[m] + bias[m] for m in MODS}))
+    assert dc["Gbar"] > 1.0 and abs(dc["Gcal"]) < 1e-9 and abs(dc["G_full"]) < 1e-9 and abs(dc["S1b"]) < 1e-9 and abs(dc["Scal"] - dc["Gbar"]) < 1e-9, dc
+    print("検算：14 項目すべて通った")
 
 
 # ------------------------------------------------------------------ 入口
