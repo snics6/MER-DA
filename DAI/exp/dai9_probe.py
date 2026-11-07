@@ -315,7 +315,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
             for nm in ("emo", "grp_xe", "dlg_xe"):
                 r_[f"S4_{tau}_top3ex_{nm}"] = float(qq[f"top3ex_{nm}"].mean())
             qr = q1[(q1.c == c) & (q1.tau == "raw")]
-            r_[f"S5_{tau}_top3ex_emo_ratio"] = float(qq.top3ex_emo.mean() / qr.top3ex_emo.mean()) if len(qr) else np.nan   # m1
+            ok_raw = int((qr.top3_emo > qr.top3nullmax_emo).sum()) >= 3 if len(qr) else False   # review_ml の第 2 回の n2
+            r_[f"S5_{tau}_top3ex_emo_ratio"] = float(qq.top3ex_emo.mean() / qr.top3ex_emo.mean()) if ok_raw else np.nan
             tx = max(("grp_xe", "dlg_xe"), key=lambda x: r_[f"S4_{tau}_top3ex_{x}"])
             r_[f"S4_{tau}_nonemo_separates"] = bool(int((qq[f"top3_{tx}"] > qq[f"top3nullmax_{tx}"]).sum()) >= 3
                                                     and r_[f"S4_{tau}_top3ex_{tx}"] >= r_[f"S4_{tau}_top3ex_emo"])
@@ -331,7 +332,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
             lo_ = D[(D.c == c) & (D["compare"] == f"{tau}_ldaO_vs_raw")]
             r_[f"S5_{tau}_ldaO_vs_raw"] = float(lo_.effect.iloc[0]) if len(lo_) else np.nan
             r_[f"S5_{tau}_removed_emotion"] = bool(r_[f"S5_{tau}_ldaO_vs_raw"] <= LDAO_DROP)   # 「τ は感情の違いも消した」（E1）
-            r_[f"HYP_{tau}_blocked_by_emotion_loss"] = bool(r_[f"S5_{tau}_removed_emotion"])   # review_ml の M1：感情の情報が減ったなら書かない
+            shrink = bool(r_[f"S2_{tau}_truth_minus_ldaO"] >= r_["S2_raw_truth_minus_ldaO"] + HYP_GAIN and n_pos >= HYP_FOLDS)
+            r_[f"HYP_{tau}_blocked_by_emotion_loss"] = bool(r_[f"S5_{tau}_removed_emotion"] and shrink)   # review_ml の第 2 回の n1
             if (r_["S2_raw"] == "b_optimum_away_from_emotion" and r_[f"S2_{tau}"] == "a_init_or_other"
                     and r_[f"S2_{tau}_truth_minus_ldaO"] >= r_["S2_raw_truth_minus_ldaO"] + HYP_GAIN and n_pos >= HYP_FOLDS
                     and r_[f"HYP_{tau}_emtruth_vs_raw_lo"] > 0 and r_[f"HYP_{tau}_emtruth_vs_raw"] >= HYP_GAIN
