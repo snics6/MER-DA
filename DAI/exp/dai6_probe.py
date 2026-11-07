@@ -36,6 +36,7 @@ import json
 import math
 import sys
 import time
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -600,25 +601,38 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
 # ------------------------------------------------------------------ 判定（4 節）
 
 def _boot_fold_mean(per_fold: list, n_boot: int = 2000, seed: int = 0):
-    """4 節のばらつき（gate-code の 5）：分割ごとにテストの塊を抜き直し（同じ抜き直しを全部の判定に使う），分割ごとの UAR の平均を作る．
-    点推定（分割ごとの UAR の平均）と同じ量である．どこかの分割で感情が欠けた回は捨て，有効な回の数を返す。
+    """4 節のばらつき（gate-code の 5 と再検査の 1）：5 分割のテストの塊をまとめた 1 つの集まりから塊を抜き直し（同じ抜き直しを全部の判定に
+    使う），各塊が属する分割の中で分割ごとの UAR を作り，抜かれた分割について平均する（塊は 1 つの分割にしか入らないので，点推定の
+    分割の平均と同じ量）．抜かれた分割のどれかで感情が欠けた回は捨て，有効な回の数を返す．分割ごとに塊が 1 つでも区間の幅は 0 にならない。
     per_fold：[(y, cluster, {名前: 判定})]．戻り：({名前: (有効な回,) の UAR}, 有効な回の数)。"""
     rng = np.random.default_rng(seed)
     names = list(per_fold[0][2])
-    acc = {nm: np.zeros(n_boot) for nm in names}
-    valid = np.ones(n_boot, bool)
-    for (y, cl, preds) in per_fold:
+    n_kc, cor, fold_of = [], {nm: [] for nm in names}, []
+    for j, (y, cl, preds) in enumerate(per_fold):
         codes = pd.factorize(cl)[0]
         k = codes.max() + 1
-        n_kc = np.zeros((k, 4)); np.add.at(n_kc, (codes, y), 1)
-        w = rng.multinomial(k, np.full(k, 1.0 / k), size=n_boot).astype(float)
-        den = w @ n_kc
-        valid &= (den > 0).all(1)
+        m = np.zeros((k, 4)); np.add.at(m, (codes, y), 1); n_kc.append(m)
         for nm, pr in preds.items():
-            cor = np.zeros((k, 4)); np.add.at(cor, (codes, y), (pr == y).astype(float))
-            with np.errstate(invalid="ignore", divide="ignore"):
-                acc[nm] += 100.0 * np.nanmean(np.where(den > 0, (w @ cor) / den, np.nan), 1) / len(per_fold)
-    return {nm: v[valid] for nm, v in acc.items()}, int(valid.sum())
+            c_ = np.zeros((k, 4)); np.add.at(c_, (codes, y), (pr == y).astype(float)); cor[nm].append(c_)
+        fold_of += [j] * k
+    n_kc = np.concatenate(n_kc); cor = {nm: np.concatenate(v) for nm, v in cor.items()}
+    fold_of = np.array(fold_of)
+    K = len(fold_of)
+    w = rng.multinomial(K, np.full(K, 1.0 / K), size=n_boot).astype(float)       # (n_boot, 塊の総数)
+    nf = len(per_fold)
+    F = np.zeros((K, nf)); F[np.arange(K), fold_of] = 1.0
+    drawn = (w @ F) > 0                                                           # (n_boot, 分割) その回に抜かれた分割
+    den = np.einsum("bk,kc,kf->bfc", w, n_kc, F)                                  # (n_boot, 分割, 感情)
+    valid = ~((drawn[:, :, None] & (den == 0)).any((1, 2)))
+    out = {}
+    for nm in names:
+        num = np.einsum("bk,kc,kf->bfc", w, cor[nm], F)
+        with np.errstate(invalid="ignore", divide="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)                       # 抜かれなかった分割の空の平均
+            u = 100.0 * np.nanmean(np.where(den > 0, num / den, np.nan), 2)          # (n_boot, 分割)
+            u = np.where(drawn, u, np.nan)
+            out[nm] = np.nanmean(u, 1)[valid]
+    return out, int(valid.sum())
 
 
 def summarize(out: Path, allow_partial: bool = False) -> None:
@@ -759,6 +773,15 @@ def selftest() -> None:
     P1 = proj_sigma(Wr, B, Sig)
     assert torch.allclose(proj_sigma(P1, B, Sig), P1, atol=1e-8)
     assert float(((Wr - P1) @ Sig @ B).abs().max()) < 1e-8
+    # (6) 分割ごとにテストの塊が 1 つでも，ブートストラップの区間の幅が 0 にならない（再検査の 1）
+    pf = []
+    for j in range(5):
+        yy = rng.integers(0, 4, 200); pa = np.where(rng.random(200) < 0.6, yy, rng.integers(0, 4, 200))
+        pb = np.where(rng.random(200) < 0.5, yy, rng.integers(0, 4, 200))
+        pf.append((yy, np.array([f"c{j}"] * 200), {"x": pa, "z": pb}))
+    bt, nv = _boot_fold_mean(pf, n_boot=500, seed=1)
+    wd = np.percentile(bt["x"] - bt["z"], 97.5) - np.percentile(bt["x"] - bt["z"], 2.5)
+    assert nv > 400 and wd > 0.5, (nv, wd)
     print(f"selftest OK：r = {r}（無相関），主角の余弦の 2 乗の平均 {c2:.4f}，話者を足すと r = {r2}，塊の中で中心化すると r = {r3}")
 
 
