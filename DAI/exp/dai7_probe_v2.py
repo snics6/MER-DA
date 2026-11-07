@@ -375,7 +375,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                 if sname.startswith("none_tw"):                              # 引き戻しの格子の none（記述．テストの D と φ だけ）
                     urows.append(dict(**base, K=K, set=sname, pair=a + b, teacher_version=ver, D=float(np.nanmean(d - d0)),
                                       D_raw=float(np.nanmean(d)), D_null=float(np.nanmean(d0)), n_emotions=int(np.isfinite(d).sum()),
-                                      phi=ph, n_emotions_phi=nph, **{f"{q}_e{e}": v[e] for e in range(4) for q, v in (("d", d), ("d0", d0))}))
+                                      phi=ph, n_emotions_phi=nph, **{f"{q}_e{e}": v[e] for e in range(4) for q, v in (("d", d), ("d0", d0))},
+                                      **{f"n_e{e}": int(n[e]) for e in range(4)}))
                     continue
                 dp, dp0, _ = d_with_null(zp[a], zp[b], yp, crn(seed, K, ip, 1), n_perm=N_NULL_POOL)
                 zc, keep, cellkey = center_cells(np.concatenate([zt[a], zt[b]], 1), yt, grp_t)
