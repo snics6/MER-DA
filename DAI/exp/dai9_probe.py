@@ -103,7 +103,9 @@ def transform(tau: str, Xp, Xt, gp, gt):
         V = V[:, -r_eff:] if r_eff > 0 else V[:, :0]
         TAU_INFO["eig_top"] = ev.sort(descending=True).values[:min(60, len(ev))].cpu().tolist()
         TAU_INFO["mod_share"] = _mod_share(V)
-        return _restd(Xp - (Xp @ V) @ V.T, Xt - (Xt @ V) @ V.T)
+        TAU_INFO["basis"] = V
+        mu = Xp.mean(0)                                                       # 標準化し直さない（割り直すと消した向きの散らばりが戻る．gate-code の 1）
+        return (Xp - mu) - ((Xp - mu) @ V) @ V.T, (Xt - mu) - ((Xt - mu) @ V) @ V.T
     if tau.startswith("pca"):
         p = int(tau[3:])
         mu = Xp.mean(0)
@@ -111,6 +113,7 @@ def transform(tau: str, Xp, Xt, gp, gt):
         ev, V = torch.linalg.eigh((C + C.T) / 2)
         V = V[:, -p:]
         TAU_INFO["mod_share"] = _mod_share(V)
+        TAU_INFO["basis"] = V
         return _restd((Xp - mu) @ V, (Xt - mu) @ V)
     raise ValueError(tau)
 
@@ -155,7 +158,7 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
     yp_t = torch.as_tensor(yp, device=DEV)
     onehot_all = torch.nn.functional.one_hot(yp_t, 4).to(DT)
     X0p, X0t = u.Xp["AVT"].to(DEV, DT), u.Xt["AVT"].to(DEV, DT)
-    pred, diag, q1 = {}, {}, []
+    pred, diag, q1, basis, coef, poolpred = {}, {}, [], {}, {}, {}
     empty = torch.zeros(0, dtype=torch.long, device=DEV)
     yrand = np.random.default_rng(SEED).permutation(yp)
     _, gi = np.unique(gp, return_inverse=True)
@@ -166,18 +169,22 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
         if not (torch.isfinite(Xp).all() and torch.isfinite(Xt).all()):
             raise FloatingPointError(f"{name} {tau}：取り除いた特徴に有限でない値がある")
         XtX = Xp.T @ Xp
+        if "basis" in TAU_INFO:
+            basis[tau] = TAU_INFO.pop("basis").cpu().numpy().astype(np.float16)
         diag[f"{tau}_info"] = dict(nap_r_used=(NAP_USED[0] if tau.startswith("nap") else None), dim=int(Xp.shape[1]),
                                    n_over_d=float(Xp.shape[0] / Xp.shape[1]), **dict(TAU_INFO))
         fO = P8.lda_from_R(Xp, onehot_all, XtX, ALPHA)
         pred[f"{tau}_ldaO"] = P8.delta(Xt, fO).argmax(1)
+        coef[f"{tau}_ldaO"] = fO
         diag[f"{tau}_ldaO"] = dict(pool_uar=P8._uar_pool(yp, P8.delta(Xp, fO).argmax(1).cpu().numpy()))
         for tag, lab in (("truth", yp), ("rand", yrand)):
             q_ = torch.nn.functional.one_hot(torch.as_tensor(lab, device=DEV), 4).to(DT)
             res = P8.em_fit(Xp, XtX, empty, empty, q_, ALPHA, 0.0, n_iter=MAX_EM, tol=TOL_EM, yU=yp)
             pred[f"{tau}_em{tag}"] = P8.delta(Xt, res["fit"]).argmax(1)
             prc = res["R"].argmax(1).cpu().numpy()
+            poolpred[f"{tau}_em{tag}"] = prc
             diag[f"{tau}_em{tag}"] = dict(pool_uar=P8._uar_pool(yp, prc), keep_init=float((prc == lab).mean()),
-                                          n_iter_done=res["info"]["n_iter_done"])
+                                          n_iter_done=res["info"]["n_iter_done"], hist=res["hist"])
         for K in KS_RULE:
             kpos = u.kpos[K]
             kpos_t = torch.as_tensor(kpos, dtype=torch.long, device=DEV)
@@ -188,6 +195,9 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
             q0 = torch.softmax(P8.delta(Xp, fk), -1)
             res = P8.em_fit(Xp, XtX, kpos_t, ylab, q0, ALPHA, 0.0, n_iter=MAX_EM, tol=TOL_EM, snaps=(N_EM,), yU=None)
             pred[f"K{K}_{tau}_emK"] = P8.delta(Xt, res["snap"][N_EM]).argmax(1)
+            coef[f"K{K}_{tau}_emK"] = res["snap"][N_EM]
+            poolpred[f"K{K}_{tau}_emK"] = res["snapR"][N_EM].argmax(1).cpu().numpy()
+            poolpred[f"K{K}_{tau}_emKconv"] = res["R"].argmax(1).cpu().numpy()
             pred[f"K{K}_{tau}_emKconv"] = P8.delta(Xt, res["fit"]).argmax(1)
             Um = np.ones(len(yp), bool)
             Um[kpos] = False
@@ -195,7 +205,8 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
             qU = q0.argmax(1).cpu().numpy()[Um]
             diag[f"K{K}_{tau}_emK"] = dict(pool_uar=P8._uar_pool(yp[Um], prU), n_iter_done=res["info"]["n_iter_done"],
                                            pool_uar_init=P8._uar_pool(yp[Um], qU), moved_at10=float((prU != qU).mean()),
-                                           hist_at10=(res["hist"][N_EM - 1] if len(res["hist"]) >= N_EM else (res["hist"][-1] if res["hist"] else 0.0)))
+                                           hist_at10=(res["hist"][N_EM - 1] if len(res["hist"]) >= N_EM else (res["hist"][-1] if res["hist"] else 0.0)),
+                                           hist=res["hist"])
         if r == 0:                                                           # Q3 は (c, f) ごとに 1 回
             T_ = Xp.T @ Xp / Xp.shape[0]
             Ach = torch.linalg.cholesky((1 - ALPHA) * T_ + ALPHA * torch.eye(Xp.shape[1], dtype=DT, device=DEV))
@@ -210,8 +221,17 @@ def run_unit(T, c, f, r, out: Path, fz: dict, commit: str) -> dict:
         del Xp, Xt, XtX
         torch.cuda.empty_cache()
     (out / "rows").mkdir(parents=True, exist_ok=True)
+    cf = {}
+    for k, ft in coef.items():
+        cf[f"C_A_{k}"] = ft["A"].cpu().numpy().astype(np.float16)
+        cf[f"C_c_{k}"] = ft["c"].cpu().numpy().astype(np.float32)
+        cf[f"C_mu_{k}"] = ft["mu"].cpu().numpy().astype(np.float16)
+        cf[f"C_pi_{k}"] = ft["pi"].cpu().numpy().astype(np.float32)
     np.savez_compressed(dst, commit=commit, T=T, test_sample_id=sid_t, test_y=yt.astype(np.int8), test_cluster=cl_of(sid_t).astype(str),
-                        diag=json.dumps(diag), **{k: v.cpu().numpy().astype(np.int8) for k, v in pred.items()})
+                        pool_y=yp.astype(np.int8), pool_group=gp, pool_dialogue=dlg_p,
+                        diag=json.dumps(diag), **{k: v.cpu().numpy().astype(np.int8) for k, v in pred.items()},
+                        **{f"P_{k}": np.asarray(v).astype(np.int8) for k, v in poolpred.items()},
+                        **{f"B_{k}": v for k, v in basis.items()}, **cf)
     if q1:
         pd.DataFrame(q1).assign(c=c, fold=f, commit=commit).to_csv(out / "rows" / f"{name}_q1.csv", index=False)
     del u
@@ -334,6 +354,12 @@ def summarize(out: Path, allow_partial: bool) -> None:
         crit.append(r_)
     Cr = pd.DataFrame(crit)
     Cr["HYP_n_corpora"] = int(Cr.HYP.sum())
+    for tau in TAUS:                                                         # 記録：S1 のコーパスの数
+        Cr[f"S1_{tau}_n_corpora"] = int(Cr[f"S1_{tau}"].sum())
+    if not allow_partial:                                                    # gate-code の 3：段 1 の量と Q3 の行がそろうか
+        bad = [tau for tau in TAUS if Cr[f"S2_{tau}_truth_minus_ldaO"].isna().any()]
+        if bad or len(q1) != 20 * len(TAUS):
+            raise SystemExit(f"S2 の段 1 の量に NaN（{bad}）があるか，Q3 の行が {len(q1)}（{20 * len(TAUS)} のはず）")
     Cr.to_csv(out / "criteria.csv", index=False)
     commit, dirty = dai1.git_commit()
     pp = out / "provenance.json"
@@ -362,7 +388,7 @@ def selftest() -> None:
             continue
         a, b = transform(tau, X, Xt, grp, grp[:500])
         assert torch.isfinite(a).all() and torch.isfinite(b).all()
-        assert float(a.std(0).sub(1).abs().max()) < 1e-6 or tau == "raw"
+        assert float(a.std(0).sub(1).abs().max()) < 1e-6 or tau in ("raw",) or tau.startswith("nap")
     Xg, _ = transform("gc", X, Xt, grp, grp[:500])
     _, gi = np.unique(grp, return_inverse=True)
     gm = torch.zeros((30, d), dtype=DT, device=DEV).index_add_(0, torch.as_tensor(gi, device=DEV), Xg)
@@ -376,6 +402,11 @@ def selftest() -> None:
     used50 = NAP_USED[0]
     print(f"(2) グループ 8 個で nap10 が消した向き {used10}，nap50 が消した向き {used50}")
     assert used10 == 7 and used50 == 7
+    transform("nap10", X, Xt, grp, grp[:500])
+    Vb = TAU_INFO["basis"]
+    Xn, _ = transform("nap10", X, Xt, grp, grp[:500])
+    print(f"(2b) nap10 の後の消した向きの成分の最大 {float((Xn @ Vb).abs().max()):.2e}（0 に近い．割り直さない）")
+    assert float((Xn @ Vb).abs().max()) < 1e-8
     # (3) グループの成分が大きい人工データで，gc は全ラベルの LDA を良くする
     yt = torch.as_tensor(y, device=DEV)
     oh = torch.nn.functional.one_hot(yt, 4).to(DT)
