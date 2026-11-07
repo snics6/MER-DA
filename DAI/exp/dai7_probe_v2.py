@@ -1,6 +1,6 @@
 """実験 7 の下調べ（DAI-7）：ほかのモダリティの疑似ラベルで蒸留すると，単独の分類器どうしの点数の依存が増えるか．
 
-設計は `DAI/docs/実験7_下調べ_設計.md`（第 2 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
+設計は `DAI/docs/実験7_下調べ_設計.md`（第 3 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
 保存した W・b を候補とテストの特徴に当てて点数を作り直す．新しく学ぶのは 3.5 節の 9 次元の判別分析と，3.3 節の教師の点数への回帰だけである．
 評価の回の保存は読まない．
 
@@ -43,6 +43,7 @@ PAIRS = (("A", "V"), ("A", "T"), ("V", "T"))
 MODS = "AVT"
 N_NULL = 200          # 3.3 節：テストの帰無
 N_NULL_POOL = 50      # 3.3 節：候補の上の D（副）の帰無
+N_NULL_H = 50         # 3.6 節：h の偶然の水準
 N_BOOT = 1000
 MIN_N = 15            # 3.3 節：感情の発話が 15 本未満の (分割, 感情) は使わない．4 節：抜き直しの回でも同じ
 MIN_CELL = 3          # 3.3 節：話者で中心化した版の (グループ, 感情) の最小
@@ -51,7 +52,8 @@ MIN_SHARE = 0.30      # 3.5 節 (b)：小さい半分がテストの 30% 以上
 FLOOR_D = 0.02        # 4 節：ΔD・Δφ の下限
 FLOOR_L = 0.5         # 4 節：ΔL の下限（UAR のポイント）
 NULL_RATIO = 0.1      # 3.6 節：|Δd⁰| < 0.1·|ΔD|
-H_MAX = 0.5           # 3.6 節：h ≥ 0.5 のセルは L_dep を「この結合器での差」とだけ書く
+H_MAX = 0.5           # 3.6 節：h − h⁰ ≥ 0.5 のセルは L_dep を「この結合器での差」とだけ書く
+HALF_T = 0.5          # 4 節の書き方 2：教師の点数を除いた ΔD_t が ΔD の半分以下
 EPS_D = 1e-6
 EPS_LDA = 1e-3
 H = np.linalg.svd(np.eye(4) - 0.25)[0][:, :3]           # 4×3．列は 1 のベクトルに直交
@@ -218,6 +220,11 @@ def heterogeneity(z, y):
     return float(np.mean(vals)) if vals else np.nan
 
 
+def heterogeneity_null(z, y, rng, n_perm=N_NULL_H):
+    """感情のラベルをテストの中で並べ替えた n_perm 回の h の平均 h⁰（3.6 節）。"""
+    return float(np.mean([heterogeneity(z, y[rng.permutation(len(y))]) for _ in range(n_perm)]))
+
+
 def uar(y, p):
     return 100.0 * np.mean([np.mean(p[y == e] == e) for e in range(4) if (y == e).any()])
 
@@ -333,6 +340,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
         sets, ver = classifier_sets(u, z1, z2, z3, F, K, tether)
         rng = np.random.default_rng([seed, K])
         # 教師の点数 t（主の版の積．one は指数 (1,1,1)，sel は固定のファイルの指数）．テストの上で作る（3.3 節の副）
+        if ver == "sel" and tuple(float(x) for x in F["w"][str(K)]) != tuple(wsel[K]):
+            raise SystemExit(f"{name}：K = {K} の wsel {wsel[K]} が固定のファイルの w {F['w'][str(K)]} と違う")
         w_t = (1.0, 1.0, 1.0) if ver == "one" else wsel[K]
         Lt = 0.0
         for wm, m in zip(w_t, MODS):
@@ -384,7 +393,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                                   **{f"uar_{m}": uar(yt, pr[m]) for m in MODS},
                                   uar_prod=uar(yt, p_prod), uar_blk=uar(yt, p_blk), uar_full=uar(yt, p_full),
                                   L_dep=uar(yt, p_full) - uar(yt, p_blk), L_cal=uar(yt, p_blk) - uar(yt, p_prod),
-                                  heterogeneity=heterogeneity(z9, yt)))
+                                  heterogeneity=heterogeneity(z9, yt), heterogeneity_null=heterogeneity_null(z9, yt, rng)))
     rows_dir.mkdir(parents=True, exist_ok=True); fits_dir.mkdir(parents=True, exist_ok=True)
     tag = dict(commit=commit, dirty=dirty)
     np.savez_compressed(fits_dir / f"{name}.npz", **store, commit=np.array(commit))
@@ -513,7 +522,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
     Uall = pd.concat([U, Ua], ignore_index=True)
     cells = Uall.groupby(["c", "K", "set", "pair"])[qcols].mean().reset_index()
     cells["n_units"] = Uall.groupby(["c", "K", "set", "pair"]).size().values
-    ucols = [x for x in A.columns if x.startswith("uar_") or x in ("L_dep", "L_cal", "heterogeneity", "n_per_param")]
+    A["h_excess"] = A["heterogeneity"] - A["heterogeneity_null"]
+    ucols = [x for x in A.columns if x.startswith("uar_") or x in ("L_dep", "L_cal", "heterogeneity", "heterogeneity_null", "h_excess", "n_per_param")]
     acells = A.groupby(["c", "K", "set"])[ucols].mean().reset_index()
     diffs = []
     for c, Uc in Uall.groupby("c"):
@@ -527,12 +537,14 @@ def summarize(out: Path, allow_partial: bool) -> None:
             bD = {s: {p: {} for p in ("AV", "AT", "VT", "all")} for s in BOOT_SETS}
             bphi = {s: {} for s in BOOT_SETS}
             bL = {s: {} for s in L_SETS}
+            bG = {}
             for f in sorted(cl_by_fold):
                 cols = np.flatnonzero(fold_of == f)
                 wcl = w[:, cols]
                 acc = {s: {p: [] for p in ("AV", "AT", "VT", "all")} for s in BOOT_SETS}
                 accphi = {s: [] for s in BOOT_SETS}
                 accL = {s: [] for s in L_SETS}
+                accG = []
                 for (T, ff, r), z in fits.items():
                     if ff != f:
                         continue
@@ -553,15 +565,21 @@ def summarize(out: Path, allow_partial: bool) -> None:
                     for s in L_SETS:
                         accL[s].append(boot_uar_unit(z[f"K{K}_{s}_pred_full"].astype(int), y, codes, wcl)
                                        - boot_uar_unit(z[f"K{K}_{s}_pred_blk"].astype(int), y, codes, wcl))
+                    bu = {(s, q): boot_uar_unit(z[f"K{K}_{s}_pred_{q}"].astype(int), y, codes, wcl)
+                          for s in ("joint_a1", "none") for q in ("prod", *MODS)}
+                    accG.append((bu[("joint_a1", "prod")] - bu[("none", "prod")])
+                                - np.mean([bu[("joint_a1", m)] - bu[("none", m)] for m in MODS], 0))
                 for s in BOOT_SETS:                                         # 4 節の 3：分割の値は 6 単位の平均
                     for p in acc[s]:
                         bD[s][p][f] = nanmean_stack(acc[s][p])
                     bphi[s][f] = nanmean_stack(accphi[s])
                 for s in L_SETS:
                     bL[s][f] = nanmean_stack(accL[s])
+                bG[f] = nanmean_stack(accG)
             Bd = {s: {p: fold_combine(bD[s][p], w, fold_of) for p in bD[s]} for s in BOOT_SETS}
             Bphi = {s: fold_combine(bphi[s], w, fold_of) for s in BOOT_SETS}
             BL = {s: fold_combine(bL[s], w, fold_of) for s in L_SETS}
+            BG = fold_combine(bG, w, fold_of)
             pt = cells[(cells.c == c) & (cells.K == K)].set_index(["set", "pair"])
             ptA = acells[(acells.c == c) & (acells.K == K)].set_index("set")
             dd_pairs = {"dD_joint_a1_none": ("joint_a1", "none"), "dD_joint_none": ("joint", "none"), "dD_joint_a1_oracle": ("joint_a1", "oracle"),
@@ -583,12 +601,16 @@ def summarize(out: Path, allow_partial: bool) -> None:
             for s in L_SETS:
                 lo, hi, nv = ci(BL[s])
                 diffs.append(dict(c=c, K=K, pair="all", quantity=f"Ldep_{s}", est=ptA.loc[s, "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
-            for s in ("joint", "joint_a1"):                                 # 得の足し合わせ（3.5 節．点推定だけ）
+            for s in ("joint", "joint_a1"):                                 # 得の足し合わせ（3.5 節，3.6 節の (iv)）
                 G = {m: ptA.loc[s, f"uar_{m}"] - ptA.loc["none", f"uar_{m}"] for m in MODS}
                 gp = ptA.loc[s, "uar_prod"] - ptA.loc["none", "uar_prod"]
                 gf = ptA.loc[s, "uar_full"] - ptA.loc["none", "uar_full"]
-                diffs.append(dict(c=c, K=K, pair="all", quantity=f"G_{s}", est=gp - max(G.values()),
-                                  **{f"G_{m}": G[m] for m in MODS}, G_prod=gp, G_full=gf, G_sum=sum(G.values())))
+                lo, hi, nv = ci(BG) if s == "joint_a1" else (np.nan, np.nan, 0)
+                diffs.append(dict(c=c, K=K, pair="all", quantity=f"G_{s}", est=gp - np.mean(list(G.values())), lo=lo, hi=hi, n_boot_valid=nv,
+                                  **{f"G_{m}": G[m] for m in MODS}, G_prod=gp, G_full=gf, G_max=max(G.values())))
+            for s1, s2 in (("joint_a1", "none"),):                          # 教師の点数を除いた依存の差（4 節の書き方 2．点推定）
+                diffs.append(dict(c=c, K=K, pair="all", quantity="dDt_joint_a1_none",
+                                  est=pt.loc[(s1, "all"), "D_partial_t"] - pt.loc[(s2, "all"), "D_partial_t"]))
         print(f"{c}：区間を作った", flush=True)
     Df = pd.DataFrame(diffs)
     crit = []
@@ -617,15 +639,25 @@ def summarize(out: Path, allow_partial: bool) -> None:
             size_ok.append(bool(d.lo > 0 and d.est >= FLOOR_D))
         r.update({f"H2_spearman_K{K}": v for K, v in zip(KS_RULE, sp)})
         r["H2"] = bool(sum((v >= 0.8 - 1e-9) and s_ for v, s_ in zip(sp, size_ok)) >= 3)
-        r["H1_wording"] = ("誤りの写しを含む依存の増加" if (r["H1"] and r["H1p"] and r["phi"]) else
-                           "教師の点数の揺れの写しによる依存の増加（誤りの相関は増えていない）" if (r["H1"] and r["H1p"]) else
-                           "正解で別々に学んだ分類器の依存の水準の中に収まる" if r["H1"] else "満たさなかった")
+        dD = Df[(Df.c == c) & (Df.quantity == "dD_joint_a1_none") & (Df.pair == "all") & Df.K.isin(KS_RULE)].set_index("K")["est"]
+        dDt = Df[(Df.c == c) & (Df.quantity == "dDt_joint_a1_none") & Df.K.isin(KS_RULE)].set_index("K")["est"]
+        r["n_K_teacher_explains"] = int(sum(dDt[K] <= HALF_T * dD[K] for K in KS_RULE if dD[K] > 0))
+        phi_small = r["phi_n_lo_pos"] - r["phi_n_lo_pos_floor"] >= 3
+        if not r["H1"]:
+            r["H1_wording"] = "満たさなかった"
+        elif not r["H1p"]:
+            r["H1_wording"] = "正解で別々に学んだ分類器の依存の水準の中に収まる"
+        elif r["phi"]:
+            r["H1_wording"] = "誤りの写しを含む依存の増加"
+        elif r["n_K_teacher_explains"] >= 3:
+            r["H1_wording"] = "教師の点数の揺れの写しによる依存の増加" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "")
+        else:
+            r["H1_wording"] = "依存は増えたが，誤りの写しとも教師の点数の揺れの写しとも分けられない" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "")
         g = Df[(Df.c == c) & (Df.quantity == "G_joint_a1") & Df.K.isin(KS_RULE)]
-        r["additivity_fails_a1"] = bool((g.est < 0).sum() >= 3)
-        g2 = Df[(Df.c == c) & (Df.quantity == "G_joint") & Df.K.isin(KS_RULE)]
-        r["additivity_fails_joint"] = bool((g2.est < 0).sum() >= 3)
+        r["additivity_n_hi_neg"] = int((g.hi < 0).sum())
+        r["additivity_fails"] = bool(r["additivity_n_hi_neg"] >= 3)
         h = acells[(acells.c == c) & acells.K.isin(KS_RULE) & acells.set.isin(L_SETS)]
-        r["n_cells_h_ge_0.5"] = int((h.heterogeneity >= H_MAX).sum())
+        r["n_cells_h_excess_ge_0.5"] = int((h.h_excess >= H_MAX).sum())
         crit.append(r)
     C = pd.DataFrame(crit)
     C = C.assign(**{f"{nm}_overall": bool(C[nm].sum() >= 3) for nm in ("H1", "H1_joint", "H1p", "H2", "H3")})
@@ -719,6 +751,7 @@ def main() -> None:
                torch=torch.__version__, numpy=np.__version__, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
                frozen_sha256=dai1.sha(FROZEN), n_null=N_NULL, n_null_pool=N_NULL_POOL, n_boot=N_BOOT, min_n=MIN_N, min_cell=MIN_CELL,
                min_half=MIN_HALF, min_share=MIN_SHARE, floor_d=FLOOR_D, floor_l=FLOOR_L, null_ratio=NULL_RATIO, h_max=H_MAX,
+               n_null_h=N_NULL_H, half_t=HALF_T,
                eps_d=EPS_D, eps_lda=EPS_LDA, units=[])
     prov["runs"].append(run)
     for p3 in units:
