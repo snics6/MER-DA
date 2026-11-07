@@ -1,6 +1,6 @@
 """実験 7 の下調べ（DAI-7）：ほかのモダリティの疑似ラベルで蒸留すると，単独の分類器どうしの点数の依存が増えるか．
 
-設計は `DAI/docs/実験7_下調べ_設計.md`（第 4 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
+設計は `DAI/docs/実験7_下調べ_設計.md`（第 5 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
 保存した W・b を候補とテストの特徴に当てて点数を作り直す．新しく学ぶのは 3.5 節の 9 次元の判別分析と，3.3 節の教師の点数への回帰だけである．
 評価の回の保存は読まない．
 
@@ -98,7 +98,7 @@ def perm_within(groups: np.ndarray, rng, n_perm: int) -> np.ndarray:
 
 def d_with_null(za, zb, y, rng, n_perm=N_NULL, cells=None):
     """感情ごとの d_e と，m′ を同じ感情の中で（cells を渡せばその組の中で）並べ替えた n_perm 回の平均 d_e⁰。
-    発話が MIN_N 未満の感情は NaN。"""
+    発話が MIN_N 未満の感情は NaN。rng は (単位, K, 対, 量の種類) ごとに作り直して渡す（組の間で並べ替えの添字を共有する．gate-code の I7）。"""
     d, d0, n = np.full(4, np.nan), np.full(4, np.nan), np.zeros(4, int)
     for e in range(4):
         ix = np.flatnonzero(y == e)
@@ -111,6 +111,11 @@ def d_with_null(za, zb, y, rng, n_perm=N_NULL, cells=None):
         perm = perm_within(g, rng, n_perm)
         d0[e] = float(dstat(np.broadcast_to(a, (n_perm,) + a.shape), b[perm]).mean())
     return d, d0, n
+
+
+def crn(seed, K, pair_idx, kind):
+    """共通の乱数：(単位の種, K, 対の番号, 量の種類) だけで決まる乱数（組に依らない．gate-code の I7）。"""
+    return np.random.default_rng([seed, K, pair_idx, kind])
 
 
 def center_cells(z, y, grp):
@@ -289,6 +294,9 @@ def classifier_sets(u, z1, z2, z3, F, K, tether):
         for x in MODS:
             if x != m:
                 sets[f"tt_single_{x}"][m] = pick(z3, key, dict(method="tt", teacher=f"single_{x}", rho=1.0, a=1))
+    if K >= 1:                                                              # 引き戻しの格子の none（gate-code の R6 の勧め．記述）
+        for cw, cb in dai1.TETHER:
+            sets[f"none_tw{cw}_{cb}"] = {m: p1_wb(z1, m, f"{K}|{cw}|{cb}") for m in MODS}
     return sets, ver
 
 
@@ -327,7 +335,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
     y_of, _ = ST.label_maps(c)
     yt, yp = u.ytest, u.ypool
     if not ((y_of(sid_t) == yt).all() and (y_of(sid_p) == yp).all()):
-        raise SystemExit(f"{name}：ラベルが発話一覧と違う")
+        raise SystemExit(f"{name}：発話の並びとラベルの対応が読み込みと違う（並びの照合）")
     cl_t = u.cp.df["cluster"].to_numpy()[u.test].astype(str)
     grp_t = (u.cp.df["speaker_id"] if c == "IEMOCAP" else u.cp.df["cluster"]).to_numpy()[u.test].astype(str)
     half, split_kind = split_halves(yt, cl_t)
@@ -338,7 +346,6 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
     base = dict(T=T, c=c, fold=f, seed=r)
     for K in KS:
         sets, ver = classifier_sets(u, z1, z2, z3, F, K, tether)
-        rng = np.random.default_rng([seed, K])
         # 教師の点数 t（主の版の積．one は指数 (1,1,1)，sel は固定のファイルの指数）．テストの上で作る（3.3 節の副）
         if ver == "sel" and tuple(float(x) for x in F["w"][str(K)]) != tuple(wsel[K]):
             raise SystemExit(f"{name}：K = {K} の wsel {wsel[K]} が固定のファイルの w {F['w'][str(K)]} と違う")
@@ -362,13 +369,19 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
             for a, b in PAIRS:
                 if a not in zt or b not in zt:
                     continue
-                d, d0, n = d_with_null(zt[a], zt[b], yt, rng)
-                dp, dp0, _ = d_with_null(zp[a], zp[b], yp, rng, n_perm=N_NULL_POOL)
-                zc, keep, cellkey = center_cells(np.concatenate([zt[a], zt[b]], 1), yt, grp_t)
-                dc, dc0, _ = d_with_null(zc[keep, :3], zc[keep, 3:], yt[keep], rng, cells=cellkey[keep])
-                ra, rb = residualize(zt[a], t_te, yt), residualize(zt[b], t_te, yt)
-                dr, dr0, _ = d_with_null(ra, rb, yt, rng)
+                ip = PAIRS.index((a, b))
+                d, d0, n = d_with_null(zt[a], zt[b], yt, crn(seed, K, ip, 0))
                 ph, nph = phi_err(pr[a], pr[b], yt)
+                if sname.startswith("none_tw"):                              # 引き戻しの格子の none（記述．テストの D と φ だけ）
+                    urows.append(dict(**base, K=K, set=sname, pair=a + b, teacher_version=ver, D=float(np.nanmean(d - d0)),
+                                      D_raw=float(np.nanmean(d)), D_null=float(np.nanmean(d0)), n_emotions=int(np.isfinite(d).sum()),
+                                      phi=ph, n_emotions_phi=nph, **{f"{q}_e{e}": v[e] for e in range(4) for q, v in (("d", d), ("d0", d0))}))
+                    continue
+                dp, dp0, _ = d_with_null(zp[a], zp[b], yp, crn(seed, K, ip, 1), n_perm=N_NULL_POOL)
+                zc, keep, cellkey = center_cells(np.concatenate([zt[a], zt[b]], 1), yt, grp_t)
+                dc, dc0, _ = d_with_null(zc[keep, :3], zc[keep, 3:], yt[keep], crn(seed, K, ip, 2), cells=cellkey[keep])
+                ra, rb = residualize(zt[a], t_te, yt), residualize(zt[b], t_te, yt)
+                dr, dr0, _ = d_with_null(ra, rb, yt, crn(seed, K, ip, 3))
                 row = dict(**base, K=K, set=sname, pair=a + b, teacher_version=ver,
                            D=float(np.nanmean(d - d0)), D_raw=float(np.nanmean(d)), D_null=float(np.nanmean(d0)),
                            n_emotions=int(np.isfinite(d).sum()),
@@ -382,7 +395,9 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
             store[f"K{K}_{sname}_mods"] = np.array("".join(m for m in MODS if m in zt))
             for m in pr:
                 store[f"K{K}_{sname}_pred_{m}"] = pr[m].astype(np.int8)
-            if len(zt) == 3:
+            if sname in BOOT_SETS or sname == "ret":                      # 候補の上の点数（gate-code の R1．後の解析用）
+                store[f"K{K}_{sname}_zpool"] = np.concatenate([zp[m] for m in MODS], 1).astype(np.float16)
+            if len(zt) == 3 and not sname.startswith("none_tw"):
                 z9 = np.concatenate([zt[m] for m in MODS], 1)
                 p_prod = sum(Zt.values()).argmax(1)
                 p_blk, p_full = crossfit(z9, yt, half, True), crossfit(z9, yt, half, False)
@@ -393,12 +408,20 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                                   **{f"uar_{m}": uar(yt, pr[m]) for m in MODS},
                                   uar_prod=uar(yt, p_prod), uar_blk=uar(yt, p_blk), uar_full=uar(yt, p_full),
                                   L_dep=uar(yt, p_full) - uar(yt, p_blk), L_cal=uar(yt, p_blk) - uar(yt, p_prod),
-                                  heterogeneity=heterogeneity(z9, yt), heterogeneity_null=heterogeneity_null(z9, yt, rng)))
+                                  heterogeneity=heterogeneity(z9, yt), heterogeneity_null=heterogeneity_null(z9, yt, crn(seed, K, 9, 4))))
+    Ud, Ad = pd.DataFrame(urows), pd.DataFrame(arows)                     # 計画の外の NaN・Inf で止める（gate-code の I11）
+    if not np.isfinite(Ud.loc[Ud.n_emotions > 0, ["D", "D_raw", "D_null"]].to_numpy()).all():
+        raise SystemExit(f"{name}：使える感情があるのに D が有限でない行がある")
+    if not np.isfinite(Ad[[x for x in Ad.columns if x.startswith("uar_")] + ["L_dep", "L_cal", "heterogeneity", "heterogeneity_null"]].to_numpy()).all():
+        raise SystemExit(f"{name}：UAR・L_dep・h に有限でない値がある")
+    for K in KS:
+        store[f"K{K}_pool_kpos"] = u.kpos[K].astype(np.int32)
+    store.update(pool_sample_id=sid_p, pool_y=yp.astype(np.int8))
     rows_dir.mkdir(parents=True, exist_ok=True); fits_dir.mkdir(parents=True, exist_ok=True)
     tag = dict(commit=commit, dirty=dirty)
     np.savez_compressed(fits_dir / f"{name}.npz", **store, commit=np.array(commit))
-    pd.DataFrame(urows).assign(**tag).to_csv(rows_dir / f"{name}_units.csv", index=False)
-    pd.DataFrame(arows).assign(**tag).to_csv(rows_dir / f"{name}_uar.csv", index=False)
+    Ud.assign(**tag).to_csv(rows_dir / f"{name}_units.csv", index=False)
+    Ad.assign(**tag).to_csv(rows_dir / f"{name}_uar.csv", index=False)
     sec = time.time() - t0
     print(f"{name}：{sec:.0f} 秒（分け方 {split_kind}，半分 {n_half[0]}/{n_half[1]}）", flush=True)
     if S.DEV == "cuda":
@@ -465,14 +488,16 @@ def boot_D_unit(z, y, codes, d0, wcl):
 
 
 def boot_uar_unit(pred, y, codes, wcl):
+    """UAR の抜き直し．その回にどれかの感情の重みつきの本数が MIN_N 未満なら，その単位をその回だけ外す（NaN．4 節の 2，gate-code の I1-a）。"""
     k = wcl.shape[1]
     n = np.zeros((k, 4)); np.add.at(n, (codes, y), 1)
     cor = np.zeros((k, 4)); np.add.at(cor, (codes, y), (pred == y).astype(float))
+    N = wcl @ n
     with np.errstate(invalid="ignore", divide="ignore"):
-        r = (wcl @ cor) / (wcl @ n)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        return 100.0 * np.nanmean(r, 1)
+        r = (wcl @ cor) / N
+    out = 100.0 * r.mean(1)
+    out[(N < MIN_N).any(1)] = np.nan
+    return out
 
 
 def boot_phi_unit(z, y, codes, wcl, K, s):
@@ -670,8 +695,9 @@ def summarize(out: Path, allow_partial: bool) -> None:
     C = pd.DataFrame(crit)
     C = C.assign(**{f"{nm}_overall": bool(C[nm].sum() >= 3) for nm in ("H1", "H1_joint", "H1p", "H2", "H3")})
     commit = sorted(commits)[0] if len(commits) == 1 else "multiple"
+    s_commit, s_dirty = dai1.git_commit()                                  # 集計の段のコミット（gate-code の I9）
     for df_, fn in ((cells, "cells.csv"), (acells, "uar_cells.csv"), (Df, "diffs.csv"), (C, "criteria.csv")):
-        df_.assign(commit=commit).to_csv(out / fn, index=False)
+        df_.assign(commit=commit, summarize_commit=s_commit, summarize_dirty=s_dirty, boot_seed=0, n_boot=N_BOOT).to_csv(out / fn, index=False)
     print(f"書いた：cells.csv，uar_cells.csv，diffs.csv，criteria.csv（{len(have)} 単位）", flush=True)
 
 
@@ -744,12 +770,15 @@ def main() -> None:
     ap.add_argument("--summarize", action="store_true")
     ap.add_argument("--allow-partial", action="store_true", help="試走用：単位がそろわなくても集計する")
     ap.add_argument("--selftest", action="store_true")
+    ap.add_argument("--allow-dirty", action="store_true", help="試走用：作業木に未コミットの変更があっても流す")
     a = ap.parse_args()
     if a.selftest:
         selftest(); return
     if a.summarize:
         summarize(a.out, a.allow_partial); return
     commit, dirty = dai1.git_commit()
+    if dirty and not a.allow_dirty:
+        raise SystemExit("作業木に未コミットの変更がある（本計算はコミットした版で流す．gate-code の I12）")
     fz = json.load(open(FROZEN))
     a.out.mkdir(parents=True, exist_ok=True)
     units = sorted(UD.glob(f"{a.units}_p3.npz"))
@@ -760,7 +789,9 @@ def main() -> None:
                frozen_sha256=dai1.sha(FROZEN), n_null=N_NULL, n_null_pool=N_NULL_POOL, n_boot=N_BOOT, min_n=MIN_N, min_cell=MIN_CELL,
                min_half=MIN_HALF, min_share=MIN_SHARE, floor_d=FLOOR_D, floor_l=FLOOR_L, null_ratio=NULL_RATIO, h_max=H_MAX,
                n_null_h=N_NULL_H, half_t=HALF_T,
-               eps_d=EPS_D, eps_lda=EPS_LDA, units=[])
+               eps_d=EPS_D, eps_lda=EPS_LDA, unit_seed="int.from_bytes(単位の名前の utf-8, 'little') % 2**32",
+               perm_rng="default_rng([単位の種, K, 対の番号, 量の種類 0=テスト 1=候補 2=中心化 3=教師を除く 4=h⁰（対の番号 9）])",
+               boot_seed=0, units=[])
     prov["runs"].append(run)
     for p3 in units:
         res = run_unit(p3, a.out, fz, commit, dirty)
