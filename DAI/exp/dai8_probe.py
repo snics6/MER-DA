@@ -47,7 +47,11 @@ R4_TOL = -2.0                 # R4：LDA_oracle − oracle の点推定の許す
 MOVED_MIN = 0.05              # 3.3 節：動いた割合がこれ未満なら「ほとんど動かなかった」
 RATIO_MAX = 10.0              # 3.3 節：項の大きさの比がこれを超えれば β の区別がほとんど無い
 CONV = 0.01                   # 3.3 節：規則の回（10 回目）の r の変化がこれ未満で「収束した」
+N_PERM = 5                    # 上位 3 つの固有値の和の並べ替えの帰無の回数
 KEEP_RAND = 0.9               # review_ml の M1：でたらめのラベルから始めた EM がこの割合以上を保てば「どの初期値も保つ」
+KEEP_GAP = 0.2                # review_ml の第 2 回の N1：正解とでたらめの保った割合の差がこれ未満でも「どの初期値も保つ」
+R9_TEST_DROP = -2.0           # R9 の段 1：EM_truth − LDA_oracle のテストの UAR の点推定がこれ以下なら「頂上が感情から離れる」
+DRIFT = 0.5                   # 「流れた」：none から始めた EM の候補の上の UAR が初期値より 0.5 ポイント以上下がった単位が過半（gate-probe の第 2 回の 4）
 N_UNITS = 120
 SEED = 0
 DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -184,6 +188,25 @@ def _fisher(X, lab, Ach):
     return float((nk * (M.T * W).sum(0)).sum() / X.shape[0])
 
 
+def _top3(X, lab, Ach):
+    """白色化した計量での上位 3 つの固有値の和：S_b v = λ A v の上位 3 つ（4 成分の EM が使える向きは 3 つ．gate-probe の第 2 回の 1）。"""
+    Xc = X - X.mean(0)
+    M, nk = _means(Xc, lab)
+    w = (nk / X.shape[0]).sqrt()
+    if M.shape[0] <= X.shape[1]:
+        W = torch.cholesky_solve(M.T.contiguous(), Ach)
+        Gm = (M @ W) * w[:, None] * w[None, :]
+        ev = torch.linalg.eigvalsh((Gm + Gm.T) / 2)
+    else:
+        Z = torch.linalg.solve_triangular(Ach, (M.T * w).contiguous(), upper=False)
+        ev = torch.linalg.eigvalsh(Z @ Z.T)
+    return float(ev.sort(descending=True).values[:3].sum())
+
+
+def _top3_null(X, lab, Ach, n_perm=N_PERM):
+    return float(np.mean([_top3(X, np.random.default_rng(SEED + 1 + i).permutation(lab), Ach) for i in range(n_perm)]))
+
+
 def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, scen=None, k=KNN) -> dict:
     """Q1：近傍の感情・グループ・対話の一致（review_affect の A2），同じ対話を外した近傍，グループで中心化した版，
     散らばりの割合と白色化した計量での分かれやすさ。"""
@@ -203,14 +226,17 @@ def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, sc
         _, si = np.unique(scen, return_inverse=True)
         out["scen"] = float((si[nb] == si[:, None]).mean())
         out["scen0"] = float(((np.bincount(si) / len(si)) ** 2).sum())
+    if len(pdl) < 2:
+        raise SystemExit("対話の印が 1 種類しか無い")
     nbx = _topk(Xn, k, torch.as_tensor(di, device=X.device))                # 同じ対話を外した近傍
-    cy = np.zeros((di.max() + 1, 4))
-    np.add.at(cy, (di, y), 1)
-    tot_y = np.bincount(y, minlength=4)
-    ch = (tot_y[y] - cy[di, y]) / np.maximum(len(y) - cy.sum(1)[di], 1)      # 外した後の候補での自分の感情の割合
     out["emo_xdlg"] = _bal((y[nbx] == y[:, None]).mean(1), y)
-    out["emo0_xdlg"] = _bal(ch, y)
+    out["emo0_xdlg"] = _bal(_excl_chance(y, di), y)
     out["emo_gain_xdlg"] = (out["emo_xdlg"] - out["emo0_xdlg"]) / (1 - out["emo0_xdlg"])
+    if scen is not None:                                                     # 同じ筋書きを外した近傍（IEMOCAP．review_affect の第 2 回の B2）
+        nbs = _topk(Xn, k, torch.as_tensor(si, device=X.device))
+        out["emo_xscen"] = _bal((y[nbs] == y[:, None]).mean(1), y)
+        out["emo0_xscen"] = _bal(_excl_chance(y, si), y)
+        out["emo_gain_xscen"] = (out["emo_xscen"] - out["emo0_xscen"]) / (1 - out["emo0_xscen"])
     for nm, lab in (("emo", y), ("grp", gi), ("dlg", di)):                 # でたらめの水準：同じ大きさの組に並べ替えたラベル
         out[f"{nm}_between"], out[f"{nm}_between0"] = _between(Xd, lab), _between(Xd, _perm(lab))
     out["n_groups"], out["n_dialogues"] = int(len(pg)), int(len(pdl))
@@ -219,6 +245,8 @@ def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, sc
     Ach = torch.linalg.cholesky((1 - FIX[0]) * T + FIX[0] * torch.eye(Xd.shape[1], dtype=Xd.dtype, device=X.device))
     for nm, lab in (("emo", y), ("grp", gi), ("dlg", di)):
         out[f"fisher_{nm}"], out[f"fisher0_{nm}"] = _fisher(Xd, lab, Ach), _fisher(Xd, _perm(lab), Ach)
+        out[f"top3_{nm}"], out[f"top3null_{nm}"] = _top3(Xd, lab, Ach), _top3_null(Xd, lab, Ach)
+        out[f"top3ex_{nm}"] = out[f"top3_{nm}"] - out[f"top3null_{nm}"]
     Gm, _ = _means(Xd, gi)                                                   # グループの平均を引いた版（次の試しの手がかり）
     Xg = Xd - Gm[torch.as_tensor(gi, device=X.device)]
     nbg = _topk(torch.nn.functional.normalize(Xg.float(), dim=1), k)
@@ -226,6 +254,33 @@ def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, sc
     out["emo_gain_gc"] = (out["emo_gc"] - 0.25) / 0.75
     out["emo_between_gc"] = _between(Xg, y)
     return out
+
+
+def dialogue_ids(c: str, sid: np.ndarray, df_dialogue: np.ndarray) -> np.ndarray:
+    """対話の印（review_affect の第 2 回の B1：dai_data の dialogue 列は MELD 以外で空）。
+    IEMOCAP は sample_id の最後の _ より前（対話），MOSEI は同じ（動画），AFEW は発話一覧の movie_title（作品），MELD は dialogue 列。"""
+    if c in ("IEMOCAP", "MOSEI"):
+        out = np.array([x.rsplit("_", 1)[0] for x in sid])
+    elif c == "AFEW":
+        man = pd.read_csv(ROOT / "data" / "metadata" / "afew_utterance_manifest.csv", usecols=["sample_id", "movie_title"])
+        mp = dict(zip(man.sample_id.astype(str), man.movie_title.astype(str)))
+        out = np.array([mp.get(x, "") for x in sid])
+    else:
+        out = np.asarray(df_dialogue).astype(str)
+    if (out == "").any() or len(np.unique(out)) < 2:
+        raise SystemExit(f"{c}：対話の印に空があるか，1 種類しか無い")
+    return out
+
+
+def _excl_chance(y, blk):
+    """同じ blk の発話を外した後の候補での，自分の感情の割合（発話ごと）。"""
+    cy = np.zeros((blk.max() + 1, 4))
+    np.add.at(cy, (blk, y), 1)
+    tot_y = np.bincount(y, minlength=4)
+    rest = len(y) - cy.sum(1)[blk]
+    if rest.min() < KNN:
+        raise SystemExit("同じ印の発話を外すと，近傍の候補が k 本に足りない発話がある")
+    return (tot_y[y] - cy[blk, y]) / rest
 
 
 # ------------------------------------------------------------------ 単位
@@ -247,7 +302,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
     T, c, fs, rs = name.split("_")
     f, r = int(fs[1:]), int(rs[1:])
     dst = out / "rows" / f"{name}.npz"
-    if dst.exists() or (out / "rows" / f"{name}_knn.csv").exists():
+    if dst.exists():
         raise SystemExit(f"{dst} は既にある（重複を作らない）")
     t0 = time.time()
     F = fz[T]
@@ -269,9 +324,10 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
     gcol = "speaker_id" if c == "IEMOCAP" else "cluster"
     grp_p = u.cp.df[gcol].to_numpy()[u.pool].astype(str)
     grp_t = u.cp.df[gcol].to_numpy()[u.test].astype(str)
-    dlg_p = u.cp.df["dialogue"].to_numpy()[u.pool].astype(str)
+    dlg_p = dialogue_ids(c, sid_p, u.cp.df["dialogue"].to_numpy()[u.pool])
     scen_p = dai3.scenario(sid_p) if c == "IEMOCAP" else None
     ver = {K: F["main"][str(K)] for K in KS_ALL}
+    q1_here = (T == sorted(x for x in DD.CORPORA if x != c)[0]) and r == 0   # Q1 は (c, f) ごとに 1 回だけ（T が辞書順で最初，r = 0）
     pred, dlt, coef, poolpred, diag, knn_rows = {}, {}, {}, {}, {}, []
     checks = dict(none_mismatch=0, none_compared=0)
     yp_t = torch.as_tensor(yp, device=DEV)
@@ -289,7 +345,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
         Xp, Xt = u.Xp[s].to(DEV, DT), u.Xt[s].to(DEV, DT)
         XtX = Xp.T @ Xp
         block = BLOCKS.get(s)
-        knn_rows.append(dict(space=s, **knn_stats(Xp, yp, grp_p, dlg_p, scen_p)))
+        if q1_here:
+            knn_rows.append(dict(space=s, **knn_stats(Xp, yp, grp_p, dlg_p, scen_p)))
         cw25, cb25 = tether[(s, 25)]
         Wo, bo = P7.p1_wb(z1, s, f"all|{cw25}|{cb25}")
         pred[f"{s}_oracle"] = logits_np(Xt, Wo, bo).argmax(1)
@@ -309,6 +366,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
             keep(f"{s}_em{tag}_a{FIX[0]}_b0.0", f10, Xt)
             keep(f"{s}_em{tag}conv_a{FIX[0]}_b0.0", res["fit"], Xt)
             prc = res["R"].argmax(1).cpu().numpy()
+            poolpred[f"{s}_em{tag}conv_a{FIX[0]}_b0.0"] = prc
             p10 = delta(Xp, f10).argmax(1).cpu().numpy()
             diag[f"{s}_em{tag}_a{FIX[0]}_b0.0"] = dict(
                 hist=res["hist"], pool_hist=res["pool_hist"], pi=res["fit"]["pi"].cpu().tolist(), **res["info"],
@@ -383,8 +441,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
                             keep(f"K{K}_{s}_emit{t_}_a{a}_b{b}", ft, Xt)
                         keep(key, res["snap"][N_EM] if N_EM in res["snap"] else res["fit"], Xt, save_delta=True, save_coef=True)
                         keep(f"K{K}_{s}_emconv_a{a}_b{b}", res["fit"], Xt, save_delta=True, save_coef=True)
-                        pr = record(key, res)
-                        poolpred[f"K{K}_{s}_emconv_a{a}_b{b}"] = pr
+                        record(key, res)
+                        poolpred[f"K{K}_{s}_emconv_a{a}_b{b}"] = res["R"].argmax(1).cpu().numpy()   # 候補の全部（gate-probe の第 2 回の 2）
                         h = res["hist"]
                         diag[key]["hist_at_rule"] = h[N_EM - 1] if len(h) >= N_EM else (h[-1] if h else 0.0)
                     else:
@@ -403,7 +461,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
                 record(key, res)
             for key in [k for k in diag if k.startswith(f"K{K}_{s}_")]:      # 3.3 節：テストで none と判定が違う割合
                 diag[key]["agree_none_test"] = float((pred[key] == pn).double().mean()) if key in pred else None
-            poolpred[f"K{K}_{s}_none"] = qa
+            poolpred[f"K{K}_{s}_none"] = q.argmax(1).cpu().numpy()
         del Xp, Xt, XtX
         torch.cuda.empty_cache()
     pool_prop = (np.bincount(yp, minlength=4) / len(yp)).tolist()
@@ -416,12 +474,17 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
         cf[f"C_pi_{k}"] = ft["pi"].cpu().numpy().astype(np.float32)
     np.savez_compressed(dst, commit=commit, test_sample_id=sid_t, test_y=yt.astype(np.int8),
                         test_cluster=cl_of(sid_t).astype(str), test_group=grp_t, pool_prop=np.array(pool_prop),
+                        pool_y=yp.astype(np.int8), pool_group=grp_p, pool_dialogue=dlg_p,
                         diag=json.dumps(diag), checks=json.dumps(checks), n_pool=len(yp),
                         **{k: v.cpu().numpy().astype(np.int8) for k, v in pred.items()},
                         **{f"D_{k}": v.cpu().numpy().astype(np.float32) for k, v in dlt.items()},
                         **{f"P_{k}": np.asarray(v).astype(np.int8) for k, v in poolpred.items()},
                         **cf)
-    pd.DataFrame(knn_rows).assign(T=T, c=c, fold=f, seed=r, commit=commit).to_csv(out / "rows" / f"{name}_knn.csv", index=False)
+    if knn_rows:
+        kp = out / "rows" / f"{name}_knn.csv"
+        if kp.exists():
+            raise SystemExit(f"{kp} は既にある")
+        pd.DataFrame(knn_rows).assign(T=T, c=c, fold=f, seed=r, commit=commit).to_csv(kp, index=False)
     del u
     torch.cuda.empty_cache()
     sec = time.time() - t0
@@ -452,8 +515,10 @@ COMPARE = {   # 名前 → (A の方法, B の方法)．{s} は空間，{K} は 
 COMPARE_K0 = {   # K に依らない比べ（K = 0 の行に書く）
     "ldaO_oracle": (f"{{s}}_ldaO_a{FIX[0]}", "{s}_oracle"),
     "ldaOblk_ldaO": (f"{{s}}_ldaOblk_a{FIX[0]}", f"{{s}}_ldaO_a{FIX[0]}"),
+    "emtruth_ldaO": (f"{{s}}_emtruthconv_a{FIX[0]}_b0.0", f"{{s}}_ldaO_a{FIX[0]}"),   # R9 の段 1（review_ml の第 2 回の N1）
+    "emrand_ldaO": (f"{{s}}_emrandconv_a{FIX[0]}_b0.0", f"{{s}}_ldaO_a{FIX[0]}"),
 }
-SUB_COMPARE = ("em_none", "em_joint")                                       # 部分集合で並べる比べ（AVT．review_affect の A3・a7）
+SUB_COMPARE = ("em_none", "em_joint", "emfromK_ldaK", "emT_noneT")                                       # 部分集合で並べる比べ（AVT．review_affect の A3・a7）
 
 
 def _add(d, key, cnt, label):
@@ -511,11 +576,22 @@ def summarize(out: Path, allow_partial: bool) -> None:
                 row[f"pool_rec_none_e{e}"] = d["pool_rec_none"][e] if "pool_rec_none" in d else np.nan
             diagrows.append(row)
     knn = pd.concat([pd.read_csv(p) for p in sorted((out / "rows").glob("*_knn.csv"))])
-    num = [x for x in knn.columns if x not in ("T", "c", "fold", "seed", "space", "commit")]
-    spread = knn.groupby(["c", "fold", "space"])[num].agg(lambda v: float(np.nanmax(v) - np.nanmin(v)) if np.isfinite(v).any() else 0.0)
-    if float(spread.to_numpy().max()) > 1e-6:
-        raise SystemExit(f"同じ (c, f) の単位で近傍の量が違う（最大の差 {float(spread.to_numpy().max()):.2e}）")
+    if knn.groupby(["c", "fold", "space"]).size().max() != 1 or (not allow_partial and len(knn) != 20 * len(SPACES)):
+        raise SystemExit(f"Q1 の行が (c, f, 空間) ごとに 1 行でない（{len(knn)} 行）")
     knn.to_csv(out / "knn_units.csv", index=False)
+    # 流れた先：最後の割り当てと感情・グループ・対話の調整済み相互情報量（gate-probe の第 2 回の 2．候補の全部）
+    from sklearn.metrics import adjusted_mutual_info_score as AMI
+    amirows = []
+    for p in files:
+        T, c, fs, rs = p.name[:-4].split("_")
+        z = np.load(p, allow_pickle=False)
+        labs = {"emo": z["pool_y"].astype(int), "grp": z["pool_group"].astype(str), "dlg": z["pool_dialogue"].astype(str)}
+        for k in [x for x in z.files if x.startswith("P_") and "_AVT_" in x or x.startswith("P_AVT_")]:
+            a_ = z[k].astype(int)
+            amirows.append(dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key=k[2:],
+                                **{f"ami_{nm}": float(AMI(lab, a_)) for nm, lab in labs.items()}))
+    AM = pd.DataFrame(amirows)
+    AM.to_csv(out / "ami_units.csv", index=False)
     U = pd.DataFrame(cellrows)
     U.groupby(["c", "key"]).uar.agg(["mean", "count"]).reset_index().to_csv(out / "cells.csv", index=False)
     DGu = pd.DataFrame(diagrows)
@@ -553,6 +629,12 @@ def summarize(out: Path, allow_partial: bool) -> None:
             r[f"{tag}_n_K"], r[f"{tag}_n_lo_pos"], r[f"{tag}_n_hi_neg"] = int(ok.sum()), int((d.lo > 0).sum()), int((d.hi < 0).sum())
             r[tag] = bool(ok.sum() >= 3)
         r["R3_harm"] = bool(r["R3_n_hi_neg"] >= 3)
+        for tag, nm in (("R1", "em_none"), ("R3", "emfromK_ldaK"), ("R8", "emT_noneT")):   # MOSEI の channel の確かめ（review_affect の b4）
+            full = D[(D.c == c) & (D.space == "AVT") & (D.compare == nm) & (D.subset == "all") & D.K.isin(KS_RULE)].set_index("K")
+            ch = D[(D.c == c) & (D.space == "AVT") & (D.compare == nm) & (D.subset == "channel") & D.K.isin(KS_RULE)].set_index("K")
+            okK = [K for K in KS_RULE if K in full.index and full.loc[K, "lo"] > 0 and full.loc[K, "effect"] >= MIN_D]
+            r[f"{tag}_chan_n_K_robust"] = (int(sum(1 for K in okK if K in ch.index and ch.loc[K, "lo"] > 0
+                                                   and ch.loc[K, "effect"] >= 0.5 * full.loc[K, "effect"])) if c == "MOSEI" else np.nan)
         d4 = D[(D.c == c) & (D.space == "AVT") & (D.compare == "ldaO_oracle")]
         r["R4_effect"] = float(d4.effect.iloc[0]) if len(d4) else np.nan
         r["R4"] = bool(len(d4) and d4.effect.iloc[0] >= R4_TOL)
@@ -566,19 +648,33 @@ def summarize(out: Path, allow_partial: bool) -> None:
         o = DGu[(DGu.c == c) & (DGu.key == f"AVT_ldaO_a{FIX[0]}")].pool_uar.mean()
         tru = DGu[(DGu.c == c) & (DGu.key == f"AVT_emtruth_a{FIX[0]}_b0.0")]
         rnd = DGu[(DGu.c == c) & (DGu.key == f"AVT_emrand_a{FIX[0]}_b0.0")]
-        r["M1_pool_uar_ldaO"], r["M1_pool_uar_truth"], r["M1_keep_rand"] = float(o), float(tru.pool_uar.mean()), float(rnd.keep_init.mean())
-        r["M1_pool_uar_rand"] = float(rnd.pool_uar.mean())
-        if r["M1_keep_rand"] >= KEEP_RAND:
-            r["M1_reading"] = "c_keeps_any_init"
-        elif (r["M1_pool_uar_truth"] - 25.0) < 0.5 * (r["M1_pool_uar_ldaO"] - 25.0):
+        r["M1_pool_uar_ldaO"], r["M1_pool_uar_truth"], r["M1_pool_uar_rand"] = float(o), float(tru.pool_uar.mean()), float(rnd.pool_uar.mean())
+        r["M1_keep_truth"], r["M1_keep_rand"] = float(tru.keep_init.mean()), float(rnd.keep_init.mean())
+        dt9 = D[(D.c == c) & (D.space == "AVT") & (D.compare == "emtruth_ldaO")]
+        r["M1_test_truth_minus_ldaO"] = float(dt9.effect.iloc[0]) if len(dt9) else np.nan
+        if r["M1_test_truth_minus_ldaO"] <= R9_TEST_DROP:                      # review_ml の第 2 回の N1：段の順と基準
             r["M1_reading"] = "b_optimum_away_from_emotion"
+        elif r["M1_keep_rand"] >= KEEP_RAND or (r["M1_keep_truth"] - r["M1_keep_rand"]) < KEEP_GAP:
+            r["M1_reading"] = "c_keeps_any_init"
         else:
             r["M1_reading"] = "a_init_or_other"
+        em_pool = DGu[(DGu.c == c) & DGu.key.isin([f"K{K}_AVT_em_{FX}" for K in KS_RULE])]
+        r["M1_drifted"] = bool(((em_pool.pool_uar - em_pool.pool_uar_none) <= -DRIFT).mean() > 0.5) if len(em_pool) else False
         for s_ in SPACES:
             fs_ = DGu[(DGu.c == c) & (DGu.key.str.endswith(f"_{s_}_em_{FX}"))]
             r[f"ratio_{s_}"] = float(fs_.ratio.median())
             r[f"beta_moot_{s_}"] = bool(r[f"ratio_{s_}"] > RATIO_MAX)
             r[f"n_over_d_{s_}"] = float(fs_.n_pool.mean() / DIM[s_])
+        am = AM[AM.c == c] if len(AM) else AM
+        for nm_, keys in (("none", [f"K{K}_AVT_none" for K in KS_RULE]), ("em", [f"K{K}_AVT_emconv_{FX}" for K in KS_RULE]),
+                          ("truth", [f"AVT_emtruthconv_a{FIX[0]}_b0.0"]), ("rand", [f"AVT_emrandconv_a{FIX[0]}_b0.0"])):
+            sub = am[am.key.isin(keys)] if len(am) else am
+            for lab in ("emo", "grp", "dlg"):
+                r[f"R10_ami_{lab}_{nm_}"] = float(sub[f"ami_{lab}"].mean()) if len(sub) else np.nan
+        r["R10_em_top"] = max(("emo", "grp", "dlg"), key=lambda lab: r[f"R10_ami_{lab}_em"]) if len(am) else ""
+        kq = knn[(knn.c == c) & (knn.space == "AVT")]
+        r["R5_top3ex_emo"], r["R5_top3ex_grp"], r["R5_top3ex_dlg"] = (float(kq[f"top3ex_{x}"].mean()) for x in ("emo", "grp", "dlg"))
+        r["R5_top3_top"] = max(("emo", "grp", "dlg"), key=lambda x: r[f"R5_top3ex_{x}"])
         crit.append(r)
     Cr = pd.DataFrame(crit)
     for tag in ("R1", "R2", "R3", "R4", "R7", "R8", "not_moved"):
@@ -650,9 +746,25 @@ def selftest() -> None:
     f4 = lda_from_R(Xb, R, Xb.T @ Xb, 0.5, (("a", d), ("b", 2)))
     print(f"(3) ブロック対角の解は有限：{bool(torch.isfinite(f4['A']).all())}")
     ks = knn_stats(X, y.cpu().numpy(), np.zeros(n, int), np.arange(n) // 10)
+    try:
+        knn_stats(X, y.cpu().numpy(), np.zeros(n, int), np.zeros(n, int))
+        raise AssertionError("対話の印が 1 種類でも止まらなかった")
+    except SystemExit:
+        print("(4b) 対話の印が 1 種類なら止まる：確かめた")
     print(f"(4) 近傍の感情の一致 {ks['emo']:.3f}，対話を外した版 {ks['emo_xdlg']:.3f}，グループ 1 つの一致 {ks['grp']:.3f}，"
           f"感情の散らばりの割合 {ks['emo_between']:.3f}，白色化した分かれやすさ {ks['fisher_emo']:.3f}")
     assert ks["grp"] == 1.0
+    # (5) EM_truth と EM_rand の検算（review_ml の第 2 回の n3）：よく分かれた人工データでは，正解から始めた EM は正解をほぼ保ち，
+    #     でたらめのラベルから始めた EM はそれを保たない
+    empty = torch.zeros(0, dtype=torch.long, device=DEV)
+    yy = y.cpu().numpy()
+    keeps = {}
+    for tag, lab in (("truth", yy), ("rand", np.random.default_rng(0).permutation(yy))):
+        q_ = torch.nn.functional.one_hot(torch.as_tensor(lab, device=DEV), 4).to(DT)
+        rr = em_fit(X, X.T @ X, empty, empty, q_, 0.5, 0.0, n_iter=MAX_EM, tol=TOL_EM)
+        keeps[tag] = float((rr["R"].argmax(1).cpu().numpy() == lab).mean())
+    print(f"(5) 正解から始めた EM が保った割合 {keeps['truth']:.3f}，でたらめから {keeps['rand']:.3f}")
+    assert keeps["truth"] > 0.9 and keeps["rand"] < 0.6
     print("自己検査：通った")
 
 
@@ -706,6 +818,7 @@ def main() -> None:
                 script_sha256=sha(Path(__file__)), frozen_sha256=sha(FROZEN),
                 alphas=ALPHAS, betas=BETAS, fix=FIX, n_em=N_EM, max_em=MAX_EM, tol_em=TOL_EM, snaps=SNAPS, fix_tether=FIX_TETHER,
                 knn=KNN, min_d=MIN_D, r4_tol=R4_TOL, moved_min=MOVED_MIN, ratio_max=RATIO_MAX, conv=CONV, keep_rand=KEEP_RAND,
+                keep_gap=KEEP_GAP, r9_test_drop=R9_TEST_DROP, drift=DRIFT, n_perm=N_PERM,
                 units=[P7.unit_name(p) for p in p3s],
                 inputs_sha256={P7.unit_name(p): {i: sha(UD / f"{P7.unit_name(p)}_p{i}.npz") for i in (1, 3)} for p in p3s})
     pname = (f"provenance_partial_{time.strftime('%Y%m%d-%H%M%S')}.json" if partial

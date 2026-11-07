@@ -1,0 +1,9 @@
+{'conf': 'AFEW型', 'seed': 0, 'n_pool': 632, 'ratio_v2': 1.01, 'beta_flip_first_E_pct': 2.61}
+{'conf': 'AFEW型', 'seed': 1, 'n_pool': 632, 'ratio_v2': 1.03, 'beta_flip_first_E_pct': 3.43}
+{'conf': 'AFEW型', 'seed': 2, 'n_pool': 632, 'ratio_v2': 1.07, 'beta_flip_first_E_pct': 2.45}
+{'conf': 'IEMOCAP型', 'seed': 0, 'n_pool': 2350, 'ratio_v2': 0.65, 'beta_flip_first_E_pct': 10.77}
+{'conf': 'IEMOCAP型', 'seed': 1, 'n_pool': 2350, 'ratio_v2': 0.68, 'beta_flip_first_E_pct': 10.52}
+{'conf': 'IEMOCAP型', 'seed': 2, 'n_pool': 2350, 'ratio_v2': 0.68, 'beta_flip_first_E_pct': 8.45}
+{'conf': 'MELD型', 'seed': 0, 'n_pool': 8500, 'ratio_v2': 0.52, 'beta_flip_first_E_pct': 17.54}
+{'conf': 'MELD型', 'seed': 1, 'n_pool': 8500, 'ratio_v2': 0.57, 'beta_flip_first_E_pct': 18.75}
+{'conf': 'MELD型', 'seed': 2, 'n_pool': 8500, 'ratio_v2': 0.53, 'beta_flip_first_E_pct': 15.85}

@@ -1,0 +1,8 @@
+{'d': 2304, 'n': 632, 'alpha': 0.1, 'ldaO': np.float64(40.4), 'truth_test_uar': np.float64(40.4), 'truth_kept_pct': 100.0, 'rand_test_uar': np.float64(25.4), 'rand_kept_pct': 100.0}
+{'d': 2304, 'n': 632, 'alpha': 0.5, 'ldaO': np.float64(38.5), 'truth_test_uar': np.float64(32.3), 'truth_kept_pct': 91.1, 'rand_test_uar': np.float64(25.7), 'rand_kept_pct': 83.9}
+{'d': 2304, 'n': 2350, 'alpha': 0.1, 'ldaO': np.float64(57.6), 'truth_test_uar': np.float64(55.5), 'truth_kept_pct': 95.0, 'rand_test_uar': np.float64(24.5), 'rand_kept_pct': 77.9}
+{'d': 2304, 'n': 2350, 'alpha': 0.5, 'ldaO': np.float64(54.8), 'truth_test_uar': np.float64(25.6), 'truth_kept_pct': 43.8, 'rand_test_uar': np.float64(23.2), 'rand_kept_pct': 38.9}
+{'d': 2304, 'n': 8500, 'alpha': 0.1, 'ldaO': np.float64(71.1), 'truth_test_uar': np.float64(61.1), 'truth_kept_pct': 76.8, 'rand_test_uar': np.float64(24.8), 'rand_kept_pct': 41.3}
+{'d': 2304, 'n': 8500, 'alpha': 0.5, 'ldaO': np.float64(70.0), 'truth_test_uar': np.float64(25.3), 'truth_kept_pct': 32.1, 'rand_test_uar': np.float64(26.2), 'rand_kept_pct': 30.7}
+{'d': 128, 'n': 2350, 'alpha': 0.1, 'ldaO': np.float64(70.8), 'truth_test_uar': np.float64(50.3), 'truth_kept_pct': 61.5, 'rand_test_uar': np.float64(23.8), 'rand_kept_pct': 38.1}
+{'d': 128, 'n': 2350, 'alpha': 0.5, 'ldaO': np.float64(62.2), 'truth_test_uar': np.float64(31.4), 'truth_kept_pct': 36.6, 'rand_test_uar': np.float64(22.9), 'rand_kept_pct': 32.3}
