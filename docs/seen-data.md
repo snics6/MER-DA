@@ -139,6 +139,7 @@ E1〜E73 の 1 件ずつの記録は無い．台帳を始めた 2026-10-28 の�
 | DAI-7 の ML の査読想定の役が見たもの（`DAI/checks/DAI-7/review_ml.md`．人工データの台本とログは `DAI/checks/DAI-7/review_ml_run/`） | 2026-11-07 22:29 | 下調べ（設計と台本の査読） | `results/dai1/pseudo/units/` の 18 単位の p3 の項目の名前（手法，教師，つまみの値）．1 単位で項目を表示したときに出た `agree` と `mix` の `n_kept`（1,536 と 340）．`results/dai7_probe/rows/` のファイルの数（108 本）．UAR，依存，判定の値は開いていない．人工データでの検算は実データを使っていない | 設計と台本の直しに使う |
 | DAI-7 の感情認識の査読想定の役が見たもの（`DAI/checks/DAI-7/review_affect.md`） | 2026-11-07 | 下調べ（設計と台本の査読） | `DAI/splits` の IEMOCAP と MOSEI の `label_4`・`cluster`・`fold`，AFEW と MELD の `cluster`・`fold`．IEMOCAP の `emotion_raw`，MOSEI の `int_*` の 6 列，`mosei_channel_map.csv`，`subsets.csv` の件数．`logs/dai7_probe.done` が無いことと `results/dai7_probe/rows/` のファイルの数（116 本）．`results/dai7_probe/` の中身，ログ，tmux の画面，試走の出力，特徴・点数・成績は開いていない | 設計と台本の直しに使う |
 | DAI-7 の第 6 版の直しで本体が見たもの | 2026-11-07 | 下調べ（台本の直し） | `DAI/frozen/subsets.csv` の先頭の 2 行と 1 列目（sample_id）の並び替えた先頭 10 行，`DAI/splits/IEMOCAP.csv` の列の名前と先頭 3 つの sample_id（筋書きの番号の書式を確かめるため）．ラベル・点数・成績は見ていない | 台本の直しに使う |
+| DAI-7 の第 1 版の本計算の封と，値を開いた時刻 | 2026-11-07 22:57 | 下調べ（関門の前の本計算．設計 0 節の (d)） | 計算が終わった（`logs/dai7_probe.done`）後，`results/dai7_probe/` の 365 ファイルと `logs/dai7_probe.log` の sha256 を `DAI/checks/DAI-7/v1_seal_sha256.txt` に書いて封をした（一覧の sha256 は 0e036fbd…0873．criteria.csv d6af83ed…，diffs.csv f5adf8fc…，cells.csv 5e8c202c…，uar_cells.csv 2c3ebb44…，ログ cc1ce877…）．第 6 版の設計と台本（コミット 7df1bd3）は封の前にコミットした．この行の後に値を開いて研究者に報告する．以後の設計と台本の直しは設計 0 節の (e) に並べる | 研究者への報告と，第 2 版の結果との照らし合わせに使う |
 
 ## 3. 確認に使えるデータ
 
