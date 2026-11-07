@@ -155,10 +155,11 @@ def seq_test(Za: torch.Tensor, Zb: torch.Tensor, n_perm: int, groups: np.ndarray
     for k in range(1, min(K_MAX, Za.shape[1], Zb.shape[1]) + 1):
         Ra, Rb = residual_own(Za, Ua), residual_own(Zb, Ub)
         s, da, db = cca(Ra, Rb)
+        tp = time.time()
         perms = make_perms(Za.shape[0], n_perm, groups, seed + k)
         null = perm_null_max(Ra, Rb, perms)
         thr = float(np.quantile(null, 0.95))
-        rows.append({"k": k, "rho_obs": float(s[0]), "null_q95": thr, "null_mean": float(null.mean()),
+        rows.append({"k": k, "perm_sec": time.time() - tp, "rho_obs": float(s[0]), "null_q95": thr, "null_mean": float(null.mean()),
                      "rho_full_k": float(s_full[k - 1]), "exceeds": bool(float(s[0]) > thr)})
         if not float(s[0]) > thr:
             break
@@ -209,7 +210,7 @@ def fit_info(F: torch.Tensor, Ft: torch.Tensor, y: np.ndarray, yt: np.ndarray, g
     """重み 0 から，感情の釣り合いの重みつきの交差エントロピー（C_b = ∞）．C は候補の中の塊の 3 分割の交差検証で選ぶ。"""
     if F.shape[1] == 0:
         return {"C": float("nan"), "cv_uar": float("nan"), "uar": 25.0, "grad": 0.0, "ok": True, "empty": True, "W": None, "b": None,
-                "pred": np.zeros(len(yt), dtype=np.int8)}
+                "pred": np.zeros(len(yt), dtype=np.int8), "cv": None, "predC": None}
     Cs = np.array(dai1.C_GRID)
     folds = speaker_folds(pd.Series(groups), k=CV_FOLDS, seed=0).to_numpy()
     cv = np.zeros((CV_FOLDS, len(Cs)))
@@ -220,12 +221,21 @@ def fit_info(F: torch.Tensor, Ft: torch.Tensor, y: np.ndarray, yt: np.ndarray, g
         cv[j] = S.uar_batch(y[va], S.logits(F[va], r["W"], r["b"]))
     mean = cv.mean(0)
     best = int(np.flatnonzero(mean == mean.max())[0])                  # 同点なら小さい C（強い正則化）
-    G = S.balanced_onehot(y, np.arange(len(y)), len(y))[None]
-    r = S.fit(F, G, torch.zeros(4, F.shape[1]), torch.zeros(4), Cw=Cs[best:best + 1], Cb=math.inf)
-    W, b = r["W"][0], r["b"][0]
-    Zt = Ft @ W.T + b
-    return {"C": float(Cs[best]), "cv_uar": float(mean[best]), "uar": uar_np(yt, Zt), "grad": r["grad_max"], "ok": r["ok"],
-            "empty": False, "W": W, "b": b, "pred": Zt.argmax(1).cpu().numpy().astype(np.int8)}
+    G = S.balanced_onehot(y, np.arange(len(y)), len(y))[None].expand(len(Cs), -1, -1)
+    r = S.fit(F, G, torch.zeros(4, F.shape[1]), torch.zeros(4), Cw=Cs, Cb=math.inf)   # 12 個の C すべての最終の分類器（C の規則の感度のため）
+    ZtC = S.logits(Ft, r["W"], r["b"])
+    W, b = r["W"][best], r["b"][best]
+    return {"C": float(Cs[best]), "cv_uar": float(mean[best]), "uar": uar_np(yt, ZtC[best]), "grad": float(r["grad_p"][best]), "ok": r["ok"],
+            "empty": False, "W": W, "b": b, "pred": ZtC[best].argmax(1).cpu().numpy().astype(np.int8), "cv": cv,
+            "predC": ZtC.argmax(2).cpu().numpy().astype(np.int8), "C_edge": bool(best in (0, len(Cs) - 1))}
+
+
+def stash(store: dict, key: str, res: dict) -> None:
+    """情報の量の行の保存（設計 5 節．gate-code の 1・2）：選んだ C の W・b・判定，交差検証の表，12 個の C の判定。"""
+    store[f"pred_{key}"] = res["pred"]
+    if res["W"] is not None:
+        store[f"W_{key}"] = res["W"].float().cpu().numpy(); store[f"b_{key}"] = res["b"].float().cpu().numpy()
+        store[f"cv_{key}"] = res["cv"].astype(np.float32); store[f"predC_{key}"] = res["predC"]
 
 
 def balance_intercept(Zp: torch.Tensor, b: torch.Tensor, iters: int = 50) -> torch.Tensor:
@@ -333,7 +343,8 @@ def _parts(Ya: torch.Tensor, Yb: torch.Tensor, y: np.ndarray):
         if len(ix):
             Bt += (len(ix) / n) * torch.outer(Ya[ix].mean(0), Yb[ix].mean(0))
     Wt = T - Bt
-    out = {"fro_total": float(T.norm()), "fro_between": float(Bt.norm()), "fro_within": float(Wt.norm())}
+    out = {"fro_total": float(T.norm()), "fro_between": float(Bt.norm()), "fro_within": float(Wt.norm()),
+           "fro2_total": float(T.norm() ** 2), "fro2_between": float(Bt.norm() ** 2), "fro2_within": float(Wt.norm() ** 2)}
     for nm, M in (("total", T), ("between", Bt), ("within", Wt)):
         for j, x in enumerate(torch.linalg.svdvals(M)[:5].cpu().numpy()):
             out[f"sv_{nm}_{j + 1}"] = float(x)
@@ -359,7 +370,15 @@ def decomp_row(Za: torch.Tensor, Zb: torch.Tensor, y: np.ndarray, base: dict, se
 def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty: bool) -> dict:
     t0 = time.time()
     tabs = {k: [] for k in ("units", "seqtest", "decomp", "variates", "subspace_uar", "anchor_outside", "k0_proj", "stability")}
+    for k in tabs:                                 # 重複の確かめは fits/ を書く前に行う（gate-code の 11）
+        pth = out / f"{k}.csv"
+        if pth.exists():
+            old = pd.read_csv(pth, low_memory=False, usecols=["c", "fold"])
+            if ((old["c"] == U.c) & (old["fold"] == U.f)).any():
+                sys.exit(f"{pth} に {U.c} 分割 {U.f} の行が既にある")
+    print(f"{U.c} 分割 {U.f}：候補 {U.n}，p = {U.p} を始める", flush=True)
     ubase = {"c": U.c, "fold": U.f, "n_pool": U.n, "n_test": len(U.test), "p": U.p, "commit": commit, "dirty": dirty}
+    preds = {}                                     # fits/ に保存する配列
     rng = np.random.default_rng(1000 * DD.CORPUS_ID[U.c] + U.f)
     # 主成分（中心化しない版と，塊の中で中心化した版）
     pc = {}
@@ -394,7 +413,15 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
             for k in range(r):
                 tabs["variates"].append(variate_rows(ua[:, k], "a", k + 1, U, pbase, rng))
                 tabs["variates"].append(variate_rows(ub[:, k], "b", k + 1, U, pbase, rng))
-            tabs["units"].append({**pbase, "r": r, "r_capped": bool(r >= K_MAX), "rho_1": float(s_full[0]), "sec": time.time() - ts})
+            kc = min(K_MAX, Da.shape[1])
+            preds[f"cca_rho_{v}_{a}_{b}"] = s_full[:kc].float().cpu().numpy()
+            preds[f"cca_dir_{v}_{a}_{b}_a"] = ((Ea * la.rsqrt()) @ Da[:, :kc]).float().cpu().numpy()
+            if len(b) == 1:
+                preds[f"cca_dir_{v}_{a}_{b}_b"] = ((pc[(cen, b)][0] * pc[(cen, b)][1].rsqrt()) @ Db[:, :kc]).float().cpu().numpy()
+            perm_sec = sum(x["perm_sec"] for x in rows)
+            tabs["units"].append({**pbase, "r": r, "r_capped": bool(r >= K_MAX), "r_capped_p": bool(r >= min(K_MAX, Za.shape[1], Zb.shape[1])),
+                                  "rho_1": float(s_full[0]), "sec": time.time() - ts, "perm_sec": perm_sec})
+            print(f"  {U.c} f{U.f} 版 {v} {a}–{b}：段 {len(rows)}，並べ替え {perm_sec:.0f} 秒，計 {time.time() - ts:.0f} 秒", flush=True)
     # 部分空間（版 × モダリティ）．(i)・(iv) の言葉は 2 つの組の言葉の側の和，(ii) は各モダリティの a の側，(iii) は音声と顔だけ
     basis, basis3 = {}, {}
     for v in VERSIONS:
@@ -408,22 +435,22 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
             tabs["units"].append({**ubase, "version": v, "mod": m, "r_m": int(B.shape[1]), "r3_m": int(basis3[(v, m)].shape[1])})
     # Q3：情報の量の行
     students = ("A", "V", "T", "AVT")
-    full_info, preds = {}, {}
+    full_info = {}
     for s in students:
         mods = list(s) if s != "AVT" else list(MODS)
         groups = U.cluster
         F = torch.cat([U.Xp[m] for m in mods], 1); Ft = torch.cat([U.Xt[m] for m in mods], 1)
         res = fit_info(F, Ft, U.y, U.yt, groups)
         full_info[s] = res
-        preds[f"pred_-_{s}_full"] = res["pred"]
+        stash(preds, f"-_{s}_full", res)
         tabs["subspace_uar"].append({**ubase, "version": "-", "student": s, "space": "full", "row": "info", "dim": int(F.shape[1]),
-                                     **{k: res[k] for k in ("C", "cv_uar", "uar", "grad", "ok", "empty")}})
+                                     **{k: res[k] for k in ("C", "cv_uar", "uar", "grad", "ok", "empty")}, "C_edge": res.get("C_edge", False)})
         Fp = torch.cat([U.Xp[m] @ (pc[(False, m)][0] * pc[(False, m)][1].rsqrt()) for m in mods], 1)
         Fpt = torch.cat([U.Xt[m] @ (pc[(False, m)][0] * pc[(False, m)][1].rsqrt()) for m in mods], 1)
         res = fit_info(Fp, Fpt, U.y, U.yt, groups)
-        preds[f"pred_-_{s}_pca_p"] = res["pred"]
+        stash(preds, f"-_{s}_pca_p", res)
         tabs["subspace_uar"].append({**ubase, "version": "-", "student": s, "space": "pca_p", "row": "info", "dim": int(Fp.shape[1]),
-                                     **{k: res[k] for k in ("C", "cv_uar", "uar", "grad", "ok", "empty")}})
+                                     **{k: res[k] for k in ("C", "cv_uar", "uar", "grad", "ok", "empty")}, "C_edge": res.get("C_edge", False)})
         for v in VERSIONS:
             if not all((v, m) in basis for m in mods):
                 continue
@@ -443,10 +470,13 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
             for sp, Bm in spaces.items():
                 F = torch.cat([U.Xp[m] @ Bm[m] for m in mods], 1); Ft = torch.cat([U.Xt[m] @ Bm[m] for m in mods], 1)
                 res = fit_info(F, Ft, U.y, U.yt, groups)
-                preds[f"pred_{v}_{s}_{sp}"] = res["pred"]
+                stash(preds, f"{v}_{s}_{sp}", res)
+                if sp.startswith("rand"):
+                    for m in mods:
+                        preds[f"basis_{v}_{s}_{sp}_{m}"] = Bm[m].float().cpu().numpy()
                 tabs["subspace_uar"].append({**ubase, "version": v, "student": s, "space": sp, "row": "info", "dim": int(F.shape[1]),
                                              "r_min": min(rm.values()), "r_lt3": any(x < 3 for x in rm.values()),
-                                             **{k: res[k] for k in ("C", "cv_uar", "uar", "grad", "ok", "empty")}})
+                                             **{k: res[k] for k in ("C", "cv_uar", "uar", "grad", "ok", "empty")}, "C_edge": res.get("C_edge", False)})
             # 3.8 安定（言葉を相手にした版と中心化した版だけ）
     halves_save = {}
     for v in ("i", "iv"):
@@ -513,6 +543,11 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
                             continue
                         Zp, Zt = Xp @ WW.T, Xt @ WW.T
                         bb = balance_intercept(Zp, b0)
+                        kk = f"{T}_{v if nm == 'P_W0' else '-'}_{s}_{sp if nm == 'P_W0' else 'full'}"
+                        preds[f"k0W_{kk}"] = WW.float().cpu().numpy(); preds[f"k0b_{kk}"] = b0.float().cpu().numpy()
+                        preds[f"k0bbal_{kk}"] = bb.float().cpu().numpy()
+                        preds[f"k0pred_{kk}"] = (Zt + b0).argmax(1).cpu().numpy().astype(np.int8)
+                        preds[f"k0predbal_{kk}"] = (Zt + bb).argmax(1).cpu().numpy().astype(np.int8)
                         tabs["k0_proj"].append({**tb, "version": v if nm == "P_W0" else "-", "space": sp if nm == "P_W0" else "full",
                                                 "weights": nm, "uar_b0": uar_np(U.yt, Zt + b0), "uar_balanced": uar_np(U.yt, Zt + bb)})
                     # 手法の形の行：W = P W0 + ΔW，ΔW ∈ 部分空間（ブロックごとの Σ_mm の計量）．引き戻しは oracle_tether[T][s]
@@ -523,12 +558,20 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
                     W0r = PW0 @ Bo
                     G = S.balanced_onehot(U.y, np.arange(U.n), U.n)[None]
                     r = S.fit(Xp @ Bo, G, W0r, b0, Cw=[cw], Cb=[cb])
+                    Zt_m = (Xt @ Bo) @ r["W"][0].T + r["b"][0]
+                    mk = f"{T}_{v}_{s}_{sp}"
+                    preds[f"mW_{mk}"] = (r["W"][0] @ Bo.T).float().cpu().numpy(); preds[f"mb_{mk}"] = r["b"][0].float().cpu().numpy()
+                    preds[f"mpred_{mk}"] = Zt_m.argmax(1).cpu().numpy().astype(np.int8)
                     tabs["subspace_uar"].append({**tb, "version": v, "space": sp, "row": "method", "dim": int(Bo.shape[1]), "C": cw, "Cb": cb,
-                                                 "uar": uar_np(U.yt, (Xt @ Bo) @ r["W"][0].T + r["b"][0]), "grad": r["grad_max"], "ok": r["ok"]})
+                                                 "uar": uar_np(U.yt, Zt_m), "grad": r["grad_max"], "ok": r["ok"]})
             cw, cb = fz3["oracle_tether"][T][s]
             r = S.fit(Xp, S.balanced_onehot(U.y, np.arange(U.n), U.n)[None], W0, b0, Cw=[cw], Cb=[cb])
+            Zt_m = Xt @ r["W"][0].T + r["b"][0]
+            mk = f"{T}_-_{s}_full"
+            preds[f"mW_{mk}"] = r["W"][0].float().cpu().numpy(); preds[f"mb_{mk}"] = r["b"][0].float().cpu().numpy()
+            preds[f"mpred_{mk}"] = Zt_m.argmax(1).cpu().numpy().astype(np.int8)
             tabs["subspace_uar"].append({**tb, "version": "-", "space": "full", "row": "method", "dim": int(Xp.shape[1]), "C": cw, "Cb": cb,
-                                         "uar": uar_np(U.yt, Xt @ r["W"][0].T + r["b"][0]), "grad": r["grad_max"], "ok": r["ok"]})
+                                         "uar": uar_np(U.yt, Zt_m), "grad": r["grad_max"], "ok": r["ok"]})
     # 保存
     fd = out / "fits"
     fd.mkdir(parents=True, exist_ok=True)
@@ -556,29 +599,36 @@ def run_unit(U: ProbeUnit, n_perm: int, fz3: dict, out: Path, commit: str, dirty
 
 # ------------------------------------------------------------------ 判定（4 節）
 
-def _boot_uar(y: np.ndarray, cl: np.ndarray, preds: dict, n_boot: int = 2000, seed: int = 0) -> dict:
-    """テストの塊を単位にした対のブートストラップ（同じ抜き直しを全部の判定に使う）．戻り：名前 → (n_boot,) の UAR。"""
-    codes = pd.factorize(cl)[0]
-    k = codes.max() + 1
-    n_kc = np.zeros((k, 4)); np.add.at(n_kc, (codes, y), 1)
-    cor = {nm: np.zeros((k, 4)) for nm in preds}
-    for nm, pr in preds.items():
-        np.add.at(cor[nm], (codes, y), (pr == y).astype(float))
+def _boot_fold_mean(per_fold: list, n_boot: int = 2000, seed: int = 0):
+    """4 節のばらつき（gate-code の 5）：分割ごとにテストの塊を抜き直し（同じ抜き直しを全部の判定に使う），分割ごとの UAR の平均を作る．
+    点推定（分割ごとの UAR の平均）と同じ量である．どこかの分割で感情が欠けた回は捨て，有効な回の数を返す。
+    per_fold：[(y, cluster, {名前: 判定})]．戻り：({名前: (有効な回,) の UAR}, 有効な回の数)。"""
     rng = np.random.default_rng(seed)
-    w = rng.multinomial(k, np.full(k, 1.0 / k), size=n_boot).astype(float)       # (n_boot, k) 塊の重み
-    den = w @ n_kc
-    out = {}
-    for nm in preds:
-        num = w @ cor[nm]
-        with np.errstate(invalid="ignore", divide="ignore"):
-            rec = np.where(den > 0, num / den, np.nan)
-        out[nm] = 100.0 * np.nanmean(rec, 1)
-    return out
+    names = list(per_fold[0][2])
+    acc = {nm: np.zeros(n_boot) for nm in names}
+    valid = np.ones(n_boot, bool)
+    for (y, cl, preds) in per_fold:
+        codes = pd.factorize(cl)[0]
+        k = codes.max() + 1
+        n_kc = np.zeros((k, 4)); np.add.at(n_kc, (codes, y), 1)
+        w = rng.multinomial(k, np.full(k, 1.0 / k), size=n_boot).astype(float)
+        den = w @ n_kc
+        valid &= (den > 0).all(1)
+        for nm, pr in preds.items():
+            cor = np.zeros((k, 4)); np.add.at(cor, (codes, y), (pr == y).astype(float))
+            with np.errstate(invalid="ignore", divide="ignore"):
+                acc[nm] += 100.0 * np.nanmean(np.where(den > 0, (w @ cor) / den, np.nan), 1) / len(per_fold)
+    return {nm: v[valid] for nm, v in acc.items()}, int(valid.sum())
 
 
-def summarize(out: Path) -> None:
+def summarize(out: Path, allow_partial: bool = False) -> None:
     """4 節の判定（criteria.csv），仮定の表（assumptions.csv），ラベル無しの診断（diagnostics.csv）。"""
     su = pd.read_csv(out / "subspace_uar.csv", low_memory=False)
+    done = set(zip(su["c"], su["fold"]))
+    want = {(c, f) for c in DD.CORPORA for f in range(DD.N_FOLDS)}
+    commits = set(su["commit"].astype(str))
+    if (done != want or len(commits) != 1) and not allow_partial:       # I12（gate-code の 10）
+        sys.exit(f"単位がそろっていないかコミットが 1 つでない：欠け {sorted(want - done)}，コミット {sorted(commits)}")
     info = su[(su.row == "info") & (su.student == "AVT")]
     cm, dt = dai1.git_commit()
     rows = []
@@ -594,18 +644,18 @@ def summarize(out: Path) -> None:
             continue
         ratio = (Sx[folds].mean() - 25) / (full[folds].mean() - 25)
         gap = Sx[folds].mean() - pr[folds].mean()
-        ys, cls, P = [], [], {"full": [], "S": [], "pca_r": []}
+        per_fold = []
         for f in folds:
             z = np.load(out / "fits" / f"{c}_f{f}.npz", allow_pickle=False)
-            ys.append(z["test_y"].astype(int)); cls.append(z["test_cluster"])
-            P["full"].append(z["pred_-_AVT_full"]); P["S"].append(z["pred_i_AVT_S"]); P["pca_r"].append(z["pred_i_AVT_pca_r"])
-        bt = _boot_uar(np.concatenate(ys), np.concatenate(cls), {k: np.concatenate(v).astype(int) for k, v in P.items()}, seed=DD.CORPUS_ID[c])
+            per_fold.append((z["test_y"].astype(int), z["test_cluster"],
+                             {"full": z["pred_-_AVT_full"].astype(int), "S": z["pred_i_AVT_S"].astype(int), "pca_r": z["pred_i_AVT_pca_r"].astype(int)}))
+        bt, n_valid = _boot_fold_mean(per_fold, seed=DD.CORPUS_ID[c])
         rb = (bt["S"] - 25) / (bt["full"] - 25); gb = bt["S"] - bt["pca_r"]
         r_lo, r_hi = np.nanpercentile(rb, [2.5, 97.5]); g_lo, g_hi = np.nanpercentile(gb, [2.5, 97.5])
         rows.append({"c": c, "n_folds": len(folds), "uar_full": full[folds].mean(), "uar_S": Sx[folds].mean(), "uar_pca_r": pr[folds].mean(),
                      "ratio": ratio, "ratio_lo": r_lo, "ratio_hi": r_hi, "gap_vs_pca": gap, "gap_lo": g_lo, "gap_hi": g_hi,
                      "cond1": bool(ratio >= 0.8), "cond2": bool(gap >= 3.0), "pass": bool(ratio >= 0.8 and gap >= 3.0),
-                     "unstable": bool((r_lo < 0.8 < r_hi) or (g_lo < 3.0 < g_hi)),
+                     "unstable": bool((r_lo < 0.8 < r_hi) or (g_lo < 3.0 < g_hi)), "n_boot_valid": n_valid,
                      **{f"ratio_f{f}": (Sx[f] - 25) / (full[f] - 25) for f in folds}, **{f"gap_f{f}": Sx[f] - pr[f] for f in folds}})
     cr = pd.DataFrame(rows)
     if len(cr):
@@ -635,7 +685,9 @@ def summarize(out: Path) -> None:
             mark |= va[col].abs().fillna(0) >= 0.30
     va["mark"] = mark
     va["mod"] = np.where(va["side"] == "a", va["a"], va["b"])
-    rc = va[~va["mark"]].groupby(["c", "fold", "mod"]).size().unstack("mod").reindex(columns=list(MODS)).fillna(0)
+    allu = pd.MultiIndex.from_tuples(sorted(set(zip(su["c"], su["fold"]))), names=["c", "fold"])
+    rc = (va[~va["mark"]].groupby(["c", "fold", "mod"]).size().unstack("mod").reindex(columns=list(MODS))
+          .reindex(allu).fillna(0))                                   # 印の無い変量が 0 の単位も残す（gate-code の 11）
     st = pd.read_csv(out / "stability.csv", low_memory=False)
     st = st[st.version == "i"].set_index(["c", "fold", "mod"])
     drows = []
@@ -718,20 +770,24 @@ def main() -> None:
     ap.add_argument("--n-perm", type=int, default=1000)
     ap.add_argument("--summarize", action="store_true")
     ap.add_argument("--selftest", action="store_true")
+    ap.add_argument("--allow-partial", action="store_true", help="試走用：単位がそろわなくても集計する")
     a = ap.parse_args()
     if a.selftest:
         selftest()
         return
     a.out.mkdir(parents=True, exist_ok=True)
     if a.summarize:
-        summarize(a.out)
+        summarize(a.out, a.allow_partial)
         return
     commit, dirty = dai1.git_commit()
     fz3 = json.loads((ROOT / "DAI" / "frozen" / "dai3_frozen.json").read_text(encoding="utf-8"))
     prov = {"commit": commit, "dirty": dirty, "n_perm": a.n_perm, "gamma": GAMMA, "k_max": K_MAX, "n_perm_eta": N_PERM_ETA,
             "n_rand": N_RAND, "cv_folds": CV_FOLDS, "dai3_frozen_sha256": dai1.sha(ROOT / "DAI" / "frozen" / "dai3_frozen.json"),
             "subsets_sha256": dai1.sha(ROOT / "DAI" / "frozen" / "subsets.csv"),
-            "source_sha256": {p.name: dai1.sha(p) for p in sorted((SRC_OUT / "source").glob("*.npz"))}, "units": []}
+            "source_sha256": {p.name: dai1.sha(p) for p in sorted((SRC_OUT / "source").glob("*.npz"))},
+            "splits_sha256": {p.name: dai1.sha(p) for p in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
+            "features_sha256": {f"{k}_{c}": dai1.sha(common.out_path(k, D.GROUP_SPEC[DD.GROUP[c]][0])) for c in DD.CORPORA for k in DD.ENC1.values()},
+            "src_out": str(SRC_OUT), "units": []}
     pp = a.out / "provenance.json"
     if pp.exists():
         old = json.loads(pp.read_text(encoding="utf-8"))
