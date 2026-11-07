@@ -804,7 +804,6 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
     de["A2_eq"] = np.where(de["sv_between_eq_3"] > de["null_q95_sv_between_eq_3"], "holds", "unconfirmed")   # 同じ重みの版（感情認識の査読 b5）
     for col in ("fro2_total", "fro2_between", "fro2_within", "fro2_between_eq"):
         de[f"{col}_minus_null"] = de[col] - de[f"null_mean_{col}"]
-    de = de.copy()
     lda_rows = []
     for (c, f) in sorted(set(zip(su["c"], su["fold"]))):
         U = ProbeUnit(c, f)
@@ -870,12 +869,12 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
                     rules.append(rl)                                          # 感情だけで決まる変量のうちに印が付くものがある（gate-code の再検査 3 の 1）
         drows.append({"c": c, "fold": f, **{f"r_clean_{m}": int(r[m]) for m in MODS}, "stab_ok": bool(stab_ok),
                       "fold_ok": bool(all(r[m] >= 3 for m in MODS) and stab_ok), "inseparable_a": "a" in rules,
-                      "inseparable": bool(rules), "inseparable_rule": "/".join(rules)})
+                      "inseparable": bool(rules), "inseparable_rule": "/".join(rules) if rules else "-"})
     dg = pd.DataFrame(drows)
     if len(dg):
         agg = dg.groupby("c").agg(n_folds_ok=("fold_ok", "sum"), n_insep=("inseparable", "sum")).reset_index()
         agg["predict_pass"] = agg["n_folds_ok"] >= 3
-        agg["inseparable"] = agg["n_insep"] >= 3
+        agg["inseparable_corpus"] = agg["n_insep"] >= 3
         if len(cr):
             agg = agg.merge(cr[["c", "pass"]], on="c", how="left")
             agg["agree"] = agg["predict_pass"] == agg["pass"]
@@ -884,7 +883,7 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
                 agg["n_agree"] = na
                 agg["p_chance_agree"] = _hypergeom_p(na, a_, b_)
                 agg["uninformative"] = bool(a_ in (0, 4) or b_ in (0, 4))
-                sub = agg[~agg["inseparable"]]
+                sub = agg[~agg["inseparable_corpus"]]
                 agg["n_agree_excl_inseparable"] = int(sub["agree"].sum())
                 agg["n_excl_inseparable"] = len(sub)
         dg = dg.merge(agg, on="c", how="left")
