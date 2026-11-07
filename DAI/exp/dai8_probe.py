@@ -589,7 +589,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
         for k in [x for x in z.files if x.startswith("P_") and "_AVT_" in x or x.startswith("P_AVT_")]:
             a_ = z[k].astype(int)
             amirows.append(dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key=k[2:],
-                                **{f"ami_{nm}": float(AMI(lab, a_)) for nm, lab in labs.items()}))
+                                **{f"ami_{nm}": float(AMI(lab, a_, average_method="min")) for nm, lab in labs.items()}))   # min で正規化（gate-probe の第 3 回の 1）
     AM = pd.DataFrame(amirows)
     AM.to_csv(out / "ami_units.csv", index=False)
     U = pd.DataFrame(cellrows)

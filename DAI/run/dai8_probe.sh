@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DAI-8 の下調べの本計算（設計 DAI/docs/実験8_下調べ_設計.md 第 3 版．台本 DAI/exp/dai8_probe.py）
+# DAI-8 の下調べの本計算（設計 DAI/docs/実験8_下調べ_設計.md 第 4 版以後．台本 DAI/exp/dai8_probe.py）
 # 単位を 2 組に分けて同じ GPU で並べて流し，両方が終わったら集計する．終わると logs/dai8_probe.done を作る．
 set -euo pipefail
 cd /home/snics/MER-DA
