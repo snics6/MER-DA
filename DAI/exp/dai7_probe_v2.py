@@ -1,6 +1,6 @@
 """実験 7 の下調べ（DAI-7）：ほかのモダリティの疑似ラベルで蒸留すると，単独の分類器どうしの点数の依存が増えるか．
 
-設計は `DAI/docs/実験7_下調べ_設計.md`（第 5 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
+設計は `DAI/docs/実験7_下調べ_設計.md`（第 6 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
 保存した W・b を候補とテストの特徴に当てて点数を作り直す．新しく学ぶのは 3.5 節の 9 次元の判別分析と，3.3 節の教師の点数への回帰だけである．
 評価の回の保存は読まない．
 
@@ -31,6 +31,7 @@ import dai1  # noqa: E402
 import dai1_stats as ST  # noqa: E402
 import dai_data as DD  # noqa: E402
 import dai_solver as S  # noqa: E402
+import dai3  # noqa: E402   部分集合の印と IEMOCAP の筋書き（subset_masks，scenario）
 
 ROOT = HERE.parents[1]
 UD = ROOT / "results" / "dai1" / "pseudo" / "units"
@@ -53,13 +54,22 @@ FLOOR_D = 0.02        # 4 節：ΔD・Δφ の下限
 FLOOR_L = 0.5         # 4 節：ΔL の下限（UAR のポイント）
 NULL_RATIO = 0.1      # 3.6 節：|Δd⁰| < 0.1·|ΔD|
 H_MAX = 0.5           # 3.6 節：h − h⁰ ≥ 0.5 のセルは L_dep を「この結合器での差」とだけ書く
-HALF_T = 0.5          # 4 節の書き方 2：教師の点数を除いた ΔD_t が ΔD の半分以下
+R_SHARE = 0.25       # 4 節の H4：依存を無視した損が足し合わさらない分の「一部」を説明すると書く割合の下限（dai-review-ml の M3）
+R_SHARE_HI = 0.5     # 同じく「半分以上」
+R_HALF = 0.5         # 4 節の H1 の添え書き：変種の ΔD が全体の ΔD の半分以上なら頑健とみなす（dai-review-affect の A2）
 EPS_D = 1e-6
 EPS_LDA = 1e-3
 H = np.linalg.svd(np.eye(4) - 0.25)[0][:, :3]           # 4×3．列は 1 のベクトルに直交
 RHO_SETS = tuple(f"joint_a1_rho{r}" for r in RHOS)
-BOOT_SETS = ("none", "joint", "joint_a1", "oracle", RHO_SETS[0], RHO_SETS[-1])   # 4 節の区間を作る組
-L_SETS = ("none", "joint", "joint_a1")
+RHO1 = RHO_SETS[2]                                                     # joint_a1_rho1.0（ρ と a を選んでいない対照）
+OWN = "tt_ownret"                                                      # 各モダリティが自分の ret の予測だけで学んだ対照（dai-review-ml の M2）
+BOOT_SETS = ("none", "joint", "joint_a1", "oracle", RHO_SETS[0], RHO1, RHO_SETS[-1], OWN)   # 4 節の区間を作る組
+POOL_SETS = ("none", "joint", "joint_a1", "oracle", RHO_SETS[0], RHO_SETS[-1], "ret")      # 候補の上の点数を残す組（gate-code の R1）
+L_SETS = ("none", "joint", "joint_a1", RHO1)
+M3_SETS = ("joint_a1", RHO1)                                            # 得の足し合わせの分け方（3.5 節）
+PKEYS = ("AV", "AT", "VT", "all")
+VKIND = {"cent": 2, "keep": 5, "scen": 6, "chan": 7, "sub_asr_ok": 8, "sub_marker": 10, "sub_nomarker": 11, "sub_face_single": 12}   # 変種の並べ替えの乱数の種類
+CENTER_KEY = {"cent": "test_group", "scen": "test_scenario"}            # 中心化する変種と，そのグループの鍵（fits）
 BLK = {m: slice(3 * i, 3 * i + 3) for i, m in enumerate(MODS)}
 
 
@@ -268,7 +278,7 @@ def p1_wb(z1, kind, tag):
 def classifier_sets(u, z1, z2, z3, F, K, tether):
     """組の名前 → {モダリティ: (W, b)}（numpy）。tt_single_X は X 以外の 2 つのモダリティだけを持つ。"""
     ver = F["main"][str(K)]
-    names = ("none", "ret", "joint", "joint_a1", "oracle", *RHO_SETS, *[f"tt_{q}" for q in TT], *[f"tt_single_{x}" for x in MODS])
+    names = ("none", "ret", "joint", "joint_a1", "oracle", *RHO_SETS, *[f"tt_{q}" for q in TT], *[f"tt_single_{x}" for x in MODS], OWN)
     sets = {n: {} for n in names}
     for m in MODS:
         if K == 0:
@@ -291,6 +301,7 @@ def classifier_sets(u, z1, z2, z3, F, K, tether):
             sets[nm][m] = pick(z3, key, dict(method="joint", teacher=ver, rho=r, a=1))
         for q in TT:
             sets[f"tt_{q}"][m] = pick(z3, key, dict(method="tt", teacher=q, rho=1.0, a=1))
+        sets[OWN][m] = pick(z3, key, dict(method="tt", teacher=f"ret_{m}", rho=1.0, a=1))   # 自分のモダリティの ret だけ（M2）
         for x in MODS:
             if x != m:
                 sets[f"tt_single_{x}"][m] = pick(z3, key, dict(method="tt", teacher=f"single_{x}", rho=1.0, a=1))
@@ -339,10 +350,23 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
     cl_t = u.cp.df["cluster"].to_numpy()[u.test].astype(str)
     grp_t = (u.cp.df["speaker_id"] if c == "IEMOCAP" else u.cp.df["cluster"]).to_numpy()[u.test].astype(str)
     half, split_kind = split_halves(yt, cl_t)
+    # 感度の変種（3.3 節．dai-review-affect の A1・A2・a5）：発話の印と，中心化するグループ
+    _, keep_cent, _ = center_cells(np.zeros((len(yt), 1)), yt, grp_t)
+    variants = {"cent": (keep_cent, grp_t), "keep": (keep_cent, None)}
+    scen = None
+    if c == "IEMOCAP":
+        scen = dai3.scenario(sid_t)
+        _, keep_scen, _ = center_cells(np.zeros((len(yt), 1)), yt, scen)
+        variants["scen"] = (keep_scen, scen)
+    for nm, mk in dai3.subset_masks(c, sid_t, cl_t).items():
+        variants["chan" if nm == "channel" else f"sub_{nm}"] = (np.asarray(mk, bool), None)
     n_half = (int((half == 0).sum()), int((half == 1).sum()))
     seed = int.from_bytes(name.encode(), "little") % (2 ** 32)
     urows, arows = [], []
     store = {"test_sample_id": sid_t, "test_cluster": cl_t, "test_group": grp_t, "test_y": yt.astype(np.int8), "half": half.astype(np.int8)}
+    store.update({f"mask_{v}": mk for v, (mk, _) in variants.items()})
+    if scen is not None:
+        store["test_scenario"] = scen
     base = dict(T=T, c=c, fold=f, seed=r)
     for K in KS:
         sets, ver = classifier_sets(u, z1, z2, z3, F, K, tether)
@@ -379,16 +403,30 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                                       **{f"n_e{e}": int(n[e]) for e in range(4)}))
                     continue
                 dp, dp0, _ = d_with_null(zp[a], zp[b], yp, crn(seed, K, ip, 1), n_perm=N_NULL_POOL)
-                zc, keep, cellkey = center_cells(np.concatenate([zt[a], zt[b]], 1), yt, grp_t)
-                dc, dc0, _ = d_with_null(zc[keep, :3], zc[keep, 3:], yt[keep], crn(seed, K, ip, 2), cells=cellkey[keep])
+                zab = np.concatenate([zt[a], zt[b]], 1)
+                vrow = {}
+                for vname, (vmask, vgrp) in (variants.items() if sname in BOOT_SETS else [("cent", variants["cent"])]):
+                    if vgrp is None:
+                        za_, zb_, yv, cells_ = zt[a][vmask], zt[b][vmask], yt[vmask], None
+                    else:
+                        zc, keep, cellkey = center_cells(zab, yt, vgrp)
+                        if not (keep == vmask).all():
+                            raise SystemExit(f"{name}：変種 {vname} の発話の印が中心化の残りと違う")
+                        za_, zb_, yv, cells_ = zc[keep, :3], zc[keep, 3:], yt[keep], cellkey[keep]
+                    dv, dv0, nv = d_with_null(za_, zb_, yv, crn(seed, K, ip, VKIND[vname]), cells=cells_)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)
+                        vrow[f"D_{vname}"], vrow[f"Dnull_{vname}"] = float(np.nanmean(dv - dv0)), float(np.nanmean(dv0))
+                    if sname in BOOT_SETS:
+                        vrow.update({f"v_{vname}_{q}_e{e}": v[e] for e in range(4) for q, v in (("d", dv), ("d0", dv0), ("n", nv))})
                 ra, rb = residualize(zt[a], t_te, yt), residualize(zt[b], t_te, yt)
                 dr, dr0, _ = d_with_null(ra, rb, yt, crn(seed, K, ip, 3))
                 row = dict(**base, K=K, set=sname, pair=a + b, teacher_version=ver,
                            D=float(np.nanmean(d - d0)), D_raw=float(np.nanmean(d)), D_null=float(np.nanmean(d0)),
                            n_emotions=int(np.isfinite(d).sum()),
-                           D_pool=float(np.nanmean(dp - dp0)), D_cent=float(np.nanmean(dc - dc0)),
-                           n_dropped_cent=int((~keep).sum()), D_partial_t=float(np.nanmean(dr - dr0)),
-                           phi=ph, n_emotions_phi=nph)
+                           D_pool=float(np.nanmean(dp - dp0)),
+                           n_dropped_cent=int((~keep_cent).sum()), D_partial_t=float(np.nanmean(dr - dr0)),
+                           phi=ph, n_emotions_phi=nph, **vrow)
                 for e in range(4):
                     row.update({f"d_e{e}": d[e], f"d0_e{e}": d0[e], f"n_e{e}": int(n[e])})
                 urows.append(row)
@@ -396,7 +434,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
             store[f"K{K}_{sname}_mods"] = np.array("".join(m for m in MODS if m in zt))
             for m in pr:
                 store[f"K{K}_{sname}_pred_{m}"] = pr[m].astype(np.int8)
-            if sname in BOOT_SETS or sname == "ret":                      # 候補の上の点数（gate-code の R1．後の解析用）
+            if sname in POOL_SETS:                                        # 候補の上の点数（gate-code の R1．後の解析用）
                 store[f"K{K}_{sname}_zpool"] = np.concatenate([zp[m] for m in MODS], 1).astype(np.float16)
             if len(zt) == 3 and not sname.startswith("none_tw"):
                 z9 = np.concatenate([zt[m] for m in MODS], 1)
@@ -408,6 +446,9 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, dirty: bool) -> dict:
                                   n_half0=n_half[0], n_half1=n_half[1], n_per_param=min(n_half) / 9,
                                   **{f"uar_{m}": uar(yt, pr[m]) for m in MODS},
                                   uar_prod=uar(yt, p_prod), uar_blk=uar(yt, p_blk), uar_full=uar(yt, p_full),
+                                  **{f"rec_{q}_e{e}": float(np.mean(pq[yt == e] == e)) if (yt == e).any() else np.nan
+                                     for q, pq in (*pr.items(), ("prod", p_prod), ("blk", p_blk), ("full", p_full)) for e in range(4)},
+                                  **{f"n_test_e{e}": int((yt == e).sum()) for e in range(4)},
                                   L_dep=uar(yt, p_full) - uar(yt, p_blk), L_cal=uar(yt, p_blk) - uar(yt, p_prod),
                                   heterogeneity=heterogeneity(z9, yt), heterogeneity_null=heterogeneity_null(z9, yt, crn(seed, K, 9, 4))))
     Ud, Ad = pd.DataFrame(urows), pd.DataFrame(arows)                     # 計画の外の NaN・Inf で止める（gate-code の I11）
@@ -458,7 +499,7 @@ def fold_combine(per_fold: dict, w, fold_of):
         return np.where(ok, V * wf, 0).sum(1) / np.where(ok, wf, 0).sum(1)
 
 
-def boot_D_unit(z, y, codes, d0, wcl):
+def boot_D_unit(z, y, codes, d0, wcl, per_emotion=False):
     """1 単位・1 組の D の抜き直し．z (n, 9)，d0 {組: ((slice_a, slice_b), (4,) の d⁰)}，wcl (N_BOOT, 塊)。
     その回で重みつきの本数が MIN_N 未満の感情は外す（4 節の 2）。戻り {組: (N_BOOT,)}。"""
     k = wcl.shape[1]
@@ -472,7 +513,7 @@ def boot_D_unit(z, y, codes, d0, wcl):
     with np.errstate(invalid="ignore", divide="ignore"):
         mu = Sx / N[..., None]
         C = SS / N[..., None, None] - mu[..., :, None] * mu[..., None, :]
-    out = {}
+    out, oute = {}, {}
     for pair, ((sa, sb), d0e) in d0.items():
         dd = np.full(N.shape, np.nan)
         for e in range(4):
@@ -485,7 +526,8 @@ def boot_D_unit(z, y, codes, d0, wcl):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             out[pair] = np.nanmean(dd, 1)
-    return out
+        oute[pair] = dd
+    return (out, oute) if per_emotion else out
 
 
 def boot_uar_unit(pred, y, codes, wcl):
@@ -532,6 +574,103 @@ def nanmean_stack(lst):
         return np.nanmean(np.stack(lst), 0)
 
 
+DD_MAIN = {"dD_joint_a1_none": ("joint_a1", "none"), "dD_joint_none": ("joint", "none"), "dD_joint_a1_oracle": ("joint_a1", "oracle"),
+           "dD_rho_hi_lo": (RHO_SETS[-1], RHO_SETS[0]), "dD_rho1_ownret": (RHO1, OWN), "dD_ownret_none": (OWN, "none")}
+DD_VAR = ("dD_joint_a1_none", "dD_joint_none", "dD_joint_a1_oracle", "dD_rho1_ownret")     # 変種でも区間を作る差
+DD_EMO = ("dD_joint_a1_none", "dD_joint_a1_oracle")                                       # 感情ごとに区間を作る差（a2）
+DPHI = {"dphi_joint_a1_none": ("joint_a1", "none"), "dphi_joint_none": ("joint", "none"),
+        "dphi_rho1_ownret": (RHO1, OWN), "dphi_ownret_none": (OWN, "none")}
+PART_NAME = {"S1": "依存を入れた結合器でも足し合わさらない分（生徒どうしの情報の重なりか UAR の天井）",
+             "dLdep": "依存を無視した損の増加", "dLcal": "較正と感情の事前の分の増加"}
+
+
+def decompose(us: dict, un: dict) -> dict:
+    """3.5 節の恒等式 S = (Ḡ − G_full) + ΔL_dep + ΔL_cal（dai-review-ml の M3）．us・un は組 s と none の UAR（A・V・T・prod・blk・full）。
+    配列でも数でもよい。"""
+    Gbar = np.mean([us[m] - un[m] for m in MODS], 0)
+    Gp, Gf = us["prod"] - un["prod"], us["full"] - un["full"]
+    return dict(S=Gbar - Gp, S1=Gbar - Gf, dLdep=(us["full"] - us["blk"]) - (un["full"] - un["blk"]),
+                dLcal=(us["blk"] - us["prod"]) - (un["blk"] - un["prod"]), Gbar=Gbar, G_prod=Gp, G_full=Gf)
+
+
+def boot_D(fits: dict, Uc: pd.DataFrame, K: int, var: str = "main"):
+    """4 節の手順で D の抜き直しを作る．var は main（テストの全部の発話，塊はテストの塊），spk（全部の発話，塊は fits の test_group．
+    IEMOCAP の話者を塊にした感度．dai-review-ml の m2），または fits の mask_<var> の発話に限る変種（cent・scen はその中で
+    (グループ, 感情) の平均を引く．3.3 節）．塊の抜き直しは，変種の発話を持つ塊だけで作る（種 0）。
+    戻り：Bd {組: {対: (N_BOOT,)}}，Be {組: (N_BOOT, 4)}（3 つの対の平均の感情ごと），w，fold_of，code_of，cl_by_fold。"""
+    clkey = "test_group" if var == "spk" else "test_cluster"
+    masked = var not in ("main", "spk")
+    pre = f"v_{var}_" if masked else ""
+
+    def mask(z):
+        return z[f"mask_{var}"].astype(bool) if masked else np.ones(len(z["test_y"]), bool)
+    cl_by_fold = {}
+    for (T, f, r), z in sorted(fits.items()):
+        cl = z[clkey].astype(str)[mask(z)]
+        if len(cl):
+            cl_by_fold.setdefault(f, list(cl))
+    w, fold_of, code_of = boot_weights(cl_by_fold)
+    bD = {s: {p: {} for p in PKEYS} for s in BOOT_SETS}
+    bE = {s: {} for s in BOOT_SETS}
+    for f in sorted(cl_by_fold):
+        cols = np.flatnonzero(fold_of == f)
+        wcl = w[:, cols]
+        acc = {s: {p: [] for p in PKEYS} for s in BOOT_SETS}
+        accE = {s: [] for s in BOOT_SETS}
+        for (T, ff, r), z in sorted(fits.items()):
+            if ff != f:
+                continue
+            m = mask(z)
+            yfull = z["test_y"].astype(int)
+            y = yfull[m]
+            codes = np.array([code_of[f][x] for x in z[clkey].astype(str)[m]]) - cols[0]
+            sel_u = Uc[(Uc["T"] == T) & (Uc["fold"] == f) & (Uc["seed"] == r) & (Uc["K"] == K)]
+            for s in BOOT_SETS:
+                rs_ = sel_u[sel_u["set"] == s]
+                d0 = {}
+                for a_, b_ in PAIRS:
+                    rw = rs_[rs_["pair"] == a_ + b_].iloc[0]
+                    d0[a_ + b_] = ((BLK[a_], BLK[b_]), np.array([rw[f"{pre}d0_e{e}"] if np.isfinite(rw[f"{pre}d_e{e}"]) else np.nan for e in range(4)]))
+                Z = z[f"K{K}_{s}_z"].astype(np.float64)
+                if var in CENTER_KEY:
+                    Z, keep, _ = center_cells(Z, yfull, z[CENTER_KEY[var]].astype(str))
+                    if not (keep == m).all():
+                        raise SystemExit(f"{T}_{f}_{r}：変種 {var} の印が中心化の残りと違う")
+                res, rese = boot_D_unit(Z[m], y, codes, d0, wcl, per_emotion=True)
+                for p, v in res.items():
+                    acc[s][p].append(v)
+                acc[s]["all"].append(nanmean_stack([res[p] for p in ("AV", "AT", "VT")]))
+                accE[s].append(nanmean_stack([rese[p] for p in ("AV", "AT", "VT")]))
+        for s in BOOT_SETS:                                                 # 4 節の 3：分割の値は 6 単位の平均
+            for p in PKEYS:
+                bD[s][p][f] = nanmean_stack(acc[s][p])
+            bE[s][f] = nanmean_stack(accE[s])
+    Bd = {s: {p: fold_combine(bD[s][p], w, fold_of) for p in PKEYS} for s in BOOT_SETS}
+    Be = {s: np.stack([fold_combine({f: v[:, e] for f, v in bE[s].items()}, w, fold_of) for e in range(4)], 1) for s in BOOT_SETS}
+    return Bd, Be, w, fold_of, code_of, cl_by_fold
+
+
+def tether_table(have: set, fz: dict, out: Path) -> pd.DataFrame:
+    """引き戻しの相対的な弱まり（8 節．dai-review-ml の m4）：疑似ラベルの項を足したときの (4K + ρn)/(4K) と，
+    none_tw の格子が表せる弱まりの上限（C′ の最大 ÷ none の C′）．保存の設定値だけから作る（成績は使わない）。"""
+    cw_max = max(cw for cw, _ in dai1.TETHER)
+    rows = []
+    for name in sorted(have):
+        T, c, fs, rs = name.split("_")
+        F = fz[T]
+        tether = parse_tether(np.load(UD / f"{name}_p3.npz")["tether"])
+        n = len(np.load(out / "fits" / f"{name}.npz")["pool_sample_id"])
+        for K in KS_RULE:
+            ver = F["main"][str(K)]
+            for m in MODS:
+                cw = float(tether[(m, K)][0])
+                rho = float(F["select"][f"{m}|{K}|joint_a1|{ver}"]["rho"])
+                rows.append(dict(T=T, c=c, fold=int(fs[1:]), seed=int(rs[1:]), K=K, mod=m, n_pool=n, rho_joint_a1=rho,
+                                 weakening_joint_a1=(4 * K + rho * n) / (4 * K), weakening_rho1=(4 * K + n) / (4 * K),
+                                 C_none=cw, tw_range=cw_max / cw))
+    return pd.DataFrame(rows)
+
+
 def summarize(out: Path, allow_partial: bool) -> None:
     U = pd.concat([pd.read_csv(p) for p in sorted((out / "rows").glob("*_units.csv"))], ignore_index=True)
     A = pd.concat([pd.read_csv(p) for p in sorted((out / "rows").glob("*_uar.csv"))], ignore_index=True)
@@ -543,163 +682,216 @@ def summarize(out: Path, allow_partial: bool) -> None:
         raise SystemExit(f"重複した行が {dup} 個ある")
     if (have != want or len(commits) != 1) and not allow_partial:
         raise SystemExit(f"単位がそろっていない（{len(have)}/{len(want)}）か，コミットが複数ある（{commits}）")
-    qcols = ["D", "D_raw", "D_null", "D_pool", "D_cent", "D_partial_t", "phi"]
+    for e in range(4):
+        U[f"D_e{e}"] = U[f"d_e{e}"] - U[f"d0_e{e}"]
+    vnames = sorted({x[2:] for x in U.columns if x.startswith("D_") and x[2:] in VKIND})
+    qcols = ["D", "D_raw", "D_null", "D_pool", "D_cent", "D_partial_t", "phi", *[f"D_e{e}" for e in range(4)],
+             *[f"D_{v}" for v in vnames], *[f"Dnull_{v}" for v in vnames]]
+    qcols = list(dict.fromkeys(qcols))                                     # D_cent が 2 回入らないように
     Ua = U.groupby(["T", "c", "fold", "seed", "K", "set"])[qcols].mean().reset_index().assign(pair="all")
     Uall = pd.concat([U, Ua], ignore_index=True)
     cells = Uall.groupby(["c", "K", "set", "pair"])[qcols].mean().reset_index()
     cells["n_units"] = Uall.groupby(["c", "K", "set", "pair"]).size().values
     A["h_excess"] = A["heterogeneity"] - A["heterogeneity_null"]
-    ucols = [x for x in A.columns if x.startswith("uar_") or x in ("L_dep", "L_cal", "heterogeneity", "heterogeneity_null", "h_excess", "n_per_param")]
+    ucols = [x for x in A.columns if x.startswith(("uar_", "rec_")) or x in ("L_dep", "L_cal", "heterogeneity", "heterogeneity_null", "h_excess", "n_per_param")]
     acells = A.groupby(["c", "K", "set"])[ucols].mean().reset_index()
     diffs = []
     for c, Uc in Uall.groupby("c"):
         units = sorted(set(zip(Uc["T"], Uc["fold"], Uc["seed"])))
         fits = {(T, f, r): np.load(out / "fits" / f"{T}_{c}_f{f}_r{r}.npz") for T, f, r in units}
-        cl_by_fold = {}
-        for (T, f, r), z in fits.items():
-            cl_by_fold.setdefault(f, list(z["test_cluster"].astype(str)))
-        w, fold_of, code_of = boot_weights(cl_by_fold)
+        n5 = np.zeros(4, int)                                              # 5 つのテストを合わせた感情ごとの本数（a2）
+        for f in sorted({f for _, f, _ in units}):
+            z = next(v for (T, ff, r), v in sorted(fits.items()) if ff == f)
+            n5 += np.bincount(z["test_y"].astype(int), minlength=4)
+        z0 = next(iter(fits.values()))
+        variants_c = [v for v in vnames if f"mask_{v}" in z0.files] + (["spk"] if c == "IEMOCAP" else [])
         for K in KS:
-            bD = {s: {p: {} for p in ("AV", "AT", "VT", "all")} for s in BOOT_SETS}
+            pt = cells[(cells.c == c) & (cells.K == K)].set_index(["set", "pair"])
+            ptA = acells[(acells.c == c) & (acells.K == K)].set_index("set")
+            Bd, Be, w, fold_of, code_of, cl_by_fold = boot_D(fits, Uc, K, "main")
             bphi = {s: {} for s in BOOT_SETS}
             bL = {s: {} for s in L_SETS}
-            bG, bG1 = {}, {}
+            bP = {s: {q: {} for q in ("S", "S1", "dLdep", "dLcal")} for s in M3_SETS}
             for f in sorted(cl_by_fold):
                 cols = np.flatnonzero(fold_of == f)
                 wcl = w[:, cols]
-                acc = {s: {p: [] for p in ("AV", "AT", "VT", "all")} for s in BOOT_SETS}
                 accphi = {s: [] for s in BOOT_SETS}
                 accL = {s: [] for s in L_SETS}
-                accG, accG1 = [], []
-                for (T, ff, r), z in fits.items():
+                accP = {s: {q: [] for q in bP[s]} for s in M3_SETS}
+                for (T, ff, r), z in sorted(fits.items()):
                     if ff != f:
                         continue
                     y = z["test_y"].astype(int)
                     codes = np.array([code_of[f][x] for x in z["test_cluster"].astype(str)]) - cols[0]
-                    sel_u = Uc[(Uc["T"] == T) & (Uc["fold"] == f) & (Uc["seed"] == r) & (Uc["K"] == K)]
                     for s in BOOT_SETS:
-                        rs_ = sel_u[sel_u["set"] == s]
-                        d0 = {}
-                        for a_, b_ in PAIRS:
-                            rw = rs_[rs_["pair"] == a_ + b_].iloc[0]
-                            d0[a_ + b_] = ((BLK[a_], BLK[b_]), np.array([rw[f"d0_e{e}"] if np.isfinite(rw[f"d_e{e}"]) else np.nan for e in range(4)]))
-                        res = boot_D_unit(z[f"K{K}_{s}_z"].astype(np.float64), y, codes, d0, wcl)
-                        for p, v in res.items():
-                            acc[s][p].append(v)
-                        acc[s]["all"].append(nanmean_stack([res[p] for p in ("AV", "AT", "VT")]))
                         accphi[s].append(boot_phi_unit(z, y, codes, wcl, K, s))
+                    bu = {s: {q: boot_uar_unit(z[f"K{K}_{s}_pred_{q}"].astype(int), y, codes, wcl) for q in ("prod", "blk", "full", *MODS)}
+                          for s in L_SETS}
                     for s in L_SETS:
-                        accL[s].append(boot_uar_unit(z[f"K{K}_{s}_pred_full"].astype(int), y, codes, wcl)
-                                       - boot_uar_unit(z[f"K{K}_{s}_pred_blk"].astype(int), y, codes, wcl))
-                    bu = {(s, q): boot_uar_unit(z[f"K{K}_{s}_pred_{q}"].astype(int), y, codes, wcl)
-                          for s in ("joint_a1", "none") for q in ("prod", *MODS)}
-                    bu.update({("rho1", q): boot_uar_unit(z[f"K{K}_joint_a1_rho1.0_pred_{q}"].astype(int), y, codes, wcl) for q in ("prod", *MODS)})
-                    accG.append((bu[("joint_a1", "prod")] - bu[("none", "prod")])
-                                - np.mean([bu[("joint_a1", m)] - bu[("none", m)] for m in MODS], 0))
-                    accG1.append((bu[("rho1", "prod")] - bu[("none", "prod")])
-                                 - np.mean([bu[("rho1", m)] - bu[("none", m)] for m in MODS], 0))
-                for s in BOOT_SETS:                                         # 4 節の 3：分割の値は 6 単位の平均
-                    for p in acc[s]:
-                        bD[s][p][f] = nanmean_stack(acc[s][p])
+                        accL[s].append(bu[s]["full"] - bu[s]["blk"])
+                    for s in M3_SETS:
+                        dec = decompose(bu[s], bu["none"])
+                        for q in accP[s]:
+                            accP[s][q].append(dec[q])
+                for s in BOOT_SETS:
                     bphi[s][f] = nanmean_stack(accphi[s])
                 for s in L_SETS:
                     bL[s][f] = nanmean_stack(accL[s])
-                bG[f] = nanmean_stack(accG)
-                bG1[f] = nanmean_stack(accG1)
-            Bd = {s: {p: fold_combine(bD[s][p], w, fold_of) for p in bD[s]} for s in BOOT_SETS}
+                for s in M3_SETS:
+                    for q in bP[s]:
+                        bP[s][q][f] = nanmean_stack(accP[s][q])
             Bphi = {s: fold_combine(bphi[s], w, fold_of) for s in BOOT_SETS}
             BL = {s: fold_combine(bL[s], w, fold_of) for s in L_SETS}
-            BG = fold_combine(bG, w, fold_of)
-            BG1 = fold_combine(bG1, w, fold_of)
-            pt = cells[(cells.c == c) & (cells.K == K)].set_index(["set", "pair"])
-            ptA = acells[(acells.c == c) & (acells.K == K)].set_index("set")
-            dd_pairs = {"dD_joint_a1_none": ("joint_a1", "none"), "dD_joint_none": ("joint", "none"), "dD_joint_a1_oracle": ("joint_a1", "oracle"),
-                        "dD_rho_hi_lo": (RHO_SETS[-1], RHO_SETS[0])}
-            for p in ("AV", "AT", "VT", "all"):
-                for nm, (s1, s2) in dd_pairs.items():
+            BP = {s: {q: fold_combine(bP[s][q], w, fold_of) for q in bP[s]} for s in M3_SETS}
+            base = dict(c=c, K=K, variant="main")
+            for p in PKEYS:
+                for nm, (s1, s2) in DD_MAIN.items():
                     lo, hi, nv = ci(Bd[s1][p] - Bd[s2][p])
-                    diffs.append(dict(c=c, K=K, pair=p, quantity=nm, est=pt.loc[(s1, p), "D"] - pt.loc[(s2, p), "D"], lo=lo, hi=hi, n_boot_valid=nv,
+                    diffs.append(dict(**base, pair=p, quantity=nm, est=pt.loc[(s1, p), "D"] - pt.loc[(s2, p), "D"], lo=lo, hi=hi, n_boot_valid=nv,
                                       d_null_diff=pt.loc[(s1, p), "D_null"] - pt.loc[(s2, p), "D_null"]))
                 for s in BOOT_SETS:
                     lo, hi, nv = ci(Bd[s][p])
-                    diffs.append(dict(c=c, K=K, pair=p, quantity=f"D_{s}", est=pt.loc[(s, p), "D"], lo=lo, hi=hi, n_boot_valid=nv))
-            for nm, (s1, s2) in {"dphi_joint_a1_none": ("joint_a1", "none"), "dphi_joint_none": ("joint", "none")}.items():
+                    diffs.append(dict(**base, pair=p, quantity=f"D_{s}", est=pt.loc[(s, p), "D"], lo=lo, hi=hi, n_boot_valid=nv))
+            for nm in DD_EMO:                                               # 感情ごと（記述．dai-review-affect の a2）
+                s1, s2 = DD_MAIN[nm]
+                for e in range(4):
+                    lo, hi, nv = ci(Be[s1][:, e] - Be[s2][:, e])
+                    diffs.append(dict(**base, pair="all", emotion=e, quantity=nm, est=pt.loc[(s1, "all"), f"D_e{e}"] - pt.loc[(s2, "all"), f"D_e{e}"],
+                                      lo=lo, hi=hi, n_boot_valid=nv, n_test_5folds=int(n5[e])))
+            for nm, (s1, s2) in DPHI.items():
                 lo, hi, nv = ci(Bphi[s1] - Bphi[s2])
-                diffs.append(dict(c=c, K=K, pair="all", quantity=nm, est=pt.loc[(s1, "all"), "phi"] - pt.loc[(s2, "all"), "phi"], lo=lo, hi=hi, n_boot_valid=nv))
-            for nm, (s1, s2) in {"dLdep_joint_a1_none": ("joint_a1", "none"), "dLdep_joint_none": ("joint", "none")}.items():
-                lo, hi, nv = ci(BL[s1] - BL[s2])
-                diffs.append(dict(c=c, K=K, pair="all", quantity=nm, est=ptA.loc[s1, "L_dep"] - ptA.loc[s2, "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
+                diffs.append(dict(**base, pair="all", quantity=nm, est=pt.loc[(s1, "all"), "phi"] - pt.loc[(s2, "all"), "phi"], lo=lo, hi=hi, n_boot_valid=nv))
+            for s in L_SETS[1:]:
+                lo, hi, nv = ci(BL[s] - BL["none"])
+                diffs.append(dict(**base, pair="all", quantity=f"dLdep_{s}_none", est=ptA.loc[s, "L_dep"] - ptA.loc["none", "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
             for s in L_SETS:
                 lo, hi, nv = ci(BL[s])
-                diffs.append(dict(c=c, K=K, pair="all", quantity=f"Ldep_{s}", est=ptA.loc[s, "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
-            for s in ("joint", "joint_a1", "joint_a1_rho1.0"):              # 得の足し合わせ（3.5 節，3.6 節の (iv)．rho1.0 は選んでいない対照）
-                G = {m: ptA.loc[s, f"uar_{m}"] - ptA.loc["none", f"uar_{m}"] for m in MODS}
-                gp = ptA.loc[s, "uar_prod"] - ptA.loc["none", "uar_prod"]
-                gf = ptA.loc[s, "uar_full"] - ptA.loc["none", "uar_full"]
-                lo, hi, nv = ci(BG) if s == "joint_a1" else ci(BG1) if s == "joint_a1_rho1.0" else (np.nan, np.nan, 0)
-                diffs.append(dict(c=c, K=K, pair="all", quantity=f"G_{s}", est=gp - np.mean(list(G.values())), lo=lo, hi=hi, n_boot_valid=nv,
-                                  **{f"G_{m}": G[m] for m in MODS}, G_prod=gp, G_full=gf, G_max=max(G.values())))
-            for s1, s2 in (("joint_a1", "none"),):                          # 教師の点数を除いた依存の差（4 節の書き方 2．点推定）
-                diffs.append(dict(c=c, K=K, pair="all", quantity="dDt_joint_a1_none",
-                                  est=pt.loc[(s1, "all"), "D_partial_t"] - pt.loc[(s2, "all"), "D_partial_t"]))
+                diffs.append(dict(**base, pair="all", quantity=f"Ldep_{s}", est=ptA.loc[s, "L_dep"], lo=lo, hi=hi, n_boot_valid=nv))
+            for s in ("joint", *M3_SETS):                                   # 得の足し合わせ（3.5 節，3.6 節の (iv)．rho1.0 は選んでいない対照）
+                us = {q: ptA.loc[s, f"uar_{q}"] for q in ("prod", "blk", "full", *MODS)}
+                un = {q: ptA.loc["none", f"uar_{q}"] for q in ("prod", "blk", "full", *MODS)}
+                dec = decompose(us, un)
+                G = {m: us[m] - un[m] for m in MODS}
+                lo, hi, nv = ci(-BP[s]["S"]) if s in M3_SETS else (np.nan, np.nan, 0)
+                diffs.append(dict(**base, pair="all", quantity=f"G_{s}", est=-dec["S"], lo=lo, hi=hi, n_boot_valid=nv,
+                                  **{f"G_{m}": G[m] for m in MODS}, G_prod=dec["G_prod"], G_full=dec["G_full"], G_max=max(G.values())))
+                if s in M3_SETS:                                            # S = (Ḡ − G_full) + ΔL_dep + ΔL_cal と ΔL_dep の割合（M3）
+                    for q in ("S", "S1", "dLdep", "dLcal"):
+                        lo, hi, nv = ci(BP[s][q])
+                        diffs.append(dict(**base, pair="all", quantity=f"{q}_{s}", est=dec[q], lo=lo, hi=hi, n_boot_valid=nv))
+                    with np.errstate(invalid="ignore", divide="ignore"):
+                        lo, hi, nv = ci(BP[s]["dLdep"] / BP[s]["S"])
+                    diffs.append(dict(**base, pair="all", quantity=f"share_dep_{s}", est=dec["dLdep"] / dec["S"] if dec["S"] != 0 else np.nan,
+                                      lo=lo, hi=hi, n_boot_valid=nv))
+            diffs.append(dict(**base, pair="all", quantity="dDt_joint_a1_none",           # 記述だけ（3.3 節．依存が無くても正になる．M1）
+                              est=pt.loc[("joint_a1", "all"), "D_partial_t"] - pt.loc[("none", "all"), "D_partial_t"]))
+            for var in variants_c:                                          # 感度の変種（A1・A2・a5・m2．記述と 4 節の添え書き）
+                Bv = boot_D(fits, Uc, K, var)[0]
+                col, ncol = ("D", "D_null") if var == "spk" else (f"D_{var}", f"Dnull_{var}")
+                for p in PKEYS:
+                    for nm in DD_VAR:
+                        s1, s2 = DD_MAIN[nm]
+                        lo, hi, nv = ci(Bv[s1][p] - Bv[s2][p])
+                        diffs.append(dict(c=c, K=K, variant=var, pair=p, quantity=nm, est=pt.loc[(s1, p), col] - pt.loc[(s2, p), col],
+                                          lo=lo, hi=hi, n_boot_valid=nv, d_null_diff=pt.loc[(s1, p), ncol] - pt.loc[(s2, p), ncol]))
         print(f"{c}：区間を作った", flush=True)
     Df = pd.DataFrame(diffs)
     crit = []
 
-    def count(c, q, floor, null_check=False):
-        d = Df[(Df.c == c) & (Df.quantity == q) & (Df.pair == "all") & Df.K.isin(KS_RULE)]
-        lo_pos = d.lo > 0
-        ok = lo_pos & (d.est >= floor)
+    def rows_of(c, q, pair="all", var="main"):
+        return Df[(Df.c == c) & (Df.quantity == q) & (Df.pair == pair) & (Df.variant == var) & Df.emotion.isna() & Df.K.isin(KS_RULE)].set_index("K")
+
+    def ok_K(c, q, floor, null_check=False, pair="all", var="main"):
+        d = rows_of(c, q, pair, var)
+        ok = (d.lo > 0) & (d.est >= floor)
         if null_check:
             ok &= d.d_null_diff.abs() < NULL_RATIO * d.est.abs()
-        return int(lo_pos.sum()), int(ok.sum()), int((d.hi < 0).sum())
+        return [K for K in d.index if ok[K]]
+
+    def count(c, q, floor, null_check=False, pair="all"):
+        d = rows_of(c, q, pair)
+        return int((d.lo > 0).sum()), len(ok_K(c, q, floor, null_check, pair)), int((d.hi < 0).sum())
 
     for c in sorted(Df.c.unique()):
         r = dict(c=c)
-        for nm, q, fl, nc in (("H1", "dD_joint_a1_none", FLOOR_D, True), ("H1_joint", "dD_joint_none", FLOOR_D, True),
-                              ("H1p", "dD_joint_a1_oracle", FLOOR_D, True), ("phi", "dphi_joint_a1_none", FLOOR_D, False),
-                              ("H3", "dLdep_joint_a1_none", FLOOR_L, False), ("H3_joint", "dLdep_joint_none", FLOOR_L, False),
-                              ("H2_size", "dD_rho_hi_lo", FLOOR_D, False)):
-            a_, b_, n_ = count(c, q, fl, nc)
+        for nm, q, fl, nc, pair in (("H1", "dD_joint_a1_none", FLOOR_D, True, "all"), ("H1_joint", "dD_joint_none", FLOOR_D, True, "all"),
+                                    ("H1p", "dD_joint_a1_oracle", FLOOR_D, True, "all"), ("H1_AV", "dD_joint_a1_none", FLOOR_D, True, "AV"),
+                                    ("phi", "dphi_joint_a1_none", FLOOR_D, False, "all"),
+                                    ("share", "dD_rho1_ownret", FLOOR_D, True, "all"), ("phi_share", "dphi_rho1_ownret", FLOOR_D, False, "all"),
+                                    ("H3", "dLdep_joint_a1_none", FLOOR_L, False, "all"), ("H3_joint", "dLdep_joint_none", FLOOR_L, False, "all"),
+                                    ("H2_size", "dD_rho_hi_lo", FLOOR_D, False, "all")):
+            a_, b_, n_ = count(c, q, fl, nc, pair)
             r.update({f"{nm}_n_lo_pos": a_, f"{nm}_n_lo_pos_floor": b_, f"{nm}_n_hi_neg": n_, nm: bool(b_ >= 3)})
         sp, size_ok = [], []
         for K in KS_RULE:
             v = [cells[(cells.c == c) & (cells.K == K) & (cells.set == nm) & (cells.pair == "all")]["D"].iloc[0] for nm in RHO_SETS]
             sp.append(float(pd.Series(v).corr(pd.Series(range(4)), method="spearman")))
-            d = Df[(Df.c == c) & (Df.quantity == "dD_rho_hi_lo") & (Df.pair == "all") & (Df.K == K)].iloc[0]
-            size_ok.append(bool(d.lo > 0 and d.est >= FLOOR_D))
+            size_ok.append(K in ok_K(c, "dD_rho_hi_lo", FLOOR_D))
         r.update({f"H2_spearman_K{K}": v for K, v in zip(KS_RULE, sp)})
         r["H2"] = bool(sum((v >= 0.8 - 1e-9) and s_ for v, s_ in zip(sp, size_ok)) >= 3)
-        dD = Df[(Df.c == c) & (Df.quantity == "dD_joint_a1_none") & (Df.pair == "all") & Df.K.isin(KS_RULE)].set_index("K")["est"]
-        dDt = Df[(Df.c == c) & (Df.quantity == "dDt_joint_a1_none") & Df.K.isin(KS_RULE)].set_index("K")["est"]
-        dDr = Df[(Df.c == c) & (Df.quantity == "dD_joint_a1_none") & (Df.pair == "all") & Df.K.isin(KS_RULE)].set_index("K")
-        h1_ok = [K for K in KS_RULE if dDr.loc[K, "lo"] > 0 and dDr.loc[K, "est"] >= FLOOR_D
-                 and abs(dDr.loc[K, "d_null_diff"]) < NULL_RATIO * abs(dDr.loc[K, "est"])]
-        r["n_K_teacher_explains"] = int(sum(dDt[K] <= HALF_T * dD[K] for K in h1_ok))          # H1 の条件を満たした K だけで数える
+        # H1 の書き方（4 節．M1・M2・A2）
+        h1K = ok_K(c, "dD_joint_a1_none", FLOOR_D, True)
+        main = rows_of(c, "dD_joint_a1_none")
         phi_small = r["phi_n_lo_pos"] - r["phi_n_lo_pos_floor"] >= 3
+        if c == "MOSEI":
+            ch = rows_of(c, "dD_joint_a1_none", var="chan")
+            r["chan_n_K_robust"] = int(sum(ch.loc[K, "lo"] > 0 and ch.loc[K, "est"] >= R_HALF * main.loc[K, "est"] for K in h1K))
+        ce, kp = rows_of(c, "dD_joint_a1_none", var="cent"), rows_of(c, "dD_joint_a1_none", var="keep")
+        r["cent_n_K_small"] = int(sum(ce.loc[K, "est"] < R_HALF * kp.loc[K, "est"] for K in h1K))
         if not r["H1"]:
-            r["H1_wording"] = "満たさなかった"
+            wd = "満たさなかった"
         elif not r["H1p"]:
-            r["H1_wording"] = "正解で別々に学んだ分類器の依存の水準の中に収まる"
-        elif r["phi"]:
-            r["H1_wording"] = "誤りの写しを含む依存の増加"
-        elif r["n_K_teacher_explains"] >= 3:
-            r["H1_wording"] = "教師の点数の揺れの写しによる依存の増加" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "")
+            wd = "正解で別々に学んだ分類器の依存の水準の中に収まる"
         else:
-            r["H1_wording"] = "依存は増えたが，誤りの写しとも教師の点数の揺れの写しとも分けられない" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "")
-        g = Df[(Df.c == c) & (Df.quantity == "G_joint_a1") & Df.K.isin(KS_RULE)]
+            wd = "依存の増加（誤りの相関の増加を伴う）" if r["phi"] else \
+                "依存の増加" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "（誤りの相関の増加は規則を満たさない）")
+            wd += ("．同じ疑似ラベルを共有したことが依存を増やした（段 3 の共有．段 2 の共有は分けていない）" if r["share"]
+                   else "．依存の増加は，同じ重みで各モダリティ自身の疑似ラベルで学んだ場合と分けられない")
+            if r["share"] and r["phi_share"]:
+                wd += "．誤りの相関も共有で増えた"
+            if c == "MOSEI" and r["chan_n_K_robust"] < 3:
+                wd += "．同じ人物の別の動画が候補に残る漏れと分けられない"
+            if r["cent_n_K_small"] >= 3:
+                wd += "．増えた依存の多くは話者（塊）の水準の共有である"
+        r["H1_wording"] = wd
+        g = rows_of(c, "G_joint_a1")
         r["additivity_n_hi_neg"] = int((g.hi < 0).sum())
         r["additivity_fails"] = bool(r["additivity_n_hi_neg"] >= 3)
+        for s, tag in (("joint_a1", "H4"), (RHO1, "H4_rho1")):            # H4：依存を無視した損が足し合わさらない分をどれだけ説明するか（M3）
+            S_, sh, dl = rows_of(c, f"S_{s}"), rows_of(c, f"share_dep_{s}"), rows_of(c, f"dLdep_{s}_none")
+            base_ok = [K for K in KS_RULE if S_.loc[K, "est"] > 0 and dl.loc[K, "lo"] > 0]
+            r[f"{tag}_n_K_half"] = int(sum(sh.loc[K, "est"] >= R_SHARE_HI for K in base_ok))
+            r[f"{tag}_n_K_part"] = int(sum(sh.loc[K, "est"] >= R_SHARE for K in base_ok))
+            big = [max(("S1", "dLdep", "dLcal"), key=lambda q: rows_of(c, f"{q}_{s}" if q != "dLdep" else f"dLdep_{s}_none").loc[K, "est"])
+                   for K in KS_RULE]
+            r[f"{tag}_largest_by_K"] = ";".join(big)
+            if s == "joint_a1":
+                if not r["additivity_fails"]:
+                    wd4 = "前提 (iv) を満たさない（足し合わさらない理由を書かない）"
+                elif r[f"{tag}_n_K_half"] >= 3:
+                    wd4 = "依存を無視した損が，足し合わさらない分の半分以上を説明する"
+                elif r[f"{tag}_n_K_part"] >= 3:
+                    wd4 = "依存を無視した損が，足し合わさらない分の一部（4 分の 1 以上）を説明する"
+                else:
+                    top = max(set(big), key=big.count)
+                    wd4 = f"足し合わさらない分のうち最も大きいのは「{PART_NAME[top]}」である（K の 4 つのうち {big.count(top)} つ）"
+                r["H4_wording"] = wd4
         h = acells[(acells.c == c) & acells.K.isin(KS_RULE) & acells.set.isin(L_SETS)]
         r["n_cells_h_excess_ge_0.5"] = int((h.h_excess >= H_MAX).sum())
         crit.append(r)
     C = pd.DataFrame(crit)
-    C = C.assign(**{f"{nm}_overall": bool(C[nm].sum() >= 3) for nm in ("H1", "H1_joint", "H1p", "H2", "H3")})
+    for nm in ("H1", "H1_joint", "H1p", "H1_AV", "share", "H2", "H3", "additivity_fails"):   # 全体の数（A1：IEMOCAP 即興を除いた数も）
+        n_all, n_ex = int(C[nm].sum()), int(C.loc[C.c != "IEMOCAP", nm].sum())
+        C[f"{nm}_n_corpora"], C[f"{nm}_n_corpora_excl_IEMOCAP"] = n_all, n_ex
+        C[f"{nm}_overall"] = n_all >= 3
+        C[f"{nm}_depends_on_IEMOCAP"] = (n_all >= 3) and (n_ex <= 2)
+    TW = tether_table(have, json.load(open(FROZEN)), out)
+    TWc = TW.groupby(["c", "K", "mod"])[["n_pool", "rho_joint_a1", "weakening_joint_a1", "weakening_rho1", "C_none", "tw_range"]].mean().reset_index()
     commit = sorted(commits)[0] if len(commits) == 1 else "multiple"
     s_commit, s_dirty = dai1.git_commit()                                  # 集計の段のコミット（gate-code の I9）
-    for df_, fn in ((cells, "cells.csv"), (acells, "uar_cells.csv"), (Df, "diffs.csv"), (C, "criteria.csv")):
+    for df_, fn in ((cells, "cells.csv"), (acells, "uar_cells.csv"), (Df, "diffs.csv"), (C, "criteria.csv"), (TWc, "tether_weakening.csv")):
         df_.assign(commit=commit, summarize_commit=s_commit, summarize_dirty=s_dirty, boot_seed=0, n_boot=N_BOOT).to_csv(out / fn, index=False)
-    print(f"書いた：cells.csv，uar_cells.csv，diffs.csv，criteria.csv（{len(have)} 単位）", flush=True)
+    print(f"書いた：cells.csv，uar_cells.csv，diffs.csv，criteria.csv，tether_weakening.csv（{len(have)} 単位）", flush=True)
 
 
 # ------------------------------------------------------------------ 検算
@@ -759,7 +951,23 @@ def selftest() -> None:
     dr, dr0, _ = d_with_null(residualize(a2, t, y), residualize(b2, t, y), y, rng)
     dd, dd0, _ = d_with_null(a2, b2, y, rng)
     assert np.all(np.abs(dr - dr0) < 0.01) and np.all(dd - dd0 > 0.1), (dr - dr0, dd - dd0)
-    print("検算：9 項目すべて通った")
+    # (10) 3 つの独立な量の和を除くと，依存が無くても D_t は正になる（期待は相関 −1/2，2 乗 0.25．dai-review-ml の M1 の記録）
+    a3, b3, c3 = (rng.normal(size=(n, 3)) for _ in range(3))
+    dr, dr0, _ = d_with_null(residualize(a3, a3 + b3 + c3, y), residualize(b3, a3 + b3 + c3, y), y, rng)
+    dd, dd0, _ = d_with_null(a3, b3, y, rng)
+    assert np.all(np.abs(dd - dd0) < 0.01) and np.all(np.abs((dr - dr0) - 0.25) < 0.04), (dd - dd0, dr - dr0)
+    # (11) 得の足し合わせの恒等式 S = (Ḡ − G_full) + ΔL_dep + ΔL_cal（M3）が配列でも数でも成り立つ
+    us = {q: rng.normal(size=7) for q in ("prod", "blk", "full", *MODS)}
+    un = {q: rng.normal(size=7) for q in ("prod", "blk", "full", *MODS)}
+    dc = decompose(us, un)
+    assert np.allclose(dc["S"], dc["S1"] + dc["dLdep"] + dc["dLcal"])
+    dc1 = decompose({q: float(v[0]) for q, v in us.items()}, {q: float(v[0]) for q, v in un.items()})
+    assert abs(dc1["S"] - dc["S"][0]) < 1e-12
+    # (12) 感情ごとの抜き直しの値の平均は対の値と一致し，重み 1 なら直接の値と一致する
+    res, rese = boot_D_unit(z, y, codes, {"AV": ((BLK["A"], BLK["V"]), np.zeros(4))}, np.ones((2, 20)), per_emotion=True)
+    assert np.allclose(np.nanmean(rese["AV"], 1), res["AV"])
+    assert all(abs(rese["AV"][0, e] - float(dstat(a[y == e], b[y == e]))) < 1e-8 for e in range(4))
+    print("検算：12 項目すべて通った")
 
 
 # ------------------------------------------------------------------ 入口
@@ -786,12 +994,12 @@ def main() -> None:
     prov_path = a.out / "provenance.json"
     prov = json.loads(prov_path.read_text()) if prov_path.exists() else {"runs": []}
     run = dict(commit=commit, dirty=dirty, argv=sys.argv, host=platform.node(), python=platform.python_version(),
-               torch=torch.__version__, numpy=np.__version__, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+               torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, cuda=torch.version.cuda, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
                frozen_sha256=dai1.sha(FROZEN), n_null=N_NULL, n_null_pool=N_NULL_POOL, n_boot=N_BOOT, min_n=MIN_N, min_cell=MIN_CELL,
                min_half=MIN_HALF, min_share=MIN_SHARE, floor_d=FLOOR_D, floor_l=FLOOR_L, null_ratio=NULL_RATIO, h_max=H_MAX,
-               n_null_h=N_NULL_H, half_t=HALF_T,
+               n_null_h=N_NULL_H, r_share=R_SHARE, r_share_hi=R_SHARE_HI, r_half=R_HALF, vkind=VKIND,
                eps_d=EPS_D, eps_lda=EPS_LDA, unit_seed="int.from_bytes(単位の名前の utf-8, 'little') % 2**32",
-               perm_rng="default_rng([単位の種, K, 対の番号, 量の種類 0=テスト 1=候補 2=中心化 3=教師を除く 4=h⁰（対の番号 9）])",
+               perm_rng="default_rng([単位の種, K, 対の番号, 量の種類 0=テスト 1=候補 3=教師を除く 4=h⁰（対の番号 9），変種は vkind の番号（2=話者か塊で中心化）])",
                boot_seed=0, units=[])
     prov["runs"].append(run)
     for p3 in units:
