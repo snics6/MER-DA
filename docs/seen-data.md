@@ -166,6 +166,7 @@ E1〜E73 の 1 件ずつの記録は無い．台帳を始めた 2026-10-28 の�
 | DAI-8 の第 3・4 回の検査が見たもの（gate-probe `probe_v3.md`・`probe_v4.md`，dai-review-ml `review_ml_v3.md`，dai-review-affect `review_affect_v3.md`） | 2026-11-08 | 下調べ（再検査） | gate-probe：差分，台帳の DAI-8 の行，台本の一部，起動の台本，`code_run*` のファイル名，人工データ．ML：人工のラベル `review_ml_run/ami_norm_sim`．感情認識：`dialogue_ids` を候補に当てた結果（止まったか，対話の数），splits のラベルから数えた感情と対話の重なり（AMI 0.318 など），人工データ．どの役もモデルの判定，UAR，`results/` の中身は見ていない．本体の第 5 版の試走（作業用のフォルダ，2 単位．所要 71 秒と 208 秒，照合の不一致 0）も値は見ていない | 検査だけ |
 | DAI-8 の感情認識の査読想定の第 4 回が見たもの（`review_affect_v4.md`．OK） | 2026-11-08 | 下調べ（再検査） | 人工データでの条件つき相互情報量の割合 x の値だけ（台本は作業用のフォルダの `cmi_sim.py`）．実データのラベル，モデルの判定，UAR，`results/`，ログ，試走の出力は見ていない．本体の d1〜d3 の直しの後の試走（作業用のフォルダ，1 単位．66 秒，照合の不一致 0）も値は見ていない | 検査だけ |
 | DAI-8 の本計算の起動（設計 第 6 版，台本 `DAI/exp/dai8_probe.py`，起動の台本 `DAI/run/dai8_probe.sh`．gate-probe 通す（probe_v4），gate-code 通す（code_v3），dai-review-ml OK（review_ml_v3），dai-review-affect OK（review_affect_v4）） | 2026-11-08 04:4x | 下調べ（関門を通した本計算．研究者の就寝中の指示「許可がなくても進めて」） | tmux mer-da の dai8 の窓で，2 組を同じ GPU で並べて流し，続けて集計する．出力 `results/dai8_probe/`，ログ `logs/dai8_probe_s0.log`・`_s1.log`・`_sum.log`，終わると `logs/dai8_probe.done`（失敗は `.failed`）．起動の確かめでは単位の所要の行と rows のファイルの数だけを見る | 結果の文に使う（gate-claim の後） |
+| DAI-9 の下調べの設計と台本（`DAI/docs/実験9_下調べ_設計.md` 第 1 版，`DAI/exp/dai9_probe.py`．感情でないまとまりの成分を先に取り除く） | 2026-11-08 04:45〜04:50 | 下調べ（設計．研究者の就寝中の指示） | DAI-8 の値を見る前に書いた．本体の試走（作業用のフォルダ，AFEW_f0_r0 と MOSEI_f0_r1．所要 37 秒と 160 秒）は所要と行の数だけを見た．DAI-8 の本計算は起動の確かめで rows のファイルの数だけを見た | 計算の前の設計 |
 
 ## 3. 確認に使えるデータ
 
