@@ -1,6 +1,6 @@
 """実験 7 の下調べ（DAI-7）：ほかのモダリティの疑似ラベルで蒸留すると，単独の分類器どうしの点数の依存が増えるか．
 
-設計は `DAI/docs/実験7_下調べ_設計.md`（第 7 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
+設計は `DAI/docs/実験7_下調べ_設計.md`（第 8 版）．第 1 版の台本 `DAI/exp/dai7_probe.py` は関門の前の本計算（`results/dai7_probe/`）の記録として残す．実験 1 の仮のターゲットの回の保存（`results/dai1/pseudo/units/`）だけを読み，
 保存した W・b を候補とテストの特徴に当てて点数を作り直す．新しく学ぶのは 3.5 節の 9 次元の判別分析と，3.3 節の教師の点数への回帰だけである．
 評価の回の保存は読まない．
 
@@ -885,11 +885,14 @@ def summarize(out: Path, allow_partial: bool) -> None:
             wd = "満たさなかった"
         elif not r["H1p"]:
             wd = "正解で別々に学んだ分類器の依存の水準の中に収まる"
+            if c == "IEMOCAP":                                              # 第 8 版：H1 だけを満たす枝にも同じ固定の添え書き（c1）
+                wd += "．IEMOCAP 即興の依存の増加は筋書きの話題の共有と分けられない（筋書きで中心化した D を並べる）"
         else:
             wd = "依存の増加（誤りの相関の増加を伴う）" if r["phi"] else \
                 "依存の増加" + ("（誤りの相関の増加は下限 0.02 に届かない）" if phi_small else "（誤りの相関の増加は規則を満たさない）")
             if r["share"]:
-                wd += "．同じ疑似ラベルを共有したことが依存を増やした（段 3 の共有．段 2 の共有は分けていない．ρ = 1，a = 1 の点で比べた）"
+                wd += ("．同じ疑似ラベルを共有したことが依存を増やした（段 3 の共有．段 2 の共有は分けていない．ρ = 1，a = 1 の点で比べた．"
+                       f"joint_a1 の ρ が 1 でないセル {n_rho_not1} / {r['n_unit_cells']}）")
                 if r["phi_share"]:
                     wd += "．誤りの相関も共有で増えた"
                 if c == "MOSEI" and r["chan_share_n_K_robust"] < 3:
@@ -897,7 +900,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
                 if r["cent_share_n_K_small"] >= 3:
                     wd += "．共有で増えた依存の多くは話者（塊）の水準の共有である"
             else:
-                wd += "．依存の増加は，同じ重みで各モダリティ自身の疑似ラベルで学んだ場合と分けられない（ρ = 1，a = 1 の点で比べた）"
+                wd += ("．依存の増加は，同じ重みで各モダリティ自身の疑似ラベルで学んだ場合と分けられない（ρ = 1，a = 1 の点で比べた．"
+                       f"joint_a1 の ρ が 1 でないセル {n_rho_not1} / {r['n_unit_cells']}）")
             if c == "MOSEI" and r["chan_n_K_robust"] < 3:
                 wd += "．同じ人物の別の動画が候補に残る漏れと分けられない"
             if r["cent_n_K_small"] >= 3:
@@ -914,7 +918,6 @@ def summarize(out: Path, allow_partial: bool) -> None:
         g = rows_of(c, "G_joint_a1")
         r["additivity_n_hi_neg"] = int((g.hi < 0).sum())
         r["additivity_fails"] = bool(r["additivity_n_hi_neg"] >= 3)
-        ivK = [K for K in KS_RULE if g.loc[K, "hi"] < 0]                    # m8：前提 (iv) の区間の条件を満たした K だけで数える
         h = acells[(acells.c == c) & acells.K.isin(KS_RULE) & acells.set.isin(L_SETS)]
         r["n_cells_h_excess_ge_0.5"] = int((h.h_excess >= H_MAX).sum())
         for s, tag in (("joint_a1", "H4"), (RHO1, "H4_rho1")):            # H4：依存を無視した損が足し合わさらない分をどれだけ説明するか（M3・M4）
@@ -1082,10 +1085,10 @@ def main() -> None:
     prov_path = a.out / "provenance.json"
     prov = json.loads(prov_path.read_text()) if prov_path.exists() else {"runs": []}
     run = dict(commit=commit, dirty=dirty, argv=sys.argv, host=platform.node(), python=platform.python_version(),
-               torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, cuda=torch.version.cuda, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+               torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, scipy=__import__("scipy").__version__, cuda=torch.version.cuda, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
                frozen_sha256=dai1.sha(FROZEN), n_null=N_NULL, n_null_pool=N_NULL_POOL, n_boot=N_BOOT, min_n=MIN_N, min_cell=MIN_CELL,
                min_half=MIN_HALF, min_share=MIN_SHARE, floor_d=FLOOR_D, floor_l=FLOOR_L, null_ratio=NULL_RATIO, h_max=H_MAX,
-               n_null_h=N_NULL_H, r_share=R_SHARE, r_share_hi=R_SHARE_HI, r_half=R_HALF, vkind=VKIND,
+               n_null_h=N_NULL_H, r_share=R_SHARE, r_share_hi=R_SHARE_HI, r_half=R_HALF, vkind=VKIND, neff_jk=NEFF_JK, part_order=list(PART_ORDER),
                eps_d=EPS_D, eps_lda=EPS_LDA, unit_seed="int.from_bytes(単位の名前の utf-8, 'little') % 2**32",
                perm_rng="default_rng([単位の種, K, 対の番号, 量の種類 0=テスト 1=候補 3=教師を除く 4=h⁰（対の番号 9），変種は vkind の番号（2=話者か塊で中心化）])",
                boot_seed=0, units=[])
