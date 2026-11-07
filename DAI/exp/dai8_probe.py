@@ -442,6 +442,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
                         keep(key, res["snap"][N_EM] if N_EM in res["snap"] else res["fit"], Xt, save_delta=True, save_coef=True)
                         keep(f"K{K}_{s}_emconv_a{a}_b{b}", res["fit"], Xt, save_delta=True, save_coef=True)
                         record(key, res)
+                        ph = res["pool_hist"]
+                        diag[key]["pool_uar_at10"] = ph[N_EM] if len(ph) > N_EM else ph[-1]   # 「流れた」は t = 10 で数える（review_ml の第 3 回の n4）
                         poolpred[f"K{K}_{s}_emconv_a{a}_b{b}"] = res["R"].argmax(1).cpu().numpy()   # 候補の全部（gate-probe の第 2 回の 2）
                         h = res["hist"]
                         diag[key]["hist_at_rule"] = h[N_EM - 1] if len(h) >= N_EM else (h[-1] if h else 0.0)
@@ -586,6 +588,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
         T, c, fs, rs = p.name[:-4].split("_")
         z = np.load(p, allow_pickle=False)
         labs = {"emo": z["pool_y"].astype(int), "grp": z["pool_group"].astype(str), "dlg": z["pool_dialogue"].astype(str)}
+        amirows.append(dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key="labels_emo",   # ラベルどうしの AMI（review_ml の第 3 回の n6）
+                            **{f"ami_{nm}": float(AMI(lab, labs["emo"], average_method="min")) for nm, lab in labs.items()}))
         for k in [x for x in z.files if x.startswith("P_") and "_AVT_" in x or x.startswith("P_AVT_")]:
             a_ = z[k].astype(int)
             amirows.append(dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key=k[2:],
@@ -659,7 +663,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
         else:
             r["M1_reading"] = "a_init_or_other"
         em_pool = DGu[(DGu.c == c) & DGu.key.isin([f"K{K}_AVT_em_{FX}" for K in KS_RULE])]
-        r["M1_drifted"] = bool(((em_pool.pool_uar - em_pool.pool_uar_none) <= -DRIFT).mean() > 0.5) if len(em_pool) else False
+        r["M1_drifted"] = bool(((em_pool.pool_uar_at10 - em_pool.pool_uar_none) <= -DRIFT).mean() > 0.5) if len(em_pool) else False
         for s_ in SPACES:
             fs_ = DGu[(DGu.c == c) & (DGu.key.str.endswith(f"_{s_}_em_{FX}"))]
             r[f"ratio_{s_}"] = float(fs_.ratio.median())
