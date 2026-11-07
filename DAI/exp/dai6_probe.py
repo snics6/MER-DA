@@ -807,13 +807,14 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
         cr["n_pass_cv"] = int(cr["pass_cv"].sum())                                           # ML の査読 m4
     cr.assign(**tag).to_csv(out / "criteria.csv", index=False)
     # 仮定の表（3.4.1．ML の査読 M1 の直し）
-    de = pd.read_csv(out / "decomp.csv", low_memory=False)
+    de = pd.read_csv(out / "decomp.csv", low_memory=False).copy()
     de["A1"] = np.where(de["sv_within_1"] <= de["wnull_q95_sv_within_1"], "not_rejected", "rejected")
     de["A1_threshold"] = de["wnull_q95_sv_within_1"]
     de["A2"] = np.where(de["sv_between_3"] > de["null_q95_sv_between_3"], "holds", "unconfirmed")
     de["A2_eq"] = np.where(de["sv_between_eq_3"] > de["null_q95_sv_between_eq_3"], "holds", "unconfirmed")   # 同じ重みの版（感情認識の査読 b5）
     for col in ("fro2_total", "fro2_between", "fro2_within", "fro2_between_eq"):
         de[f"{col}_minus_null"] = de[col] - de[f"null_mean_{col}"]
+    de = de.copy()
     lda_rows = []
     for (c, f) in sorted(set(zip(su["c"], su["fold"]))):
         U = ProbeUnit(c, f)
@@ -869,12 +870,20 @@ def summarize(out: Path, allow_partial: bool = False) -> None:
     for (c, f), r in rc.iterrows():
         stab_ok = all((c, f, m) in st.index and st.loc[(c, f, m), "cos2_mean"] >= st.loc[(c, f, m), "cos2_mean_pca"] for m in MODS)
         nm = "speaker" if c == "IEMOCAP" else "cluster"
-        insep = bool((c, f) in er.index and er.loc[(c, f), f"emo_eta2_{nm}_min"] - er.loc[(c, f), f"emo_eta2_{nm}_chance"] >= 0.10)
+        rules = []
+        if (c, f) in er.index:
+            e_ = er.loc[(c, f)]
+            if e_[f"emo_eta2_{nm}_min"] - e_[f"emo_eta2_{nm}_chance"] >= 0.10:
+                rules.append("a")                                             # 感情だけで決まるどの変量にも塊の印が付く
+            for rl, col in (("b", "emo_R_duration"), ("b", "emo_R_ntoken"), ("c", "emo_R_marker"), ("d", "emo_R_compression")):
+                if col in e_ and np.isfinite(e_[col]) and e_[col] >= 0.30 and rl not in rules:
+                    rules.append(rl)                                          # 感情だけで決まる変量のうちに印が付くものがある（gate-code の再検査 3 の 1）
         drows.append({"c": c, "fold": f, **{f"r_clean_{m}": int(r[m]) for m in MODS}, "stab_ok": bool(stab_ok),
-                      "fold_ok": bool(all(r[m] >= 3 for m in MODS) and stab_ok), "inseparable_a": insep})
+                      "fold_ok": bool(all(r[m] >= 3 for m in MODS) and stab_ok), "inseparable_a": "a" in rules,
+                      "inseparable": bool(rules), "inseparable_rule": "/".join(rules)})
     dg = pd.DataFrame(drows)
     if len(dg):
-        agg = dg.groupby("c").agg(n_folds_ok=("fold_ok", "sum"), n_insep=("inseparable_a", "sum")).reset_index()
+        agg = dg.groupby("c").agg(n_folds_ok=("fold_ok", "sum"), n_insep=("inseparable", "sum")).reset_index()
         agg["predict_pass"] = agg["n_folds_ok"] >= 3
         agg["inseparable"] = agg["n_insep"] >= 3
         if len(cr):
