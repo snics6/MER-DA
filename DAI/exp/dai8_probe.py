@@ -207,6 +207,30 @@ def _top3_null(X, lab, Ach, n_perm=N_PERM):
     return float(np.mean([_top3(X, np.random.default_rng(SEED + 1 + i).permutation(lab), Ach) for i in range(n_perm)]))
 
 
+def _perm_within(lab, strata, seed):
+    """層 strata の中だけで lab を並べ替える。"""
+    rng = np.random.default_rng(seed)
+    out = lab.copy()
+    for s_ in np.unique(strata):
+        ix = np.flatnonzero(strata == s_)
+        out[ix] = lab[rng.permutation(ix)]
+    return out
+
+
+def _pair(a, b):
+    return np.unique(np.stack([a, b], 1), axis=0, return_inverse=True)[1].ravel()
+
+
+def _top3_resid(X, lab, other, Ach, n_perm=N_PERM):
+    """other で説明されない lab の分（review_affect の第 3 回の C2）：X から other の平均を引き，(lab × other) の組で上位 3 つ．
+    帰無は other の層の中で lab を並べ替える。"""
+    Mo, _ = _means(X - X.mean(0), other)
+    Xr = X - X.mean(0) - Mo[torch.as_tensor(other, device=X.device)]
+    v = _top3(Xr, _pair(lab, other), Ach)
+    nul = float(np.mean([_top3(Xr, _pair(_perm_within(lab, other, SEED + 11 + i), other), Ach) for i in range(n_perm)]))
+    return v, nul
+
+
 def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, scen=None, k=KNN) -> dict:
     """Q1：近傍の感情・グループ・対話の一致（review_affect の A2），同じ対話を外した近傍，グループで中心化した版，
     散らばりの割合と白色化した計量での分かれやすさ。"""
@@ -247,6 +271,9 @@ def knn_stats(X: torch.Tensor, y: np.ndarray, g: np.ndarray, dlg: np.ndarray, sc
         out[f"fisher_{nm}"], out[f"fisher0_{nm}"] = _fisher(Xd, lab, Ach), _fisher(Xd, _perm(lab), Ach)
         out[f"top3_{nm}"], out[f"top3null_{nm}"] = _top3(Xd, lab, Ach), _top3_null(Xd, lab, Ach)
         out[f"top3ex_{nm}"] = out[f"top3_{nm}"] - out[f"top3null_{nm}"]
+    for nm, lab, other in (("grp_xe", gi, y), ("dlg_xe", di, y), ("emo_xd", y, di)):   # 感情で（対話で）説明されない分
+        v, nul = _top3_resid(Xd, lab, other, Ach)
+        out[f"top3_{nm}"], out[f"top3null_{nm}"], out[f"top3ex_{nm}"] = v, nul, v - nul
     Gm, _ = _means(Xd, gi)                                                   # グループの平均を引いた版（次の試しの手がかり）
     Xg = Xd - Gm[torch.as_tensor(gi, device=X.device)]
     nbg = _topk(torch.nn.functional.normalize(Xg.float(), dim=1), k)
@@ -262,7 +289,8 @@ def dialogue_ids(c: str, sid: np.ndarray, df_dialogue: np.ndarray) -> np.ndarray
     if c in ("IEMOCAP", "MOSEI"):
         out = np.array([x.rsplit("_", 1)[0] for x in sid])
     elif c == "AFEW":
-        man = pd.read_csv(ROOT / "data" / "metadata" / "afew_utterance_manifest.csv", usecols=["sample_id", "movie_title"])
+        man = pd.read_csv(ROOT / "data" / "metadata" / "afew_utterance_manifest.csv", usecols=["sample_id", "movie_title"],
+                          dtype=str, keep_default_na=False)
         mp = dict(zip(man.sample_id.astype(str), man.movie_title.astype(str)))
         out = np.array([mp.get(x, "") for x in sid])
     else:
@@ -523,6 +551,27 @@ COMPARE_K0 = {   # K に依らない比べ（K = 0 の行に書く）
 SUB_COMPARE = ("em_none", "em_joint", "emfromK_ldaK", "emT_noneT")                                       # 部分集合で並べる比べ（AVT．review_affect の A3・a7）
 
 
+def _cmi(a, l, s_):
+    """I(A; L | S)（nat）＝ Σ_s p(s) I(A; L | S = s)。"""
+    from sklearn.metrics import mutual_info_score
+    tot = 0.0
+    for v in np.unique(s_):
+        m = s_ == v
+        if m.sum() > 1:
+            tot += m.mean() * mutual_info_score(l[m], a[m])
+    return float(tot)
+
+
+def _cond_entropy(a, s_):
+    tot = 0.0
+    for v in np.unique(s_):
+        m = s_ == v
+        p = np.bincount(a[m], minlength=4) / m.sum()
+        p = p[p > 0]
+        tot += m.mean() * float(-(p * np.log(p)).sum())
+    return tot
+
+
 def _add(d, key, cnt, label):
     if key in d:
         n0, c0, t0 = d[key]
@@ -596,6 +645,25 @@ def summarize(out: Path, allow_partial: bool) -> None:
                                 **{f"ami_{nm}": float(AMI(lab, a_, average_method="min")) for nm, lab in labs.items()}))   # min で正規化（gate-probe の第 3 回の 1）
     AM = pd.DataFrame(amirows)
     AM.to_csv(out / "ami_units.csv", index=False)
+    # 条件つき相互情報量（review_affect の第 3 回の C1）：x_D = (I(A;D|E) − 帰無)/H(A|E)，x_G 同様，x_E = (I(A;E|D) − 帰無)/H(A|D)
+    cmirows = []
+    for p in files:
+        T, c, fs, rs = p.name[:-4].split("_")
+        z = np.load(p, allow_pickle=False)
+        E = z["pool_y"].astype(int)
+        G = np.unique(z["pool_group"].astype(str), return_inverse=True)[1]
+        Dl = np.unique(z["pool_dialogue"].astype(str), return_inverse=True)[1]
+        for k in [x for x in z.files if x.startswith("P_") and "_AVT_" in x or x.startswith("P_AVT_")]:
+            A_ = z[k].astype(int)
+            row = dict(c=c, T=T, fold=int(fs[1:]), seed=int(rs[1:]), key=k[2:])
+            for nm, L, S_ in (("D_given_E", Dl, E), ("G_given_E", G, E), ("E_given_D", E, Dl)):
+                v = _cmi(A_, L, S_)
+                nul = float(np.mean([_cmi(A_, _perm_within(L, S_, SEED + 21 + i), S_) for i in range(N_PERM)]))
+                h = _cond_entropy(A_, S_)
+                row[f"cmi_{nm}"], row[f"cmi0_{nm}"], row[f"x_{nm}"] = v, nul, ((v - nul) / h if h > 0 else np.nan)
+            cmirows.append(row)
+    CM = pd.DataFrame(cmirows)
+    CM.to_csv(out / "cmi_units.csv", index=False)
     U = pd.DataFrame(cellrows)
     U.groupby(["c", "key"]).uar.agg(["mean", "count"]).reset_index().to_csv(out / "cells.csv", index=False)
     DGu = pd.DataFrame(diagrows)
@@ -675,10 +743,19 @@ def summarize(out: Path, allow_partial: bool) -> None:
             sub = am[am.key.isin(keys)] if len(am) else am
             for lab in ("emo", "grp", "dlg"):
                 r[f"R10_ami_{lab}_{nm_}"] = float(sub[f"ami_{lab}"].mean()) if len(sub) else np.nan
-        r["R10_em_top"] = max(("emo", "grp", "dlg"), key=lambda lab: r[f"R10_ami_{lab}_em"]) if len(am) else ""
+        r["R10_em_top_ami"] = max(("emo", "grp", "dlg"), key=lambda lab: r[f"R10_ami_{lab}_em"]) if len(am) else ""
+        cm = CM[(CM.c == c) & CM.key.isin([f"K{K}_AVT_emconv_{FX}" for K in KS_RULE])] if len(CM) else CM
+        for nm in ("D_given_E", "G_given_E", "E_given_D"):
+            r[f"R10_x_{nm}"] = float(cm[f"x_{nm}"].mean()) if len(cm) else np.nan
+        xs = {"dialogue": r["R10_x_D_given_E"], "group": r["R10_x_G_given_E"], "emotion": r["R10_x_E_given_D"]}
+        r["R10_top"] = max(xs, key=lambda k_: xs[k_] if np.isfinite(xs[k_]) else -np.inf)
         kq = knn[(knn.c == c) & (knn.space == "AVT")]
         r["R5_top3ex_emo"], r["R5_top3ex_grp"], r["R5_top3ex_dlg"] = (float(kq[f"top3ex_{x}"].mean()) for x in ("emo", "grp", "dlg"))
         r["R5_top3_top"] = max(("emo", "grp", "dlg"), key=lambda x: r[f"R5_top3ex_{x}"])
+        for x in ("grp_xe", "dlg_xe", "emo_xd"):
+            r[f"R5_top3ex_{x}"] = float(kq[f"top3ex_{x}"].mean())
+        r["R5_nonemo_top_xe"] = max(("grp_xe", "dlg_xe"), key=lambda x: r[f"R5_top3ex_{x}"])
+        r["R5_nonemo_separates"] = bool(r[f"R5_top3ex_{r['R5_nonemo_top_xe']}"] > 0)
         crit.append(r)
     Cr = pd.DataFrame(crit)
     for tag in ("R1", "R2", "R3", "R4", "R7", "R8", "not_moved"):
@@ -769,6 +846,24 @@ def selftest() -> None:
         keeps[tag] = float((rr["R"].argmax(1).cpu().numpy() == lab).mean())
     print(f"(5) 正解から始めた EM が保った割合 {keeps['truth']:.3f}，でたらめから {keeps['rand']:.3f}")
     assert keeps["truth"] > 0.9 and keeps["rand"] < 0.6
+    # (6) 感情で説明されない分（C2）：特徴が感情だけで決まり，対話が感情と重なる人工データで，対話の残りの分は帰無の近く
+    rng6 = np.random.default_rng(1)
+    dlg6 = rng6.integers(0, 40, n)
+    y6 = np.where(rng6.random(n) < 0.7, dlg6 % 4, rng6.integers(0, 4, n))      # 同じ対話は同じ感情に寄る
+    X6 = (mu.to(DEV)[torch.as_tensor(y6, device=DEV)] + torch.randn(n, d, generator=g, dtype=DT).to(DEV))
+    X6 = X6 - X6.mean(0)
+    T6 = X6.T @ X6 / n
+    Ach6 = torch.linalg.cholesky(0.5 * T6 + 0.5 * torch.eye(d, dtype=DT, device=DEV))
+    raw = _top3(X6, dlg6, Ach6) - _top3_null(X6, dlg6, Ach6)
+    v6, n6 = _top3_resid(X6, dlg6, y6, Ach6)
+    print(f"(6) 対話の上位 3 の帰無を引いた値：そのまま {raw:.3f}，感情で説明されない分 {v6 - n6:.3f}")
+    assert raw > 0.3 and abs(v6 - n6) < 0.15
+    # (7) 条件つき相互情報量（C1）：割り当てが対話だけで決まるとき x_D|E は大きく，x_E|D は小さい
+    A7 = (dlg6 * 7) % 4
+    xd = (_cmi(A7, dlg6, y6) - np.mean([_cmi(A7, _perm_within(dlg6, y6, i), y6) for i in range(3)])) / _cond_entropy(A7, y6)
+    xe = (_cmi(A7, y6, dlg6) - np.mean([_cmi(A7, _perm_within(y6, dlg6, i), dlg6) for i in range(3)])) / max(_cond_entropy(A7, dlg6), 1e-12)
+    print(f"(7) 割り当てが対話で決まるとき：x_D|E {xd:.3f}，x_E|D の分母 {_cond_entropy(A7, dlg6):.3f}")
+    assert xd > 0.5
     print("自己検査：通った")
 
 
