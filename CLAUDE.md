@@ -4,7 +4,7 @@
 ほかのコーパス（ソース）のラベル付きデータを混ぜると成績がどう変わるかを測り，
 得と損が生じる仕組みを，ドメイン適応（DA）理論と対応づけた数式モデルで説明する研究である．
 **分析の軸は得の仕組みの仮説 MH1〜MH5**（`docs/researchvision.md` 3 節）．その上に，仕組みの式（E15〜E17）と条件の探索（E18〜）を積んでいる．**解析は，合併の C をソースのみの C に固定した地図（`results/fixc_map/`）を土台にし，論文と発表資料の本文もこの地図だけで書く**（交差検証の地図は付録．同 6.2 節）．
-論文は分析と手法を 1 本に統合する（2026-10-22 決定．数理を前面に）．2026-10-28 に，今の版では IEEE TAC に出さず，教師なしの DA としても半教師ありの DA としても数学的に裏打ちされた手法の新しさを目指して実験を増やすと決めた（`docs/researchvision.md` 6.1 節）．2026-10-31 に投稿先を Discover Artificial Intelligence に決め，論文は `DAI_paper/` で書くことにした（規則は `DAI_paper/CLAUDE.md`）．TAC 向けの旧版の `paper/` の内容には従わない．2026-11-04 に，Albanie ほか 2018 とその後続研究を土台に研究を組み直すと決め，設計と実験は `DAI/` で行うことにした（規則は `DAI/CLAUDE.md`，計画は `DAI/docs/計画_2026-11-04.pdf`）．
+論文は分析と手法を 1 本に統合する（2026-10-22 決定．数理を前面に）．2026-10-28 に，今の版では IEEE TAC に出さず，教師なしの DA としても半教師ありの DA としても数学的に裏打ちされた手法の新しさを目指して実験を増やすと決めた（`docs/researchvision.md` 6.1 節）．2026-10-31 に投稿先を Discover Artificial Intelligence に決め，論文は `DAI_paper/` で書くことにした（規則は `DAI_paper/CLAUDE.md`）．TAC 向けの旧版の `paper/` の内容には従わない．2026-11-04 に，Albanie ほか 2018 とその後続研究を土台に研究を組み直すと決め，設計と実験は `DAI/` で行うことにした（規則は `DAI/CLAUDE.md`，計画は `DAI/docs/計画_2026-11-04.pdf`）．2026-11-08 に，時間が無いので，まず解析論文として結論をまとめ，エンコーダの凍結を解析のための設定にすると決めた（`docs/researchvision.md` 6.1 節．作業の記録は `research_notes/解析論文のストーリー_2026-11-08/`）．
 各主張の最新の状態と実験の一覧は `docs/results.md`（3.6 節），分析の層と次の実験の計画は `docs/researchvision.md` 3.6・3.7 節．
 
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
@@ -59,7 +59,7 @@
 | 場所 | 中身 | git |
 |---|---|---|
 | `docs/` | 文書 6 本（研究計画 `researchvision.md`，方法，結果，探索の記録，先行研究，見たデータの台帳 `seen-data.md`）と論文の主張契約の下書き `paper-claim.md`．データの文書は `data/README.md` | ○ |
-| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`・`gate-code`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節）と，新しい定理を探す担当の定義（`thm-unexplained`・`thm-open-problems`・`thm-claim`・`thm-screen`・`thm-deep`・`thm-check`．手順は同 10 節）．2026-10-28〜 | ○ |
+| `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`・`gate-code`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節）と，新しい定理を探す担当の定義（`thm-unexplained`・`thm-open-problems`・`thm-claim`・`thm-screen`・`thm-deep`・`thm-check`．手順は同 10 節）．2026-10-28〜．解析論文のストーリーの有益さを先行研究と照らして判定する役 `story-judge`（2026-11-08〜） | ○ |
 | `checks/` | 検査役の報告（`checks/<E 番号>/<役>.md`） | ○ |
 | `A theory of learning from different domains.pdf` | 中核の理論の論文（Ben-David 2010） | ○ |
 | `data/metadata/` | 発話一覧 6 本と MOSEI のチャンネル対応表（ラベルと話者の正本），AFEW の Whisper の書き起こし `afew_transcript_whisper.csv` | ○ |
