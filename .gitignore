@@ -81,3 +81,4 @@ DAI/checks/DAI-eval/code_run_post/*.pkl
 # DAI の検査役の試走の出力（判定の値を含む．報告の md は DAI/checks/<実験>/ 直下）
 DAI/checks/*/code_run*/
 DAI/checks/*/review_*_run*/
+DAI/checks/*/claim_run*/
