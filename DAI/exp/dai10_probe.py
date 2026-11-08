@@ -181,8 +181,11 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
         onehot_all = torch.nn.functional.one_hot(yp_t, 4).to(DT)
         fO = P8.lda_from_R(Xp, onehot_all, Xp.T @ Xp, A_RULE)                  # 候補の全ラベルの LDA（DAI-8 の LDA_O と同じ）
         pO = P8.delta(Xt, fO).argmax(1).cpu().numpy()
-        checks["ldaO_mismatch"] += int((pO != z8[f"{s}_ldaO_a0.5"].astype(int)).sum())
+        mO = int((pO != z8[f"{s}_ldaO_a0.5"].astype(int)).sum())
+        checks["ldaO_mismatch"] += mO
         checks["ldaO_compared"] += len(pO)
+        if mO > max(1, int(LDAK_TOL * len(pO))):                             # LDA_SO の Σ_O が DAI-8 の LDA_O の Σ_O と同じことの確かめ（gate-probe の第 2 回の 4）
+            raise SystemExit(f"{name} {s}：全ラベルの LDA の判定が DAI-8 の保存と {mO} 本違う")
         pred[f"{s}_ldaOT_a{A_RULE}"] = P8.delta(Xt, lda_metric(fO["mu"], chols[A_RULE])).argmax(1)   # オラクル：全ラベルの平均 × 計量 A
         piC = torch.bincount(yp_t, minlength=4).to(DT) / len(yp)                # 候補の感情の割合（ラベルを使う．LDA_Tcpi は記述のオラクル）
         for K in KS_RULE:

@@ -176,6 +176,7 @@ E1〜E73 の 1 件ずつの記録は無い．台帳を始めた 2026-10-28 の�
 | DAI-10 の下調べの設計と台本（`DAI/docs/実験10_下調べ_設計.md` 第 1 版，`DAI/exp/dai10_probe.py`．ラベル無しの発話を計量にだけ使う LDA） | 2026-11-08 09:03〜09:08 | 下調べ（設計．研究者の就寝中の指示） | DAI-8・DAI-9 の値を見た後に書いた（設計 0 節に申告）．自己検査は人工データだけ．試走（作業用のフォルダ，AFEW_IEMOCAP_f0_r0 と IEMOCAP_MOSEI_f1_r0）は所要（2〜3 秒），K 本だけの LDA の照合の不一致の数（0），鍵の数，集計の各ファイルの行の数だけを見て，出力は消した | 計算の前の設計 |
 | DAI-8・DAI-9 の結果の文の照合（gate-claim の第 1〜3 回 `DAI/checks/DAI-8/claim.md`・`claim_v2.md`・`claim_v3.md`．第 3 回で通す） | 2026-11-08 09:00〜09:35 | 下調べ（照合） | 照合役は `results/dai8_probe/`，`results/dai9_probe/`，`results/dai89_explore_drift_v2/` の値を下書きと照らした | 照合だけ |
 | DAI-10 の設計の第 2 版と関門の第 1 回（gate-probe `DAI/checks/DAI-10/probe.md`，gate-code `code.md`） | 2026-11-08 09:35〜 | 下調べ（設計と台本の検査） | 第 2 版は prior-work-diff の調べ `research_notes/先行研究_モーメントだけを使う半教師ありLDA_2026-11-08/report.md` と，2026-10-17 の E38 の下見の記録（`docs/exploratory-analyses.md`）を見て直した．試走は 2 単位の所要（3〜7 秒），照合の不一致の数（0），行の数，criteria の NaN の数（0）だけを見て消した | 計算の前の設計 |
+| DAI-10 の関門の第 1 回の検査役が見たもの（gate-probe `DAI/checks/DAI-10/probe.md`，gate-code `code.md`） | 2026-11-08 09:27〜09:55 | 下調べ（設計と台本の検査） | gate-code：作業用のフォルダで 64 単位（c = IEMOCAP と c = MOSEI の全単位を含む）を流し，`--summarize --allow-partial` まで行った．行の数・照合の数・検算の差・所要だけを見て，値（UAR の差，規則の可否）は表示せず，出力は消した（`code.md` 42・157 行）．gate-probe：DAI-8 の diffs.csv の se・n_units・n_folds の列，DAI-8 の rows の判定が T の間で一致する件数と n_pool，splits の cluster・dialogue・fold の列，MELD.csv の先頭 2 行（label_4 の値 2 つが画面に出た．判断には使っていない） | 検査だけ |
 
 ## 3. 確認に使えるデータ
 
