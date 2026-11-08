@@ -42,6 +42,7 @@ D8 = ROOT / "results" / "dai8_probe"
 D8_COMMIT = "a90af78a2bef71a8372fcf52c9ca093853c29661"
 LDAK_TOL = 0.001              # K 本だけの LDA を解き直した判定と DAI-8 の保存の不一致の許し（数値の丸めでの同点の入れ替わり）
 FX8 = "a0.5_b1.0"
+N_EM = 10                     # EM_Kmet の回の数（DAI-8 の EM_fromK と同じ）
 # DAI-8 の保存から写す判定（{s} は空間，{K} は K）
 COPY_K = ("K{K}_{s}_ldaK_a0.1", "K{K}_{s}_ldaK_a0.5", "K{K}_{s}_ldaK_a0.9", "K{K}_{s}_emfromK_a0.5_b0.0",
           f"K{{K}}_{{s}}_em_{FX8}", "K{K}_{s}_none", "K{K}_{s}_joint")
@@ -76,6 +77,37 @@ def metric_chol(T_, alpha, block=None):
         S = torch.where(mask, S, torch.zeros_like(S))
     A = (1.0 - alpha) * S + alpha * torch.eye(S.shape[0], dtype=S.dtype, device=S.device)
     return torch.linalg.cholesky(A)
+
+
+def em_kmetric(Xp, XtX, kpos_t, ylab, q0, chol, n_iter=N_EM):
+    """4 つ目の角：K 本の計量 Σ_K（chol）を固定し，K 本を one-hot に固定して，平均と割合だけを EM で回す（β = 0）。
+    回 t の分類器 = t 回の E 段の後の M 段の解（DAI-8 の em_fit と同じ数え方）。"""
+    R = q0.clone()
+    R[kpos_t] = 0.0
+    R[kpos_t, ylab] = 1.0
+    U = torch.ones(Xp.shape[0], dtype=torch.bool, device=Xp.device)
+    U[kpos_t] = False
+    hist = []
+    for t in range(n_iter + 1):
+        f = P8.lda_from_R(Xp, R, XtX, A_RULE, chol=chol)
+        if t == n_iter:
+            break
+        newU = torch.softmax(torch.log(f["pi"].clamp(min=1e-12)) + P8.delta(Xp[U], f), -1)
+        hist.append(float((newU - R[U]).abs().sum(1).mean()))
+        R[U] = newU
+    moved = float((R[U].argmax(1) != q0[U].argmax(1)).double().mean())
+    return f, dict(hist=hist, moved=moved)
+
+
+def emo_eigs(Xp, yp_t, chol):
+    """縮みの係数の記述：候補の全ラベルの感情の平均の間の散らばり B（割合 π の重み）について，A⁻¹B の固有値（大きい順に 3 つ）。"""
+    R = torch.nn.functional.one_hot(yp_t, 4).to(Xp.dtype)
+    n = R.sum(0)
+    M = (R.T @ Xp) / n[:, None]
+    M = M - (n[:, None] * M).sum(0, keepdim=True) / n.sum()
+    w = (n / n.sum()).sqrt()
+    G = (M @ torch.cholesky_solve(M.T.contiguous(), chol)) * w[:, None] * w[None, :]
+    return torch.linalg.eigvalsh((G + G.T) / 2).sort(descending=True).values[:3].cpu().tolist()
 
 
 def _cos_dirs(Wa, Wb):
@@ -126,12 +158,15 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
         chols = {a: metric_chol(T_, a) for a in ALPHAS}
         cholb = {a: metric_chol(T_, a, BLOCKS[s]) for a in ALPHAS} if s in BLOCKS else {}
         WO = z8[f"C_A_{s}_ldaO_a0.5"].astype(np.float64)
+        diag[f"{s}_emo_eigs_a{A_RULE}"] = dict(eigs=emo_eigs(Xp, yp_t, chols[A_RULE]))
+        piC = torch.bincount(yp_t, minlength=4).to(DT) / len(yp)                # 候補の感情の割合（ラベルを使う．LDA_Tcpi は記述のオラクル）
         for K in KS_RULE:
             kpos_t = torch.as_tensor(u.kpos[K], dtype=torch.long, device=DEV)
             ylab = yp_t[kpos_t]
             XL = Xp[kpos_t]
             mu = class_means(XL, ylab)
-            muc = mu - mu.mean(0, keepdim=True)                              # 全体の平均（0）に合わせる（LDA_Tc）
+            muc = mu - mu.mean(0, keepdim=True)                              # 全体の平均（0）に合わせる（LDA_Tc．等しい割合）
+            mucp = mu - (piC[:, None] * mu).sum(0, keepdim=True)            # 候補の感情の割合で合わせる（LDA_Tcpi．記述のオラクル）
             fk = P8.lda_from_R(XL, torch.nn.functional.one_hot(ylab, 4).to(DT), XL.T @ XL, A_RULE)   # 照合：DAI-8 の LDA_K と同じか
             pk = P8.delta(Xt, fk).argmax(1).cpu().numpy()
             sv = z8[f"K{K}_{s}_ldaK_a{A_RULE}"].astype(int)
@@ -140,10 +175,14 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
             checks["ldaK_compared"] += len(pk)
             if mism > max(1, int(LDAK_TOL * len(pk))):
                 raise SystemExit(f"{name} {s} K={K}：K 本だけの LDA の判定が DAI-8 の保存と {mism} 本違う")
+            q0 = torch.softmax(P8.delta(Xp, fk), -1)                         # EM_fromK と同じ初期値
+            fkm, dkm = em_kmetric(Xp, Xp.T @ Xp, kpos_t, ylab, q0, fk["chol"])
+            pred[f"K{K}_{s}_emKmet_a{A_RULE}"] = P8.delta(Xt, fkm).argmax(1)
             for a in ALPHAS:
                 ft = lda_metric(mu, chols[a])
                 pred[f"K{K}_{s}_ldaT_a{a}"] = P8.delta(Xt, ft).argmax(1)
                 pred[f"K{K}_{s}_ldaTc_a{a}"] = P8.delta(Xt, lda_metric(muc, chols[a])).argmax(1)
+                pred[f"K{K}_{s}_ldaTcpi_a{a}"] = P8.delta(Xt, lda_metric(mucp, chols[a])).argmax(1)
                 if cholb:
                     pred[f"K{K}_{s}_ldaTblk_a{a}"] = P8.delta(Xt, lda_metric(mu, cholb[a])).argmax(1)
                 if a == A_RULE:
@@ -151,8 +190,11 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
                     WT = ft["A"].cpu().numpy()
                     WK = z8[f"C_A_K{K}_{s}_ldaK_a0.5"].astype(np.float64)
                     WE = z8[f"C_A_K{K}_{s}_emfromK_a0.5_b0.0"].astype(np.float64)
+                    WM = fkm["A"].cpu().numpy()
                     diag[f"K{K}_{s}"] = dict(cos_ldaT_ldaO=_cos_dirs(WT, WO), cos_ldaK_ldaO=_cos_dirs(WK, WO),
-                                             cos_emfromK_ldaO=_cos_dirs(WE, WO), cos_ldaT_emfromK=_cos_dirs(WT, WE))
+                                             cos_emfromK_ldaO=_cos_dirs(WE, WO), cos_ldaT_emfromK=_cos_dirs(WT, WE),
+                                             cos_emKmet_ldaO=_cos_dirs(WM, WO), emKmet_moved=dkm["moved"],
+                                             emKmet_hist_last=(dkm["hist"][-1] if dkm["hist"] else 0.0))
         for K in KS_RULE:
             for tpl in COPY_K:
                 k = tpl.format(K=K, s=s)
@@ -188,6 +230,9 @@ COMPARE = {   # 名前 → (A, B)
     "ldaT_joint": ("K{K}_{s}_ldaT_a0.5", "K{K}_{s}_joint"),
     "em_ldaT": (f"K{{K}}_{{s}}_em_{FX8}", "K{K}_{s}_ldaT_a0.5"),
     "ldaTc_ldaT": ("K{K}_{s}_ldaTc_a0.5", "K{K}_{s}_ldaT_a0.5"),
+    "ldaTcpi_ldaT": ("K{K}_{s}_ldaTcpi_a0.5", "K{K}_{s}_ldaT_a0.5"),
+    "emKmet_ldaK": ("K{K}_{s}_emKmet_a0.5", "K{K}_{s}_ldaK_a0.5"),          # 割り当ての分（K 本の計量のまま）
+    "emfromK_emKmet": ("K{K}_{s}_emfromK_a0.5_b0.0", "K{K}_{s}_emKmet_a0.5"),  # 計量の分（割り当てを回した後）
     "ldaTblk_ldaT": ("K{K}_{s}_ldaTblk_a0.5", "K{K}_{s}_ldaT_a0.5"),
     **{f"ldaT_a{a}_ldaK_a{a}": (f"K{{K}}_{{s}}_ldaT_a{a}", f"K{{K}}_{{s}}_ldaK_a{a}") for a in ALPHAS if a != A_RULE},
 }
@@ -245,11 +290,15 @@ def summarize(out: Path, allow_partial: bool) -> None:
             ok = (d.lo > 0) & (d.effect >= MIN_D)
             r_[f"{tag}_n_K"], r_[f"{tag}_n_hi_neg"] = int(ok.sum()), int((d.hi < 0).sum())
             r_[f"{tag}_pos"], r_[f"{tag}_neg"] = bool(ok.sum() >= 3), bool((d.hi < 0).sum() >= 3)
-        for K in KS_RULE:                                                    # 分け方：EM_fromK − LDA_K = (LDA_T − LDA_K) + (EM_fromK − LDA_T)
-            g = {nm: D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.K == K)].effect for nm in ("ldaT_ldaK", "emfromK_ldaT", "emfromK_ldaK")}
+        for K in KS_RULE:                                                    # 2 つの経路の分け方（設計 3 節）
+            nms = ("ldaT_ldaK", "emfromK_ldaT", "emfromK_ldaK", "emKmet_ldaK", "emfromK_emKmet")
+            g = {nm: D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.K == K)].effect for nm in nms}
             if all(len(v) == 1 for v in g.values()):
-                r_[f"dec_K{K}_metric"], r_[f"dec_K{K}_assign"], r_[f"dec_K{K}_total"] = (float(g[x].iloc[0]) for x in ("ldaT_ldaK", "emfromK_ldaT", "emfromK_ldaK"))
-                r_[f"dec_K{K}_resid"] = r_[f"dec_K{K}_total"] - r_[f"dec_K{K}_metric"] - r_[f"dec_K{K}_assign"]
+                v = {nm: float(g[nm].iloc[0]) for nm in nms}
+                r_[f"dec_K{K}_total"] = v["emfromK_ldaK"]
+                r_[f"dec_K{K}_metric_first"], r_[f"dec_K{K}_assign_after"] = v["ldaT_ldaK"], v["emfromK_ldaT"]       # 経路 1：計量 → 割り当て
+                r_[f"dec_K{K}_assign_first"], r_[f"dec_K{K}_metric_after"] = v["emKmet_ldaK"], v["emfromK_emKmet"]   # 経路 2：割り当て → 計量
+                r_[f"dec_K{K}_interaction"] = v["emfromK_emKmet"] - v["ldaT_ldaK"]
         crit.append(r_)
     Cr = pd.DataFrame(crit)
     for tag, _ in RULES:
@@ -297,11 +346,27 @@ def selftest() -> None:
         C = torch.linalg.inv(torch.eye(4, dtype=DT) - (1 - a) * Pi @ M.T @ torch.linalg.solve(Aref, M))
         assert torch.allclose(torch.linalg.solve(Sig, M), torch.linalg.solve(Aref, M) @ C, atol=1e-8)
         assert torch.allclose(fo["A"], torch.linalg.solve(Sig, M), atol=1e-8)
+    # 4 つ目の角：最初の M 段の Σ を渡せば，DAI-8 の em_fit（fix_sigma=True，β = 0）と同じ解になる
+    kpos = torch.arange(8)
+    ylab = torch.tensor([0, 1, 2, 3, 0, 1, 2, 3])
+    yk = y.clone()
+    yk[kpos] = ylab
+    q0 = torch.softmax(torch.randn(n, 4, generator=g, dtype=DT), -1)
+    ref = P8.em_fit(X, X.T @ X, kpos, ylab, q0, A_RULE, 0.0, fix_sigma=True)
+    R0 = q0.clone()
+    R0[kpos] = 0.0
+    R0[kpos, ylab] = 1.0
+    ch0 = P8.lda_from_R(X, R0, X.T @ X, A_RULE)["chol"]
+    fk_, _ = em_kmetric(X, X.T @ X, kpos, ylab, q0, ch0)
+    assert torch.allclose(fk_["A"], ref["fit"]["A"], atol=1e-8) and torch.allclose(fk_["c"], ref["fit"]["c"], atol=1e-8)
+    # 固有値の和は DAI-8 の _top3 と同じ
+    Lr = metric_chol(T_, A_RULE)
+    assert abs(sum(emo_eigs(X, y, Lr)) - P8._top3(X, y.numpy(), Lr)) < 1e-8
     blk = (("a", 10), ("b", 20))
     Lb = metric_chol(T_, 0.5, blk)
     Ab = Lb @ Lb.T
     assert float(Ab[:10, 10:].abs().max()) < 1e-12 and torch.allclose(Ab[:10, :10], 0.5 * T_[:10, :10] + 0.5 * torch.eye(10, dtype=DT))
-    print("自己検査：通った（計量の Cholesky，係数の閉じた形，切片だけの移動，Woodbury，ブロック対角）")
+    print("自己検査：通った（計量の Cholesky，係数の閉じた形，切片だけの移動，Woodbury，4 つ目の角と em_fit の一致，固有値と _top3 の一致，ブロック対角）")
 
 
 def sha(p: Path) -> str:
