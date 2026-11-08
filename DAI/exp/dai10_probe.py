@@ -1,0 +1,360 @@
+"""DAI-10 の下調べ：ラベル無しの発話を計量にだけ使うと，K 本のガウスの判別は良くなるか
+（設計 DAI/docs/実験10_下調べ_設計.md）。DAI-8 の関数（dai8_probe.py）と DAI-8 の保存した判定を使う。
+
+単位の段：  python DAI/exp/dai10_probe.py --out results/dai10_probe [--units 名前,...]
+集計の段：  python DAI/exp/dai10_probe.py --out results/dai10_probe --summarize [--allow-partial]
+自己検査：  python DAI/exp/dai10_probe.py --selftest
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import platform
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import torch
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import dai1  # noqa: E402
+import dai1_stats as ST  # noqa: E402
+import dai_data as DD  # noqa: E402
+import dai7_probe_v2 as P7  # noqa: E402
+import dai8_probe as P8  # noqa: E402   lda_from_R，delta，_add，_finish
+
+ROOT = P8.ROOT
+UD, FROZEN = P7.UD, P7.FROZEN
+DEV, DT = P8.DEV, P8.DT
+SPACES = P8.SPACES
+BLOCKS = P8.BLOCKS
+ALPHAS = (0.1, 0.5, 0.9)
+A_RULE = 0.5                  # 規則で数える点（4 節．計算の前に固定）
+KS_RULE = (1, 5, 10, 25)
+MIN_D = 0.5
+N_UNITS = 120
+SEED = 0
+D8 = ROOT / "results" / "dai8_probe"
+D8_COMMIT = "a90af78a2bef71a8372fcf52c9ca093853c29661"
+LDAK_TOL = 0.001              # K 本だけの LDA を解き直した判定と DAI-8 の保存の不一致の許し（数値の丸めでの同点の入れ替わり）
+FX8 = "a0.5_b1.0"
+# DAI-8 の保存から写す判定（{s} は空間，{K} は K）
+COPY_K = ("K{K}_{s}_ldaK_a0.1", "K{K}_{s}_ldaK_a0.5", "K{K}_{s}_ldaK_a0.9", "K{K}_{s}_emfromK_a0.5_b0.0",
+          f"K{{K}}_{{s}}_em_{FX8}", "K{K}_{s}_none", "K{K}_{s}_joint")
+COPY_0 = ("{s}_ldaO_a0.5", "{s}_oracle")
+
+
+def lda_metric(mu, chol):
+    """平均 mu (4, d) と計量 Σ = L Lᵀ（chol）から判別の係数を作る（等しい事前）。"""
+    A = torch.cholesky_solve(mu.T.contiguous(), chol)
+    c = -0.5 * (mu * A.T).sum(1)
+    if not (torch.isfinite(A).all() and torch.isfinite(c).all()):
+        raise FloatingPointError("判別の係数に有限でない値がある")
+    return dict(A=A, c=c, mu=mu)
+
+
+def class_means(XL, ylab):
+    M = torch.zeros((4, XL.shape[1]), dtype=XL.dtype, device=XL.device).index_add_(0, ylab, XL)
+    n = torch.bincount(ylab, minlength=4).to(XL.dtype)
+    if (n == 0).any():
+        raise SystemExit("K 本に欠けた感情がある")
+    return M / n[:, None]
+
+
+def metric_chol(T_, alpha, block=None):
+    S = T_
+    if block is not None:
+        mask = torch.zeros_like(S, dtype=torch.bool)
+        o = 0
+        for _, w in block:
+            mask[o:o + w, o:o + w] = True
+            o += w
+        S = torch.where(mask, S, torch.zeros_like(S))
+    A = (1.0 - alpha) * S + alpha * torch.eye(S.shape[0], dtype=S.dtype, device=S.device)
+    return torch.linalg.cholesky(A)
+
+
+def _cos_dirs(Wa, Wb):
+    """2 つの係数行列 (d, 4) の向きの近さ：感情の平均を引いた各列のコサインの平均（記述）。"""
+    a = Wa - Wa.mean(1, keepdims=True)
+    b = Wb - Wb.mean(1, keepdims=True)
+    num = (a * b).sum(0)
+    den = np.linalg.norm(a, axis=0) * np.linalg.norm(b, axis=0)
+    return float(np.mean(num / np.maximum(den, 1e-30)))
+
+
+def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
+    name = P7.unit_name(p3)
+    T, c, fs, rs = name.split("_")
+    f, r = int(fs[1:]), int(rs[1:])
+    dst = out / "rows" / f"{name}.npz"
+    if dst.exists():
+        raise SystemExit(f"{dst} は既にある（重複を作らない）")
+    t0 = time.time()
+    F = fz[T]
+    srcs = [x for x in DD.CORPORA if x not in (T, c)]
+    z1 = np.load(UD / f"{name}_p1.npz")
+    if str(z1["commit"]) != F["pseudo_commit"]:
+        raise SystemExit(f"{name}_p1 のコミットが固定のファイルの pseudo_commit と違う")
+    z8 = np.load(D8 / "rows" / f"{name}.npz", allow_pickle=False)
+    if str(z8["commit"]) != D8_COMMIT:
+        raise SystemExit(f"{name}：DAI-8 の行のコミットが {D8_COMMIT[:7]} でない")
+    u = dai1.Unit(ROOT / "results" / "dai1", T, c, srcs, f, r)
+    sid_t = u.cp.df["sample_id"].to_numpy()[u.test].astype(str)
+    sid_p = u.cp.df["sample_id"].to_numpy()[u.pool].astype(str)
+    if not ((sid_t == z1["sample_test"].astype(str)).all() and (sid_p == z1["sample_pool"].astype(str)).all()):
+        raise SystemExit(f"{name}：発話の並びが保存と違う")
+    if not (sid_t == z8["test_sample_id"].astype(str)).all():
+        raise SystemExit(f"{name}：テストの並びが DAI-8 の保存と違う")
+    y_of, cl_of = ST.label_maps(c)
+    yt, yp = u.ytest.astype(int), u.ypool.astype(int)
+    if not ((y_of(sid_t) == yt).all() and (y_of(sid_p) == yp).all()):
+        raise SystemExit(f"{name}：発話の並びとラベルの対応が読み込みと違う")
+    if not ((z8["test_y"].astype(int) == yt).all() and (z8["pool_y"].astype(int) == yp).all()):
+        raise SystemExit(f"{name}：ラベルが DAI-8 の保存と違う")
+    yp_t = torch.as_tensor(yp, device=DEV)
+    pred, coef, diag = {}, {}, {}
+    checks = dict(ldaK_mismatch=0, ldaK_compared=0)
+    for s in SPACES:
+        Xp, Xt = u.Xp[s].to(DEV, DT), u.Xt[s].to(DEV, DT)
+        N = Xp.shape[0]
+        T_ = Xp.T @ Xp / N                                                   # 候補の全部の散らばり（標準化で平均 0．ラベルに依らない）
+        chols = {a: metric_chol(T_, a) for a in ALPHAS}
+        cholb = {a: metric_chol(T_, a, BLOCKS[s]) for a in ALPHAS} if s in BLOCKS else {}
+        WO = z8[f"C_A_{s}_ldaO_a0.5"].astype(np.float64)
+        for K in KS_RULE:
+            kpos_t = torch.as_tensor(u.kpos[K], dtype=torch.long, device=DEV)
+            ylab = yp_t[kpos_t]
+            XL = Xp[kpos_t]
+            mu = class_means(XL, ylab)
+            muc = mu - mu.mean(0, keepdim=True)                              # 全体の平均（0）に合わせる（LDA_Tc）
+            fk = P8.lda_from_R(XL, torch.nn.functional.one_hot(ylab, 4).to(DT), XL.T @ XL, A_RULE)   # 照合：DAI-8 の LDA_K と同じか
+            pk = P8.delta(Xt, fk).argmax(1).cpu().numpy()
+            sv = z8[f"K{K}_{s}_ldaK_a{A_RULE}"].astype(int)
+            mism = int((pk != sv).sum())
+            checks["ldaK_mismatch"] += mism
+            checks["ldaK_compared"] += len(pk)
+            if mism > max(1, int(LDAK_TOL * len(pk))):
+                raise SystemExit(f"{name} {s} K={K}：K 本だけの LDA の判定が DAI-8 の保存と {mism} 本違う")
+            for a in ALPHAS:
+                ft = lda_metric(mu, chols[a])
+                pred[f"K{K}_{s}_ldaT_a{a}"] = P8.delta(Xt, ft).argmax(1)
+                pred[f"K{K}_{s}_ldaTc_a{a}"] = P8.delta(Xt, lda_metric(muc, chols[a])).argmax(1)
+                if cholb:
+                    pred[f"K{K}_{s}_ldaTblk_a{a}"] = P8.delta(Xt, lda_metric(mu, cholb[a])).argmax(1)
+                if a == A_RULE:
+                    coef[f"K{K}_{s}_ldaT_a{a}"] = ft
+                    WT = ft["A"].cpu().numpy()
+                    WK = z8[f"C_A_K{K}_{s}_ldaK_a0.5"].astype(np.float64)
+                    WE = z8[f"C_A_K{K}_{s}_emfromK_a0.5_b0.0"].astype(np.float64)
+                    diag[f"K{K}_{s}"] = dict(cos_ldaT_ldaO=_cos_dirs(WT, WO), cos_ldaK_ldaO=_cos_dirs(WK, WO),
+                                             cos_emfromK_ldaO=_cos_dirs(WE, WO), cos_ldaT_emfromK=_cos_dirs(WT, WE))
+        for K in KS_RULE:
+            for tpl in COPY_K:
+                k = tpl.format(K=K, s=s)
+                pred[k] = torch.as_tensor(z8[k].astype(np.int64))
+        for tpl in COPY_0:
+            k = tpl.format(s=s)
+            pred[k] = torch.as_tensor(z8[k].astype(np.int64))
+        del Xp, Xt, T_, chols, cholb
+        torch.cuda.empty_cache()
+    (out / "rows").mkdir(parents=True, exist_ok=True)
+    cf = {}
+    for k, ft in coef.items():
+        cf[f"C_A_{k}"] = ft["A"].cpu().numpy().astype(np.float16)
+        cf[f"C_mu_{k}"] = ft["mu"].cpu().numpy().astype(np.float16)
+        cf[f"C_c_{k}"] = ft["c"].cpu().numpy().astype(np.float32)
+    np.savez_compressed(dst, commit=commit, test_sample_id=sid_t, test_y=yt.astype(np.int8), test_cluster=cl_of(sid_t).astype(str),
+                        diag=json.dumps(diag), checks=json.dumps(checks),
+                        **{k: v.cpu().numpy().astype(np.int8) for k, v in pred.items()}, **cf)
+    del u
+    torch.cuda.empty_cache()
+    sec = time.time() - t0
+    print(f"{name}：{sec:.0f} 秒（K 本だけの LDA の照合の不一致 {checks['ldaK_mismatch']} / {checks['ldaK_compared']}）", flush=True)
+    return dict(name=name, seconds=sec, **checks)
+
+
+# ------------------------------------------------------------------ 集計
+
+COMPARE = {   # 名前 → (A, B)
+    "ldaT_ldaK": ("K{K}_{s}_ldaT_a0.5", "K{K}_{s}_ldaK_a0.5"),
+    "emfromK_ldaT": ("K{K}_{s}_emfromK_a0.5_b0.0", "K{K}_{s}_ldaT_a0.5"),
+    "emfromK_ldaK": ("K{K}_{s}_emfromK_a0.5_b0.0", "K{K}_{s}_ldaK_a0.5"),
+    "ldaT_none": ("K{K}_{s}_ldaT_a0.5", "K{K}_{s}_none"),
+    "ldaT_joint": ("K{K}_{s}_ldaT_a0.5", "K{K}_{s}_joint"),
+    "em_ldaT": (f"K{{K}}_{{s}}_em_{FX8}", "K{K}_{s}_ldaT_a0.5"),
+    "ldaTc_ldaT": ("K{K}_{s}_ldaTc_a0.5", "K{K}_{s}_ldaT_a0.5"),
+    "ldaTblk_ldaT": ("K{K}_{s}_ldaTblk_a0.5", "K{K}_{s}_ldaT_a0.5"),
+    **{f"ldaT_a{a}_ldaK_a{a}": (f"K{{K}}_{{s}}_ldaT_a{a}", f"K{{K}}_{{s}}_ldaK_a{a}") for a in ALPHAS if a != A_RULE},
+}
+RULES = (("G1", "ldaT_ldaK"), ("G2", "emfromK_ldaT"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"))
+
+
+def summarize(out: Path, allow_partial: bool) -> None:
+    files = sorted((out / "rows").glob("*.npz"))
+    if len(files) != N_UNITS and not allow_partial:
+        raise SystemExit(f"単位の出力が {len(files)} 個（{N_UNITS} のはず）．試走なら --allow-partial")
+    rc = {str(np.load(p, allow_pickle=False)["commit"]) for p in files}
+    if len(rc) != 1:
+        raise SystemExit(f"行のコミットが 1 つでない：{rc}")
+    rng = np.random.default_rng(SEED)
+    cells, cellrows, diagrows, chk = {}, [], [], []
+    for p in files:
+        T, c, fs, rs = p.name[:-4].split("_")
+        f, r = int(fs[1:]), int(rs[1:])
+        z = np.load(p, allow_pickle=False)
+        y, cl = z["test_y"].astype(int), z["test_cluster"].astype(str)
+        for k in z.files:
+            if (k.startswith("K") or k.split("_")[0] in SPACES) and z[k].dtype == np.int8 and z[k].shape == y.shape:
+                cnt = ST.counts(y, z[k].astype(int), cl)
+                P8._add(cells.setdefault((c, k), {}), (f, r), cnt, f"{p.name} {k}")
+                cellrows.append(dict(c=c, T=T, fold=f, seed=r, key=k, uar=ST.uar_full(cnt)))
+        for k, d in json.loads(str(z["diag"])).items():
+            diagrows.append(dict(c=c, T=T, fold=f, seed=r, key=k, **d))
+        chk.append(dict(name=p.name[:-4], **json.loads(str(z["checks"]))))
+    P8._finish(cells)
+    U = pd.DataFrame(cellrows)
+    U.groupby(["c", "key"]).uar.agg(["mean", "count"]).reset_index().to_csv(out / "cells.csv", index=False)
+    DG = pd.DataFrame(diagrows)
+    DG.to_csv(out / "diag_units.csv", index=False)
+    DG.groupby(["c", "key"]).mean(numeric_only=True).reset_index().to_csv(out / "diag.csv", index=False)
+    pd.DataFrame(chk).to_csv(out / "checks_units.csv", index=False)
+    rows = []
+    for c in sorted({k[0] for k in cells}):
+        g_eff = ST.g_eff_of(c)[0]
+        for s in SPACES:
+            for K in KS_RULE:
+                for nm, (a, b) in COMPARE.items():
+                    ka, kb = a.format(K=K, s=s), b.format(K=K, s=s)
+                    if (c, ka) in cells and (c, kb) in cells:
+                        rows.append(dict(c=c, K=K, space=s, compare=nm, **ST.effect_stats(cells[(c, ka)], cells[(c, kb)], g_eff, rng)))
+        print(f"{c}：区間を作った", flush=True)
+    D = pd.DataFrame(rows)
+    D.to_csv(out / "diffs.csv", index=False)
+    crit = []
+    for c in sorted(D.c.unique()):
+        r_ = dict(c=c)
+        for tag, nm in RULES:
+            d = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & D.K.isin(KS_RULE)]
+            if not allow_partial and len(d) != len(KS_RULE):
+                raise SystemExit(f"{c} {nm}：規則の行が {len(d)} 行（{len(KS_RULE)} のはず）")
+            ok = (d.lo > 0) & (d.effect >= MIN_D)
+            r_[f"{tag}_n_K"], r_[f"{tag}_n_hi_neg"] = int(ok.sum()), int((d.hi < 0).sum())
+            r_[f"{tag}_pos"], r_[f"{tag}_neg"] = bool(ok.sum() >= 3), bool((d.hi < 0).sum() >= 3)
+        for K in KS_RULE:                                                    # 分け方：EM_fromK − LDA_K = (LDA_T − LDA_K) + (EM_fromK − LDA_T)
+            g = {nm: D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.K == K)].effect for nm in ("ldaT_ldaK", "emfromK_ldaT", "emfromK_ldaK")}
+            if all(len(v) == 1 for v in g.values()):
+                r_[f"dec_K{K}_metric"], r_[f"dec_K{K}_assign"], r_[f"dec_K{K}_total"] = (float(g[x].iloc[0]) for x in ("ldaT_ldaK", "emfromK_ldaT", "emfromK_ldaK"))
+                r_[f"dec_K{K}_resid"] = r_[f"dec_K{K}_total"] - r_[f"dec_K{K}_metric"] - r_[f"dec_K{K}_assign"]
+        crit.append(r_)
+    Cr = pd.DataFrame(crit)
+    for tag, _ in RULES:
+        for x in ("pos", "neg"):
+            Cr[f"{tag}_{x}_n_corpora"] = int(Cr[f"{tag}_{x}"].sum())
+            Cr[f"{tag}_{x}_n_corpora_excl_IEMOCAP"] = int(Cr[Cr.c != "IEMOCAP"][f"{tag}_{x}"].sum())
+    Cr.to_csv(out / "criteria.csv", index=False)
+    prov = out / "provenance.json"
+    if prov.exists():
+        pv = json.loads(prov.read_text())
+        cm, dirty = dai1.git_commit()
+        pv.update(summarize_commit=cm, summarize_dirty=dirty, rows_commits=sorted(rc), n_units_found=len(files),
+                  ldaK_mismatch_total=int(pd.DataFrame(chk).ldaK_mismatch.sum()), boot_seed=SEED, n_boot=ST.N_BOOT)
+        prov.write_text(json.dumps(pv, indent=1, ensure_ascii=False))
+    print(f"書いた：cells.csv，diffs.csv（{len(D)} 行），criteria.csv，diag.csv，diag_units.csv，checks_units.csv", flush=True)
+
+
+# ------------------------------------------------------------------ 自己検査
+
+def selftest() -> None:
+    g = torch.Generator().manual_seed(0)
+    d, n = 30, 400
+    X = torch.randn(n, d, generator=g, dtype=DT)
+    X = (X - X.mean(0)) / X.std(0)
+    y = torch.randint(0, 4, (n,), generator=g)
+    T_ = X.T @ X / n
+    for a in ALPHAS:
+        L = metric_chol(T_, a)
+        Aref = (1 - a) * T_ + a * torch.eye(d, dtype=DT)
+        assert torch.allclose(L @ L.T, Aref, atol=1e-10)
+        mu = class_means(X[:40], y[:40])
+        ft = lda_metric(mu, L)
+        Wref = torch.linalg.solve(Aref, mu.T)
+        assert torch.allclose(ft["A"], Wref, atol=1e-8)
+        # 全体の平均に合わせる移動は判定の切片だけを変える：δ_k − δ'_k は x に依らない
+        muc = mu - mu.mean(0, keepdim=True)
+        d1, d2 = P8.delta(X, ft), P8.delta(X, lda_metric(muc, L))
+        diff = (d1 - d1[:, :1]) - (d2 - d2[:, :1])
+        assert torch.allclose(diff, diff[:1].expand_as(diff), atol=1e-8)
+        # Woodbury：Σ = A − (1 − α)MΠMᵀ で Σ⁻¹M = A⁻¹MC
+        R = torch.nn.functional.one_hot(y, 4).to(DT)
+        fo = P8.lda_from_R(X, R, X.T @ X, a)
+        M, Pi = fo["mu"].T, torch.diag(fo["pi"])
+        Sig = Aref - (1 - a) * M @ Pi @ M.T
+        C = torch.linalg.inv(torch.eye(4, dtype=DT) - (1 - a) * Pi @ M.T @ torch.linalg.solve(Aref, M))
+        assert torch.allclose(torch.linalg.solve(Sig, M), torch.linalg.solve(Aref, M) @ C, atol=1e-8)
+        assert torch.allclose(fo["A"], torch.linalg.solve(Sig, M), atol=1e-8)
+    blk = (("a", 10), ("b", 20))
+    Lb = metric_chol(T_, 0.5, blk)
+    Ab = Lb @ Lb.T
+    assert float(Ab[:10, 10:].abs().max()) < 1e-12 and torch.allclose(Ab[:10, :10], 0.5 * T_[:10, :10] + 0.5 * torch.eye(10, dtype=DT))
+    print("自己検査：通った（計量の Cholesky，係数の閉じた形，切片だけの移動，Woodbury，ブロック対角）")
+
+
+def sha(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", type=Path, default=ROOT / "results" / "dai10_probe")
+    ap.add_argument("--units", default=None, help="単位の名前をコンマで（試走）")
+    ap.add_argument("--summarize", action="store_true")
+    ap.add_argument("--allow-partial", action="store_true")
+    ap.add_argument("--selftest", action="store_true")
+    a = ap.parse_args()
+    if a.selftest:
+        selftest()
+        return
+    out = a.out if a.out.is_absolute() else ROOT / a.out
+    if a.summarize:
+        summarize(out, a.allow_partial)
+        return
+    commit, dirty = dai1.git_commit()
+    fz = json.loads(FROZEN.read_text())
+    p3s = sorted(UD.glob("*_p3.npz"))
+    partial = bool(a.units)
+    if partial:
+        want = set(a.units.split(","))
+        p3s = [p for p in p3s if P7.unit_name(p) in want]
+    else:
+        if dirty:
+            raise SystemExit("作業木に未コミットの変更がある（本計算はコミットしてから）")
+        if len(p3s) != N_UNITS:
+            raise SystemExit(f"入力の単位が {len(p3s)} 個（{N_UNITS} のはず）")
+        if out.exists():
+            raise SystemExit(f"{out} は既にある（本計算は空の出力先に書く）")
+    out.mkdir(parents=True, exist_ok=True)
+    prov = dict(commit=commit, dirty=dirty, partial=partial, started=time.strftime("%F %T"), python=platform.python_version(),
+                torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, cuda=torch.version.cuda,
+                gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "",
+                script_sha256=sha(Path(__file__)), dai8_sha256=sha(HERE / "dai8_probe.py"), frozen_sha256=sha(FROZEN),
+                alphas=ALPHAS, a_rule=A_RULE, min_d=MIN_D, seed=SEED, d8_commit=D8_COMMIT, ldak_tol=LDAK_TOL,
+                units=[P7.unit_name(p) for p in p3s],
+                inputs_sha256={P7.unit_name(p): dict(p1=sha(UD / f"{P7.unit_name(p)}_p1.npz"),
+                                                     d8=sha(D8 / "rows" / f"{P7.unit_name(p)}.npz")) for p in p3s})
+    pname = f"provenance_partial_{time.strftime('%Y%m%d-%H%M%S')}.json" if partial else "provenance.json"
+    (out / pname).write_text(json.dumps(prov, indent=1, ensure_ascii=False))
+    print(f"開始 {prov['started']} コミット {commit[:7]} 単位 {len(p3s)} 個", flush=True)
+    runs = [run_unit(p, out, fz, commit) for p in p3s]
+    prov["runs"] = runs
+    prov["finished"] = time.strftime("%F %T")
+    (out / pname).write_text(json.dumps(prov, indent=1, ensure_ascii=False))
+    print(f"{len(runs)} 単位を終えた", flush=True)
+
+
+if __name__ == "__main__":
+    main()
