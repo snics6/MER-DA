@@ -304,7 +304,7 @@ COMPARE_0 = {   # K に依らない比べ（K = 0 の行に書く）
 RULES = (("G1", "ldaT_ldaK"), ("G2", "emfromK_ldaT"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"),
          ("Aa", "ldaSO_ldaK"), ("Aa2", "ldaSO_ncm"), ("Ab", "ldaT_ldaSO"), ("Gn", "ldaT_ncm"))                        # Aa・Ab は仮定の表の (a)・(b)（記述．gate-code の第 2 回の記録 5）
 SUB_COMPARE = ("ldaT_ldaK", "emfromK_ldaT", "ldaT_none", "ldaT_joint", "ldaT_ncm")         # 部分集合で並べる比べ（AVT．review_affect の A1 の 3，b3）
-CHAN_RULES = (("G1", "ldaT_ldaK"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"))  # MOSEI の channel の確かめ（DAI-8 の R1 の添え書きと同じ形）
+CHAN_RULES = (("G1", "ldaT_ldaK"), ("G2", "emfromK_ldaT"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"))  # MOSEI の channel の確かめ（DAI-8 の R1 の添え書きと同じ形．G2 は review_affect の第 2 回の B2）
 REC_KEYS = ("ncm", "emAmet_a0.5", "ldaK_a0.5", "ldaT_a0.5", "ldaTc_a0.5", "ldaTcpi_a0.5", "ldaSO_a0.5", "emKmet_a0.5", "emfromK_a0.5_b0.0", "none", "joint")
 
 
@@ -402,14 +402,17 @@ def summarize(out: Path, allow_partial: bool) -> None:
                 r_[f"dec_K{K}_assign_first"], r_[f"dec_K{K}_metric_after"] = v["emKmet_ldaK"], v["emfromK_emKmet"]   # 経路 2：割り当て → 計量
                 r_[f"dec_K{K}_interaction"] = v["emfromK_emKmet"] - v["ldaT_ldaK"]
         if c == "MOSEI":                                                     # channel が分かる発話だけの確かめ（review_affect の A1 の 3）
-            for tag, nm in CHAN_RULES:
-                n_rob = 0
+            for tag, nm in CHAN_RULES:                                       # 全体のテストで条件を満たした K に絞って数える（DAI-8 の okK と同じ．review_affect の第 2 回の B1）
+                n_rob, n_ok = 0, 0
                 for K in KS_RULE:
                     da = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "all") & (D.K == K)]
                     ds = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "channel") & (D.K == K)]
-                    if len(da) == 1 and len(ds) == 1 and float(ds.lo.iloc[0]) > 0 and float(ds.effect.iloc[0]) >= 0.5 * float(da.effect.iloc[0]):
+                    if len(da) != 1 or not (float(da.lo.iloc[0]) > 0 and float(da.effect.iloc[0]) >= MIN_D):
+                        continue
+                    n_ok += 1
+                    if len(ds) == 1 and float(ds.lo.iloc[0]) > 0 and float(ds.effect.iloc[0]) >= 0.5 * float(da.effect.iloc[0]):
                         n_rob += 1
-                r_[f"{tag}_chan_n_K_robust"] = n_rob
+                r_[f"{tag}_chan_n_K_ok"], r_[f"{tag}_chan_n_K_robust"] = n_ok, n_rob
         crit.append(r_)
     Cr = pd.DataFrame(crit)
     for tag, _ in RULES:
