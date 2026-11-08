@@ -3,6 +3,7 @@
 # 単位の段と集計の段を続けて流す．終わると logs/dai10_probe.done を作る（失敗は logs/dai10_probe.failed）．
 set -euo pipefail
 cd /home/snics/MER-DA
+mkdir -p logs
 trap 'touch logs/dai10_probe.failed' ERR
 OUT=results/dai10_probe
 if [ -e "$OUT" ]; then
@@ -10,7 +11,6 @@ if [ -e "$OUT" ]; then
   touch logs/dai10_probe.failed
   exit 1
 fi
-mkdir -p logs
 export CUDA_VISIBLE_DEVICES=0
 echo "開始 $(date '+%F %T')"
 .venv/bin/python DAI/exp/dai10_probe.py --out "$OUT" > logs/dai10_probe_units.log 2>&1

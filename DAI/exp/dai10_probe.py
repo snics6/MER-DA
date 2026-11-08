@@ -105,7 +105,7 @@ def em_kmetric(Xp, XtX, kpos_t, ylab, q0, chol, n_iter=N_EM, yU=None):
 
 def emo_eigs(Xp, yp_t, chol):
     """縮みの係数の記述：候補の全ラベルの感情の平均の間の散らばり B（割合 π の重み）について，A⁻¹B の固有値 λ（大きい順に 3 つ）。
-    信号の縮みは 1 − λ，向きの誤差の拡大は 1/(1 − λ)（調べの 6.1 節．A の縮小を入れると近似）。"""
+    全ラベルでは A = Σ_O + (1 − α)B が厳密に成り立つので，信号の縮みは 1 − (1 − α)λ，向きの誤差の拡大は 1/(1 − (1 − α)λ)（review_ml の第 1 回の M2）。"""
     R = torch.nn.functional.one_hot(yp_t, 4).to(Xp.dtype)
     n = R.sum(0)
     M = (R.T @ Xp) / n[:, None]
@@ -216,6 +216,13 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
             pred[f"K{K}_{s}_emKmet_a{A_RULE}"] = P8.delta(Xt, fkm).argmax(1)
             poolpred[f"K{K}_{s}_emKmet_a{A_RULE}"] = dkm["R"].argmax(1).cpu().numpy()   # 候補の全部の最後の割り当て（gate-code の第 1 回の R9）
             pred[f"K{K}_{s}_ldaSO_a{A_RULE}"] = P8.delta(Xt, lda_metric(mu, fO["chol"])).argmax(1)   # オラクル：K 本の平均 × 候補の全ラベルの群内の Σ
+            eye = torch.eye(Xp.shape[1], dtype=DT, device=DEV)
+            pred[f"K{K}_{s}_ncm"] = P8.delta(Xt, lda_metric(mu, eye)).argmax(1)   # NCM：Σ = I（標準化した特徴の普通の距離．review_ml の第 1 回の M1）
+            fTr = lda_metric(mu, chols[A_RULE])
+            qT0 = torch.softmax(P8.delta(Xp, fTr), -1)                         # EM_Amet：計量 A を固定し，LDA_T の確率から割り当てだけを回す（review_ml の m1 の (b)）
+            fam, dam = em_kmetric(Xp, Xp.T @ Xp, kpos_t, ylab, qT0, chols[A_RULE], yU=yp[Um])
+            pred[f"K{K}_{s}_emAmet_a{A_RULE}"] = P8.delta(Xt, fam).argmax(1)
+            poolpred[f"K{K}_{s}_emAmet_a{A_RULE}"] = dam["R"].argmax(1).cpu().numpy()
             for a in ALPHAS:
                 ft = lda_metric(mu, chols[a])
                 pred[f"K{K}_{s}_ldaT_a{a}"] = P8.delta(Xt, ft).argmax(1)
@@ -234,6 +241,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str) -> dict:
                                              cos_emKmet_ldaO=_cos_dirs(WM, WO), emKmet_moved=dkm["moved"],
                                              emKmet_hist_last=(dkm["hist"][-1] if dkm["hist"] else 0.0),
                                              emKmet_hist=dkm["hist"], emKmet_pool_hist=dkm["pool_hist"],
+                                             emAmet_moved=dam["moved"], emAmet_hist=dam["hist"], emAmet_pool_hist=dam["pool_hist"],
+                                             cos_emAmet_ldaO=_cos_dirs(fam["A"].cpu().numpy(), WO),
                                              lam_max_sub=lam_max_sub(muc, chols[a], a))
         for K in KS_RULE:
             for tpl in COPY_K:
@@ -281,6 +290,11 @@ COMPARE = {   # 名前 → (A, B)
     "ldaO_ldaSO": ("{s}_ldaO_a0.5", "K{K}_{s}_ldaSO_a0.5"),                  # 平均を良くした分（群内の計量のもとで）
     "ldaOT_ldaT": ("{s}_ldaOT_a0.5", "K{K}_{s}_ldaT_a0.5"),                  # 平均を良くした分（計量 A のもとで）
     "ldaT_noneT": ("K{K}_{s}_ldaT_a0.5", "K{K}_{s}_noneT"),
+    "ldaT_ncm": ("K{K}_{s}_ldaT_a0.5", "K{K}_{s}_ncm"),                      # 物差しを曲げない基準との比べ（review_ml の第 1 回の M1）
+    "ldaK_ncm": ("K{K}_{s}_ldaK_a0.5", "K{K}_{s}_ncm"),
+    "ldaSO_ncm": ("K{K}_{s}_ldaSO_a0.5", "K{K}_{s}_ncm"),
+    "emAmet_ldaT": ("K{K}_{s}_emAmet_a0.5", "K{K}_{s}_ldaT_a0.5"),          # 割り当ての分（計量 A のまま．m1 の (b)）
+    "emfromK_emAmet": ("K{K}_{s}_emfromK_a0.5_b0.0", "K{K}_{s}_emAmet_a0.5"),
     **{f"ldaT_a{a}_ldaK_a{a}": (f"K{{K}}_{{s}}_ldaT_a{a}", f"K{{K}}_{{s}}_ldaK_a{a}") for a in ALPHAS if a != A_RULE},
 }
 COMPARE_0 = {   # K に依らない比べ（K = 0 の行に書く）
@@ -288,10 +302,10 @@ COMPARE_0 = {   # K に依らない比べ（K = 0 の行に書く）
     "ldaO_oracle": ("{s}_ldaO_a0.5", "{s}_oracle"),
 }
 RULES = (("G1", "ldaT_ldaK"), ("G2", "emfromK_ldaT"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"),
-         ("Aa", "ldaSO_ldaK"), ("Ab", "ldaT_ldaSO"))                        # Aa・Ab は仮定の表の (a)・(b)（記述．gate-code の第 2 回の記録 5）
-SUB_COMPARE = ("ldaT_ldaK", "emfromK_ldaT", "ldaT_none", "ldaT_joint")         # 部分集合で並べる比べ（AVT．review_affect の A1 の 3，b3）
+         ("Aa", "ldaSO_ldaK"), ("Aa2", "ldaSO_ncm"), ("Ab", "ldaT_ldaSO"), ("Gn", "ldaT_ncm"))                        # Aa・Ab は仮定の表の (a)・(b)（記述．gate-code の第 2 回の記録 5）
+SUB_COMPARE = ("ldaT_ldaK", "emfromK_ldaT", "ldaT_none", "ldaT_joint", "ldaT_ncm")         # 部分集合で並べる比べ（AVT．review_affect の A1 の 3，b3）
 CHAN_RULES = (("G1", "ldaT_ldaK"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"))  # MOSEI の channel の確かめ（DAI-8 の R1 の添え書きと同じ形）
-REC_KEYS = ("ldaK_a0.5", "ldaT_a0.5", "ldaTc_a0.5", "ldaTcpi_a0.5", "ldaSO_a0.5", "emKmet_a0.5", "emfromK_a0.5_b0.0", "none", "joint")
+REC_KEYS = ("ncm", "emAmet_a0.5", "ldaK_a0.5", "ldaT_a0.5", "ldaTc_a0.5", "ldaTcpi_a0.5", "ldaSO_a0.5", "emKmet_a0.5", "emfromK_a0.5_b0.0", "none", "joint")
 
 
 def summarize(out: Path, allow_partial: bool) -> None:
@@ -467,11 +481,22 @@ def selftest() -> None:
         lm = lam_max_sub(muc_, Lr, A_RULE)
         Sig_ = Lr @ Lr.T - (1 - A_RULE) * muc_.T @ muc_ / 4.0
         assert (lm < 1) == bool(torch.linalg.eigvalsh(Sig_).min() > 0)
+    # α = 1 の LDA_T，α = 1 の LDA_K，NCM の判定は一致する（review_ml の第 1 回の M1）．K = 1 の LDA_K も NCM と同じ
+    Xk, yk_ = X[:20], torch.arange(20) % 4
+    mu1 = class_means(Xk, yk_)
+    eye = torch.eye(d, dtype=DT)
+    p_ncm = P8.delta(X, lda_metric(mu1, eye)).argmax(1)
+    p_T1 = P8.delta(X, lda_metric(mu1, torch.linalg.cholesky(1e-12 * T_ + 1.0 * eye))).argmax(1)
+    p_K1 = P8.delta(X, P8.lda_from_R(Xk, torch.nn.functional.one_hot(yk_, 4).to(DT), Xk.T @ Xk, 1.0)).argmax(1)
+    assert (p_ncm == p_T1).all() and (p_ncm == p_K1).all()
+    X1, y1 = X[:4], torch.arange(4)
+    p_K1b = P8.delta(X, P8.lda_from_R(X1, torch.nn.functional.one_hot(y1, 4).to(DT), X1.T @ X1, 0.5)).argmax(1)
+    assert (p_K1b == P8.delta(X, lda_metric(class_means(X1, y1), eye)).argmax(1)).all()
     blk = (("a", 10), ("b", 20))
     Lb = metric_chol(T_, 0.5, blk)
     Ab = Lb @ Lb.T
     assert float(Ab[:10, 10:].abs().max()) < 1e-12 and torch.allclose(Ab[:10, :10], 0.5 * T_[:10, :10] + 0.5 * torch.eye(10, dtype=DT))
-    print("自己検査：通った（計量の Cholesky，係数の閉じた形，切片だけの移動，Woodbury，4 つ目の角と em_fit の一致，固有値と _top3 の一致，引き算の版の正定値と λ_max，ブロック対角）")
+    print("自己検査：通った（計量の Cholesky，係数の閉じた形，切片だけの移動，Woodbury，4 つ目の角と em_fit の一致，固有値と _top3 の一致，引き算の版の正定値と λ_max，α = 1 と K = 1 で NCM と一致，ブロック対角）")
 
 
 def sha(p: Path) -> str:
