@@ -7,6 +7,7 @@ trap 'touch logs/dai10_probe.failed' ERR
 OUT=results/dai10_probe
 if [ -e "$OUT" ]; then
   echo "$OUT は既にある（本計算は空の出力先に書く）"
+  touch logs/dai10_probe.failed
   exit 1
 fi
 mkdir -p logs
