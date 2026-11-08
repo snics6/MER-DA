@@ -26,6 +26,7 @@ import dai1_stats as ST  # noqa: E402
 import dai_data as DD  # noqa: E402
 import dai7_probe_v2 as P7  # noqa: E402
 import dai8_probe as P8  # noqa: E402   lda_from_R，delta，_add，_finish
+import dai3  # noqa: E402   部分集合の印（MOSEI の channel，AFEW の asr_ok，MELD の face_single）
 
 ROOT = P8.ROOT
 UD, FROZEN = P7.UD, P7.FROZEN
@@ -286,7 +287,11 @@ COMPARE_0 = {   # K に依らない比べ（K = 0 の行に書く）
     "ldaO_ldaOT": ("{s}_ldaO_a0.5", "{s}_ldaOT_a0.5"),                       # 全ラベルの平均のもとで，群内の Σ と計量 A の差
     "ldaO_oracle": ("{s}_ldaO_a0.5", "{s}_oracle"),
 }
-RULES = (("G1", "ldaT_ldaK"), ("G2", "emfromK_ldaT"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"))
+RULES = (("G1", "ldaT_ldaK"), ("G2", "emfromK_ldaT"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"),
+         ("Aa", "ldaSO_ldaK"), ("Ab", "ldaT_ldaSO"))                        # Aa・Ab は仮定の表の (a)・(b)（記述．gate-code の第 2 回の記録 5）
+SUB_COMPARE = ("ldaT_ldaK", "emfromK_ldaT", "ldaT_none", "ldaT_joint")         # 部分集合で並べる比べ（AVT．review_affect の A1 の 3，b3）
+CHAN_RULES = (("G1", "ldaT_ldaK"), ("G3n", "ldaT_none"), ("G3j", "ldaT_joint"))  # MOSEI の channel の確かめ（DAI-8 の R1 の添え書きと同じ形）
+REC_KEYS = ("ldaK_a0.5", "ldaT_a0.5", "ldaTc_a0.5", "ldaTcpi_a0.5", "ldaSO_a0.5", "emKmet_a0.5", "emfromK_a0.5_b0.0", "none", "joint")
 
 
 def summarize(out: Path, allow_partial: bool) -> None:
@@ -300,17 +305,27 @@ def summarize(out: Path, allow_partial: bool) -> None:
     if pvf.exists() and json.loads(pvf.read_text())["commit"] not in rc:
         raise SystemExit(f"行のコミット {rc} が provenance のコミットと違う")
     rng = np.random.default_rng(SEED)
-    cells, cellrows, diagrows, chk = {}, [], [], []
+    cells, cellrows, diagrows, chk, recrows = {}, [], [], [], []
     for p in files:
         T, c, fs, rs = p.name[:-4].split("_")
         f, r = int(fs[1:]), int(rs[1:])
         z = np.load(p, allow_pickle=False)
-        y, cl = z["test_y"].astype(int), z["test_cluster"].astype(str)
+        y, cl, sid = z["test_y"].astype(int), z["test_cluster"].astype(str), z["test_sample_id"].astype(str)
+        subs = {nm: np.asarray(mk, bool) for nm, mk in dai3.subset_masks(c, sid, cl).items() if nm in ("channel", "asr_ok", "face_single")}
         for k in z.files:
             if (k.startswith("K") or k.split("_")[0] in SPACES) and z[k].dtype == np.int8 and z[k].shape == y.shape:
-                cnt = ST.counts(y, z[k].astype(int), cl)
+                prd = z[k].astype(int)
+                cnt = ST.counts(y, prd, cl)
                 P8._add(cells.setdefault((c, k), {}), (f, r), cnt, f"{p.name} {k}")
                 cellrows.append(dict(c=c, T=T, fold=f, seed=r, key=k, uar=ST.uar_full(cnt)))
+                if k.startswith("K") and "_AVT_" in k:
+                    for nm, mk in subs.items():
+                        if mk.any():
+                            P8._add(cells.setdefault((c, f"{k}|sub_{nm}"), {}), (f, r), ST.counts(y[mk], prd[mk], cl[mk]), f"{p.name} {k} {nm}")
+                    if any(k.endswith(f"_AVT_{x}") for x in REC_KEYS):        # 感情ごとの再現率（記述．review_affect の b2）
+                        rec = cnt[1].sum(0) / np.maximum(cnt[2].sum(0), 1)
+                        recrows.append(dict(c=c, T=T, fold=f, seed=r, key=k, **{f"rec_e{e}": float(rec[e]) for e in range(4)},
+                                            **{f"pred_share_e{e}": float((prd == e).mean()) for e in range(4)}))
         for k, d in json.loads(str(z["diag"])).items():
             row = dict(c=c, T=T, fold=f, seed=r, key=k)
             for kk, vv in d.items():
@@ -328,7 +343,8 @@ def summarize(out: Path, allow_partial: bool) -> None:
     U.groupby(["c", "key"]).uar.agg(["mean", "count"]).reset_index().to_csv(out / "cells.csv", index=False)
     DG = pd.DataFrame(diagrows)
     DG.to_csv(out / "diag_units.csv", index=False)
-    DG.groupby(["c", "key"]).mean(numeric_only=True).reset_index().to_csv(out / "diag.csv", index=False)
+    DG.drop(columns=["fold", "seed"]).groupby(["c", "key"]).mean(numeric_only=True).reset_index().to_csv(out / "diag.csv", index=False)
+    pd.DataFrame(recrows).to_csv(out / "recall_units.csv", index=False)
     pd.DataFrame(chk).to_csv(out / "checks_units.csv", index=False)
     rows = []
     for c in sorted({k[0] for k in cells}):
@@ -337,12 +353,18 @@ def summarize(out: Path, allow_partial: bool) -> None:
             for nm, (a, b) in COMPARE_0.items():
                 ka, kb = a.format(s=s), b.format(s=s)
                 if (c, ka) in cells and (c, kb) in cells:
-                    rows.append(dict(c=c, K=0, space=s, compare=nm, **ST.effect_stats(cells[(c, ka)], cells[(c, kb)], g_eff, rng)))
+                    rows.append(dict(c=c, K=0, space=s, compare=nm, subset="all", **ST.effect_stats(cells[(c, ka)], cells[(c, kb)], g_eff, rng)))
             for K in KS_RULE:
                 for nm, (a, b) in COMPARE.items():
                     ka, kb = a.format(K=K, s=s), b.format(K=K, s=s)
                     if (c, ka) in cells and (c, kb) in cells:
-                        rows.append(dict(c=c, K=K, space=s, compare=nm, **ST.effect_stats(cells[(c, ka)], cells[(c, kb)], g_eff, rng)))
+                        rows.append(dict(c=c, K=K, space=s, compare=nm, subset="all", **ST.effect_stats(cells[(c, ka)], cells[(c, kb)], g_eff, rng)))
+                    if s == "AVT" and nm in SUB_COMPARE:
+                        for sk in [k for k in cells if k[0] == c and k[1].startswith(f"{ka}|sub_")]:
+                            sub = sk[1].split("|sub_")[1]
+                            kb2 = (c, f"{kb}|sub_{sub}")
+                            if kb2 in cells:
+                                rows.append(dict(c=c, K=K, space=s, compare=nm, subset=sub, **ST.effect_stats(cells[sk], cells[kb2], g_eff, rng)))
         print(f"{c}：区間を作った", flush=True)
     D = pd.DataFrame(rows)
     D.to_csv(out / "diffs.csv", index=False)
@@ -350,7 +372,7 @@ def summarize(out: Path, allow_partial: bool) -> None:
     for c in sorted(D.c.unique()):
         r_ = dict(c=c)
         for tag, nm in RULES:
-            d = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & D.K.isin(KS_RULE)]
+            d = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "all") & D.K.isin(KS_RULE)]
             if not allow_partial and len(d) != len(KS_RULE):
                 raise SystemExit(f"{c} {nm}：規則の行が {len(d)} 行（{len(KS_RULE)} のはず）")
             ok = (d.lo > 0) & (d.effect >= MIN_D)
@@ -358,13 +380,22 @@ def summarize(out: Path, allow_partial: bool) -> None:
             r_[f"{tag}_pos"], r_[f"{tag}_neg"] = bool(ok.sum() >= 3), bool((d.hi < 0).sum() >= 3)
         for K in KS_RULE:                                                    # 2 つの経路の分け方（設計 3 節）
             nms = ("ldaT_ldaK", "emfromK_ldaT", "emfromK_ldaK", "emKmet_ldaK", "emfromK_emKmet")
-            g = {nm: D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.K == K)].effect for nm in nms}
+            g = {nm: D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "all") & (D.K == K)].effect for nm in nms}
             if all(len(v) == 1 for v in g.values()):
                 v = {nm: float(g[nm].iloc[0]) for nm in nms}
                 r_[f"dec_K{K}_total"] = v["emfromK_ldaK"]
                 r_[f"dec_K{K}_metric_first"], r_[f"dec_K{K}_assign_after"] = v["ldaT_ldaK"], v["emfromK_ldaT"]       # 経路 1：計量 → 割り当て
                 r_[f"dec_K{K}_assign_first"], r_[f"dec_K{K}_metric_after"] = v["emKmet_ldaK"], v["emfromK_emKmet"]   # 経路 2：割り当て → 計量
                 r_[f"dec_K{K}_interaction"] = v["emfromK_emKmet"] - v["ldaT_ldaK"]
+        if c == "MOSEI":                                                     # channel が分かる発話だけの確かめ（review_affect の A1 の 3）
+            for tag, nm in CHAN_RULES:
+                n_rob = 0
+                for K in KS_RULE:
+                    da = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "all") & (D.K == K)]
+                    ds = D[(D.c == c) & (D.space == "AVT") & (D["compare"] == nm) & (D.subset == "channel") & (D.K == K)]
+                    if len(da) == 1 and len(ds) == 1 and float(ds.lo.iloc[0]) > 0 and float(ds.effect.iloc[0]) >= 0.5 * float(da.effect.iloc[0]):
+                        n_rob += 1
+                r_[f"{tag}_chan_n_K_robust"] = n_rob
         crit.append(r_)
     Cr = pd.DataFrame(crit)
     for tag, _ in RULES:
