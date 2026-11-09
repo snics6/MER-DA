@@ -324,6 +324,7 @@ CLIP を選んだ理由は 2 つある．MERBench（Lian et al.）が同じ条�
 1. `path_audio` がある行（IEMOCAP・RAVDESS・CREMA-D）はその wav を，無い行（MOSEI・MELD・AFEW）は `path_video` を，ffmpeg で 16kHz モノラルの波形にする．
 2. 先頭 60 秒で切り，切ったら `truncated` を真にする（現行で MOSEI 8 件・MELD 1 件）．元の長さは `duration_sec` に記録する．10 ミリ秒未満の波形は失敗とする．
 3. 波形ごとに平均 0・標準偏差 1 に正規化し，WavLM-large（第 2 は HuBERT-large）の最終層の出力を，詰め物の部分を除いて時間方向に平均する（1024 次元）．
+4. **全層の特徴（2026-11-09，DAI-13 の下調べ用）**：`features/build_audio_layers.py` が，同じ前処理で WavLM-large の 25 個の隠れ状態（入力 1 ＋ 24 層）のそれぞれを時間方向に平均し，`data/cache/audio_wavlm_layers_<コーパス>.npz` の `X_layers`（n × 25 × 1024，float32）に保存する．添字 24 は `audio_wavlm_<コーパス>.npz` の `X` と同じもの（試走 24 発話で最大の差 1.66e−5）．`load_group` は読まない（DAI-13 の台本が `sample_id` で合わせて読む）．既存の特徴のファイルは書き換えない．作るのは AFEW・IEMOCAP・MELD・MOSEI の 4 コーパス．
 
 ### 言葉（`features/build_text.py`）
 
