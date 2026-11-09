@@ -28,6 +28,12 @@ if [ "$N0" != "60" ]; then
   touch logs/dai13_probe_r1.failed
   exit 1
 fi
+ROWS_SHA=$(.venv/bin/python -c "import numpy as np, glob; print(str(np.load(sorted(glob.glob('$OUT/rows/*_r0.npz'))[0], allow_pickle=False)['script_sha256']))")
+if [ "$ROWS_SHA" != "$ACTUAL_SHA" ]; then
+  echo "r = 0 の行の台本の sha256（$ROWS_SHA）が今の台本（$ACTUAL_SHA）と違う（gate-code 第 2 回の記録）"
+  touch logs/dai13_probe_r1.failed
+  exit 1
+fi
 export CUDA_VISIBLE_DEVICES=0
 echo "開始（r = 1）$(date '+%F %T')"
 .venv/bin/python DAI/exp/dai13_probe.py --out "$OUT" --stage units --units "*_r1" --resume > logs/dai13_probe_r1_units.log 2>&1

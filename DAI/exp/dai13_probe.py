@@ -233,7 +233,9 @@ def crossfit_lw(X, Q, half: np.ndarray, Xtest, seed: int, learn_alpha: bool = Tr
             ce_all = res["ce_best"].view(Jc, nw)
             iw_best = ce_all.argmin(1).cpu().numpy()
             for ic, step in enumerate(ckpts):
-                grid_pred[0, :, ic][:, js][:, :, te_np] = res["te_at"][step].argmax(-1).to(torch.int8).view(Jc, nw, -1).permute(1, 0, 2).cpu().numpy()
+                gp = res["te_at"][step].argmax(-1).to(torch.int8).view(Jc, nw, -1).cpu().numpy()        # (Jc, nw, nte)
+                for jj, j in enumerate(js):
+                    grid_pred[0, :, ic, j][:, te_np] = gp[jj]                                             # 基本の添字で見た部分に書く（リストの添字は写しになる．gate-code 第 2 回の I21）
                 alpha_grid[h, js, :, ic] = res["alpha_at"][step].view(Jc, nw, L).to(torch.float16).cpu().numpy()
             ce_hist[h, js, 0] = res["ce_hist"].view(Jc, nw, nck).cpu().numpy()
             tl[h, js, 0] = res["train_loss_final"].view(Jc, nw).cpu().numpy()
@@ -319,6 +321,21 @@ def kshot_lw(Xp: torch.Tensor, y: np.ndarray, kpos: np.ndarray, learn_alpha: boo
     if not bool(torch.isfinite(Z).all()) or not bool(torch.isfinite(loss).all()):
         raise SystemExit("K 本の層の重みの分類器に有限でない値がある")
     return Z.argmax(-1).to(torch.int8).cpu().numpy(), A.cpu().numpy()
+
+
+def check_grid_consistency(res: dict, half: np.ndarray, wds: tuple, ckpts: tuple, label: str) -> None:
+    """選んだ (wd, 保存点) の格子の判定（grid_pred）が，選んだ版の判定（sel の argmax）と一致することを確かめる（入れ子の前に呼ぶ．gate-code 第 2 回の I21）。"""
+    J = res["sel"].shape[0]
+    sel_pred = res["sel"].argmax(-1).to(torch.int8).cpu().numpy()
+    bad = 0
+    for h in (0, 1):
+        te = np.flatnonzero(half == h)
+        for j in range(J):
+            _, wd_, st_ = res["cfg"][(h, j)]
+            g = res["grid_pred"][0, wds.index(wd_), list(ckpts).index(st_), j][te]
+            bad += int((g != sel_pred[j][te]).sum())
+    if bad:
+        raise SystemExit(f"{label}：選んだ点の格子の判定が選んだ版の判定と {bad} 本違う（格子の保存の不具合）")
 
 
 def nest_final(lw: dict, fin: dict, half: np.ndarray) -> np.ndarray:
@@ -485,6 +502,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     unif = P12.crossfit_nets(Xu, Q, half, Xut, seed_base + 10, 0)
     onehot24 = torch.zeros(2, J, N_LAYERS); onehot24[:, :, FINAL_IDX] = 1.0
     final_lw = crossfit_lw(Xp, Q, half, Xt, seed_base + 10, learn_alpha=False, alpha_fixed=onehot24)      # 最終層だけを lw の経路（ψ の標準化し直し）に通した対照（gate-code 第 1 回の 3）
+    for lab_, res_, ck_ in (("lw", lw, CKPTS), ("final", final, CKPTS), ("unif", unif, CKPTS), ("final_lw", final_lw, CKPTS)):
+        check_grid_consistency(res_, half, WDS, ck_, f"{name} {lab_}")
     pre_lw = dict(sel=lw["sel"].clone(), sel_test=lw["sel_test"].clone(), cfg=dict(lw["cfg"]), ce_sel=lw["ce_sel"].copy(), alpha_sel=lw["alpha_sel"].copy())   # 入れ子の前（層の重みを学んだ版）
     used_layers = nest_final(lw, final, half)                                                      # 入れ子の選択（設計 3.2 節．gate-probe 第 1 回の 1）
 
@@ -497,11 +516,14 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     lw_lab = crossfit_lw(Xp, Qlab, half, Xt, seed_base + 30, learn_alpha=True, ckpts=LAB_CKPTS, steps=LAB_STEPS)
     final_lab = P12.crossfit_nets(X24, Qlab, half, X24t, seed_base + 30, 0, ckpts=LAB_CKPTS, steps=LAB_STEPS)
     unif_lab = P12.crossfit_nets(Xu, Qlab, half, Xut, seed_base + 30, 0, ckpts=LAB_CKPTS, steps=LAB_STEPS)
+    for lab_, res_ in (("lw_lab", lw_lab), ("final_lab", final_lab), ("unif_lab", unif_lab)):
+        check_grid_consistency(res_, half, WDS, LAB_CKPTS, f"{name} {lab_}")
     pre_lw_lab = dict(sel=lw_lab["sel"].clone(), sel_test=lw_lab["sel_test"].clone(), cfg=dict(lw_lab["cfg"]), ce_sel=lw_lab["ce_sel"].copy(), alpha_sel=lw_lab["alpha_sel"].copy())
     lab_used_layers = nest_final(lw_lab, final_lab, half)
     alpha_fixed = torch.as_tensor(np.stack([pre_lw["alpha_sel"][:, j_pair[K]] for K in Q3_KS], 1))       # (2, len(Q3_KS), L)．入れ子の前の α（Q3 は「学んだ α」を問う）
     lw_lab_fix = crossfit_lw(Xp, Qlab.expand(len(Q3_KS), -1, -1).contiguous(), half, Xt, seed_base + 62, learn_alpha=False, alpha_fixed=alpha_fixed,
                              ckpts=LAB_CKPTS, steps=LAB_STEPS)
+    check_grid_consistency(lw_lab_fix, half, WDS, LAB_CKPTS, f"{name} lw_lab_fixalpha")
 
     mark("lab")
     # --- 層ごとの線形に読める分（リッジ．pair の 5 本の K）と，全ラベルのリッジ（記述）
@@ -999,7 +1021,7 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
             crit.append(dict(c=c, student=M, rule="Q3/Q2", teacher="labels", quantity="ratio", verdict="記述", est_min=d3["est"].mean() / d2["est"].mean(), est_max=np.nan))
         Rc_ = R[R["c"] == c]
         edge = {}
-        for kind in ("lw", "final", "unif"):
+        for kind in ("lw", "final", "unif", "finallw"):
             for ax in ("wd", "step"):
                 for side in ("low", "high"):
                     edge[f"{kind}_edge_{ax}_{side}_frac"] = float(np.mean([Rc_[f"{kind}_edge_{ax}_{side}_h{h}"].mean() for h in (0, 1)]))
