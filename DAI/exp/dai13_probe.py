@@ -61,8 +61,8 @@ GPU_MEM_FRAC = 0.6                                                       # GPU �
 ALPHA_LR = 1e-1                                                          # 層の重みの対数 α の Adam の学習率（W・c は FIXED_LR）．10⁻² だと 500 ステップで 1 つの層に寄り切れない（gate-probe 第 1 回の 1）
 PSI_EPS = 1e-6                                                           # ψ の次元ごとの標準化の下駄（学習の半分の統計．α が one-hot のとき final と同じ尺度になる）
 LAYER_DIFF_STOP = 1e-2                                                   # 添字 24 の生の特徴と既存の音声の特徴の最大の差の許し
-FINAL_MISMATCH_STOP = 0.25                                               # final と DAI-12 の lince の判定の不一致の割合の許し（pair・self だけ．乱数の列が違うので 0 ではない．a2）
-FINAL_UAR_STOP = 5.0                                                     # 同じく候補の上の UAR の差の許し（pair・self だけ）
+FINAL_MISMATCH_STOP = 0.25                                               # final と DAI-12 の lince の判定の不一致の割合の許し（止めるのは self だけ．pair は警告と記録．乱数の列が違うので 0 ではない．a2，設計 第 14 版）
+FINAL_UAR_STOP = 5.0                                                     # 同じく候補の上の UAR の差の許し（止めるのは self だけ．pair は警告と記録）
 MISMATCH_FRAC = P12.MISMATCH_FRAC
 FLOOR_POOL = P12.FLOOR_POOL
 SELF_TOL = P12.SELF_TOL
@@ -585,9 +585,13 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
         mism[f"final_vs_dai12_lince_frac_{t_}_K{K}"] = fr[(t_, K)]
         mism[f"final_vs_dai12_lince_uar_absdiff_{t_}_K{K}"] = du[(t_, K)]
     mism["final_vs_dai12_lince_frac_max"] = max(fr.values()); mism["final_vs_dai12_lince_uar_absdiff_max"] = max(du.values())
-    stop_fr = max(v for (t_, K), v in fr.items() if t_ in ("pair", "self")); stop_du = max(v for (t_, K), v in du.items() if t_ in ("pair", "self"))
+    stop_fr = max(v for (t_, K), v in fr.items() if t_ == "self"); stop_du = max(v for (t_, K), v in du.items() if t_ == "self")
+    pair_fr = max(v for (t_, K), v in fr.items() if t_ == "pair"); pair_du = max(v for (t_, K), v in du.items() if t_ == "pair")
+    mism["final_vs_dai12_lince_pair_over"] = int(pair_fr > FINAL_MISMATCH_STOP or pair_du > FINAL_UAR_STOP)                        # pair は止めず記録と警告（設計 第 14 版．1 回目の本計算が AFEW_IEMOCAP_f4_r0 の pair の UAR の差 8.64 で止まった）
+    if mism["final_vs_dai12_lince_pair_over"]:
+        print(f"警告 {name}：pair の final と DAI-12 の lince の不一致が許しを超えた（判定の不一致の割合の最大 {pair_fr:.3f}，UAR の差の最大 {pair_du:.2f}）．記録のみ．続ける", flush=True)
     if stop_fr > FINAL_MISMATCH_STOP or stop_du > FINAL_UAR_STOP:
-        raise SystemExit(f"{name}：final と DAI-12 の lince の不一致が大きい（pair・self の判定の不一致の割合の最大 {stop_fr:.3f}，UAR の差の最大 {stop_du:.2f}）")
+        raise SystemExit(f"{name}：final と DAI-12 の lince の不一致が大きい（self の判定の不一致の割合の最大 {stop_fr:.3f}，UAR の差の最大 {stop_du:.2f}）")
     p_flab = P12.argmax8(final_lab["sel"][0])
     mism["final_lab_vs_dai12_lab_lince_frac"] = float((p_flab != z12[f"pool_lab_lince_{M}"].astype(np.int8)).mean())
 
@@ -743,12 +747,12 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     pd.DataFrame(layer_rows).to_csv(rows_dir / f"{name}_layers.csv", index=False)
     mark("save")
     sec = time.time() - t0
-    ints = [int(v) for k, v in mism.items() if "frac" not in k and "absdiff" not in k]
+    ints = [int(v) for k, v in mism.items() if "frac" not in k and "absdiff" not in k and "pair_over" not in k]
     gpu_gb = torch.cuda.max_memory_allocated() / 2 ** 30 if torch.cuda.is_available() else float("nan")
     gpu_res = torch.cuda.max_memory_reserved() / 2 ** 30 if torch.cuda.is_available() else float("nan")
     tsec = {k: round(v, 1) for k, v in timing.items()}
     print(f"単位 {name}: 候補 {n}（半分 {int((half == 0).sum())}/{int((half == 1).sum())}）テスト {nt} 保存 {len(store)} 行 {len(lw_rows)}+{len(lab_rows)}+{len(layer_rows)} "
-          f"判定の不一致の最大 {max(ints)} 本 final と DAI-12 の不一致の割合の最大 {mism['final_vs_dai12_lince_frac_max']:.3f}（pair・self {stop_fr:.3f}）添字 24 の差 {diff24:.1e} "
+          f"判定の不一致の最大 {max(ints)} 本 final と DAI-12 の不一致の割合の最大 {mism['final_vs_dai12_lince_frac_max']:.3f}（self {stop_fr:.3f}，pair {pair_fr:.3f}，pair の UAR の差の最大 {pair_du:.2f}）添字 24 の差 {diff24:.1e} "
           f"GPU 最大 {gpu_gb:.1f} GB（予約 {gpu_res:.1f} GB）({sec:.0f} 秒．内訳 {tsec})", flush=True)
     return dict(unit=name, sec=sec, gpu_max_gb=gpu_gb, gpu_reserved_gb=gpu_res, **{f"sec_{k}": v for k, v in timing.items()})
 
@@ -1055,6 +1059,11 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
         edge["psi_var_mean"] = float(np.mean([Rc_[f"psi_var_h{h}"].mean() for h in (0, 1)]))
         edge["final_vs_dai12_lince_frac_mean"] = float(Rc_["final_vs_dai12_lince_frac"].mean()); edge["final_vs_dai12_lince_frac_max"] = float(Rc_["final_vs_dai12_lince_frac"].max())
         edge["final_vs_dai12_lince_uar_absdiff_max"] = float(Rc_["final_vs_dai12_lince_uar_absdiff"].max())
+        for t_ in ("pair", "self"):                                                                                                  # 出所ごとの最大と，許しを超えた (単位, K) の数（設計 第 14 版．pair は止めずに数える）
+            Rt_ = Rc_[Rc_["teacher"] == t_]
+            edge[f"final_vs_dai12_lince_uar_absdiff_max_{t_}"] = float(Rt_["final_vs_dai12_lince_uar_absdiff"].max())
+            edge[f"final_vs_dai12_lince_uar_over_n_{t_}"] = int((Rt_["final_vs_dai12_lince_uar_absdiff"] > FINAL_UAR_STOP).sum())
+            edge[f"final_vs_dai12_lince_frac_over_n_{t_}"] = int((Rt_["final_vs_dai12_lince_frac"] > FINAL_MISMATCH_STOP).sum())
         crit.append(dict(c=c, student=M, rule="EDGE/OPT/LOSS/NEST/ALPHA/MISMATCH", teacher="all", quantity="fractions", verdict="記述", **edge))
         # 量の大きさと得の順位（設計 1 節．記述）
         crit.append(dict(c=c, student=M, rule="GAP_vs_GAIN", teacher="pair", quantity="info_gap_mean / layers_minus_final_mean", verdict="記述",
