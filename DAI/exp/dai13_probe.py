@@ -54,6 +54,10 @@ LAB_CKPTS, LAB_STEPS = P12.LAB_CKPTS, P12.LAB_STEPS
 CONV_REL = P12.CONV_REL
 READ_WDS, READ_STEPS = (1e-2, 1e-1, 1.0), 500                           # Q4：K 本の 4×4 の読み出し（固定の格子．選ばない）
 KSHOT_WDS, KSHOT_STEPS = (1e-2, 1.0), 500                                # Q5：層の重みと線形の写像を K 本だけで学ぶ（固定の格子．選ばない．設計 3.5b 節）
+Q3_KS = (0, 25)                                                          # Q3（α を pair の解に固定した全ラベルの分類器）を出す K（試走で lab の段が最も重かったので 2 本に絞った．記述）
+RIDGE_DTYPE = torch.float32                                              # 層ごとのリッジ（記述）の精度．倍精度は試走で 1 単位 38 秒かかった（GPU の倍精度は遅い）
+MAX_NETS = 15                                                            # 束ねて学ぶネットの数の上限（目標 3 × wd 5．MOSEI の試走で 25 本だと GPU 最大 12.0 GB（上限 14.7 GB）だったので余裕を取った．gate-code 第 1 回の 1）
+GPU_MEM_FRAC = 0.6                                                       # GPU のメモリの上限の割合（WSL2 の落とし穴の回避．docs/methods.md の記録）
 ALPHA_LR = 1e-1                                                          # 層の重みの対数 α の Adam の学習率（W・c は FIXED_LR）．10⁻² だと 500 ステップで 1 つの層に寄り切れない（gate-probe 第 1 回の 1）
 PSI_EPS = 1e-6                                                           # ψ の次元ごとの標準化の下駄（学習の半分の統計．α が one-hot のとき final と同じ尺度になる）
 LAYER_DIFF_STOP = 1e-2                                                   # 添字 24 の生の特徴と既存の音声の特徴の最大の差の許し
@@ -62,7 +66,7 @@ FINAL_UAR_STOP = 5.0                                                     # 同�
 MISMATCH_FRAC = P12.MISMATCH_FRAC
 FLOOR_POOL = P12.FLOOR_POOL
 SELF_TOL = P12.SELF_TOL
-ALPHA_MAX_NOTE, ALPHA_FINAL_NOTE = 0.9, 0.5                              # 層の重みの集中の添え書きの目安（設計 3.2 節）
+ALPHA_MAX_NOTE, ALPHA_FINAL_NOTE = 0.4, 0.3                              # 層の重みの集中の添え書きの目安（設計 3.2 節．試走で目標が最終層の関数そのもの（self）でも 500 ステップで届くのは 0.41〜0.46 だったので，届く幅に合わせた．gate-probe 第 2 回）
 ALPHA_FAR = 0.2                                                          # 学んだ α が一様（1/25 = 0.04）から離れたとみなす最大の重みの下限（5 倍．見込み (f) を読む条件．review-ml 第 1 回の M2）
 LOSS_NOTE_FRAC = 0.05                                                    # 入れ子の前の lw の損失が final を上回った割合がこれを超えたら R1 に「最適化の不足の疑い」を添える（m7）
 N_BOOT = ST.N_BOOT
@@ -115,31 +119,40 @@ def _psi(X: torch.Tensor, A: torch.Tensor) -> torch.Tensor:
     return torch.einsum("nld,bl->bnd", X, A)
 
 
-def _psi_stats(Xstat: torch.Tensor, A: torch.Tensor) -> tuple:
-    """統計を取る行 Xstat の上の ψ の次元ごとの平均と標準偏差 (B, 1, d)（設計 3.2 節．α が one-hot なら標準化した層そのものなので ≈ (0, 1)）。"""
-    p = _psi(Xstat, A)
-    return p.mean(1, keepdim=True), p.std(1, keepdim=True).clamp(min=PSI_EPS)
+def _scores_from_psi(psi_tr: torch.Tensor, psi: torch.Tensor, W: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
+    """ψ を学習の半分の ψ_tr の次元ごとの統計で標準化してから線形の写像に通す → 点数 (B, n, 4)（設計 3.2 節．α が one-hot のとき final とほぼ同じ尺度）。"""
+    mu = psi_tr.mean(1, keepdim=True)
+    sd = psi_tr.std(1, keepdim=True).clamp(min=PSI_EPS)
+    return torch.bmm((psi - mu) / sd, W) + c[:, None, :]
 
 
 def _lw_forward(X: torch.Tensor, A: torch.Tensor, W: torch.Tensor, c: torch.Tensor, stats: tuple) -> torch.Tensor:
-    """ψ を stats（学習の半分の統計）で次元ごとに標準化してから線形の写像に通す → 点数 (B, n, 4)。"""
+    """後方互換（kshot_lw が使う）：stats = (mu, sd) で標準化してから線形の写像に通す。"""
     mu, sd = stats
     return torch.bmm((_psi(X, A) - mu) / sd, W) + c[:, None, :]
 
 
-def train_lw_batched(Xtr, Qtr, Xte, Qte, Xtest, wds: tuple, seed: int, learn_alpha: bool, alpha_fixed, steps: int, ckpts: tuple, lr: float = FIXED_LR) -> dict:
+def _psi_stats(Xstat: torch.Tensor, A: torch.Tensor) -> tuple:
+    p = _psi(Xstat, A)
+    return p.mean(1, keepdim=True), p.std(1, keepdim=True).clamp(min=PSI_EPS)
+
+
+def train_lw_batched(Xtr, Qtr, Xte, Qte, Xtest, wds: tuple, seed: int, learn_alpha: bool, alpha_fixed, steps: int, ckpts: tuple, lr: float = FIXED_LR, init=None) -> dict:
     """目標 J 個 × 罰則 len(wds) 個 = B 個のネットを一括で学ぶ．α（層の重みの対数）は初期値 0（一様），学習率 ALPHA_LR，罰しない．W だけ罰する．
-    ψ は学習の半分の統計で次元ごとに標準化する（α が one-hot のとき final と同じ尺度．D19）．
+    ψ は学習の半分の統計で次元ごとに標準化する（α が one-hot のとき final とほぼ同じ尺度．D19）．ψ は 1 ステップに 1 回だけ作る（gate-code 第 1 回の 1）．
     alpha_fixed：(J, L) の softmax 後の重み（学ばないとき）。予測する半分 Xte の損失（Qte）が最小の保存点を残す。"""
     J, nw = Qtr.shape[0], len(wds)
     B = J * nw
     L, d = Xtr.shape[1], Xtr.shape[2]
     Qtr_b, Qte_b = Qtr.repeat_interleave(nw, 0), Qte.repeat_interleave(nw, 0)
     wd = torch.tensor(wds, dtype=torch.float32, device=S.DEV).repeat(J)
-    g = torch.Generator(device=S.DEV).manual_seed(seed)
-    b1 = 1 / np.sqrt(d)
-    W = ((torch.rand(B, d, 4, generator=g, device=S.DEV) * 2 - 1) * b1).requires_grad_(True)
-    c = ((torch.rand(B, 4, generator=g, device=S.DEV) * 2 - 1) * b1).requires_grad_(True)
+    if init is None:
+        g = torch.Generator(device=S.DEV).manual_seed(seed)
+        b1 = 1 / np.sqrt(d)
+        W = ((torch.rand(B, d, 4, generator=g, device=S.DEV) * 2 - 1) * b1).requires_grad_(True)
+        c = ((torch.rand(B, 4, generator=g, device=S.DEV) * 2 - 1) * b1).requires_grad_(True)
+    else:                                                                                   # 束に分けても全体で 1 回引いた初期値を使う（final・unif と同じ初期値．m1）
+        W = init[0].clone().requires_grad_(True); c = init[1].clone().requires_grad_(True)
     if learn_alpha:
         alpha = torch.zeros(B, L, device=S.DEV, requires_grad=True)
         opt = torch.optim.Adam([{"params": [alpha], "lr": ALPHA_LR}, {"params": [W, c], "lr": lr}])
@@ -152,37 +165,44 @@ def train_lw_batched(Xtr, Qtr, Xte, Qte, Xtest, wds: tuple, seed: int, learn_alp
     te_best = torch.zeros(B, Xte.shape[0], 4, device=S.DEV)
     test_best = torch.zeros(B, Xtest.shape[0], 4, device=S.DEV)
     alpha_best = torch.zeros(B, L, device=S.DEV)
+    W_best, c_best = W.detach().clone(), c.detach().clone()
     te_at, test_at, alpha_at, ce_hist = {}, {}, {}, []
     for step in range(1, steps + 1):
         opt.zero_grad(set_to_none=True)
         A = torch.softmax(alpha, -1) if learn_alpha else A_fixed
-        st = _psi_stats(Xtr, A)
-        Ltr = _lw_forward(Xtr, A, W, c, st)
+        psi_tr = _psi(Xtr, A)
+        Ltr = _scores_from_psi(psi_tr, psi_tr, W, c)
         loss_b = P12._ce(Qtr_b, Ltr) + wd / 2 * (W ** 2).sum((1, 2))
         loss_b.sum().backward()
         opt.step()
+        del psi_tr, Ltr
         if step in ckpts:
             with torch.no_grad():
                 A = torch.softmax(alpha, -1) if learn_alpha else A_fixed
-                st = _psi_stats(Xtr, A)
-                Lte, Ltest = _lw_forward(Xte, A, W, c, st), _lw_forward(Xtest, A, W, c, st)
+                psi_tr = _psi(Xtr, A)
+                Lte = _scores_from_psi(psi_tr, _psi(Xte, A), W, c)
+                Ltest = _scores_from_psi(psi_tr, _psi(Xtest, A), W, c)
+                del psi_tr
                 ce_te = P12._ce(Qte_b, Lte)
                 better = ce_te < ce_best
                 ce_best = torch.where(better, ce_te, ce_best)
                 step_best = torch.where(better, torch.full_like(step_best, step), step_best)
                 te_best[better] = Lte[better]; test_best[better] = Ltest[better]; alpha_best[better] = A[better]
+                W_best[better] = W.detach()[better]; c_best[better] = c.detach()[better]
                 te_at[step] = Lte.clone(); test_at[step] = Ltest.clone(); alpha_at[step] = A.clone()
                 ce_hist.append(ce_te.clone())
     ce_hist = torch.stack(ce_hist, 1)
     if not bool(torch.isfinite(ce_hist).all()):
         raise SystemExit("層の重みつき和のネットの損失に有限でない値がある")
     return dict(te_best=te_best, test_best=test_best, ce_best=ce_best, step_best=step_best, te_at=te_at, test_at=test_at, alpha_at=alpha_at,
-                alpha_best=alpha_best, ce_hist=ce_hist, train_loss_final=loss_b.detach())
+                alpha_best=alpha_best, W_best=W_best, c_best=c_best, ce_hist=ce_hist, train_loss_final=loss_b.detach())
 
 
-def crossfit_lw(X, Q, half: np.ndarray, Xtest, seed: int, learn_alpha: bool = True, alpha_fixed=None, wds: tuple = WDS, ckpts: tuple = CKPTS, steps: int = STEPS) -> dict:
+def crossfit_lw(X, Q, half: np.ndarray, Xtest, seed: int, learn_alpha: bool = True, alpha_fixed=None, wds: tuple = WDS, ckpts: tuple = CKPTS, steps: int = STEPS,
+                keep_params: tuple = ()) -> dict:
     """各半分を，もう一方の半分で学んだネットで予測する（交差の予測）．半分ごと・目標ごとに，予測する半分の損失が最小の (wd, 保存点) を選ぶ．
-    X (n, L, d)．alpha_fixed：(2, J, L)（半分ごと）。戻りは dai12_probe.crossfit_nets と同じ鍵に，alpha_sel (2, J, L)，alpha_fix (2, J, L) を足したもの。"""
+    X (n, L, d)．alpha_fixed：(2, J, L)（半分ごと）．目標は MAX_NETS 本以下の束に分けて学ぶ（MOSEI のメモリ．gate-code 第 1 回の 1）．
+    戻りは dai12_probe.crossfit_nets と同じ鍵に，alpha_sel (2, J, L)，alpha_fix (2, J, L)，alpha_grid (2, J, nw, nck, L) float16，params {(h, j): [W, c]} を足したもの。"""
     J, n = Q.shape[0], Q.shape[1]
     nw, nck = len(wds), len(ckpts)
     iw_f, ick_f = wds.index(FIXED_WD), list(ckpts).index(FIXED_STEP)
@@ -193,30 +213,48 @@ def crossfit_lw(X, Q, half: np.ndarray, Xtest, seed: int, learn_alpha: bool = Tr
     cfg, ce_sel, ce_fix = {}, np.zeros((2, J)), np.zeros((2, J))
     ce_hist, tl = np.zeros((2, J, 1, nw, nck)), np.zeros((2, J, 1, nw))
     alpha_sel, alpha_fix = np.zeros((2, J, L), np.float32), np.zeros((2, J, L), np.float32)
+    alpha_grid = np.zeros((2, J, nw, nck, L), np.float16)
+    params_out = {}
+    jper = max(1, MAX_NETS // nw)
+    chunks = [list(range(a, min(a + jper, J))) for a in range(0, J, jper)]
     for h in (0, 1):
         tr = torch.as_tensor(np.flatnonzero(half != h), device=S.DEV); te = torch.as_tensor(np.flatnonzero(half == h), device=S.DEV)
         te_np = te.cpu().numpy()
-        res = train_lw_batched(X[tr], Q[:, tr], X[te], Q[:, te], Xtest, wds, seed * 4 + h * 2, learn_alpha,
-                               None if alpha_fixed is None else alpha_fixed[h], steps, ckpts)
-        ce_all = res["ce_best"].view(J, nw)
-        iw_best = ce_all.argmin(1).cpu().numpy()
-        for ic, step in enumerate(ckpts):
-            grid_pred[0, :, ic][:, :, te_np] = res["te_at"][step].argmax(-1).to(torch.int8).view(J, nw, -1).permute(1, 0, 2).cpu().numpy()
-        ce_hist[h, :, 0] = res["ce_hist"].view(J, nw, nck).cpu().numpy()
-        tl[h, :, 0] = res["train_loss_final"].view(J, nw).cpu().numpy()
-        rows_fix = torch.arange(J, device=S.DEV) * nw + iw_f
-        fix[:, te] = res["te_at"][FIXED_STEP][rows_fix]; fix_test[h] = res["test_at"][FIXED_STEP][rows_fix]
-        ce_fix[h] = res["ce_hist"].view(J, nw, nck)[:, iw_f, ick_f].cpu().numpy()
-        alpha_fix[h] = res["alpha_at"][FIXED_STEP][rows_fix].cpu().numpy()
-        for j in range(J):
-            b = j * nw + int(iw_best[j])
-            sel[j, te] = res["te_best"][b]; sel_test[h, j] = res["test_best"][b]
-            ce_sel[h, j] = float(res["ce_best"][b])
-            cfg[(h, j)] = (float(FIXED_LR), float(wds[int(iw_best[j])]), int(res["step_best"][b]))
-            alpha_sel[h, j] = res["alpha_best"][b].cpu().numpy()
-        del res
+        Xtr_h, Xte_h = X[tr], X[te]
+        g = torch.Generator(device=S.DEV).manual_seed(seed * 4 + h * 2)                     # dai12_probe.crossfit_nets（il = 0）と同じ種・同じ引く順
+        b1 = 1 / np.sqrt(X.shape[-1])
+        W_all = (torch.rand(J * nw, X.shape[-1], 4, generator=g, device=S.DEV) * 2 - 1) * b1
+        c_all = (torch.rand(J * nw, 4, generator=g, device=S.DEV) * 2 - 1) * b1
+        for ci, js in enumerate(chunks):
+            rows_b = torch.as_tensor([j * nw + w_ for j in js for w_ in range(nw)], device=S.DEV)
+            res = train_lw_batched(Xtr_h, Q[js][:, tr], Xte_h, Q[js][:, te], Xtest, wds, seed * 4 + h * 2, learn_alpha,
+                                   None if alpha_fixed is None else alpha_fixed[h][js], steps, ckpts, init=(W_all[rows_b], c_all[rows_b]))
+            Jc = len(js)
+            ce_all = res["ce_best"].view(Jc, nw)
+            iw_best = ce_all.argmin(1).cpu().numpy()
+            for ic, step in enumerate(ckpts):
+                grid_pred[0, :, ic][:, js][:, :, te_np] = res["te_at"][step].argmax(-1).to(torch.int8).view(Jc, nw, -1).permute(1, 0, 2).cpu().numpy()
+                alpha_grid[h, js, :, ic] = res["alpha_at"][step].view(Jc, nw, L).to(torch.float16).cpu().numpy()
+            ce_hist[h, js, 0] = res["ce_hist"].view(Jc, nw, nck).cpu().numpy()
+            tl[h, js, 0] = res["train_loss_final"].view(Jc, nw).cpu().numpy()
+            rows_fix = torch.arange(Jc, device=S.DEV) * nw + iw_f
+            for jj, j in enumerate(js):
+                fix[j, te] = res["te_at"][FIXED_STEP][rows_fix[jj]]; fix_test[h, j] = res["test_at"][FIXED_STEP][rows_fix[jj]]
+                ce_fix[h, j] = float(res["ce_hist"].view(Jc, nw, nck)[jj, iw_f, ick_f])
+                alpha_fix[h, j] = res["alpha_at"][FIXED_STEP][rows_fix[jj]].cpu().numpy()
+                b = jj * nw + int(iw_best[jj])
+                sel[j, te] = res["te_best"][b]; sel_test[h, j] = res["test_best"][b]
+                ce_sel[h, j] = float(res["ce_best"][b])
+                cfg[(h, j)] = (float(FIXED_LR), float(wds[int(iw_best[jj])]), int(res["step_best"][b]))
+                alpha_sel[h, j] = res["alpha_best"][b].cpu().numpy()
+                if j in keep_params:
+                    params_out[(h, j)] = [res["W_best"][b].to(torch.float16).cpu().numpy(), res["c_best"][b].to(torch.float16).cpu().numpy()]
+            del res
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        del Xtr_h, Xte_h, W_all, c_all
     return dict(sel=sel, fix=fix, sel_test=sel_test, fix_test=fix_test, grid_pred=grid_pred, cfg=cfg, ce_sel=ce_sel, ce_fix=ce_fix,
-                ce_hist=ce_hist, train_loss=tl, alpha_sel=alpha_sel, alpha_fix=alpha_fix)
+                ce_hist=ce_hist, train_loss=tl, alpha_sel=alpha_sel, alpha_fix=alpha_fix, alpha_grid=alpha_grid, params=params_out)
 
 
 def readout_kshot(logp: torch.Tensor, y: np.ndarray, kpos: np.ndarray, wds: tuple = READ_WDS, steps: int = READ_STEPS, lr: float = 1e-2) -> np.ndarray:
@@ -243,6 +281,8 @@ def readout_kshot(logp: torch.Tensor, y: np.ndarray, kpos: np.ndarray, wds: tupl
         opt.step()
     with torch.no_grad():
         Z = torch.einsum("nk,bjk->bnj", logp.float(), Mx) + bb[:, None, :]
+    if not bool(torch.isfinite(Z).all()) or not bool(torch.isfinite(loss).all()):
+        raise SystemExit("4×4 の読み出しに有限でない値がある")
     return Z.argmax(-1).to(torch.int8).cpu().numpy()
 
 
@@ -275,8 +315,10 @@ def kshot_lw(Xp: torch.Tensor, y: np.ndarray, kpos: np.ndarray, learn_alpha: boo
         opt.step()
     with torch.no_grad():
         A = torch.softmax(alpha, -1) if learn_alpha else A_fixed
-        pred = _lw_forward(Xp, A, W, c, _psi_stats(Xp, A)).argmax(-1).to(torch.int8).cpu().numpy()
-    return pred, A.cpu().numpy()
+        Z = _lw_forward(Xp, A, W, c, _psi_stats(Xp, A))
+    if not bool(torch.isfinite(Z).all()) or not bool(torch.isfinite(loss).all()):
+        raise SystemExit("K 本の層の重みの分類器に有限でない値がある")
+    return Z.argmax(-1).to(torch.int8).cpu().numpy(), A.cpu().numpy()
 
 
 def nest_final(lw: dict, fin: dict, half: np.ndarray) -> np.ndarray:
@@ -324,6 +366,11 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
         if p.exists():
             raise SystemExit(f"{p} は既にある（重複を作らない）")
     t0 = time.time()
+    timing, _tm = {}, [time.time()]
+
+    def mark(k: str):
+        now = time.time(); timing[k] = round(timing.get(k, 0.0) + now - _tm[0], 1); _tm[0] = now
+
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats()
     srcs = [x for x in DD.CORPORA if x not in (T, c)]
@@ -349,6 +396,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
         if k > tol:
             raise SystemExit(f"{name} {key}：{what}が保存と {k} 本違う")
 
+    mark("load_unit")
     # --- 全層の特徴（候補とテストの行を sample_id で引く）．添字 24 の生の特徴を既存の音声の特徴と照合
     sid_pool = u.cp.df["sample_id"].to_numpy()[u.pool].astype(str)
     sid_test = u.cp.df["sample_id"].to_numpy()[u.test].astype(str)
@@ -368,6 +416,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     X24, X24t = Xp[:, FINAL_IDX].contiguous(), Xt[:, FINAL_IDX].contiguous()
     mism["layer24_std_max_absdiff"] = float((X24 - u.Xp[M]).abs().max())                     # 標準化した添字 24 と Unit2 の音声の特徴の差（記録）
 
+    mark("layers")
     # --- 目標（DAI-12 の 3.1 節と同じ）
     none_p = {}
     for m in P12.MODS:
@@ -422,19 +471,24 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
         check(f"K{K}_pool_teacher_{t_}", int((pt != z12[f"pool_teacher_K{K}_{M}_{t_}"].astype(np.int8)).sum()), tol_n, f"出所 {t_} の候補の判定")
     Q = torch.stack([P.float() for P in P_list])
 
+    mark("targets")
     # --- lw（層の重みを学ぶ），final（添字 24 だけ．DAI-12 の lince と同じ計算），unif（α を一様 1/25 に固定．層の重みを「学ぶ」ことの効果を分ける腕．review-ml 第 1 回の M2）
     #     3 つの腕の W・c の初期値は同じ種で引くので同じ（review-ml 第 1 回の m1）．違いは α（学ぶ／添字 24／一様）だけ
     Xu_raw, Xut_raw = Xp.mean(1), Xt.mean(1)
     mu_u, sd_u = Xu_raw.mean(0), Xu_raw.std(0).clamp(min=PSI_EPS)                               # 一様の ψ も候補の統計で標準化（lw の ψ の標準化と同じ尺度）
     Xu, Xut = ((Xu_raw - mu_u) / sd_u).contiguous(), ((Xut_raw - mu_u) / sd_u).contiguous()
     del Xu_raw, Xut_raw
-    lw = crossfit_lw(Xp, Q, half, Xt, seed_base + 10, learn_alpha=True)
-    final = P12.crossfit_nets(X24, Q, half, X24t, seed_base + 10, 0)
-    unif = P12.crossfit_nets(Xu, Q, half, Xut, seed_base + 10, 0)
     j_pair = {K: cols.index(("pair", K)) for K in KS_ALL}
+    keep = tuple(j_pair[K] for K in KS_ALL)
+    lw = crossfit_lw(Xp, Q, half, Xt, seed_base + 10, learn_alpha=True, keep_params=keep)
+    final = P12.crossfit_nets(X24, Q, half, X24t, seed_base + 10, 0, keep_params=keep)
+    unif = P12.crossfit_nets(Xu, Q, half, Xut, seed_base + 10, 0)
+    onehot24 = torch.zeros(2, J, N_LAYERS); onehot24[:, :, FINAL_IDX] = 1.0
+    final_lw = crossfit_lw(Xp, Q, half, Xt, seed_base + 10, learn_alpha=False, alpha_fixed=onehot24)      # 最終層だけを lw の経路（ψ の標準化し直し）に通した対照（gate-code 第 1 回の 3）
     pre_lw = dict(sel=lw["sel"].clone(), sel_test=lw["sel_test"].clone(), cfg=dict(lw["cfg"]), ce_sel=lw["ce_sel"].copy(), alpha_sel=lw["alpha_sel"].copy())   # 入れ子の前（層の重みを学んだ版）
     used_layers = nest_final(lw, final, half)                                                      # 入れ子の選択（設計 3.2 節．gate-probe 第 1 回の 1）
 
+    mark("nets")
     # --- Q2：全ラベルの分類器（lw_lab，final_lab，unif_lab），Q3：α を pair の解（入れ子の前）に固定した全ラベルの分類器
     Qlab = torch.zeros(1, n, 4, device=S.DEV)
     for h in (0, 1):
@@ -445,18 +499,21 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     unif_lab = P12.crossfit_nets(Xu, Qlab, half, Xut, seed_base + 30, 0, ckpts=LAB_CKPTS, steps=LAB_STEPS)
     pre_lw_lab = dict(sel=lw_lab["sel"].clone(), sel_test=lw_lab["sel_test"].clone(), cfg=dict(lw_lab["cfg"]), ce_sel=lw_lab["ce_sel"].copy(), alpha_sel=lw_lab["alpha_sel"].copy())
     lab_used_layers = nest_final(lw_lab, final_lab, half)
-    alpha_fixed = torch.as_tensor(np.stack([pre_lw["alpha_sel"][:, j_pair[K]] for K in KS_ALL], 1))      # (2, 5, L)．入れ子の前の α（Q3 は「学んだ α」を問う）
-    lw_lab_fix = crossfit_lw(Xp, Qlab.expand(len(KS_ALL), -1, -1).contiguous(), half, Xt, seed_base + 62, learn_alpha=False, alpha_fixed=alpha_fixed,
+    alpha_fixed = torch.as_tensor(np.stack([pre_lw["alpha_sel"][:, j_pair[K]] for K in Q3_KS], 1))       # (2, len(Q3_KS), L)．入れ子の前の α（Q3 は「学んだ α」を問う）
+    lw_lab_fix = crossfit_lw(Xp, Qlab.expand(len(Q3_KS), -1, -1).contiguous(), half, Xt, seed_base + 62, learn_alpha=False, alpha_fixed=alpha_fixed,
                              ckpts=LAB_CKPTS, steps=LAB_STEPS)
 
+    mark("lab")
     # --- 層ごとの線形に読める分（リッジ．pair の 5 本の K）と，全ラベルのリッジ（記述）
     Ypair = torch.cat([pair_p[K].clamp(min=1e-12).log() for K in KS_ALL], 1)
     Ypair = Ypair - Ypair.reshape(n, len(KS_ALL), 4).mean(-1, keepdim=True).expand(-1, -1, 4).reshape(n, -1)
-    Ylab = torch.zeros(n, 4, device=S.DEV); Ylab[torch.arange(n, device=S.DEV), torch.as_tensor(u.ypool, device=S.DEV)] = 1.0
+    Ypair = Ypair.to(RIDGE_DTYPE)
+    Ylab = torch.zeros(n, 4, device=S.DEV, dtype=RIDGE_DTYPE); Ylab[torch.arange(n, device=S.DEV), torch.as_tensor(u.ypool, device=S.DEV)] = 1.0
     layer_rows = []
     for l in range(N_LAYERS):
-        Yh, lam_l, r2_l = P11.representability(Xp[:, l].contiguous(), Ypair, half)
-        Yl, lam_b, r2_b = P11.representability(Xp[:, l].contiguous(), Ylab, half)
+        Xl_d = Xp[:, l].contiguous().to(RIDGE_DTYPE)                                             # 層ごとのリッジ（記述）は単精度で解く（設計 3.3 節）
+        Yh, lam_l, r2_l = P11.representability(Xl_d, Ypair, half)
+        Yl, lam_b, r2_b = P11.representability(Xl_d, Ylab, half)
         pl = P12.argmax8(Yl)
         store[f"pool_layer{l}_ridgelab_{M}"] = pl
         for ki, K in enumerate(KS_ALL):
@@ -467,12 +524,21 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
                                    uar_layer_ridge_pair=P11.metrics(u.ypool[nk], pr.astype(int)[nk])["uar"], r2_layer_ridge_pair=float(r2_l[ki]), lam_layer_ridge_pair=float(lam_l[ki]),
                                    uar_layer_ridgelab=P11.metrics(u.ypool[nk], pl.astype(int)[nk])["uar"], r2_layer_ridgelab=float(r2_b[0])))
 
+    mark("ridge_layers")
     # --- 保存（判定・点数・層の重み・格子）
-    for kind, res in (("lw", lw), ("final", final), ("unif", unif)):
+    for kind, res in (("lw", lw), ("final", final), ("unif", unif), ("finallw", final_lw)):
         store[f"grid_pred_{kind}_{M}"] = res["grid_pred"]
         conv[f"{kind}"] = dict(items=[f"{t_}_K{K}" for t_, K in cols], wds=list(WDS), ckpts=list(CKPTS), ce_hist=res["ce_hist"].tolist(), train_loss_final=res["train_loss"].tolist(),
                                cfg={f"h{h}_{t_}_K{K}": list(res["cfg"][(h, j)]) for h in (0, 1) for j, (t_, K) in enumerate(cols)})
     conv["lw_pre_cfg"] = {f"h{h}_{t_}_K{K}": list(pre_lw["cfg"][(h, j)]) for h in (0, 1) for j, (t_, K) in enumerate(cols)}
+    store[f"alpha_grid_lw_{M}"] = lw["alpha_grid"]                                              # 格子の全点の層の重み (2, J, nw, nck, L) float16（gate-code 第 1 回の 2）
+    store[f"alpha_grid_lw_lab_{M}"] = lw_lab["alpha_grid"]
+    for (h, j), ps in lw["params"].items():                                                     # pair の選んだ版の W・c（入れ子の前．lw の経路）
+        t_, K = cols[j]
+        store[f"w_lw_pair_K{K}_{M}_h{h}_W"], store[f"w_lw_pair_K{K}_{M}_h{h}_c"] = ps[0], ps[1]
+    for (h, j), ps in final["params"].items():
+        t_, K = cols[j]
+        store[f"w_final_pair_K{K}_{M}_h{h}_W"], store[f"w_final_pair_K{K}_{M}_h{h}_c"] = ps[0], ps[1]
     for kind, res in (("lw_lab", lw_lab), ("final_lab", final_lab), ("unif_lab", unif_lab), ("lw_lab_fixalpha", lw_lab_fix)):
         store[f"grid_pred_{kind}_{M}"] = res["grid_pred"]
         conv[kind] = dict(wds=list(WDS), ckpts=list(LAB_CKPTS), ce_hist=res["ce_hist"].tolist(), cfg={f"h{h}_j{j}": list(v) for (h, j), v in res["cfg"].items()})
@@ -511,13 +577,17 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     store[f"pool_lw_lab_{M}"], store[f"pool_final_lab_{M}"], store[f"pool_unif_lab_{M}"], store[f"pool_lwpre_lab_{M}"] = p_lwlab, p_flab, p_ulab, p_lwlab_pre
     store[f"labtest_lw_{M}"], store[f"labtest_final_{M}"], store[f"labtest_unif_{M}"] = p_lwlab_test, p_flab_test, p_ulab_test
     store[f"pool_lw_labfix_{M}"], store[f"pool_final_labfix_{M}"] = P12.argmax8(lw_lab["fix"][0]), P12.argmax8(final_lab["fix"][0])
-    mism["unif_lab_vs_final_lab_agree"] = float((p_ulab == p_flab).mean())
+    mism["unif_lab_vs_final_lab_agree_frac"] = float((p_ulab == p_flab).mean())
     lab_rows = []
-    for ki, K in enumerate(KS_ALL):
-        pfa = P12.argmax8(lw_lab_fix["sel"][ki])
-        store[f"pool_lw_lab_fixalpha_K{K}_{M}"] = pfa
+    for K in KS_ALL:
         nk = u.nk(K); yk = u.ypool[nk]
-        u_lw, u_f, u_fa, u_u, u_lwpre = (P11.metrics(yk, z_.astype(int)[nk])["uar"] for z_ in (p_lwlab, p_flab, pfa, p_ulab, p_lwlab_pre))
+        if K in Q3_KS:
+            pfa = P12.argmax8(lw_lab_fix["sel"][Q3_KS.index(K)])
+            store[f"pool_lw_lab_fixalpha_K{K}_{M}"] = pfa
+            u_fa = P11.metrics(yk, pfa.astype(int)[nk])["uar"]
+        else:
+            u_fa = float("nan")
+        u_lw, u_f, u_u, u_lwpre = (P11.metrics(yk, z_.astype(int)[nk])["uar"] for z_ in (p_lwlab, p_flab, p_ulab, p_lwlab_pre))
         u_lwf, u_ff = (P11.metrics(yk, z_.astype(int)[nk])["uar"] for z_ in (store[f"pool_lw_labfix_{M}"], store[f"pool_final_labfix_{M}"]))
         flags = {}
         for kind, res in (("lw_lab", lw_lab), ("final_lab", final_lab), ("unif_lab", unif_lab)):
@@ -548,6 +618,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
                              psi_var_lab_h0=psi_var(Xp, pre_lw_lab["alpha_sel"][0, 0]), psi_var_lab_h1=psi_var(Xp, pre_lw_lab["alpha_sel"][1, 0]),
                              **flags))
 
+    mark("rows_lab")
     # --- Q4：K 本の 4×4 の読み出し（pair の lw と final の交差の予測の対数確率の上）
     read_pred = {}
     for K in KS_RULE:
@@ -558,6 +629,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
                 store[f"pool_read_{kind}_K{K}_{M}_wd{wi}"] = pr[wi]
             read_pred[(kind, K)] = pr
 
+    mark("readout")
     # --- Q5：層の重みと線形の写像を K 本だけで学ぶ（lw の腕と final の腕）
     kshot_pred = {}
     for K in KS_RULE:
@@ -569,26 +641,31 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
                     store[f"alpha_kshot_K{K}_{M}_wd{wi}"] = al[wi]
             kshot_pred[(kind, K)] = pr
 
+    mark("kshot")
     # --- 行（出所, K）
     lw_rows = []
     for j, (t_, K) in enumerate(cols):
         nk = u.nk(K); yk = u.ypool[nk]
         P = P_list[j]
         Lw_sel, Lw_fix, Lf_sel, Lf_fix, Lu_sel, Lu_fix, Lw_pre = lw["sel"][j], lw["fix"][j], final["sel"][j], final["fix"][j], unif["sel"][j], unif["fix"][j], pre_lw["sel"][j]
-        p_lw, p_lwf, p_f, p_ff, p_u, p_uf, p_lwpre = (P12.argmax8(Z) for Z in (Lw_sel, Lw_fix, Lf_sel, Lf_fix, Lu_sel, Lu_fix, Lw_pre))
+        Lfl_sel, Lfl_fix = final_lw["sel"][j], final_lw["fix"][j]
+        p_lw, p_lwf, p_f, p_ff, p_u, p_uf, p_lwpre, p_fl, p_flf = (P12.argmax8(Z) for Z in (Lw_sel, Lw_fix, Lf_sel, Lf_fix, Lu_sel, Lu_fix, Lw_pre, Lfl_sel, Lfl_fix))
         store[f"pool_lw_K{K}_{M}_{t_}"], store[f"pool_lwfix_K{K}_{M}_{t_}"], store[f"pool_lwpre_K{K}_{M}_{t_}"] = p_lw, p_lwf, p_lwpre
         store[f"pool_final_K{K}_{M}_{t_}"], store[f"pool_finalfix_K{K}_{M}_{t_}"] = p_f, p_ff
         store[f"pool_unif_K{K}_{M}_{t_}"], store[f"pool_uniffix_K{K}_{M}_{t_}"] = p_u, p_uf
+        store[f"pool_finallw_K{K}_{M}_{t_}"], store[f"pool_finallwfix_K{K}_{M}_{t_}"] = p_fl, p_flf
         store[f"score_lw_K{K}_{M}_{t_}"], store[f"score_final_K{K}_{M}_{t_}"], store[f"score_unif_K{K}_{M}_{t_}"] = P12.f16(Lw_sel), P12.f16(Lf_sel), P12.f16(Lu_sel)
-        for kind, res in (("lw", lw), ("final", final), ("unif", unif)):
+        store[f"score_finallw_K{K}_{M}_{t_}"], store[f"score_lwpre_K{K}_{M}_{t_}"] = P12.f16(Lfl_sel), P12.f16(Lw_pre)
+        for kind, res in (("lw", lw), ("final", final), ("unif", unif), ("finallw", final_lw)):
             store[f"K{K}_{M}_{kind}_{t_}"] = P12.argmax8(torch.log_softmax(res["sel_test"][:, j], -1).mean(0))
             store[f"K{K}_{M}_{kind}fix_{t_}"] = P12.argmax8(torch.log_softmax(res["fix_test"][:, j], -1).mean(0))
+            store[f"score_{kind}_test_K{K}_{M}_{t_}"] = P12.f16(res["sel_test"][:, j])                     # テストの点数（2 つの半分のネット．gate-code 第 1 回の記録）
         store[f"K{K}_{M}_lwpre_{t_}"] = P12.argmax8(torch.log_softmax(pre_lw["sel_test"][:, j], -1).mean(0))
         pt, ps = store[f"pool_teacher_K{K}_{M}_{t_}"], store[f"pool_none_K{K}_{M}"]
         mt, ms = P11.metrics(yk, pt.astype(int)[nk]), P11.metrics(yk, ps.astype(int)[nk])
-        m_lw, m_lwf, m_f, m_ff, m_u, m_uf, m_lwpre = (P11.metrics(yk, Z.astype(int)[nk]) for Z in (p_lw, p_lwf, p_f, p_ff, p_u, p_uf, p_lwpre))
+        m_lw, m_lwf, m_f, m_ff, m_u, m_uf, m_lwpre, m_fl, m_flf = (P11.metrics(yk, Z.astype(int)[nk]) for Z in (p_lw, p_lwf, p_f, p_ff, p_u, p_uf, p_lwpre, p_fl, p_flf))
         flags = {}
-        for kind, res in (("lw", lw), ("final", final), ("unif", unif)):
+        for kind, res in (("lw", lw), ("final", final), ("unif", unif), ("finallw", final_lw)):
             for h in (0, 1):
                 lr_, wd_, st_ = res["cfg"][(h, j)]
                 src = final if (kind == "lw" and not used_layers[h, j]) else res                 # 置き換わった半分は final の履歴
@@ -613,6 +690,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
                    uar_final=m_f["uar"], uar_lw=m_lw["uar"], layers_minus_final=m_lw["uar"] - m_f["uar"],
                    uar_lw_pre=m_lwpre["uar"], layers_minus_final_pre=m_lwpre["uar"] - m_f["uar"],
                    uar_unif=m_u["uar"], unif_minus_final=m_u["uar"] - m_f["uar"], lw_minus_unif=m_lw["uar"] - m_u["uar"],
+                   uar_finallw=m_fl["uar"], finallw_minus_final=m_fl["uar"] - m_f["uar"], lw_minus_finallw=m_lw["uar"] - m_fl["uar"], uar_finallw_fixed=m_flf["uar"],
+                   agree_finallw_final=float((p_fl[nk] == p_f[nk]).mean()), ce_finallw=P12.soft_ce(P, Lfl_sel),
                    uar_final_fixed=m_ff["uar"], uar_lw_fixed=m_lwf["uar"], uar_unif_fixed=m_uf["uar"], layers_minus_final_fixed=m_lwf["uar"] - m_ff["uar"],
                    lw_gain=m_lw["uar"] - ms["uar"], final_gain=m_f["uar"] - ms["uar"], info_gap=mt["uar"] - m_f["uar"],
                    ce_lw=P12.soft_ce(P, Lw_sel), ce_final=P12.soft_ce(P, Lf_sel), ce_unif=P12.soft_ce(P, Lu_sel), ce_lw_pre=P12.soft_ce(P, Lw_pre),
@@ -631,7 +710,8 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
                 row.update({f"kshot_{k_}_wd{wi}": v_ for k_, v_ in alpha_stats(store[f"alpha_kshot_K{K}_{M}_wd{wi}"]).items()})
         lw_rows.append(row)
 
-    np.savez_compressed(rows_dir / f"{name}.npz", commit=commit, commit11=commit11, commit12=commit12, unit=name, T=T, c=c, fold=f, seed=r, n_pool=n,
+    mark("rows_lw")
+    np.savez_compressed(rows_dir / f"{name}.npz", commit=commit, commit11=commit11, commit12=commit12, script_sha256=P12.sha(Path(__file__)), unit=name, T=T, c=c, fold=f, seed=r, n_pool=n,
                         test_sample_id=sid_test, test_y=u.ytest.astype(np.int8), test_cluster=u.cp.df["cluster"].to_numpy()[u.test].astype(str),
                         pool_sample_id=sid_pool, pool_y=u.ypool.astype(np.int8), pool_cluster=cl_pool, **{f"kpos_K{K}": u.kpos[K] for K in DD.KS},
                         half_counts=np.stack([np.bincount(u.ypool[half == h], minlength=4) for h in (0, 1)]),
@@ -639,38 +719,47 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
     pd.DataFrame(lw_rows).to_csv(rows_dir / f"{name}_lw.csv", index=False)
     pd.DataFrame(lab_rows).to_csv(rows_dir / f"{name}_lab.csv", index=False)
     pd.DataFrame(layer_rows).to_csv(rows_dir / f"{name}_layers.csv", index=False)
+    mark("save")
     sec = time.time() - t0
-    ints = [v for k, v in mism.items() if "frac" not in k and "absdiff" not in k]
+    ints = [int(v) for k, v in mism.items() if "frac" not in k and "absdiff" not in k]
     gpu_gb = torch.cuda.max_memory_allocated() / 2 ** 30 if torch.cuda.is_available() else float("nan")
     gpu_res = torch.cuda.max_memory_reserved() / 2 ** 30 if torch.cuda.is_available() else float("nan")
+    tsec = {k: round(v, 1) for k, v in timing.items()}
     print(f"単位 {name}: 候補 {n}（半分 {int((half == 0).sum())}/{int((half == 1).sum())}）テスト {nt} 保存 {len(store)} 行 {len(lw_rows)}+{len(lab_rows)}+{len(layer_rows)} "
-          f"判定の不一致の最大 {max(ints)} 本 final と DAI-12 の不一致の割合の最大 {mism['final_vs_dai12_lince_frac_max']:.3f} 添字 24 の差 {diff24:.1e} "
-          f"GPU 最大 {gpu_gb:.1f} GB（予約 {gpu_res:.1f} GB）({sec:.0f} 秒)", flush=True)
-    return dict(unit=name, sec=sec, gpu_max_gb=gpu_gb, gpu_reserved_gb=gpu_res)
+          f"判定の不一致の最大 {max(ints)} 本 final と DAI-12 の不一致の割合の最大 {mism['final_vs_dai12_lince_frac_max']:.3f}（pair・self {stop_fr:.3f}）添字 24 の差 {diff24:.1e} "
+          f"GPU 最大 {gpu_gb:.1f} GB（予約 {gpu_res:.1f} GB）({sec:.0f} 秒．内訳 {tsec})", flush=True)
+    return dict(unit=name, sec=sec, gpu_max_gb=gpu_gb, gpu_reserved_gb=gpu_res, **{f"sec_{k}": v for k, v in timing.items()})
 
 
 # ------------------------------------------------------------------ 集計
 
 def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
     """集計．出力は root/summary_seeds{種の数}/ に書く（r = 0 だけの版と r = 0, 1 の版を上書きしない．review-ml 第 2 回の M2）．戻りは出力先。"""
+    root = root.resolve()                                                                       # 相対の --out だとシンボリックリンクが切れる（review-ml 第 3 回の m2）
     files = sorted((root / "rows").glob("*.npz"))
     if len(files) != n_expected and not allow_partial:
         raise SystemExit(f"単位の出力が {len(files)} 個（{n_expected} のはず）．試走なら --allow-partial")
     rng = np.random.default_rng(SEED)
-    commits = {str(np.load(p, allow_pickle=False)["commit"]) for p in files}
-    if len(commits) != 1:
-        raise SystemExit(f"行のコミットが 1 つでない：{commits}")
+    heads = [np.load(p, allow_pickle=False) for p in files]
+    shas = {str(z["script_sha256"]) for z in heads}
+    commits = sorted({str(z["commit"]) for z in heads})
+    if len(shas) != 1:                                                                          # 行は台本の sha256 が 1 つであることを求める（コミットは文書のコミットで変わりうる．review-ml 第 4 回の m4）
+        raise SystemExit(f"行の台本の sha256 が 1 つでない：{shas}")
+    sha_rows, sha_now = str(next(iter(shas))), P12.sha(Path(__file__))
+    if sha_rows != sha_now:                                                                     # 集計の段だけを直した場合は止めずに記録する（点検で判断．gate-code 第 1 回の記録）
+        print(f"注意：行の台本の sha256 {sha_rows[:12]} と集計を流す台本 {sha_now[:12]} が違う（summary_meta.json に残す）", flush=True)
     for p in files:
         for suf in ("_lw.csv", "_lab.csv", "_layers.csv"):
             if not (root / "rows" / f"{p.stem}{suf}").exists():
                 raise SystemExit(f"{p.stem}{suf} が無い")
-    seeds = sorted({int(np.load(p, allow_pickle=False)["seed"]) for p in files})
+    seeds = sorted({int(z["seed"]) for z in heads})
+    del heads
     out = root / f"summary_seeds{len(seeds)}"
     if out.exists() and any(out.iterdir()) and not allow_partial:
         raise SystemExit(f"{out} は既にある（集計の版を上書きしない）")
     out.mkdir(parents=True, exist_ok=True)
     (out / "rows").symlink_to(root / "rows") if not (out / "rows").exists() else None
-    pool_kinds = ("none", "teacher", "lw", "lwfix", "lwpre", "final", "finalfix", "unif", "uniffix", "read_lw", "read_final", "kshot_lw", "kshot_final")
+    pool_kinds = ("none", "teacher", "lw", "lwfix", "lwpre", "final", "finalfix", "unif", "uniffix", "finallw", "finallwfix", "read_lw", "read_final", "kshot_lw", "kshot_final")
     cells, unit_rows, mism_rows, half_rows = {}, [], [], []
     for p in files:
         z = np.load(p, allow_pickle=False)
@@ -756,6 +845,8 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
                 pairs = [(f"pool_lw_{pre}_{t_}", f"pool_final_{pre}_{t_}", "layers_minus_final"), (f"pool_lwfix_{pre}_{t_}", f"pool_finalfix_{pre}_{t_}", "layers_minus_final_fixed"),
                          (f"pool_lwpre_{pre}_{t_}", f"pool_final_{pre}_{t_}", "layers_minus_final_pre"),
                          (f"pool_unif_{pre}_{t_}", f"pool_final_{pre}_{t_}", "unif_minus_final"), (f"pool_lw_{pre}_{t_}", f"pool_unif_{pre}_{t_}", "lw_minus_unif"),
+                         (f"pool_finallw_{pre}_{t_}", f"pool_final_{pre}_{t_}", "finallw_minus_final"), (f"pool_lw_{pre}_{t_}", f"pool_finallw_{pre}_{t_}", "lw_minus_finallw"),
+                         (f"pool_lwpre_{pre}_{t_}", f"pool_finallw_{pre}_{t_}", "lwpre_minus_finallw"),
                          (f"pool_lw_{pre}_{t_}", f"pool_none_{pre}", "lw_gain"), (f"pool_final_{pre}_{t_}", f"pool_none_{pre}", "final_gain"),
                          (f"pool_teacher_{pre}_{t_}", f"pool_none_{pre}", "delta_uar"), (f"pool_teacher_{pre}_{t_}", f"pool_final_{pre}_{t_}", "info_gap")]
                 if t_ == "pair":
@@ -777,7 +868,7 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
                     d = P12._diff(cells, c, ka, kb, geff[c], rng, dict(student=M, teacher=t_, K=K, where="test", quantity=lab, subset="all"), False)
                     if d:
                         rows.append(d)
-            lab_pairs = [(f"pool_lw_lab_{M}_K{K}", f"pool_final_lab_{M}_K{K}", "lab_layers_minus_final"), (f"pool_lw_lab_fixalpha_K{K}_{M}", f"pool_final_lab_{M}_K{K}", "lab_fixalpha_minus_final"),
+            lab_pairs = [(f"pool_lw_lab_{M}_K{K}", f"pool_final_lab_{M}_K{K}", "lab_layers_minus_final")] + ([(f"pool_lw_lab_fixalpha_K{K}_{M}", f"pool_final_lab_{M}_K{K}", "lab_fixalpha_minus_final")] if K in Q3_KS else []) + [
                          (f"pool_lwpre_lab_{M}_K{K}", f"pool_final_lab_{M}_K{K}", "lab_layers_minus_final_pre"),
                          (f"pool_unif_lab_{M}_K{K}", f"pool_final_lab_{M}_K{K}", "lab_unif_minus_final"), (f"pool_lw_lab_{M}_K{K}", f"pool_unif_lab_{M}_K{K}", "lab_lw_minus_unif"),
                          (f"pool_lw_labfix_{M}_K{K}", f"pool_final_labfix_{M}_K{K}", "lab_layers_minus_final_fixed")]
@@ -820,7 +911,7 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
         v_init = float(per_fold.var(ddof=1) / len(per_fold)) if len(per_fold) > 1 else float("nan")
         vi_rows.append(dict(c=c, teacher=t_, K=K, v_init=v_init, n_folds=len(per_fold), d_init_mean=float(per_fold.mean())))
     VI = pd.DataFrame(vi_rows); VI.to_csv(out / "v_init.csv", index=False)
-    adj_q = ("layers_minus_final", "layers_minus_final_pre", "layers_minus_final_fixed", "lw_minus_unif", "unif_minus_final")
+    adj_q = ("layers_minus_final", "layers_minus_final_pre", "layers_minus_final_fixed", "lw_minus_unif", "unif_minus_final", "finallw_minus_final", "lw_minus_finallw", "lwpre_minus_finallw")
     Dd = Dd.merge(VI[["c", "teacher", "K", "v_init"]], on=["c", "teacher", "K"], how="left")
     Dd["lo_raw"], Dd["hi_raw"], Dd["se_raw"], Dd["p_raw"] = Dd["lo"], Dd["hi"], Dd["se"], Dd["p"]
     # 種が (c, 出所, K, 分割) ごとに 2 つ以上そろっていれば v_seed が立つので v_init は足さない（設計 4.1 節．review-ml 第 2 回の M2）
@@ -828,7 +919,8 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
     v_init_applied = bool((seeds_per < 2).any())
     adj = Dd["quantity"].isin(adj_q) & (Dd["where"] == "pool") & Dd["v_init"].notna() & v_init_applied
     # 元の区間の分位点 q（正規なら 1.96，jackknife の枝なら t の分位点）を行ごとに復元して使う（review-ml 第 2 回の M1）
-    q = ((Dd["est"] - Dd["lo_raw"]) / Dd["se_raw"]).where(Dd["se_raw"] > 0, 1.96)
+    q = ((Dd["est"] - Dd["lo_raw"]) / Dd["se_raw"]).where(Dd["se_raw"] > 0, np.nan)
+    q = q.fillna(q.groupby(Dd["c"]).transform("median")).fillna(1.96)                             # se が 0 の行は同じ c の分位点の中央値で埋める（jackknife の枝は t．review-ml 第 3 回の m6）
     Dd.loc[adj, "se"] = np.sqrt(Dd.loc[adj, "se_raw"] ** 2 + Dd.loc[adj, "v_init"])
     Dd.loc[adj, "lo"] = Dd.loc[adj, "est"] - q[adj] * Dd.loc[adj, "se"]; Dd.loc[adj, "hi"] = Dd.loc[adj, "est"] + q[adj] * Dd.loc[adj, "se"]
     from scipy import stats as _st
@@ -852,7 +944,8 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
     se_rows = [dict(c=c, quantity=q_, se_median=g["se"].median(), se_min=g["se"].min(), se_max=g["se"].max(), se_raw_median=g["se_raw"].median(), n=len(g))
                for (c, q_), g in Dd[Dd["subset"] == "all"].groupby(["c", "quantity"])]
     pd.DataFrame(se_rows).to_csv(out / "se_summary.csv", index=False)
-    json.dump(dict(v_init_applied=v_init_applied, n_seeds=int(R["seed"].nunique()), n_units=len(files)), open(out / "summary_meta.json", "w"), ensure_ascii=False, indent=1)
+    json.dump(dict(v_init_applied=v_init_applied, n_seeds=int(R["seed"].nunique()), n_units=len(files), row_commits=commits, script_sha_rows=sha_rows, script_sha_summarize=sha_now),
+              open(out / "summary_meta.json", "w"), ensure_ascii=False, indent=1)
 
     # 規則の数え上げ（R1・R1c・R1shuf，Q2・Q3，添え書き）
     crit = []
@@ -860,14 +953,21 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
     for c in have_c:
         rows_c = {}
         for t_ in TEACHERS:
-            d = Dd[(Dd["c"] == c) & (Dd["teacher"] == t_) & (Dd["quantity"] == "layers_minus_final") & (Dd["subset"] == "all") & (Dd["K"].isin(KS_RULE))]
+            qty = "layers_minus_final_pre" if t_ == "self" else "layers_minus_final"           # 対照 self は入れ子の前の量で数える（入れ子の後は作りの上で 0．gate-probe 第 2 回の 1）
+            d = Dd[(Dd["c"] == c) & (Dd["teacher"] == t_) & (Dd["quantity"] == qty) & (Dd["subset"] == "all") & (Dd["K"].isin(KS_RULE))]
             verdict, up, down = P12._verdict(d, FLOOR_POOL)
             verdict = {"上回った": "取り戻した"}.get(verdict, verdict)
-            row = dict(c=c, student=M, rule={"pair": "R1", "pair_shuf": "R1shuf", "self": "R1c"}[t_], teacher=t_, quantity="layers_minus_final", n_K=len(d), n_K_up=len(up), n_K_down=len(down),
-                       verdict=verdict if t_ != "self" else ("手順の雑音は小さい" if (d["est"].abs() <= SELF_TOL).all() else "手順の雑音が大きい"),
+            row = dict(c=c, student=M, rule={"pair": "R1", "pair_shuf": "R1shuf", "self": "R1c"}[t_], teacher=t_, quantity=qty, n_K=len(d), n_K_up=len(up), n_K_down=len(down),
+                       verdict=verdict if t_ != "self" else ("手順の雑音は小さい" if (len(d) == len(KS_RULE) and (d["est"].abs() <= SELF_TOL).all()) else
+                                                             ("手順の雑音が大きい（正の側）" if (len(d) and d["est"].max() > SELF_TOL) else ("手順の雑音が大きい（負の側）" if len(d) else "行が無い"))),
                        est_min=d["est"].min(), est_max=d["est"].max(), lo_min=d["lo"].min(), hi_max=d["hi"].max(), lo_raw_min=d["lo_raw"].min(), v_init_mean=d["v_init"].mean())
             for nm in psubs_all:
-                row[f"sub_{nm}_n_K_robust"] = P12._robust(Dd, c, M, t_, "layers_minus_final", nm, up) if len(up) else 0
+                row[f"sub_{nm}_n_K_robust"] = P12._robust(Dd, c, M, t_, qty, nm, up) if len(up) else 0
+            if t_ != "self":                                                                   # 入れ子の前の量でも数えて並べる（pair で置き換えが 1 つでもある c の読みに使う．記述）
+                dp_ = Dd[(Dd["c"] == c) & (Dd["teacher"] == t_) & (Dd["quantity"] == "layers_minus_final_pre") & (Dd["subset"] == "all") & (Dd["K"].isin(KS_RULE))]
+                vp, upp, downp = P12._verdict(dp_, FLOOR_POOL)
+                crit.append(dict(c=c, student=M, rule={"pair": "R1pre", "pair_shuf": "R1shufpre"}[t_], teacher=t_, quantity="layers_minus_final_pre", n_K=len(dp_), n_K_up=len(upp), n_K_down=len(downp),
+                                 verdict="記述（入れ子の前）：" + {"上回った": "取り戻した"}.get(vp, vp), est_min=dp_["est"].min(), est_max=dp_["est"].max(), lo_min=dp_["lo"].min(), hi_max=dp_["hi"].max()))
             if t_ == "pair":
                 ds = Dd[(Dd["c"] == c) & (Dd["teacher"] == "pair_shuf") & (Dd["quantity"] == "layers_minus_final") & (Dd["subset"] == "all") & (Dd["K"].isin(KS_RULE))]
                 row["pair_minus_shuf_gap"] = float(d["est"].mean() - ds["est"].mean()) if len(ds) else np.nan
@@ -893,7 +993,8 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
             d = Dd[(Dd["c"] == c) & (Dd["quantity"] == q) & (Dd["subset"] == "all")]
             crit.append(dict(c=c, student=M, rule="Q2" if q == "lab_layers_minus_final" else "Q3", teacher="labels", quantity=q, n_K=len(d), n_K_up=int(((d["lo"] > 0) & (d["est"] >= FLOOR_POOL)).sum()),
                              n_K_down=int(((d["hi"] < 0) & (d["est"] <= -FLOOR_POOL)).sum()), verdict="記述（規則の語なし）", est_min=d["est"].min(), est_max=d["est"].max(), lo_min=d["lo"].min(), hi_max=d["hi"].max()))
-        d2 = Dd[(Dd["c"] == c) & (Dd["quantity"] == "lab_layers_minus_final") & (Dd["subset"] == "all")]; d3 = Dd[(Dd["c"] == c) & (Dd["quantity"] == "lab_fixalpha_minus_final") & (Dd["subset"] == "all")]
+        d2 = Dd[(Dd["c"] == c) & (Dd["quantity"] == "lab_layers_minus_final") & (Dd["subset"] == "all") & (Dd["K"].isin(Q3_KS))]          # 比は同じ K の集合で（review-ml 第 3 回の m5）
+        d3 = Dd[(Dd["c"] == c) & (Dd["quantity"] == "lab_fixalpha_minus_final") & (Dd["subset"] == "all") & (Dd["K"].isin(Q3_KS))]
         if len(d2) and len(d3) and d2["est"].mean() >= FLOOR_POOL:
             crit.append(dict(c=c, student=M, rule="Q3/Q2", teacher="labels", quantity="ratio", verdict="記述", est_min=d3["est"].mean() / d2["est"].mean(), est_max=np.nan))
         Rc_ = R[R["c"] == c]
@@ -907,15 +1008,20 @@ def summarize(root: Path, allow_partial: bool, n_expected: int) -> Path:
             for side in ("low", "high"):
                 edge[f"lw_pre_edge_{ax}_{side}_frac"] = float(np.mean([Rc_[f"lw_pre_edge_{ax}_{side}_h{h}"].mean() for h in (0, 1)]))
         edge["lw_loss_above_final_frac"] = float(np.mean([Rc_[f"lw_loss_above_final_h{h}"].mean() for h in (0, 1)]))                  # 入れ子の前（全出所・全 K．記述）
-        for t_ in TEACHERS:                                                                                                               # 出所ごと（review-ml 第 2 回の m2）
+        for t_ in TEACHERS:                                                                                                               # 出所ごと（review-ml 第 2 回の m2，gate-probe 第 2 回）
             Rt_ = Rc_[(Rc_["teacher"] == t_) & (Rc_["K"].isin(KS_RULE))]
             edge[f"lw_loss_above_final_frac_{t_}"] = float(np.mean([Rt_[f"lw_loss_above_final_h{h}"].mean() for h in (0, 1)]))
             edge[f"lw_used_layers_frac_{t_}"] = float(np.mean([Rt_[f"lw_used_layers_h{h}"].mean() for h in (0, 1)]))
             edge[f"alpha_far_from_uniform_frac_{t_}"] = float(np.mean([(Rt_[f"alpha_max_h{h}"] >= ALPHA_FAR).mean() for h in (0, 1)]))
+            edge[f"alpha_final_mean_{t_}"] = float(np.mean([Rt_[f"alpha_final_h{h}"].mean() for h in (0, 1)]))
+            for kind in ("lw_pre", "final"):
+                for ax in ("wd", "step"):
+                    for side in ("low", "high"):
+                        edge[f"{kind}_edge_{ax}_{side}_frac_{t_}"] = float(np.mean([Rt_[f"{kind}_edge_{ax}_{side}_h{h}"].mean() for h in (0, 1)]))
         edge["lw_loss_note"] = edge["lw_loss_above_final_frac_pair"] > LOSS_NOTE_FRAC                                                 # m7：R1（pair）に「最適化の不足の疑い」を添える
         edge["lw_used_layers_frac"] = float(np.mean([Rc_[f"lw_used_layers_h{h}"].mean() for h in (0, 1)]))                           # NEST：層の重みを学んだ版が選ばれた割合（全出所）
-        edge["alpha_max_over_0.9_frac"] = float(np.mean([(Rc_[f"alpha_max_h{h}"] > ALPHA_MAX_NOTE).mean() for h in (0, 1)]))
-        edge["alpha_final_over_0.5_frac"] = float(np.mean([(Rc_[f"alpha_final_h{h}"] > ALPHA_FINAL_NOTE).mean() for h in (0, 1)]))
+        edge["alpha_max_over_note_frac"] = float(np.mean([(Rc_[f"alpha_max_h{h}"] >= ALPHA_MAX_NOTE).mean() for h in (0, 1)]))        # 閾値は ALPHA_MAX_NOTE（鍵の名前に数を入れない．gate-probe 第 3 回）
+        edge["alpha_final_over_note_frac"] = float(np.mean([(Rc_[f"alpha_final_h{h}"] >= ALPHA_FINAL_NOTE).mean() for h in (0, 1)]))
         edge["alpha_far_from_uniform_frac"] = float(np.mean([(Rc_[f"alpha_max_h{h}"] >= ALPHA_FAR).mean() for h in (0, 1)]))        # 全出所・全 K（記述）
         edge["alpha_argmax_median"] = float(np.median(np.concatenate([Rc_[f"alpha_argmax_h{h}"].to_numpy() for h in (0, 1)])))
         edge["alpha_final_mean"] = float(np.mean([Rc_[f"alpha_final_h{h}"].mean() for h in (0, 1)]))
@@ -1019,7 +1125,19 @@ def main() -> None:
     if dirty and not args.allow_dirty:
         sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
     prov11 = json.load(open(D11 / "provenance.json")); commit11 = str(prov11["commit"])
-    prov12 = json.load(open(D12 / "provenance.json")); commit12 = str(prov12["commit"])
+    # DAI-12 の rows/*.npz のコミットは単位の段のもの（e9f66c9）．集計の段は別のコミット（d0a2d91）で流し直したので，照合は単位の段の記録のコミットで行う（gate-probe 第 2 回の 3）
+    recs12 = [json.loads(l) for l in open(D12 / "provenance_log.jsonl") if l.strip()]
+    units12 = [r_ for r_ in recs12 if r_.get("stage") == "units"]
+    if not units12:
+        sys.exit("DAI-12 の provenance_log.jsonl に単位の段の記録が無い")
+    commit12 = str(units12[-1]["commit"])
+    if (D12 / "provenance.json").exists():
+        prov12 = json.load(open(D12 / "provenance.json"))                                   # 集計の段の記録（台本の sha256 など）
+    else:
+        if not args.allow_partial:
+            sys.exit("DAI-12 の provenance.json が無い（集計の段が終わっていない）．本計算はそれを待つ．試走は --allow-partial")
+        prov12 = units12[-1]
+        print("注意：DAI-12 の provenance.json が無いので単位の段の記録を使う（試走）", flush=True)
     out.mkdir(parents=True, exist_ok=True)
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, host=platform.node(), python=platform.python_version(),
                 gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__,
@@ -1028,11 +1146,11 @@ def main() -> None:
                 dai1_sha256=P12.sha(HERE / "dai1.py"), solver_sha256=P12.sha(HERE / "dai_solver.py"), data_sha256=P12.sha(HERE / "dai_data.py"), stats_sha256=P12.sha(HERE / "dai1_stats.py"),
                 frozen_sha256=P12.sha(FROZEN), build_layers_sha256=P12.sha(ROOT / "features" / "build_audio_layers.py"),
                 design_sha256=P12.sha(ROOT / "DAI" / "docs" / "実験13_下調べ_設計.md") if (ROOT / "DAI" / "docs" / "実験13_下調べ_設計.md").exists() else None,
-                dai11_commit=commit11, dai12_commit=commit12, dai12_script_sha256=prov12.get("script_sha256"),
+                dai11_commit=commit11, dai12_units_commit=commit12, dai12_summary_commit=str(prov12.get("commit")), dai12_script_sha256=prov12.get("script_sha256"),
                 pseudo_commit={T: json.load(open(FROZEN))[T]["pseudo_commit"] for T in DD.CORPORA},
                 layer_features_sha256={c: P12.sha(ROOT / "data" / "cache" / f"{LAYER_KIND}_{c}.npz") for c in DD.CORPORA if (ROOT / "data" / "cache" / f"{LAYER_KIND}_{c}.npz").exists()},
                 constants=dict(KS_ALL=KS_ALL, KS_RULE=KS_RULE, TEACHERS=TEACHERS, N_LAYERS=N_LAYERS, FINAL_IDX=FINAL_IDX, WDS=WDS, CKPTS=CKPTS, STEPS=STEPS, LRS=LRS, FIXED_WD=FIXED_WD, FIXED_STEP=FIXED_STEP,
-                               LAB_CKPTS=LAB_CKPTS, LAB_STEPS=LAB_STEPS, READ_WDS=READ_WDS, READ_STEPS=READ_STEPS, KSHOT_WDS=KSHOT_WDS, KSHOT_STEPS=KSHOT_STEPS,
+                               LAB_CKPTS=LAB_CKPTS, LAB_STEPS=LAB_STEPS, READ_WDS=READ_WDS, READ_STEPS=READ_STEPS, KSHOT_WDS=KSHOT_WDS, KSHOT_STEPS=KSHOT_STEPS, Q3_KS=Q3_KS, RIDGE_DTYPE=str(RIDGE_DTYPE),
                                CONV_REL=CONV_REL, LAYER_DIFF_STOP=LAYER_DIFF_STOP, FINAL_MISMATCH_STOP=FINAL_MISMATCH_STOP,
                                FINAL_UAR_STOP=FINAL_UAR_STOP, ALPHA_LR=ALPHA_LR, PSI_EPS=PSI_EPS, ALPHA_FAR=ALPHA_FAR,
                                FLOOR_POOL=FLOOR_POOL, SELF_TOL=SELF_TOL, ALPHA_MAX_NOTE=ALPHA_MAX_NOTE, ALPHA_FINAL_NOTE=ALPHA_FINAL_NOTE, SEED=SEED, N_BOOT=N_BOOT, MISMATCH_FRAC=MISMATCH_FRAC))
@@ -1046,7 +1164,13 @@ def main() -> None:
         if args.resume:
             files = [p for p in files if not (out / "rows" / f"{p.name[:-len('_p3.npz')]}.npz").exists()]
             print(f"続き：残り {len(files)} 単位", flush=True)
-        rows = [run_unit(p, out, fz, commit, commit11, commit12) for p in files]
+        if torch.cuda.is_available():
+            torch.cuda.set_per_process_memory_fraction(GPU_MEM_FRAC)                           # WSL2 の落とし穴の回避（メモリ 6 割）
+        rows = []
+        for p in files:
+            rows.append(run_unit(p, out, fz, commit, commit11, commit12))
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()                                                        # 単位の間で空ける（gate-code 第 1 回の 1）
         pd.DataFrame(rows).to_csv(out / f"units_time_{time.strftime('%Y%m%d-%H%M%S')}.csv", index=False)
         return
     if args.stage == "summarize":

@@ -34,7 +34,7 @@ if [ ! -e DAI/checks/DAI-12/code_post.md ]; then
   exit 1
 fi
 VERDICT=$(awk '/^## *判定/{f=1; next} f && NF {print; exit}' DAI/checks/DAI-12/code_post.md)
-if ! echo "$VERDICT" | grep -q "通す"; then
+if ! echo "$VERDICT" | grep -qE '^\*{0,2}通す'; then
   echo "DAI-12 の計算の後の点検の判定が「通す」でない（見出し「## 判定」の次の行：$VERDICT）"
   touch logs/dai13_probe.failed
   exit 1

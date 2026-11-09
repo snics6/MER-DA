@@ -62,9 +62,11 @@ def encode_layers(model, wavs: list[np.ndarray], device: str, budget: int, max_s
             flen = model._get_feat_extract_output_lengths(lens).to(device)
             fmask = (torch.arange(hs[0].shape[1], device=device)[None] < flen[:, None]).float()
             den = fmask.sum(1, keepdim=True)
-            H = torch.stack(hs, 1)                                             # (B, 25, T, D)
-            pooled = (H * fmask[:, None, :, None]).sum(2) / den[:, :, None]     # (B, 25, D)
+            # (B, 25, T, D) に積まずに隠れ状態ごとに平均する（積むと GPU のメモリが 2 倍要り，WSL2 では確保の繰り返しで 10 倍以上遅くなった．2026-11-09 17:3x）
+            pooled = torch.stack([(h * fmask[..., None]).sum(1) / den for h in hs], 1)   # (B, 25, D)
             out[idx] = pooled.float().cpu().numpy()
+            del res, hs, pooled
+            torch.cuda.empty_cache()
     return out
 
 
@@ -126,15 +128,18 @@ def check_against_cache(corpus: str, limit: int) -> None:
     """最後の隠れ状態の平均（添字 24）が，`audio_wavlm_<コーパス>.npz` の X と一致するかを測る（同じ発話を sample_id で合わせる）。"""
     z = common.load_cache(KIND, corpus)
     ref = np.load(common.out_path("audio_wavlm", corpus), allow_pickle=False)
-    pos = {s: i for i, s in enumerate(ref["sample_id"].astype(str))}
+    refX, ref_ok, ref_sid = ref["X"], ref["ok"], ref["sample_id"].astype(str)                   # npz の鍵は触るたびに読み直すので 1 回だけ取り出す（行ごとに触ると 2026-11-09 に 64 GB でメモリ不足になった）
+    pos = {s: i for i, s in enumerate(ref_sid)}
     ids = z["sample_id"].astype(str)
     if limit:
         ids = ids[:limit]
-    rows = [(i, pos[s]) for i, s in enumerate(ids) if s in pos and z["ok"][i] and ref["ok"][pos[s]]]
-    a = np.stack([z["X_layers"][i, -1] for i, _ in rows]); b = np.stack([ref["X"][j] for _, j in rows])
+    z_ok, z_last = z["ok"], z["X_layers"][:, -1]
+    rows = [(i, pos[s]) for i, s in enumerate(ids) if s in pos and z_ok[i] and ref_ok[pos[s]]]
+    ia = np.array([i for i, _ in rows]); ib = np.array([j for _, j in rows])
+    a = z_last[ia]; b = refX[ib]
     d = np.abs(a - b)
     print(f"{corpus}: 照合 {len(rows)} 発話．最後の層の平均と既存の X の差：最大 {d.max():.2e}，平均 {d.mean():.2e}（値の平均の大きさ {np.abs(b).mean():.3e}）．"
-          f"ok の一致 {int((z['ok'][:len(ids)] == ref['ok'][[pos[s] for s in ids]]).sum())}/{len(ids)}", flush=True)
+          f"ok の一致 {int((z_ok[:len(ids)] == ref_ok[[pos[s] for s in ids]]).sum())}/{len(ids)}", flush=True)
     if d.max() > CHECK_TOL:
         raise SystemExit(f"{corpus}：最後の層の平均と既存の X の最大の差 {d.max():.2e} が {CHECK_TOL} を超える（同じ重み・同じ前処理で計算できていない）")
 
@@ -144,14 +149,20 @@ def main() -> None:
     ap.add_argument("--corpus", nargs="+", default=["AFEW", "IEMOCAP", "MELD", "MOSEI"])
     ap.add_argument("--limit", type=int, default=0, help="先頭から何件だけ処理するか（試走用）")
     ap.add_argument("--chunk", type=int, default=1000, help="途中保存の単位（25 層ぶんなので build_audio.py より小さい）")
-    ap.add_argument("--budget", type=int, default=240, help="1 バッチに入れる音声の合計秒数の目安（25 層を持つぶん build_audio.py より小さい）")
-    ap.add_argument("--max-batch", type=int, default=16)
+    ap.add_argument("--budget", type=int, default=120, help="1 バッチに入れる音声の合計秒数の目安（25 層を持つぶん build_audio.py より小さい．240 では WSL2 で確保の繰り返しが起きた）")
+    ap.add_argument("--max-batch", type=int, default=8)
+    ap.add_argument("--mem-frac", type=float, default=0.6, help="GPU のメモリの上限の割合（WSL2 の落とし穴の回避）")
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--merge", action="store_true")
     ap.add_argument("--check", action="store_true", help="最後の層の平均を既存の特徴と照合する")
+    ap.add_argument("--check-only", action="store_true", help="取り出しもまとめもせず，照合だけをする（モデルを載せない．メモリを抑えるためコーパスは 1 つずつ渡す）")
     args = ap.parse_args()
+    if args.check_only:
+        for c in args.corpus:
+            check_against_cache(c, args.limit)
+        return
     if args.merge:
         for c in args.corpus:
             common.merge_npz(KIND, c)
@@ -160,6 +171,8 @@ def main() -> None:
                 check_against_cache(c, args.limit)
         return
     from transformers import AutoModel
+    if args.device.startswith("cuda") and torch.cuda.is_available():
+        torch.cuda.set_per_process_memory_fraction(args.mem_frac)
     model = AutoModel.from_pretrained(MODEL).to(args.device).eval()
     print(f"{MODEL} を {args.device} に載せた（fp32・凍結・微調整なし・全 {N_STATES} 隠れ状態）次元 {model.config.hidden_size}", flush=True)
     for c in args.corpus:
