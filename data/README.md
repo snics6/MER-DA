@@ -324,7 +324,7 @@ CLIP を選んだ理由は 2 つある．MERBench（Lian et al.）が同じ条�
 1. `path_audio` がある行（IEMOCAP・RAVDESS・CREMA-D）はその wav を，無い行（MOSEI・MELD・AFEW）は `path_video` を，ffmpeg で 16kHz モノラルの波形にする．
 2. 先頭 60 秒で切り，切ったら `truncated` を真にする（現行で MOSEI 8 件・MELD 1 件）．元の長さは `duration_sec` に記録する．10 ミリ秒未満の波形は失敗とする．
 3. 波形ごとに平均 0・標準偏差 1 に正規化し，WavLM-large（第 2 は HuBERT-large）の最終層の出力を，詰め物の部分を除いて時間方向に平均する（1024 次元）．
-4. **全層の特徴（2026-11-09，DAI-13 の下調べ用）**：`features/build_audio_layers.py` が，同じ前処理で WavLM-large の 25 個の隠れ状態（入力 1 ＋ 24 層）のそれぞれを時間方向に平均し，`data/cache/audio_wavlm_layers_<コーパス>.npz` の `X_layers`（n × 25 × 1024，float32）に保存する．添字 24 は `audio_wavlm_<コーパス>.npz` の `X` と同じもの（4 コーパスの全発話で最大の差 AFEW 1.79e−4，IEMOCAP 2.91e−4，MELD 9.16e−4，MOSEI 3.67e−4．バッチの組による fp32 の丸め．2026-11-09 18:45 の `--check`）．`load_group` は読まない（DAI-13 の台本が `sample_id` で合わせて読む）．既存の特徴のファイルは書き換えない．作るのは AFEW・IEMOCAP・MELD・MOSEI の 4 コーパス．
+4. **全層の特徴（2026-11-09，DAI-13 の下調べ用）**：`features/build_audio_layers.py` が，同じ前処理で WavLM-large の 25 個の隠れ状態（入力 1 ＋ 24 層）のそれぞれを時間方向に平均し，`data/cache/audio_wavlm_layers_<コーパス>.npz` の `X_layers`（n × 25 × 1024，float32）に保存する．添字 24 は `audio_wavlm_<コーパス>.npz` の `X` と同じもの（4 コーパスの全発話で最大の差 AFEW 1.79e−4，IEMOCAP 2.91e−4，MELD 9.16e−4，MOSEI 3.67e−4．バッチの組による fp32 の丸め．2026-11-09 18:45 の `--check`）．**IEMOCAP の最初の 1,000 発話（`parts/…IEMOCAP_0000.npz`）だけは，取り出しの台本の 17:3x の直し（隠れ状態を積まない形，バッチの予算 120 秒・最大 8 件）の前の版で作った．**計算の式は同じで，違いはバッチの組による fp32 の丸めだけであり，その 1,000 発話を含む IEMOCAP の照合（最大の差 2.91e−4）は通っている（DAI-13 の gate-code 第 2 回の記録）．`load_group` は読まない（DAI-13 の台本が `sample_id` で合わせて読む）．既存の特徴のファイルは書き換えない．作るのは AFEW・IEMOCAP・MELD・MOSEI の 4 コーパス．
 
 ### 言葉（`features/build_text.py`）
 
