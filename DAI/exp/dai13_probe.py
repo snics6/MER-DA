@@ -573,7 +573,7 @@ def run_unit(p3: Path, out: Path, fz: dict, commit: str, commit11: str, commit12
         store[f"alpha_lw_lab_{M}_h{h}"] = lw_lab["alpha_sel"][h, 0]
         store[f"alphapre_lw_lab_{M}_h{h}"] = pre_lw_lab["alpha_sel"][h, 0]
 
-    # final と DAI-12 の lince の判定の不一致と UAR の差（乱数の列が違うので 0 ではない．記録．pair と self で大きければ止める．設計 3.2 節，a2）
+    # final と DAI-12 の lince の判定の不一致と UAR の差（乱数の列が違うので 0 ではない．記録．self で大きければ止め，pair は警告と記録．設計 3.2 節（第 14 版），a2）
     nl12 = pd.read_csv(D12 / "rows" / f"{name}_nl.csv")
     nl12 = nl12[nl12["student"] == M].set_index(["teacher", "K"])["uar_lince"]
     fr, du = {}, {}
