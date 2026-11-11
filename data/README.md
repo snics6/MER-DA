@@ -189,6 +189,7 @@ MELD は `label_4` のある行が 11,353 あるが，`val_dia110_utt7` の 1 �
 RAVDESS と CREMA-D は感情の強さを `emotion_intensity` に持つ．
 MOSEI は話者の出所を `speaker_source`（`youtube_channel` か `video_id_fallback`），AFEW は `speaker_source`（`actor` か `film`）に持つ．
 AFEW は書き起こしの出所を `transcript_source`（`whisper-large-v3`）に持つ．
+IEMOCAP は発話した話者の性別を `utterance_speaker`（`F` か `M`．`sample_id` の末尾の話者の文字と全部一致する）に持つ．AFEW は俳優の性別を `gender`（`Male` か `Female`．7 人の俳優で発話ごとに食い違う．3 モダリティがそろう 790 本のうち 50 本）と，注釈の年齢を `actor_age`（作品の時点の値で，同じ俳優に複数の値が付くことがある．欠けは 2 本）に持つ（実験 DAI-14 で入れ替えの層を作るのに使う）．
 
 ### ラベルの決め方
 

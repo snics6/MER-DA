@@ -1,4 +1,4 @@
-"""実験 14（DAI-14）：どのモダリティの特徴が，ほかのモダリティの判断を再現できるか（設計 `DAI/docs/実験14_設計.md` 第 4 版）．
+"""実験 14（DAI-14）：どのモダリティの特徴が，ほかのモダリティの判断を再現できるか（設計 `DAI/docs/実験14_設計.md` 第 5 版）．
 
 本番の評価の回（実験 1．results/dai1/eval）の保存から，各モダリティの K 本だけの分類器の判断 J_m と，提案の主の版の疑似ラベル
 J_prop（prop_one）を候補の上で作り直し，生徒 s（A・V・T）の特徴から線形に再現できる度合い R(s ← m) を 2 つの読み出しで測る．
@@ -468,14 +468,14 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
             tg = TGT[(K, nm, ver)]
             cnt = np.bincount(tg, minlength=4)
             if K == K_MAIN and split == "main" and info.get("prob") is not None:          # 全部の版（gate-code の第 3 版の H1）
-                arr[f"prob__K{K}__{split}__{ro}__{s}__{nm}"] = info["prob"]
+                arr[f"prob__K{K}__{split}__{ro}__{s}__{nm}__{ver}"] = info["prob"]         # 版を鍵に入れる（第 5 版．J1）
             info = {k_: v_ for k_, v_ in info.items() if k_ != "prob"}
             rows.append(dict(T=T, fold=f, seed=r, K=K, split=split, readout=ro, student=s, target=nm, version=ver,
                              agree_halfmean=ag, agree_pooled=float(uar_present(*[x.sum(0) for x in counts(tg, full, cl)[1:]])),
                              frac_changed=tgt_frac.get((K, nm, ver), 0.0), min_class=int(cnt.min()),
                              n_strata_cl=int(len(nst["cl"])), share_singleton_cl=float((nst["cl"] == 1).sum() / n),
                              n_strata_fine=int(len(nst["fine"])), share_singleton_fine=float((nst["fine"] == 1).sum() / n),
-                             share_singleton_age=float((nst["age"] == 1).sum() / n),
+                             share_singleton_age=(float((nst["age"] == 1).sum() / n) if has_age else np.nan),
                              **(PCA[s] if ro == "R1" else {}), **info))
 
     TGT, FRAC, R1_TRUE, R1_ALL = {}, {}, {}, {}
@@ -509,7 +509,7 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
     for s in STU:
         tg_all = R1_ALL[s]
         tg_true = {k[0]: R1_TRUE[k[0]] for k in tg_all}
-        gk = [k for k in tg_all if k[0][0] == K_MAIN and k[0][1].startswith("single_") and k[1] in ("true", "shufcl")]
+        gk = [k for k in tg_all if k[0][0] == K_MAIN and k[0][1].startswith("single_") and k[1] in ("true", "shufcl", "shufage")]   # R1fixC の格子（AFEW は #shufage も．J5）
         res, curves, grid = fit_r1(Z[s], cl, halves, tg_true, tg_all, gk)
         for (isp, hh, (K, nm)), cur in curves.items():
             arr.setdefault(f"inner__main__{s}__K{K}__{nm}", np.zeros((2, 2, len(GRID_C))))[hh] = cur
@@ -542,6 +542,13 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
                     arr.setdefault(f"inner__alt{isp}__{s}__K{K_MAIN}__{nm}", np.zeros((2, 2, len(GRID_C))))[hh] = cur
                 for ia, o in enumerate(outs):
                     add_rows(K_MAIN, "R1", s, o, f"alt{ia}", FRAC)
+    for kk in [k for k in arr if k.startswith("prob__")]:            # 確率の鍵の数と，argmax が同じ名前の予測と一致すること
+        if not (arr[kk].astype(np.float32).argmax(1) == arr["K" + kk[len("prob__K"):]]).mean() > 0.999:
+            raise SystemExit(f"{base.name}：{kk} の確率の argmax が予測と合わない")
+    n_prob = len([k for k in arr if k.startswith("prob__")])
+    n_prob_exp = 2 * len(STU) * 3 * (3 + int(has_fine) + int(has_age))
+    if n_prob != n_prob_exp:
+        raise SystemExit(f"{base.name}：確率の鍵の数 {n_prob}（見込み {n_prob_exp}）")
     df = pd.DataFrame(rows)
     df["commit"], df["dirty"], df["sec"] = RUN["commit"], RUN["dirty"], time.time() - t0
     df["dai1_commits"] = ",".join(sorted(sv.commits))
@@ -723,7 +730,7 @@ def stage_summary(out: Path, targets: list) -> None:
                         for subset in subsets:
                             cR = Rcell(U, K, ro, s, nm, "true", subset)
                             q = [("R", [cR], [1])]
-                            for ver in ("shuf", "shufcl", "shuffine"):
+                            for ver in ("shuf", "shufcl", "shuffine", "shufage"):
                                 if f"tgt__K{K}__{nm}__{ver}" not in next(iter(U.values())):
                                     continue
                                 cS = Rcell(U, K, ro, s, nm, ver, subset)
@@ -744,7 +751,7 @@ def stage_summary(out: Path, targets: list) -> None:
             for ro in ro_list:
                 for ctrl in ctrls:
                     for subset in subsets + ["nomarker"]:
-                        if ro == "R1fixC" and (ctrl != "cl" or subset not in subsets):
+                        if ro == "R1fixC" and (ctrl not in ("cl", "age") or subset not in subsets):
                             continue
                         for pn in list(PRED_DEF) + list(PRED_CTL):
                             if ctrl != "cl" and pn in ("P1", "P2", "P1ctl", "P2ctl"):
@@ -762,7 +769,7 @@ def stage_summary(out: Path, targets: list) -> None:
                                               fixC0=(GRID_C[ic_fix[0]] if ro == "R1fixC" else np.nan),
                                               fixC1=(GRID_C[ic_fix[1]] if ro == "R1fixC" else np.nan)) | e |
                                          dict(verdict=verdict(e["lo"], e["hi"]), verdict_ns=verdict(e["lo_ns"], e["hi_ns"]),
-                                              primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all" and pn in PRED_DEF)))
+                                              primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all" and pn in PRED_DEF and pn != "P3b")))
             # 作りの違いの差の区間（判定が主と副で違うとき，原因を名指しするのは差の区間が 0 を含まないときだけ．gate-stats の第 3 版の 4）
             if K == K_MAIN:
                 pairs = [("R1-R0", "R1", "cl", "R0", "cl"), ("R1-R1fixC", "R1", "cl", "R1fixC", "cl")]
@@ -803,9 +810,24 @@ def stage_summary(out: Path, targets: list) -> None:
     crit = []
     PP = P[P.prediction.isin(list(PRED_DEF))]
 
-    def above(K, ro, ctrl, subset, pn, T, col):
+    def raw(K, ro, ctrl, subset, pn, T, col):
         x = PP[(PP.K == K) & (PP.readout == ro) & (PP.control == ctrl) & (PP.subset == subset) & (PP.prediction == pn) & (PP["T"] == T)]
-        return None if not len(x) else bool(x[col].iloc[0] == "上回る")
+        if len(x) != 1:
+            raise SystemExit(f"数えに要る行が無い：K={K} {ro} {ctrl} {subset} {pn} {T}（{len(x)} 行）")
+        return bool(x[col].iloc[0] == "上回る")
+
+    def counted(K, ro, ctrl, subset, pn, T, col, notes):
+        """数えで「上回る」とする判定（第 5 版）：素の判定に，MELD の共有の対話の規則，AFEW の #shufage の規則，
+        差の予言の前提（前提にも同じ規則を当てた判定）を当てる．規則が使う行が無ければ止める（黙って飛ばさない）．"""
+        if not raw(K, ro, ctrl, subset, pn, T, col):
+            return False
+        if T == "MELD" and subset == "all" and not raw(K, ro, ctrl, "nonshared", pn, "MELD", col):
+            notes.append(f"{pn}:MELD:共有の対話を除くと上回らない"); return False
+        if T == "AFEW" and ctrl == "cl" and pn in ("P3", "P3b", "P4a", "P4b") and not raw(K, ro, "age", subset, pn, "AFEW", col):
+            notes.append(f"{pn}:AFEW:#shufage で上回らない"); return False
+        if pn in PRECOND and not counted(K, ro, ctrl, subset, PRECOND[pn], T, col, notes):
+            notes.append(f"{pn}:{T}:前提 {PRECOND[pn]} が数えで上回らない"); return False
+        return True
 
     for (K, ro, ctrl), x in PP[PP.subset == "all"].groupby(["K", "readout", "control"]):     # 数えは候補の全体と記号の無い版
         for subset in ("all", "nomarker"):
@@ -814,16 +836,10 @@ def stage_summary(out: Path, targets: list) -> None:
                 if not len(xx):
                     continue
                 row = dict(K=K, readout=ro, control=ctrl, subset=subset, prediction=pn,
-                           primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all"))
+                           primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all" and pn != "P3b"))
                 for col, sfx in (("verdict", ""), ("verdict_ns", "_ns")):
-                    ab, notes = set(xx[xx[col] == "上回る"]["T"]), []
-                    for T in list(ab):
-                        if T == "MELD" and subset == "all" and above(K, ro, ctrl, "nonshared", pn, "MELD", col) is False:
-                            ab.discard(T); notes.append("MELD:共有の対話を除くと上回らない")
-                        if pn in PRECOND and above(K, ro, ctrl, subset, PRECOND[pn], T, col) is False:
-                            ab.discard(T); notes.append(f"{T}:前提 {PRECOND[pn]} が上回らない")
-                        if T == "AFEW" and ctrl == "cl" and pn in ("P3", "P3b", "P4a", "P4b") and above(K, ro, "age", subset, pn, "AFEW", col) is False:
-                            ab.discard(T); notes.append("AFEW:#shufage で上回らない")
+                    notes = []
+                    ab = {T for T in xx["T"] if counted(K, ro, ctrl, subset, pn, T, col, notes)}
                     if pn in PRIMARY_3:
                         pool = [t for t in xx["T"] if t != "AFEW"]; need = 2
                     else:
@@ -833,7 +849,7 @@ def stage_summary(out: Path, targets: list) -> None:
                     n_ab = len([t for t in pool if t in ab])
                     row |= {f"n_above{sfx}": n_ab, f"n_below{sfx}": int((xx[xx["T"].isin(pool)][col] == "下回る").sum()),
                             f"hit{sfx}": (bool(n_ab >= need) if np.isfinite(need) else None), f"above{sfx}": ",".join(sorted(t for t in pool if t in ab)),
-                            f"notes{sfx}": ";".join(notes)}
+                            f"n_above_all4{sfx}": len(ab), f"above_all4{sfx}": ",".join(sorted(ab)), f"notes{sfx}": ";".join(notes)}
                 row |= dict(n_pool=len(pool), need=need)
                 crit.append(row)
     CR = pd.DataFrame(crit)
@@ -843,7 +859,7 @@ def stage_summary(out: Path, targets: list) -> None:
     conv_s = dict(n_rows=len(CV), n_units=int(CV[["T", "fold", "seed"]].drop_duplicates().shape[0]), grad_max=float(CV.grad.max()),
                   n_stalled=int(CV.stalled.astype(str).eq("True").sum()), min_class_min=int(CV.min_class.min()),
                   frac_changed_by_version={v: [float(CV[CV.version == v].frac_changed.min()), float(CV[CV.version == v].frac_changed.max())]
-                                           for v in ("shuf", "shufcl", "shuffine") if (CV.version == v).any()},
+                                           for v in ("shuf", "shufcl", "shuffine", "shufage") if (CV.version == v).any()},
                   C_chosen_counts={str(k): int(v) for k, v in pd.concat([CV.get("C0", pd.Series(dtype=float)),
                                                                           CV.get("C1", pd.Series(dtype=float))]).value_counts().items()})
     conv_s["candidates_clusters_fixC"] = ncand
@@ -854,12 +870,15 @@ def stage_summary(out: Path, targets: list) -> None:
     conv_s["inner_stalled_max"] = int(CV.inner_stalled.max()) if "inner_stalled" in CV else 0
     json.dump(conv_s, open(sdir / "convergence.json", "w"), ensure_ascii=False, indent=1)
     # 仮定の印（設計 8 節）：C′ が格子の端に選ばれた割合，入れ替えで目標が変わった割合の平均
-    r1 = CV[(CV.readout == "R1") & (CV.version == "true")]
     asm = []
-    for (T, K, split, st_, tg), x in r1.groupby(["T", "K", "split", "student", "target"]):
-        cc = pd.concat([x.C0, x.C1])
-        asm.append(dict(kind="C_edge", T=T, K=K, split=split, student=st_, target=tg, share_low=float((cc == GRID_C[0]).mean()),
-                        share_high=float((cc == GRID_C[-1]).mean()), flag=bool(max((cc == GRID_C[0]).mean(), (cc == GRID_C[-1]).mean()) > EDGE_SHARE)))
+    if len(PL):                                                       # 端の印（第 5 版．8 節の基準 flag と，第 3 版の基準 flag_old を並べる）
+        PL[["_", "_2", "student", "Kc", "target"]] = PL.key.str.split("__", expand=True)
+        for (T, Kc, st_, tg), x in PL.groupby(["T", "Kc", "student", "target"]):
+            lo = float((x.chosen == GRID_C[0]).mean()); hi = float((x.chosen == GRID_C[-1]).mean())
+            lo_np = float(((x.chosen == GRID_C[0]) & ~x.low_plateau).mean())
+            asm.append(dict(kind="C_edge", T=T, K=int(Kc[1:]), split="main", student=st_, target=tg, share_low=lo, share_high=hi,
+                            share_low_nonplateau=lo_np, share_low_plateau=lo - lo_np,
+                            flag=bool(max(hi, lo_np) > EDGE_SHARE), flag_old=bool(max(lo, hi) > EDGE_SHARE)))
     sh = CV[(CV.version != "true") & (CV.readout == "R0")].drop_duplicates(["T", "fold", "seed", "K", "target", "version"])
     for (T, K, tg, ver), x in sh.groupby(["T", "K", "target", "version"]):
         asm.append(dict(kind="frac_changed", T=T, K=K, target=tg, version=ver, frac_mean=float(x.frac_changed.mean()),
