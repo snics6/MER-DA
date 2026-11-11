@@ -305,16 +305,16 @@ def fit_r0(sv, s, K, tg: dict, halves) -> dict:
     res = S.fit(u.Xp[s], G, W0, b0, Cw=cw, Cb=cb)
     lg = S.logits(u.Xp[s], res["W"], res["b"])
     pred = lg.argmax(2).cpu().numpy()
-    prob = torch.softmax(lg, 2).cpu().numpy().astype(np.float16)
+    prob = torch.softmax(lg, 2).cpu().numpy().astype(np.float32)
     return collect(keys, tg, pred, res, halves, n, dict(Cw=cw, Cb=cb, dim=int(u.Xp[s].shape[1])), prob)
 
 
 def collect(keys, tg, pred, res, halves, n, info, prob=None) -> dict:
-    """交差の予測をそろえる．prob（問, n, 4）を渡すと，交差の予測の確率（float16）を info["prob"] に入れる．"""
+    """交差の予測をそろえる．prob（問, n, 4）を渡すと，交差の予測の確率（float32．下端の C′ では確率の差が小さく float16 では丸めで消えるため．gate-code の第 5 版の K1）を info["prob"] に入れる．"""
     out = {}
     for i, k in enumerate(keys):
         full = np.empty(n, np.int8)
-        pf = np.empty((n, 4), np.float16) if prob is not None else None
+        pf = np.empty((n, 4), np.float32) if prob is not None else None
         ag = []
         for hh in (0, 1):
             other = halves[1 - hh]
@@ -397,7 +397,7 @@ def fit_r1_multi(Z: torch.Tensor, cl: np.ndarray, splits: list, tg_true: dict, t
     res = S.fit(Z, torch.stack(G), zeroW, zerob, Cw=cws, Cb=CB_R1)
     lg = S.logits(Z, res["W"], res["b"])
     pred = lg.argmax(2).cpu().numpy()
-    prob = torch.softmax(lg[:n_main], 2).cpu().numpy().astype(np.float16)
+    prob = torch.softmax(lg[:n_main], 2).cpu().numpy().astype(np.float32)
     del lg
     outs = []
     P1 = 2 * len(keys)
@@ -544,7 +544,7 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
                     add_rows(K_MAIN, "R1", s, o, f"alt{ia}", FRAC)
     for kk in [k for k in arr if k.startswith("prob__")]:            # 確率の鍵の数と，argmax が同じ名前の予測と一致すること
         pf = arr[kk].astype(np.float32); pk = arr["K" + kk[len("prob__K"):]].astype(int)
-        gap = pf.max(1) - pf[np.arange(len(pk)), pk]                 # float16 の丸めで同点になった発話は許す
+        gap = pf.max(1) - pf[np.arange(len(pk)), pk]                 # 丸めで同点になった発話は許す
         if not (gap <= 1e-3).all():
             raise SystemExit(f"{base.name}：{kk} の確率の argmax が予測と合わない")
     n_prob = len([k for k in arr if k.startswith("prob__")])
@@ -665,7 +665,8 @@ def pred_terms(pn: str, ro: str, ctrl: str) -> list:
 def fixed_c_index(csvs: pd.DataFrame) -> tuple:
     """C′ を固定した感度の版で使う格子の点：そのコーパスの R1・K = 5・元の分け方・判断 J_m の真の目標の行で，組 0 で学んだときに
     選ばれた C′（C0）の最頻値 i0 と，組 1 の C1 の最頻値 i1（同数は小さい C′）．組 1 の発話は組 0 で学んだ識別器が予測するので i0 を，
-    組 0 の発話には i1 を当てる（予測する組の判断が C′ に入らない．gate-leak の第 3 版の 2）．"""
+    組 0 の発話には i1 を当てる（同じ単位の中では予測する組の判断が C′ に入らない．最頻値は全単位から取るので，別の分割で学ぶ側に
+    入った同じ発話の判断はわずかに入る．設計 3 節）．"""
     x = csvs[(csvs.readout == "R1") & (csvs.split == "main") & (csvs.K == K_MAIN) & csvs.target.str.startswith("single_") & (csvs.version == "true")]
     out = []
     for col in ("C0", "C1"):
