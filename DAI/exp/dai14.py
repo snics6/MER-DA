@@ -43,7 +43,10 @@ OUT_PROD = ROOT / "results" / "dai14"
 KS = (5, 25)
 K_MAIN = 5
 STU = ("A", "V", "T")
-GRID_C = (1e-3, 1e-2, 1e-1, 1.0, 10.0)        # R1 の C′ の格子（小さいほど強い罰）
+GRID_C = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0)   # R1 の C′ の格子（小さいほど強い罰．第 3 版で下へ広げた．gate-code の G1）
+EDGE_SHARE = 0.25                               # 格子の端に選ばれた割合がこれを超えた（コーパス，生徒，目標）は限界として書く
+FRAC_LOW = 0.40                                 # 入れ替えで目標が変わった割合の平均がこれ未満の（コーパス，目標）は「判定できない」の読みを弱める
+MARKER_RE = r"[\[\]\(\)\{\}!]"                 # 書き起こしの記号（角・丸・波括弧と「!」）．「?」は語順と疑問詞で言葉の中身に入るので含めない
 CB_R1 = 1.0                                    # R1 の切片の C_b（共通）
 DIM_R1 = 512                                   # R1 でそろえる次元（顔の特徴の次元）
 N_ALT = 4                                      # r = 0 で足す別の分け方の数
@@ -98,8 +101,10 @@ def theta(d: dict) -> float:
 
 def combo_stats(cells: list, coefs: list, g_eff: float, rng, split_vals: dict | None = None) -> dict:
     """Σ coefs[i] · UAR(cells[i]) の区間．cells[i]：{(f, r): counts}．g_eff < 20 は塊の jackknife ＋ 種の項（自由度 max(1, ⌊g_eff⌋ − 1)），
-    ≥ 20 は全分割で共通の塊の重みの引き直し ＋ 種の項．split_vals：{f: [分け方ごとの値]} を渡すと，分け方の揺れ
-    (1/F²) Σ_f Var_f を SE² に足す（gate-stats の 1）．"""
+    ≥ 20 は全分割で共通の塊の重みの引き直し ＋ 種の項．split_vals：{f: [分け方ごとの値]} を渡すと，分け方の揺れを SE² に足す．
+    分割の間で分け方の誤差がそろいうるので，足すのは保守的な上限 ((1/F) Σ_f √Var_f)²（第 3 版．gate-stats の S1，dai-review-ml の M2）．
+    独立とみなした値 (1/F²) Σ_f Var_f は v_split_indep に残す．分け方の揺れを足さない区間を lo_ns・hi_ns に残す
+    （主と副の判定を同じ作りの区間で比べるため．gate-stats の S3）．"""
     keys = sorted(cells[0])
     for c in cells[1:]:
         if sorted(c) != keys:
@@ -121,14 +126,19 @@ def combo_stats(cells: list, coefs: list, g_eff: float, rng, split_vals: dict | 
     R = {f: int(np.isfinite(d[f]).sum()) for f in folds}
     s2 = {f: (float(np.nanvar(d[f], ddof=1)) if R[f] > 1 else 0.0) for f in folds}
     v_seed = float(sum(s2[f] / max(R[f], 1) for f in folds) / F ** 2)
-    v_split = np.nan
+    v_split = v_split_indep = np.nan
+    n_split_folds = 0
     if split_vals is not None:
         vs = [float(np.nanvar(v, ddof=1)) for f, v in split_vals.items() if np.isfinite(v).sum() > 1]
-        v_split = float(sum(vs) / F ** 2) if vs else np.nan
+        n_split_folds = len(vs)
+        if vs:
+            v_split_indep = float(sum(vs) / F ** 2)
+            v_split = float((sum(np.sqrt(vs)) / F) ** 2)
     extra = v_split if np.isfinite(v_split) else 0.0
-    base = dict(effect=est, n_folds=F, n_units=int(sum(R.values())), g_eff=g_eff, v_seed=v_seed, v_split=v_split)
+    base = dict(effect=est, n_folds=F, n_units=int(sum(R.values())), g_eff=g_eff, v_seed=v_seed, v_split=v_split,
+                v_split_indep=v_split_indep, n_split_folds=n_split_folds)
     if not np.isfinite(est):
-        return base | dict(lo=np.nan, hi=np.nan, se=np.nan, df=np.nan, method="", v_cl=np.nan, n_clusters=0)
+        return base | dict(lo=np.nan, hi=np.nan, se=np.nan, df=np.nan, method="", v_cl=np.nan, n_clusters=0, lo_ns=np.nan, hi_ns=np.nan)
     if g_eff >= 20:
         all_cl = sorted({nm for k in keys for nm in cells[0][k][0]})
         pos = {nm: i for i, nm in enumerate(all_cl)}
@@ -147,8 +157,9 @@ def combo_stats(cells: list, coefs: list, g_eff: float, rng, split_vals: dict | 
         boots = np.where(nval > 0, boots / np.maximum(nval, 1), np.nan)
         boots = boots[np.isfinite(boots)]
         v_cl = float(np.var(boots, ddof=1))
-        se = float(np.sqrt(v_cl + v_seed + extra))
-        return base | dict(lo=est - 1.96 * se, hi=est + 1.96 * se, se=se, df=np.nan, method="boot_cl_shared+seed", v_cl=v_cl, n_clusters=G)
+        se = float(np.sqrt(v_cl + v_seed + extra)); se_ns = float(np.sqrt(v_cl + v_seed))
+        return base | dict(lo=est - 1.96 * se, hi=est + 1.96 * se, se=se, df=np.nan, method="boot_cl_shared+seed", v_cl=v_cl, n_clusters=G,
+                           lo_ns=est - 1.96 * se_ns, hi_ns=est + 1.96 * se_ns)
     all_cl = sorted({nm for k in keys for nm in cells[0][k][0]})
     jk = []
     for g in all_cl:
@@ -170,9 +181,11 @@ def combo_stats(cells: list, coefs: list, g_eff: float, rng, split_vals: dict | 
     G = len(jk)
     v_cl = float((G - 1) / G * ((jk - jk.mean()) ** 2).sum()) if G > 1 else np.nan
     se = float(np.sqrt(v_cl + v_seed + extra)) if np.isfinite(v_cl) else np.nan
+    se_ns = float(np.sqrt(v_cl + v_seed)) if np.isfinite(v_cl) else np.nan
     df = max(1, int(np.floor(g_eff)) - 1)
     q = float(st.t.ppf(0.975, df))
-    return base | dict(lo=est - q * se, hi=est + q * se, se=se, df=df, method="jk+seed", v_cl=v_cl, n_clusters=G)
+    return base | dict(lo=est - q * se, hi=est + q * se, se=se, df=df, method="jk+seed", v_cl=v_cl, n_clusters=G,
+                       lo_ns=est - q * se_ns, hi_ns=est + q * se_ns)
 
 
 def verdict(lo, hi) -> str:
@@ -187,7 +200,9 @@ _META: dict = {}
 
 
 def corpus_meta(T: str) -> pd.DataFrame:
-    """sample_id → 細かい層 fine（IEMOCAP・MOSEI だけ）と，書き起こしの記号の有無 marker．層の境はコーパス全体（DAI/splits の発話）の 3 分位．"""
+    """sample_id → 細かい層の元の値（IEMOCAP は元のラベル emotion_raw と覚醒度 arousal，MOSEI は感情の強さ int_* の最大．
+    候補のラベルの一部なので，入れ替えの層を作るだけに使う），性別 sex（IEMOCAP は utterance_speaker，AFEW は gender．
+    MELD・MOSEI は空），書き起こしの記号の有無 marker．"""
     if T in _META:
         return _META[T]
     sp = pd.read_csv(ROOT / "DAI" / "splits" / f"{T}.csv", keep_default_na=False, usecols=["sample_id"])
@@ -195,26 +210,33 @@ def corpus_meta(T: str) -> pd.DataFrame:
     m = pd.read_csv(ROOT / "data" / "metadata" / f"{fn}_utterance_manifest.csv", keep_default_na=False)
     m = m[m.sample_id.isin(sp.sample_id)].set_index("sample_id")
     out = pd.DataFrame(index=sp.sample_id)
+    out["fine_cat"], out["fine_val"], out["sex"] = "", np.nan, ""
     if T == "IEMOCAP":
-        a = pd.to_numeric(m["arousal"], errors="coerce")
-        q = np.nanquantile(a, [1 / 3, 2 / 3])
-        b = np.digitize(a, q)
-        out["fine"] = (m["emotion_raw"].astype(str) + "|" + pd.Series(b, index=m.index).astype(str)).reindex(out.index)
+        out["fine_cat"] = m["emotion_raw"].astype(str).reindex(out.index)
+        out["fine_val"] = pd.to_numeric(m["arousal"], errors="coerce").reindex(out.index)
+        out["sex"] = m["utterance_speaker"].astype(str).reindex(out.index)
     elif T == "MOSEI":
         ic = [c for c in m.columns if c.startswith("int_")]
-        mx = m[ic].apply(pd.to_numeric, errors="coerce").max(axis=1)
-        q = np.nanquantile(mx, [1 / 3, 2 / 3])
-        out["fine"] = pd.Series(np.digitize(mx, q), index=m.index).astype(str).reindex(out.index)
-    else:
-        out["fine"] = ""
+        out["fine_val"] = m[ic].apply(pd.to_numeric, errors="coerce").max(axis=1).reindex(out.index)
+    elif T == "AFEW":
+        out["sex"] = m["gender"].astype(str).reindex(out.index)
     if T == "AFEW":
         w = pd.read_csv(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv", keep_default_na=False).set_index("sample_id")
         tr = w["transcript_asr"].reindex(out.index).fillna("")
     else:
         tr = m["transcript"].reindex(out.index).fillna("")
-    out["marker"] = tr.astype(str).str.contains(r"\[|\]|!", regex=True)
+    out["marker"] = tr.astype(str).str.contains(MARKER_RE, regex=True)
+    if T in ("IEMOCAP", "AFEW") and (out["sex"].isin(["", "nan"]) | out["sex"].isna()).any():
+        raise SystemExit(f"{T}：性別の欠けた発話がある")
     _META[T] = out
     return out
+
+
+def fine_strata(meta: pd.DataFrame) -> np.ndarray:
+    """細かい層：元のラベル（IEMOCAP）と，元の値の候補の上の 3 分位の区分（同じ値が多いので 3 等分にはならない）．テストの発話を使わない．"""
+    v = meta["fine_val"].to_numpy(float)
+    q = np.nanquantile(v, [1 / 3, 2 / 3])
+    return np.char.add(np.char.add(meta["fine_cat"].to_numpy().astype(str), "|"), np.digitize(v, q).astype(str))
 
 
 # ------------------------------------------------------------------ 段 units
@@ -252,8 +274,12 @@ def aligned_features(X: torch.Tensor) -> torch.Tensor:
     Xc = X - X.mean(0, keepdim=True)
     _, _, Vh = torch.linalg.svd(Xc, full_matrices=False)
     k = min(DIM_R1, Vh.shape[0])
+    sv_ = torch.linalg.svdvals(Xc)
+    ev = (sv_ ** 2).cpu().numpy()
     Z = Xc @ Vh[:k].T
-    return Z / Z.var(0).mean().sqrt()
+    p = ev / ev.sum()
+    info = dict(pca_kept=float(ev[:k].sum() / ev.sum()), eff_rank=float(np.exp(-(p[p > 0] * np.log(p[p > 0])).sum())), dim_in=int(X.shape[1]))
+    return Z / Z.var(0).mean().sqrt(), info
 
 
 def fit_r0(sv, s, K, tg: dict, halves) -> dict:
@@ -265,36 +291,46 @@ def fit_r0(sv, s, K, tg: dict, halves) -> dict:
     W0, b0 = u.start[s]
     cw, cb = sv.teth[(s, K)]
     res = S.fit(u.Xp[s], G, W0, b0, Cw=cw, Cb=cb)
-    pred = S.logits(u.Xp[s], res["W"], res["b"]).argmax(2).cpu().numpy()
-    return collect(keys, tg, pred, res, halves, n, dict(Cw=cw, Cb=cb, dim=int(u.Xp[s].shape[1])))
+    lg = S.logits(u.Xp[s], res["W"], res["b"])
+    pred = lg.argmax(2).cpu().numpy()
+    prob = torch.softmax(lg, 2).cpu().numpy().astype(np.float16)
+    return collect(keys, tg, pred, res, halves, n, dict(Cw=cw, Cb=cb, dim=int(u.Xp[s].shape[1])), prob)
 
 
-def collect(keys, tg, pred, res, halves, n, info) -> dict:
+def collect(keys, tg, pred, res, halves, n, info, prob=None) -> dict:
+    """交差の予測をそろえる．prob（問, n, 4）を渡すと，交差の予測の確率（float16）を info["prob"] に入れる．"""
     out = {}
     for i, k in enumerate(keys):
         full = np.empty(n, np.int8)
+        pf = np.empty((n, 4), np.float16) if prob is not None else None
         ag = []
         for hh in (0, 1):
             other = halves[1 - hh]
             full[other] = pred[2 * i + hh][other]
+            if pf is not None:
+                pf[other] = prob[2 * i + hh][other]
             ag.append(100 * S.uar(tg[k][other], pred[2 * i + hh][other]))
         fin = bool(res["finite_p"][2 * i] and res["finite_p"][2 * i + 1])
         if not fin:
             raise SystemExit(f"解が有限でない（{k}）")
         out[k] = (full, float(np.mean(ag)), info | dict(grad=float(max(res["grad_p"][2 * i], res["grad_p"][2 * i + 1])),
-                                                         stalled=bool(res["stalled_p"][2 * i] or res["stalled_p"][2 * i + 1])))
+                                                         stalled=bool(res["stalled_p"][2 * i] or res["stalled_p"][2 * i + 1]),
+                                                         prob=pf))
     return out
 
 
-def fit_r1(Z: torch.Tensor, cl: np.ndarray, halves, tg_true: dict, tg_all: dict) -> dict:
+def fit_r1(Z: torch.Tensor, cl: np.ndarray, halves, tg_true: dict, tg_all: dict, grid_keys=()) -> tuple:
     """1 つの分け方の R1．fit_r1_multi の 1 本の版．"""
-    return fit_r1_multi(Z, cl, [halves], tg_true, tg_all)[0]
+    outs, curves, grid = fit_r1_multi(Z, cl, [halves], tg_true, tg_all, grid_keys)
+    return outs[0], curves, grid
 
 
-def fit_r1_multi(Z: torch.Tensor, cl: np.ndarray, splits: list, tg_true: dict, tg_all: dict) -> list:
+def fit_r1_multi(Z: torch.Tensor, cl: np.ndarray, splits: list, tg_true: dict, tg_all: dict, grid_keys=()) -> tuple:
     """R1：出発点 0，C_b = CB_R1，C′ は学ぶ側の組を塊で 2 つに分けた内側の交差の予測で，目標の判断との一致が最大の格子の点
     （同点は小さい C′）．tg_true：{名前: 目標}（C′ を選ぶ目標），tg_all：{(名前, 版): 目標}（同じ名前の C′ を当てる）．
-    splits：2 組の分け方の並び．すべての分け方の内側の問を 1 回，本体の問を 1 回の L-BFGS の束で解く（速さのため．解は問ごとに独立）．"""
+    splits：2 組の分け方の並び．すべての分け方の内側の問を 1 回，本体の問を 1 回の L-BFGS の束で解く（速さのため．解は問ごとに独立）．
+    grid_keys：tg_all の鍵のうち，最初の分け方で格子の全点でも外側を解いて交差の予測を残すもの（C′ を固定した感度．gate-compare の C1）．
+    戻り：(分け方ごとの結果, 内側の一致の曲線 {(分け方, 組, 名前): (格子の点,)}, {(鍵, 格子の番号): 交差の予測})．"""
     n, d = Z.shape
     zeroW = torch.zeros(4, d, device=S.DEV, dtype=S.DT); zerob = torch.zeros(4, device=S.DEV, dtype=S.DT)
     names = list(tg_true)
@@ -305,6 +341,8 @@ def fit_r1_multi(Z: torch.Tensor, cl: np.ndarray, splits: list, tg_true: dict, t
             tr = halves[hh]
             sub = dai3.pool_halves(cl[tr])
             subs = [tr[sub == 0], tr[sub == 1]]
+            if min(len(subs[0]), len(subs[1])) == 0:
+                raise SystemExit("R1 の内側の組が空")
             subs_of[(isp, hh)] = subs
             for nm in names:
                 for c in GRID_C:
@@ -314,19 +352,21 @@ def fit_r1_multi(Z: torch.Tensor, cl: np.ndarray, splits: list, tg_true: dict, t
     res = S.fit(Z, torch.stack(probs), zeroW, zerob, Cw=cws, Cb=CB_R1)
     if not all(res["finite_p"]):
         raise SystemExit("R1 の内側の解が有限でない")
+    inner_grad = float(np.max(res["grad_p"])); inner_stalled = int(np.sum(res["stalled_p"]))
     pr = S.logits(Z, res["W"], res["b"]).argmax(2).cpu().numpy()
     del res, probs
     ag = {}
     for j, (isp, hh, nm, c, ss) in enumerate(index):
         o = subs_of[(isp, hh)][1 - ss]
         ag.setdefault((isp, hh, nm, c), []).append(100 * S.uar(tg_true[nm][o], pr[j][o]))
-    chosen = {}
+    chosen, curves = {}, {}
     for isp in range(len(splits)):
         for hh in (0, 1):
             for nm in names:
+                cur = np.array([float(np.mean(ag[(isp, hh, nm, c)])) for c in GRID_C])
+                curves[(isp, hh, nm)] = cur
                 best, bc = -1.0, None
-                for c in GRID_C:
-                    v = float(np.mean(ag[(isp, hh, nm, c)]))
+                for c, v in zip(GRID_C, cur):
                     if v > best + 1e-12:
                         best, bc = v, c
                 chosen[(isp, nm, hh)] = bc
@@ -336,18 +376,39 @@ def fit_r1_multi(Z: torch.Tensor, cl: np.ndarray, splits: list, tg_true: dict, t
         for k in keys:
             for hh in (0, 1):
                 G.append(S.balanced_onehot(tg_all[k], halves[hh], n)); cws.append(chosen[(isp, k[0], hh)])
+    n_main = len(G)
+    for k in grid_keys:
+        for c in GRID_C:
+            for hh in (0, 1):
+                G.append(S.balanced_onehot(tg_all[k], splits[0][hh], n)); cws.append(c)
     res = S.fit(Z, torch.stack(G), zeroW, zerob, Cw=cws, Cb=CB_R1)
-    pred = S.logits(Z, res["W"], res["b"]).argmax(2).cpu().numpy()
+    lg = S.logits(Z, res["W"], res["b"])
+    pred = lg.argmax(2).cpu().numpy()
+    prob = torch.softmax(lg[:n_main], 2).cpu().numpy().astype(np.float16)
+    del lg
     outs = []
     P1 = 2 * len(keys)
     for isp, halves in enumerate(splits):
         sl = slice(isp * P1, (isp + 1) * P1)
         sub_res = {kk: (v[sl] if hasattr(v, "__len__") and len(v) == len(G) else v) for kk, v in res.items()}
-        out = collect(keys, dict(tg_all), pred[sl], sub_res, halves, n, dict(Cb=CB_R1, dim=int(d)))
+        out = collect(keys, dict(tg_all), pred[sl], sub_res, halves, n, dict(Cb=CB_R1, dim=int(d)), prob[sl])
         for k in keys:
             out[k][2]["C0"], out[k][2]["C1"] = chosen[(isp, k[0], 0)], chosen[(isp, k[0], 1)]
+            out[k][2]["inner_grad"], out[k][2]["inner_stalled"] = inner_grad, inner_stalled
         outs.append(out)
-    return outs
+    grid = {}
+    j = n_main
+    for k in grid_keys:
+        for ic, c in enumerate(GRID_C):
+            full = np.empty(n, np.int8)
+            for hh in (0, 1):
+                if not res["finite_p"][j]:
+                    raise SystemExit("R1 の格子の解が有限でない")
+                other = splits[0][1 - hh]
+                full[other] = pred[j][other]
+                j += 1
+            grid[(k, ic)] = full
+    return outs, curves, grid
 
 
 def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | None:
@@ -367,16 +428,21 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
     h = dai3.pool_halves(cl)
     halves = [np.flatnonzero(h == 0), np.flatnonzero(h == 1)]
     meta = corpus_meta(T).reindex(sv.sid_pool)
-    fine = meta["fine"].to_numpy().astype(str)
+    if meta["marker"].isna().any():
+        raise SystemExit(f"{base.name}：発話一覧に無い候補がある")
     has_fine = T in ("IEMOCAP", "MOSEI")
+    sex = meta["sex"].to_numpy().astype(str)
     st_e = y.astype(str)
-    st_cl = np.char.add(np.char.add(st_e, "|"), cl)
-    st_f = np.char.add(np.char.add(st_e, "|"), fine)
+    st_cl = np.char.add(np.char.add(np.char.add(np.char.add(st_e, "|"), cl), "|"), sex)     # （感情，塊，性別）．MELD・MOSEI は性別が空
+    st_f = np.char.add(np.char.add(st_cl, "|"), fine_strata(meta)) if has_fine else st_cl   # #shuffine は #shufcl の中に入れ子
+    nst = {nm_: pd.Series(x).value_counts() for nm_, x in (("cl", st_cl), ("fine", st_f))}
     shared = set(sv.dlg_pool[halves[0]]) & set(sv.dlg_pool[halves[1]]) if T == "MELD" else set()
     nonshared = ~np.isin(sv.dlg_pool, list(shared)) if shared else np.ones(n, bool)
     arr = dict(y=y.astype(np.int8), cl=cl, sid=sv.sid_pool.astype(str), half=h.astype(np.int8), nonshared=nonshared,
-               marker=meta["marker"].to_numpy().astype(bool))
-    Z = {s: aligned_features(u.Xp[s]) for s in STU}
+               marker=meta["marker"].to_numpy().astype(bool), sex=sex)
+    Z, PCA = {}, {}
+    for s in STU:
+        Z[s], PCA[s] = aligned_features(u.Xp[s])
     for s in STU:
         arr[f"start__{s}"] = S.logits(u.Xp[s], *u.start[s]).argmax(1).cpu().numpy().astype(np.int8)
     rows = []
@@ -386,9 +452,15 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
             arr[f"K{K}__{split}__{ro}__{s}__{nm}__{ver}"] = full
             tg = TGT[(K, nm, ver)]
             cnt = np.bincount(tg, minlength=4)
+            if K == K_MAIN and split == "main" and ver == "true" and info.get("prob") is not None:
+                arr[f"prob__K{K}__{split}__{ro}__{s}__{nm}"] = info["prob"]
+            info = {k_: v_ for k_, v_ in info.items() if k_ != "prob"}
             rows.append(dict(T=T, fold=f, seed=r, K=K, split=split, readout=ro, student=s, target=nm, version=ver,
                              agree_halfmean=ag, agree_pooled=float(uar_present(*[x.sum(0) for x in counts(tg, full, cl)[1:]])),
-                             frac_changed=tgt_frac.get((K, nm, ver), 0.0), min_class=int(cnt.min()), **info))
+                             frac_changed=tgt_frac.get((K, nm, ver), 0.0), min_class=int(cnt.min()),
+                             n_strata_cl=int(len(nst["cl"])), share_singleton_cl=float((nst["cl"] == 1).sum() / n),
+                             n_strata_fine=int(len(nst["fine"])), share_singleton_fine=float((nst["fine"] == 1).sum() / n),
+                             **(PCA[s] if ro == "R1" else {}), **info))
 
     TGT, FRAC, R1_TRUE, R1_ALL = {}, {}, {}, {}
     for K in KS:
@@ -421,7 +493,12 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
     for s in STU:
         tg_all = R1_ALL[s]
         tg_true = {k[0]: R1_TRUE[k[0]] for k in tg_all}
-        res = fit_r1(Z[s], cl, halves, tg_true, tg_all)
+        gk = [k for k in tg_all if k[0][0] == K_MAIN and k[0][1].startswith("single_") and k[1] in ("true", "shufcl")]
+        res, curves, grid = fit_r1(Z[s], cl, halves, tg_true, tg_all, gk)
+        for (isp, hh, (K, nm)), cur in curves.items():
+            arr.setdefault(f"inner__main__{s}__K{K}__{nm}", np.zeros((2, len(GRID_C))))[hh] = cur
+        for ((K, nm), ver), ic in grid:
+            arr[f"K{K}__grid{ic}__R1__{s}__{nm}__{ver}"] = grid[(((K, nm), ver), ic)]
         for K in KS:
             add_rows(K, "R1", s, {(k[0][1], k[1]): v for k, v in res.items() if k[0][0] == K}, "main", FRAC)
     for (K, nm, ver), tg in TGT.items():
@@ -444,7 +521,9 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
             for s in STU:
                 names = [f"single_{m}" for m in "AVT" if m != s]
                 tga = {(nm, v): TGT[(K_MAIN, nm, v)] for nm in names for v in ("true", "shuf", "shufcl")}
-                outs = fit_r1_multi(Z[s], cl, hvs, {nm: TGT[(K_MAIN, nm, "true")] for nm in names}, tga)
+                outs, curves, _ = fit_r1_multi(Z[s], cl, hvs, {nm: TGT[(K_MAIN, nm, "true")] for nm in names}, tga)
+                for (isp, hh, nm), cur in curves.items():
+                    arr.setdefault(f"inner__alt{isp}__{s}__K{K_MAIN}__{nm}", np.zeros((2, len(GRID_C))))[hh] = cur
                 for ia, o in enumerate(outs):
                     add_rows(K_MAIN, "R1", s, o, f"alt{ia}", FRAC)
     df = pd.DataFrame(rows)
@@ -508,20 +587,23 @@ def Rcell(U, K, ro, s, nm, ver, subset="all", split="main"):
     return cell(U, f"K{K}__{split}__{ro}__{s}__{nm}__{ver}", f"tgt__K{K}__{nm}__{ver}", subset)
 
 
-def split_values(U: dict, K: int, terms: list) -> dict:
-    """r = 0 の単位で，元の分け方と別の分け方ごとの値 Σ coef · UAR．terms：[(読み出し, 生徒, 名前, 版, 係数)]（R1 だけ）．"""
+def split_values(U: dict, K: int, terms: list, subset: str = "all") -> dict | None:
+    """r = 0 の単位で，元の分け方と別の分け方ごとの値 Σ coef · UAR．terms：[(読み出し, 生徒, 名前, 版, 係数)]．
+    別の分け方の予測が無い項（R0，K = 25，#shuffine，J_prop）を含むなら None（分け方の揺れを足さない）．
+    部分集合 nonshared の割り当ては元の分け方のものを使う（別の分け方では共有の対話が変わるので近似．設計 4 節）．"""
     sv = {}
     for (f, r), a in U.items():
         if r != 0 or "n_alt" not in a:
             continue
         vals = []
+        m = mask_of(a, subset)
         for sp in ["main"] + [f"alt{i}" for i in range(int(a["n_alt"]))]:
             v = 0.0
             for ro, s, nm, ver, co in terms:
                 pk = f"K{K}__{sp}__{ro}__{s}__{nm}__{ver}"
                 if pk not in a:
-                    v = np.nan; break
-                c = counts(a[f"tgt__K{K}__{nm}__{ver}"], a[pk], a["cl"])
+                    return None
+                c = counts(a[f"tgt__K{K}__{nm}__{ver}"][m], a[pk][m], a["cl"][m])
                 v += co * float(uar_present(c[1].sum(0), c[2].sum(0)))
             vals.append(v)
         sv[f] = vals
@@ -538,12 +620,27 @@ PRED_DEF = {   # 予言（設計 5 節）：[(生徒, 判断の生徒, 版, 係�
 PRIMARY_3 = ("P1", "P3", "P4a")         # 言葉の判断 J_T を使う予言：主の数えは AFEW を除く 3 コーパスで 2 以上（gate-stats の 2）
 
 
+CTRL_VER = {"cl": "shufcl", "e": "shuf", "fine": "shuffine"}
+PRED_CTL = {   # 記述：対照どうしの生徒の間の差（gate-compare の 4）
+    "P1ctl": [("A", "T", "shufcl", 1), ("V", "T", "shufcl", -1)],
+    "P2ctl": [("A", "V", "shufcl", 1), ("T", "V", "shufcl", -1)],
+}
+
+
 def pred_terms(pn: str, ro: str, ctrl: str) -> list:
     out = []
-    for s, m, ver, co in PRED_DEF[pn]:
-        v = ver if ver == "true" else ("shufcl" if ctrl == "cl" else "shuf")
+    for s, m, ver, co in {**PRED_DEF, **PRED_CTL}[pn]:
+        v = ver if ver in ("true", "shufcl") and (ver == "true" or pn in PRED_CTL) else CTRL_VER[ctrl]
         out.append((ro, s, f"single_{m}", v, co))
     return out
+
+
+def fixed_c_index(csvs: pd.DataFrame) -> int:
+    """C′ を固定した感度の版で使う格子の点：そのコーパスの R1・K = 5・元の分け方・判断 J_m の行で選ばれた C′ の最頻値（同数は小さい C′）．"""
+    x = csvs[(csvs.readout == "R1") & (csvs.split == "main") & (csvs.K == K_MAIN) & csvs.target.str.startswith("single_") & (csvs.version == "true")]
+    vc = pd.concat([x.C0, x.C1]).value_counts()
+    top = vc[vc == vc.max()].index.min()
+    return int(np.argmin(np.abs(np.log10(np.array(GRID_C)) - np.log10(top))))
 
 
 def stage_summary(out: Path, targets: list) -> None:
@@ -562,6 +659,14 @@ def stage_summary(out: Path, targets: list) -> None:
         if not RUN.get("partial") and (csvs.commit.nunique() != 1 or csvs.dirty.astype(str).ne("False").any()):
             raise SystemExit(f"{T}：単位のコミットが 1 つでないか，汚れた作業木の単位がある")
         conv.append(csvs)
+        for (f, r), a in U.items():                                   # 行の数のそろい（gate-code の G6）
+            nv = 4 if T in ("IEMOCAP", "MOSEI") else 3
+            n_alt = int(a["n_alt"]) if "n_alt" in a else 0
+            exp_rows = len(KS) * len(STU) * 3 * nv * 2 + n_alt * len(STU) * 2 * 3
+            got = int(((csvs.fold == f) & (csvs.seed == r)).sum())
+            if got != exp_rows or (r == 0) != ("n_alt" in a):
+                raise SystemExit(f"{T}_f{f}_r{r}：行の数 {got}（見込み {exp_rows}）か n_alt の有無が合わない")
+        ic_fix = fixed_c_index(csvs)
         g_eff, _ = ST.g_eff_of(T)
         rng = np.random.default_rng([RNG_SEED, DD.CORPUS_ID[T]])
         subsets = ["all", "nonshared"] if T == "MELD" else ["all"]
@@ -589,22 +694,30 @@ def stage_summary(out: Path, targets: list) -> None:
                     e = combo_stats([cs], [1], g_eff, rng)
                     desc.append(dict(T=T, K=K, readout="start", student=s, target=nm, subset="all", quantity="R") | e |
                                 dict(verdict=verdict(e["lo"], e["hi"])))
-            # 予言（主：K = 5，R1，#shufcl，部分集合 all．副：R0，K = 25，#shuf，nonshared，nomarker）
-            for ro in ("R1", "R0"):
-                for ctrl in ("cl", "e"):
+            # 予言（主：K = 5，R1，#shufcl，部分集合 all．副：R0，K = 25，#shuf，#shuffine，nonshared，nomarker，C′ の固定）
+            ctrls = ("cl", "e", "fine") if T in ("IEMOCAP", "MOSEI") else ("cl", "e")
+            ro_list = ("R1", "R0") + ((f"R1fixC",) if K == K_MAIN else ())
+            for ro in ro_list:
+                for ctrl in ctrls:
                     for subset in subsets + ["nomarker"]:
-                        for pn in PRED_DEF:
-                            if ctrl == "e" and pn in ("P1", "P2"):
+                        if ro == "R1fixC" and (ctrl != "cl" or subset != "all"):
+                            continue
+                        for pn in list(PRED_DEF) + list(PRED_CTL):
+                            if ctrl != "cl" and pn in ("P1", "P2", "P1ctl", "P2ctl"):
                                 continue
-                            terms = pred_terms(pn, ro, ctrl)
-                            cells_ = []
-                            for ro_, s, nm, ver, co in terms:
-                                cells_.append(Rcell(U, K, ro_, s, nm, ver, subset))
-                            spv = split_values(U, K, terms) if (K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all") else None
+                            if ro == "R1fixC":
+                                terms = pred_terms(pn, "R1", ctrl)
+                                cells_ = [cell(U, f"K{K}__grid{ic_fix}__R1__{s}__{nm}__{ver}", f"tgt__K{K}__{nm}__{ver}") for _, s, nm, ver, co in terms]
+                                spv = None
+                            else:
+                                terms = pred_terms(pn, ro, ctrl)
+                                cells_ = [Rcell(U, K, ro_, s, nm, ver, subset) for ro_, s, nm, ver, co in terms]
+                                spv = split_values(U, K, terms, subset) if (K == K_MAIN and ro == "R1") else None
                             e = combo_stats(cells_, [t[-1] for t in terms], g_eff, rng, split_vals=spv)
-                            preds.append(dict(T=T, K=K, readout=ro, control=ctrl, subset=subset, prediction=pn) | e |
-                                         dict(verdict=verdict(e["lo"], e["hi"]),
-                                              primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all")))
+                            preds.append(dict(T=T, K=K, readout=ro, control=ctrl, subset=subset, prediction=pn,
+                                              fixC=(GRID_C[ic_fix] if ro == "R1fixC" else np.nan)) | e |
+                                         dict(verdict=verdict(e["lo"], e["hi"]), verdict_ns=verdict(e["lo_ns"], e["hi_ns"]),
+                                              primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all" and pn in PRED_DEF)))
             # 記述：3 条件の表の評価の回の版（R0 は生徒の作り，R1 はそろえた読み出し）と判断の当たり方
             for s in STU:
                 cN = {k: counts(a["y"][a[f"nk__K{K}"]], a[f"none__K{K}__{s}"][a[f"nk__K{K}"]], a["cl"][a[f"nk__K{K}"]]) for k, a in U.items()}
@@ -625,21 +738,28 @@ def stage_summary(out: Path, targets: list) -> None:
         dai1.Corpus.cache.pop(T, None)
     D = pd.DataFrame(desc); P = pd.DataFrame(preds); C = pd.DataFrame(cond); CV = pd.concat(conv)
     crit = []
-    for (K, ro, ctrl, subset), x in P.groupby(["K", "readout", "control", "subset"]):
+    PP = P[P.prediction.isin(list(PRED_DEF))]
+    for (K, ro, ctrl, subset), x in PP.groupby(["K", "readout", "control", "subset"]):
         for pn, xx in x.groupby("prediction"):
-            ab = set(xx[xx.verdict == "上回る"]["T"])
-            if subset == "all" and "MELD" in ab:                        # MELD：共有の対話を除いた版で判定が違えば「上回る」に数えない（gate-leak の 4）
-                alt = P[(P.K == K) & (P.readout == ro) & (P.control == ctrl) & (P.subset == "nonshared") & (P.prediction == pn) & (P["T"] == "MELD")]
-                if len(alt) and alt.verdict.iloc[0] != "上回る":
-                    ab.discard("MELD")
-            if pn in PRIMARY_3:
-                pool = [t for t in xx["T"] if t != "AFEW"]; need = 2
-            else:
-                pool = list(xx["T"]); need = 3
-            n_ab = len([t for t in pool if t in ab])
-            crit.append(dict(K=K, readout=ro, control=ctrl, subset=subset, prediction=pn, n_above=n_ab, n_pool=len(pool), need=need,
-                             hit=n_ab >= need, n_above_all4=len(ab), n_below=int((xx.verdict == "下回る").sum()),
-                             primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all")))
+            row = dict(K=K, readout=ro, control=ctrl, subset=subset, prediction=pn,
+                       primary=bool(K == K_MAIN and ro == "R1" and ctrl == "cl" and subset == "all"))
+            for col, sfx in (("verdict", ""), ("verdict_ns", "_ns")):
+                ab = set(xx[xx[col] == "上回る"]["T"])
+                if subset == "all" and "MELD" in ab:                    # MELD：共有の対話を除いた版で判定が違えば「上回る」に数えない
+                    alt = PP[(PP.K == K) & (PP.readout == ro) & (PP.control == ctrl) & (PP.subset == "nonshared") & (PP.prediction == pn) & (PP["T"] == "MELD")]
+                    if len(alt) and alt[col].iloc[0] != "上回る":
+                        ab.discard("MELD")
+                if pn in PRIMARY_3:
+                    pool = [t for t in xx["T"] if t != "AFEW"]; need = 2
+                else:
+                    pool = list(xx["T"]); need = 3
+                if ctrl == "fine":                                      # 細かい層は IEMOCAP・MOSEI だけ：記述（数えの規則を当てない）
+                    need = np.nan
+                n_ab = len([t for t in pool if t in ab])
+                row |= {f"n_above{sfx}": n_ab, f"n_below{sfx}": int((xx[xx["T"].isin(pool)][col] == "下回る").sum()),
+                        f"hit{sfx}": (bool(n_ab >= need) if np.isfinite(need) else None), f"n_above_all4{sfx}": len(ab)}
+            row |= dict(n_pool=len(pool), need=need)
+            crit.append(row)
     CR = pd.DataFrame(crit)
     tag = dict(commit=RUN["commit"], dirty=RUN["dirty"])
     for name, df in (("descriptive", D), ("predictions", P), ("criteria", CR), ("conditions", C)):
@@ -650,7 +770,21 @@ def stage_summary(out: Path, targets: list) -> None:
                                            for v in ("shuf", "shufcl", "shuffine") if (CV.version == v).any()},
                   C_chosen_counts={str(k): int(v) for k, v in pd.concat([CV.get("C0", pd.Series(dtype=float)),
                                                                           CV.get("C1", pd.Series(dtype=float))]).value_counts().items()})
+    conv_s["inner_grad_max"] = float(CV.inner_grad.max()) if "inner_grad" in CV else np.nan
+    conv_s["inner_stalled_max"] = int(CV.inner_stalled.max()) if "inner_stalled" in CV else 0
     json.dump(conv_s, open(sdir / "convergence.json", "w"), ensure_ascii=False, indent=1)
+    # 仮定の印（設計 8 節）：C′ が格子の端に選ばれた割合，入れ替えで目標が変わった割合の平均
+    r1 = CV[(CV.readout == "R1") & (CV.version == "true")]
+    asm = []
+    for (T, K, split, st_, tg), x in r1.groupby(["T", "K", "split", "student", "target"]):
+        cc = pd.concat([x.C0, x.C1])
+        asm.append(dict(kind="C_edge", T=T, K=K, split=split, student=st_, target=tg, share_low=float((cc == GRID_C[0]).mean()),
+                        share_high=float((cc == GRID_C[-1]).mean()), flag=bool(max((cc == GRID_C[0]).mean(), (cc == GRID_C[-1]).mean()) > EDGE_SHARE)))
+    sh = CV[(CV.version != "true") & (CV.readout == "R0")].drop_duplicates(["T", "fold", "seed", "K", "target", "version"])
+    for (T, K, tg, ver), x in sh.groupby(["T", "K", "target", "version"]):
+        asm.append(dict(kind="frac_changed", T=T, K=K, target=tg, version=ver, frac_mean=float(x.frac_changed.mean()),
+                        frac_min=float(x.frac_changed.min()), flag=bool(x.frac_changed.mean() < FRAC_LOW)))
+    pd.DataFrame(asm).assign(**tag).to_csv(sdir / "assumptions.csv", index=False)
     print(json.dumps({k: conv_s[k] for k in ("n_rows", "n_units", "grad_max", "n_stalled")}, ensure_ascii=False))
 
 
@@ -700,15 +834,28 @@ def selftest() -> None:
     hv = dai3.pool_halves(clv)
     halves = [np.flatnonzero(hv == 0), np.flatnonzero(hv == 1)]
     for case, X_ in (("neg", np.c_[3 * E[yv], rng.normal(size=(n, d - 4))]), ("pos", np.c_[3 * E[yv], 3 * E[J], rng.normal(size=(n, d - 8))])):
-        Zt = aligned_features(torch.as_tensor(X_))
+        Zt, _ = aligned_features(torch.as_tensor(X_))
         Js, _ = shuffle_within(J, yv.astype(str), [9, 9])
-        res = fit_r1(Zt, clv, halves, {"j": J}, {("j", "true"): J, ("j", "shuf"): Js})
+        res, _, _ = fit_r1(Zt, clv, halves, {"j": J}, {("j", "true"): J, ("j", "shuf"): Js})
         D = res[("j", "true")][1] - res[("j", "shuf")][1]
         if case == "neg":
-            assert abs(D) < 5, D
+            assert abs(D) < 3, D
         else:
             assert D > 15, D
-    print("selftest：11 項目すべて通った")
+    # 合成の対照（#shufcl）：判断が（感情と，塊をまたいで共通な属性 g（性別の代わり））だけで決まり，特徴も g を持つとき，
+    # 感情だけの入れ替えでは D > 0，（感情，塊，g）の中の入れ替えでは D ≈ 0
+    gv = rng.integers(0, 2, n)
+    Jg = np.where(rng.random(n) < 0.7, np.where(gv == 1, 3, 0), yv)
+    Xg = np.c_[3 * E[yv], 3 * gv[:, None], rng.normal(size=(n, d - 5))]
+    Zt, _ = aligned_features(torch.as_tensor(Xg))
+    Je, _ = shuffle_within(Jg, yv.astype(str), [7, 7])
+    stg = np.char.add(np.char.add(np.char.add(yv.astype(str), "|"), clv), np.char.add("|", gv.astype(str)))
+    Jc, fr_ = shuffle_within(Jg, stg, [7, 8])
+    res, _, _ = fit_r1(Zt, clv, halves, {"j": Jg}, {("j", "true"): Jg, ("j", "shuf"): Je, ("j", "shufcl"): Jc})
+    De = res[("j", "true")][1] - res[("j", "shuf")][1]
+    Dc = res[("j", "true")][1] - res[("j", "shufcl")][1]
+    assert De > 3 and abs(Dc) < 1.5 and fr_ > 0.15, (De, Dc, fr_)
+    print("selftest：12 項目すべて通った")
 
 
 # ------------------------------------------------------------------ main
