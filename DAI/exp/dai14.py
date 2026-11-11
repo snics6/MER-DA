@@ -543,7 +543,9 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path) -> pd.DataFrame | No
                 for ia, o in enumerate(outs):
                     add_rows(K_MAIN, "R1", s, o, f"alt{ia}", FRAC)
     for kk in [k for k in arr if k.startswith("prob__")]:            # 確率の鍵の数と，argmax が同じ名前の予測と一致すること
-        if not (arr[kk].astype(np.float32).argmax(1) == arr["K" + kk[len("prob__K"):]]).mean() > 0.999:
+        pf = arr[kk].astype(np.float32); pk = arr["K" + kk[len("prob__K"):]].astype(int)
+        gap = pf.max(1) - pf[np.arange(len(pk)), pk]                 # float16 の丸めで同点になった発話は許す
+        if not (gap <= 1e-3).all():
             raise SystemExit(f"{base.name}：{kk} の確率の argmax が予測と合わない")
     n_prob = len([k for k in arr if k.startswith("prob__")])
     n_prob_exp = 2 * len(STU) * 3 * (3 + int(has_fine) + int(has_age))
