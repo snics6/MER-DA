@@ -1,0 +1,4 @@
+tol=1e-06: |alone-saved|=0.0068 |alone-unit|=0.0000 n_pred_diff_vs_unit=0 grad=8.6e-07
+tol=1e-08: |alone-saved|=0.0068 |alone-unit|=0.0000 n_pred_diff_vs_unit=0 grad=9.5e-09
+tol=1e-10: |alone-saved|=0.0068 |alone-unit|=0.0000 n_pred_diff_vs_unit=0 grad=8.8e-11
+|unit-saved|=0.0068  n_candidates=14908
