@@ -1,0 +1,317 @@
+%% B．先行研究（スライド 6〜13）
+%% 出典の確かめの水準は research_notes の調べ直しに従う（judge_型1・型2・型6，先行研究_Albanieの後続研究_2026-11-04，
+%% 先行研究_ラベルの代わりとしての他モダリティ_2026-11-03/report_C，先行研究_非線形に読める分_2026-11-09）．
+%% 先行研究の数（ACL-MER，TelME，Zhang 2021）は論文の表の値で，本研究の結果ファイルの値ではない．
+\setband{\T{先行研究}{Related work}}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ソースのコーパスを混ぜる：ターゲットのラベルが少ないほど gain が大きい}{Mixing source corpora helps most when target labels are few}}
+\begin{columns}[T]
+\begin{column}{0.42\textwidth}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[srcbox, minimum width=2.6cm, minimum height=1.4cm] (s) at (0,0.9) {\T{ソースの全発話}{\EN}\\[-2pt]{\tiny\T{（ラベル付き，数百〜数万本）}{\EN}}};
+  \node[tgtbox, minimum width=2.6cm, minimum height=0.7cm] (k) at (0,-0.5) {\T{ターゲットの K 本}{\EN}};
+  \node[big, fill=white, minimum width=2.3cm, minimum height=2.2cm] (m) at (3.4,0.2) {\T{1 つの}{\EN}\\\T{学習データ}{\EN}\\[-2pt]{\tiny\T{（合併）}{\EN}}};
+  \node[big, fill=cLearn!10, draw=cLearn, minimum width=1.5cm] (c) at (5.6,0.2) {\T{分類器}{\EN}};
+  \draw[arr] (s.east) -- (m); \draw[arr] (k.east) -- (m); \draw[arr] (m) -- (c);
+  \node[font=\scriptsize, align=left, anchor=north west] at (-1.3,-1.15) {\textcolor{mGood}{\textbf{\T{K が小さい}{\EN}}}\T{：ターゲットだけで学ぶより良い}{\EN}\\\textcolor{mBad}{\textbf{\T{K が大きい}{\EN}}}\T{：gain が小さくなり，負になる組もある}{\EN}};
+\end{tikzpicture}
+\end{adjustbox}
+\end{column}
+\begin{column}{0.56\textwidth}
+\refcard{Chen \& Yu 2023 (Interspeech)}{\T{音声感情．ソース 4 つの全組み合わせで中間学習．新しい話者のラベルが少ないほど gain が大きく，IEMOCAP を含む組は 32・64 本で損}{SER; intermediate training on all subsets of 4 sources. Gains are largest with the fewest new-speaker labels; subsets with IEMOCAP hurt at 32--64 labels}}
+\refcard{Blitzer et al. 2007 (NIPS)}{\T{理論．ターゲットが多いとソースは要らなくなり，最適なターゲットの重みは大きくなる}{Theory: with enough target data the source becomes unnecessary; the optimal target weight grows}}
+\end{column}
+\end{columns}
+\gap{\T{混ぜた gain が，どの誤り（答えの偏りか，重みの向きか）を直しているか}{Which error does the mixing gain fix: the bias or the weight direction?}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ラベル無しで答えの偏りを引くと，成績が上がる}{Removing the output bias without labels works}}
+\begin{columns}[T]
+\begin{column}{0.44\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  % 偏った予測の割合
+  \foreach \h/\c [count=\i from 0] in {1.9/eNeu, 0.7/eHap, 0.5/eSad, 0.35/eAng} {\fill[\c] (0.42*\i,0) rectangle (0.42*\i+0.32,\h);}
+  \node[font=\scriptsize, align=center] at (0.79,-0.35) {\T{予測が 1 つの}{predictions skewed}\\\T{感情に偏る}{to one emotion}};
+  \draw[arr] (1.95,0.8) -- node[above, font=\tiny, align=center]{\T{ラベル無しの}{subtract the}\\\T{平均を引く}{unlabeled mean}} (3.35,0.8);
+  \foreach \c [count=\i from 0] in {eNeu, eHap, eSad, eAng} {\fill[\c] (3.55+0.42*\i,0) rectangle (3.55+0.42*\i+0.32,0.85);}
+  \node[font=\scriptsize, align=center] at (4.34,-0.35) {\T{偏りが消える}{bias removed}\\ };
+\end{tikzpicture}
+\notreal
+\end{column}
+\begin{column}{0.54\textwidth}
+\refcard{Zhou et al. 2024, Batch Calibration (ICLR)}{\T{LLM の文脈内学習と CLIP．ラベル無しのバッチの平均のクラス点数を引いて偏りを直す．ラベルで補正の強さを学んでも gain はわずか}{In-context learning and CLIP: subtract the mean class score of an unlabeled batch. Learning the correction from labels adds only slight gains}}
+\refcard{Saerens et al. 2002; Lipton et al. 2018}{\T{ラベルシフト：ラベル無しのデータでクラスの割合（切片）を推して直す}{Label shift: estimate and correct class priors (the intercept) from unlabeled data}}
+\end{column}
+\end{columns}
+\gap{\T{少数のラベルの gain のうち，ラベル無しの補正で置き換えられる分を感情認識で測った研究は見つからなかった}{We found no study measuring how much of the few-label gain a label-free correction replaces in emotion recognition}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ラベル無しで分類器を合わせ込む手法は，音声感情では安定しない}{Label-free adaptation of the classifier is unstable for speech emotion}}
+\begin{columns}[T]
+\begin{column}{0.44\textwidth}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[big, fill=cSrc, minimum width=2.6cm] (m) at (0,1.3) {\T{ソースで学んだ}{source-trained}\\\T{分類器}{classifier}};
+  \node[big, fill=white, minimum width=2.6cm] (u) at (0,-0.2) {\T{ターゲットの}{target}\\\T{ラベル無しの発話}{unlabeled clips}};
+  \node[big, fill=cLearn!10, draw=cLearn, minimum width=2.8cm, align=center] (a) at (4.1,0.55) {\T{エントロピー最小化}{entropy min.}\\\T{疑似ラベル，DANN など}{pseudo-labels, DANN, ...}};
+  \draw[arr] (m.east) -- (a); \draw[arr] (u.east) -- (a);
+  \node[font=\Large\bfseries, mGood] (up) at (6.9,1.15) {↑};
+  \node[font=\Large\bfseries, mBad] (dn) at (6.9,-0.05) {↓};
+  \draw[arr] (a.east) -- (up.west); \draw[arr] (a.east) -- (dn.west);
+  \node[font=\scriptsize, mMuted, align=center] at (6.9,-0.75) {\T{設定で}{depends on}\\\T{逆になる}{the setting}};
+\end{tikzpicture}}
+\end{column}
+\begin{column}{0.54\textwidth}
+\refcard{Dong, Jia, Dang 2026 (ICASSP)}{\T{音声感情のテスト時適応 11 手法（IEMOCAP↔RAVDESS）．どの手法も一様には勝たない．エントロピー最小化と疑似ラベルは多くの設定でソースのみ以下}{11 test-time adaptation methods for SER (IEMOCAP↔RAVDESS): no method wins uniformly; entropy minimization and pseudo-labeling are often at or below source-only}}
+\refcard{Oliver et al. 2018 (NeurIPS)}{\T{画像．事前学習したネットの微調整は，半教師あり 5 手法のどれより良かった．ラベル無しに別のクラスが混ざると，使わないより悪くなることがある}{Images: fine-tuning a pretrained network beat all 5 semi-supervised methods; unlabeled data with mismatched classes can hurt}}
+\end{column}
+\end{columns}
+\gap{\T{上がらないとき，どの誤りが残っているのか}{When they fail, which error remains?}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ほかのモダリティの予測を疑似ラベルにして学ぶ（クロスモーダル蒸留）}{Learning from another modality's predictions (cross-modal distillation)}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \icface{0,1.0} \icvoice{0,-0.4}
+  \node[font=\tiny, mMuted] at (0,-1.0) {\T{ラベル無しの動画}{unlabeled videos}};
+  \node[big, fill=cMod, minimum width=1.9cm, font=\scriptsize] (fm) at (2.3,1.0) {\T{顔の感情モデル}{face emotion model}\\\T{（学習済み）}{(pretrained)}};
+  \draw[arr] (0.45,1.0) -- (fm);
+  % 予測（疑似ラベル）
+  \foreach \h/\c [count=\i from 0] in {0.2/eNeu, 0.75/eHap, 0.12/eSad, 0.1/eAng} {\fill[\c] (3.75+0.28*\i,0.7) rectangle (3.75+0.28*\i+0.2,0.7+\h);}
+  \node[font=\tiny, align=center] at (4.2,0.4) {\T{予測＝疑似ラベル}{prediction = pseudo-label}};
+  \draw[arr] (fm.east) -- (3.65,1.0);
+  \node[big, fill=cLearn!10, draw=cLearn, minimum width=1.9cm, font=\scriptsize] (vm) at (2.3,-0.4) {\T{声の分類器を学ぶ}{train the voice model}};
+  \draw[arr] (0.75,-0.4) -- (vm);
+  \draw[arr] (4.2,0.2) |- (vm.east);
+\end{tikzpicture}
+\notreal
+\end{column}
+\begin{column}{0.52\textwidth}
+\refcard{Albanie et al. 2018 (ACM MM)}{\T{顔の表情モデルの予測を疑似ラベルにして，声のネットを学ぶ（VoxCeleb．声の感情ラベルは使わない）}{Train a voice network on a face model's predictions (VoxCeleb; no voice emotion labels)}}
+\refcard{Gong et al. 2023, LanSER (Interspeech)}{\T{言葉から LLM で作った弱いラベルで声のモデルを事前学習し，ラベルの効率を上げる}{Pretrain speech models on LLM-derived weak labels from text; better label efficiency}}
+\refcard{Zhang et al. 2021 (KBS)}{\T{IEMOCAP で顔と声の予測を混ぜた疑似ラベル：UA 62.50（ラベルだけ 59.43）}{IEMOCAP with mixed face--voice pseudo-labels: UA 62.50 (labels only 59.43)}}
+\end{column}
+\end{columns}
+\gap{\T{K を 0〜数十本と変え，コーパスをまたいで測った例は見つからなかった}{No study varies target labels from 0 to tens across corpora}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ただし，ラベルが多いと gain は消え，弱いモダリティの予測では下がる}{But the gain vanishes with many labels, and a weak modality can hurt}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering
+{\scriptsize\bfseries ACL-MER 2025\enspace\mdseries MER2023, \T{正解率}{accuracy} (\%)}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.0cm, ybar, bar width=12pt, ymin=0, ymax=100, enlarge x limits=0.45,
+  symbolic x coords={k100,k1000}, xtick=data, xticklabels={\T{ラベル 100 本}{100 labels}, \T{ラベル 1000 本}{1000 labels}},
+  nodes near coords, every node near coord/.append style={font=\tiny}, ytick={0,50,100},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\tiny, legend columns=2}]
+\addplot[fill=cOther, draw=cOther] coordinates {(k100,43.2) (k1000,82.6)};
+\addplot[fill=mAccentBlue, draw=mAccentBlue] coordinates {(k100,67.4) (k1000,81.9)};
+\legend{\T{疑似ラベルなし}{without}, \T{疑似ラベルあり}{with pseudo-labels}}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.46\textwidth}
+\centering
+{\scriptsize\bfseries TelME 2024\enspace\mdseries IEMOCAP, \T{言葉の分類器，重みつき F1}{text classifier, weighted F1}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.0cm, ybar, bar width=16pt, ymin=0, ymax=100, enlarge x limits=0.6,
+  symbolic x coords={none,audio}, xtick=data, xticklabels={\T{蒸留なし}{no KD}, \T{声から蒸留}{KD from voice}},
+  nodes near coords, every node near coord/.append style={font=\tiny}, ytick={0,50,100}]
+\addplot[fill=kT, draw=kT] coordinates {(none,66.6) (audio,57.4)};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\gap{\T{いつ上がり，いつ上がらないかを決める量を実データで測った研究は見つからなかった}{We found no study measuring, on real data, what decides when it helps}}
+\fnote{\T{数は各論文の表から（ACL-MER：Zhuang ほか 2025 の表 3．TelME：Yun ほか 2024 の表 6）．本研究の値ではない}{Numbers from the papers' tables (ACL-MER: Zhuang et al. 2025, Table 3; TelME: Yun et al. 2024, Table 6); not our results}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{理論の予言①：向きは別の見方の予測で決まり，ずれるのは閾値だけ}{Theory 1: another view fixes the direction; only the threshold shifts}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[big, fill=cMod, minimum width=4.2cm, font=\scriptsize] (a) at (0,1.6) {\T{見方 A（例：顔）の弱い予測}{weak predictor on view A (e.g., face)}};
+  \node[big, fill=white, minimum width=4.2cm, font=\scriptsize] (b) at (0,0.5) {\T{見方 B にとっては，誤りの入ったラベル}{= noisy labels for view B}};
+  \node[big, fill=cLearn!10, draw=cLearn, minimum width=4.2cm, font=\scriptsize] (c) at (0,-0.6) {\T{B の向きは正しく学べる．ずれるのは閾値}{B learns the right direction; only the threshold shifts}};
+  \node[big, fill=cTgt, minimum width=4.2cm, font=\scriptsize] (d) at (0,-1.7) {\T{閾値は中心化かラベル 1 本で直す}{fix the threshold by centering or one label}};
+  \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d);
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.52\textwidth}
+\refcard{Blum \& Mansour 2017 (COLT)}{\T{2 つの見方の線形分類器．データの重心を原点に置く（中心化）と，ラベル無しのデータとラベル 1 本で学べる}{Co-training linear separators: with centered data, unlabeled data plus one label suffice}}
+\refcard{Natarajan et al. 2013 (NIPS); Menon et al. 2015 (ICML)}{\T{クラスに依存する誤りの入ったラベルでは，分類器の向きは変わらず，閾値だけが動く（2 クラス）}{Under class-conditional label noise the classifier direction is preserved and only the threshold moves (binary)}}
+\end{column}
+\end{columns}
+\gap{\T{この分業が，条件つき独立が保証されない感情認識の実データで起きるか}{Does this division of labor hold on real emotion data, without conditional independence?}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{理論の予言②：移るのは共通の手がかりだけで，gain はラベルの節約}{Theory 2: only shared cues transfer, and the gain is label savings}}
+\begin{columns}[T]
+\begin{column}{0.44\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \fill[kV, opacity=0.18] (-0.65,0) circle (1.25);
+  \fill[kA, opacity=0.18] (0.65,0) circle (1.25);
+  \draw[kV, line width=1pt] (-0.65,0) circle (1.25);
+  \draw[kA, line width=1pt] (0.65,0) circle (1.25);
+  \node[font=\scriptsize, kV, align=center] at (-1.35,0) {\T{顔だけの}{face-only}\\\T{手がかり}{cues}};
+  \node[font=\scriptsize, kA, align=center] at (1.35,0) {\T{声だけの}{voice-only}\\\T{手がかり}{cues}};
+  \node[font=\scriptsize\bfseries, align=center] at (0,0) {\T{共通}{shared}};
+  \node[font=\scriptsize, mGood, align=center] at (0,-1.6) {\T{顔→声の蒸留で移るのは共通の部分だけ}{only the shared part transfers face → voice}};
+\end{tikzpicture}
+\notreal
+\end{column}
+\begin{column}{0.54\textwidth}
+\refcard{Xue et al. 2023, Modality Focusing Hypothesis (ICLR)}{\T{クロスモーダル蒸留で移るのは，両方のモダリティに共通の判別の手がかりだけ．教師の正解率は生徒の成績を決めない．共通の割合は人工データでだけ動かした}{Only modality-general decisive cues transfer; teacher accuracy does not determine student accuracy. The shared fraction was varied only on synthetic data}}
+\refcard{Lee et al. 2021 (NeurIPS)}{\T{別の見方を予測して学んだ表現でも，線形の読み出しなら，gain は必要なラベルの数の側にだけ出る}{With a linear readout, predicting another view only reduces the number of labels needed}}
+\end{column}
+\end{columns}
+\gap{\T{実データで，移る分と移らない分を測った研究は見つからなかった}{No study measures what transfers and what does not on real data}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{分かっていること，分かっていないこと}{What is known, and what is not}}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\T{情報源}{Source} & \T{上がるか}{Does it help?} & \T{どの誤りを直すか}{Which error does it fix?} & \T{実データで，なぜか}{Why, on real data?} \\
+\midrule
+\T{① 少数のラベル}{(1) few labels} & \textcolor{mGood}{\checkmark} & \textcolor{cAsk}{\textbf{?}} & \textcolor{cAsk}{\textbf{?}} \\
+\T{② ソースのコーパス}{(2) source corpora} & \textcolor{mGood}{\checkmark}\ {\tiny Chen \& Yu} & \textcolor{cAsk}{\textbf{?}} & \textcolor{cAsk}{\textbf{?}} \\
+\T{③ ラベル無しの発話}{(3) unlabeled clips} & \T{偏りの補正は}{bias fix} \textcolor{mGood}{\checkmark}\T{，適応は不安定}{; adaptation unstable} & {\scriptsize \T{理論の予言だけ}{theory only}} & \textcolor{cAsk}{\textbf{?}} \\
+\T{④ ほかのモダリティ}{(4) other modalities} & \textcolor{mGood}{\checkmark}\ {\tiny Albanie} & {\scriptsize \T{理論の予言だけ}{theory only}} & {\scriptsize \T{人工データだけ}{synthetic only}} \\
+\bottomrule
+\end{tabular}
+\vspace{0.8em}
+\band{cAsk}{\T{問い}{Question}}{\T{4 つの情報源は，それぞれどの誤り（答えの偏りか，重みの向きか）を直すか．提案の gain は，どこまで移るか}{Which error (output bias or weight direction) does each source fix, and how far does the distillation gain transfer?}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-11 追加：23 ページへの質問（研究者「もっと横軸まとめましょう．モダリティ別に何が分かっているか，何が報告されているか」）への答え 6 枚
+% 出どころ：research_notes/先行研究_モダリティ別_2026-11-11/report.md（手元の記録だけから抜き出した．ウェブは検索していない）
+\providecommand{\nf}[1]{\textcolor{mMuted}{\textit{#1}}}
+\begin{frame}{\T{モダリティ別に見た先行研究：上がるかの報告は声と融合に偏る}{\EN}}
+\centering
+\fontsize{7.5}{9}\selectfont
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{}p{0.08\linewidth}p{0.19\linewidth}p{0.21\linewidth}p{0.21\linewidth}p{0.21\linewidth}@{}}
+\toprule
+ & \T{① 少数のラベル}{\EN} & \T{② ソースを混ぜる}{\EN} & \T{③ ラベル無しの発話}{\EN} & \T{④ ほかのモダリティの予測}{\EN} \\
+\midrule
+\textcolor{kA}{\textbf{\T{声}{\EN}}} & \T{ソースで中間学習した gain は K が小さいほど大きい．1 本での微調整は多くの場合に負の転移}{\EN} & \T{コーパス間で大きく落ちる．混ぜると上がる組と下がる組}{\EN} & \T{正規化は効く．適応の手法は安定しない}{\EN} & \T{上がる例（Albanie ほか）と下がる例がある}{\EN} \\
+\textcolor{kV}{\textbf{\T{顔}{\EN}}} & \nf{\T{同じ設定は見つからなかった}{\EN}} & \T{コーパス間で大きく落ちる．合併が単一ソースを下回る例}{\EN} & \T{同じ手法で上がる組と下がる組がある}{\EN} & \T{生徒にすると下がる例と上がる例がある}{\EN} \\
+\textcolor{kT}{\textbf{\T{言葉}{\EN}}} & \nf{\T{調べていない}{\EN}} & \nf{\T{調べていない}{\EN}} & \T{感情に限らない偏りの補正だけ}{\EN}\nf{\T{（感情は調べていない）}{\EN}} & \T{声の教師で下がる例．疑似ラベルで言葉を学ぶ例は見つからなかった}{\EN} \\
+\textbf{\T{融合}{\EN}} & \T{声＋言葉で K を振ると上がる．顔を含むコーパス間のものは見つからなかった}{\EN} & \T{コーパス間で大きく落ち，融合の上積みは小さい}{\EN} & \T{予測の割合をそろえると上がる}{\EN} & \T{MER2023 ではラベルが少ないと上がり，多いと下がる（MELD ではどのラベル数でも下がる）}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{切片か向きかを分けた研究は，声と融合では見つからず，顔と言葉は調べが少ない}{\EN}}
+\fnote{\T{灰色の斜体：「見つからなかった」は調べたが無かった欄，「調べていない」は調べの範囲の外の欄．詳細は次の 4 ページ．出どころ：research\_notes/先行研究\_モダリティ別\_2026-11-11/report.md}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{声：報告は 4 つの情報源ともあるが，誤りを分けた研究は見つからなかった}{\EN}}
+\centering
+\tiny
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.14\linewidth}p{0.55\linewidth}p{0.25\linewidth}@{}}
+\toprule
+\T{情報源}{\EN} & \T{報告されていること}{\EN} & \nf{\T{見つからなかったこと}{\EN}} \\
+\midrule
+\T{① 少数のラベル}{\EN} & \T{新しい話者のラベルが少ないほど，ソースで中間学習した gain が大きい（Chen \& Yu 2023）．話者・感情あたり 1 本で微調整すると多くの場合に負の転移（Feng \& Chaspari，TAC）．凍結した wav2vec2 ＋ロジスティック回帰の能動学習は，K が大きいとランダムとの差が消える（CTIAL，TAC 2024）}{\EN} & \nf{\T{クラスあたり K を振り，凍結特徴＋線形で UAR を出した研究}{\EN}} \\
+\T{② ソースを混ぜる}{\EN} & \T{コーパス間で大きく落ち，自然発話へはほぼ偶然の水準（Schuller 2010）．凍結した最終層では多くの組が 40〜50\%（EmoBox 2024）．合併で正解率の平均 +7.1（Milner 2019．論文は UA と WA の呼び方が逆）．CREMA-D を足すと悪化（Pastor 2023）}{\EN} & \nf{\T{ソースの価値をターゲットのラベルの本数で表した研究}{\EN}} \\
+\T{③ ラベル無し}{\EN} & \T{話者ごとの正規化が最も良い（Schuller 2010，Pepino 2021）．テスト時適応の 11 手法はどれも一様には勝たず，エントロピー最小化と疑似ラベルは概して効かない（Dong 2026）}{\EN} & \nf{\T{凍結した SSL 特徴に DANN・CORAL を使った研究．SSL 特徴でのコーパスごとの正規化}{\EN}} \\
+\T{④ ほかのモダリティ}{\EN} & \T{顔の予測で声を学ぶ（Albanie 2018．RML で生徒 49.7\%，顔の教師 72.6\%）．顔と声を混ぜた疑似ラベルで IEMOCAP の UA 62.50（ラベルだけ 59.43．Zhang 2021）．言葉から作った弱いラベル（LanSER 2023）．Albanie 型の確率の蒸留が下がった例（Hajavi \& Etemad 2024．ラベルのある学習に足したとき，RAVDESS のコーパス内）}{\EN} & \nf{\T{Albanie 型で K を振った研究}{\EN}} \\
+\bottomrule
+\end{tabular}
+\msg{\T{声は最も研究が多い．ただし誤りを切片と向きに分けた研究は見つからなかった}{\EN}}
+\fnote{\T{数は各論文の値で，本研究の値ではない．Schuller 2010 は原本を取得しておらず拡張要旨で代えた．Dong 2026 は会場（ICASSP か arXiv か）と数の書き方が記録の間で揃っていない（p.~\pageref{prior:unchecked}）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{顔：少数のラベルの報告は見つからず，疑似ラベルの効果は組で上下する}{\EN}}
+\centering
+\tiny
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.14\linewidth}p{0.55\linewidth}p{0.25\linewidth}@{}}
+\toprule
+\T{情報源}{\EN} & \T{報告されていること}{\EN} & \nf{\T{見つからなかったこと}{\EN}} \\
+\midrule
+\T{① 少数のラベル}{\EN} & \T{コーパスの中のラベル効率だけ（MARLIN：MOSEI でラベル 100\% で 80.60，1\% で 78.61）．cross-domain few-shot FER は新しいクラスを学ぶ別の問題}{\EN} & \nf{\T{顔を含むコーパス間で少数のラベルを使う研究}{\EN}} \\
+\T{② ソースを混ぜる}{\EN} & \T{7 表情でコーパス内 63.83\% がコーパス間で 39.40\%（ECAN 2019）．2 ソースの合併 76.96 が良い方の単一ソース 80.96 を下回る（Turnbull 2026）}{\EN} & \nf{\T{顔で得が小さい理由を分析した研究}{\EN}} \\
+\T{③ ラベル無し}{\EN} & \T{SHOT の効果が組によって +11.34 にも −14.25 にもなる（Turnbull 2026）．クラス分布の違いが疑似ラベルを悪くする（Wang \& Liu，TAC 2025）．怒りが悲しみに流れる誤りをクラスの割合のずれで説明（ECAN）}{\EN} & \nf{\T{凍結した特徴の上の半教師ありの DA}{\EN}} \\
+\T{④ ほかのモダリティ}{\EN} & \T{顔を生徒にすると下がる例（TelME の IEMOCAP：22.06 → 18.85，MST-Distill の声の教師：0.7472 → 0.7035）と上がる例（TelME の MELD の言葉の教師：36.14 → 36.72，MST-Distill の融合の教師：0.7521）がある．移るのは両モダリティに共通の手がかりだけ（Xue 2023．共通の割合は人工データでだけ動かした）}{\EN} & \\
+\bottomrule
+\end{tabular}
+\msg{\T{顔は，ほかのモダリティから学ぶと下がる例と上がる例があり，どちらとも言えない}{\EN}}
+\fnote{\T{数は各論文の値．顔の表情のコーパス（CK+ など）の報告を含み，感情のコーパスの顔だけではない．ECAN は arXiv 版で読んだ}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{言葉：調べた範囲が狭く，少数のラベルとコーパス間の報告は確かめていない}{\EN}}
+\centering
+\tiny
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.14\linewidth}p{0.55\linewidth}p{0.25\linewidth}@{}}
+\toprule
+\T{情報源}{\EN} & \T{報告されていること}{\EN} & \nf{\T{見つからなかった・調べていないこと}{\EN}} \\
+\midrule
+\T{① 少数のラベル}{\EN} & \T{少数のラベルを閾値の調整だけに使う（Olah 2021．GoEmotions → SemEval）．ターゲットが十分あればソースは要らない（Blitzer 2007．感情極性の理論）}{\EN} & \nf{\T{言葉のカテゴリの感情で K を振った研究（調べていない）}{\EN}} \\
+\T{② ソースを混ぜる}{\EN} & \T{翻訳すると感情の情報が失われやすい（MERBench）．感情極性で，合併が最良の単一ソースを下回る例（Guo 2018：84.79 対 85.51）}{\EN} & \nf{\T{言葉のカテゴリの感情のコーパス間の劣化（調べていない）}{\EN}} \\
+\T{③ ラベル無し}{\EN} & \T{ラベル無しのバッチの平均を引いて偏りを直す（Batch Calibration 2024．LLM と CLIP で，感情に限らない）}{\EN} & \nf{\T{感情の言葉でのテスト時適応・ラベルシフトの補正（調べていない）}{\EN}} \\
+\T{④ ほかのモダリティ}{\EN} & \T{声の教師で言葉の生徒が下がる（TelME：IEMOCAP で 66.6 → 57.42）．ただしラベルつきでコーパス内}{\EN} & \nf{\T{声や顔の疑似ラベルで言葉を学んだ研究（調べたが見つからなかった）}{\EN}} \\
+\bottomrule
+\end{tabular}
+\msg{\T{言葉の欄の空白は，報告が無いことではなく，この研究が調べていないことを示す}{\EN}}
+\fnote{\T{数は各論文の値．TelME の蒸留なしの値は記録によって 66.60 と 66.57 がある}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{融合：少数のラベルと疑似ラベルの報告はあるが，顔を含むコーパス間の報告は少ない}{\EN}}
+\centering
+\tiny
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.14\linewidth}p{0.55\linewidth}p{0.25\linewidth}@{}}
+\toprule
+\T{情報源}{\EN} & \T{報告されていること}{\EN} & \nf{\T{見つからなかったこと}{\EN}} \\
+\midrule
+\T{① 少数のラベル}{\EN} & \T{声＋言葉（エンコーダを微調整），MELD → IEMOCAP で，クラスあたり K = 0, 5, 10, 20, 60 のとき UA 62.2，64.4，67.7，68.7，75.9（M4SER 2025）．声＋顔，コーパス内の区分でターゲットの 10\%（Li ほか 2021）}{\EN} & \nf{\T{顔を含むコーパス間で K を振った研究．凍結特徴の線形で K-shot}{\EN}} \\
+\T{② ソースを混ぜる}{\EN} & \T{IEMOCAP・MOSEI・MELD・AFEW で，ほかのコーパスでの UAR は 15.5〜47.3\%．多コーパスで学ぶと +1.7〜+6.6．MOSEI が最も合わない（Ryumina 2025）．融合の上積みはコーパス間では小さい（MERBench）}{\EN} & \nf{\T{ずれのもとで融合の得を調べた研究}{\EN}} \\
+\T{③ ラベル無し}{\EN} & \T{3 モダリティの教師なし DA で，予測の割合をソースに合わせる（Amanda 2024：7 組の平均 49.20 → 56.73）．競技会の疑似ラベルで WAF +0.4〜+1.9（MER-SEMI）}{\EN} & \nf{\T{3 モダリティの半教師ありの DA，カテゴリの感情での 3 モダリティのテスト時適応}{\EN}} \\
+\T{④ ほかのモダリティ}{\EN} & \T{MLLM の予測を疑似ラベルにすると，MER2023 ではラベル 100 本で大きく上がり 1000 本で下がり，MELD ではどのラベル数でも下がる（ACL-MER 2025．コーパス内）．単モダリティの教師で，融合の生徒が教師を超える（MKE 2021．RAVDESS）}{\EN} & \nf{\T{単モダリティの予測の積を参照に使う研究}{\EN}} \\
+\bottomrule
+\end{tabular}
+\msg{\T{本研究と同じ 4 コーパスの報告（Ryumina 2025）は，エンコーダを微調整している}{\EN}}
+\fnote{\T{数は各論文の値．M4SER は話者を分けたか・何回くり返したかの記述が無い．Ryumina 2025 も話者の分け方の記述が無い}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{この整理で確かめていないこと}{\EN}}
+\label{prior:unchecked}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{調べの範囲}：手元の調べ直しのノートから抜き出しただけで，この整理のためにウェブで調べ直していない．言葉の ①〜③ と，顔の ③ の凍結特徴の上の線形の手法は，調べの範囲の外か，見つからなかった欄である
+\item \textbf{記録の間の食い違い}：ACL-MER の表 3 の指標が，記録によって「正解率」（0.432／0.674）と「重みつき F1」（0.4042／0.6626）に分かれる．20 ページの図はこのうち正解率の値で描いており，原典で確かめていない．TelME の値も記録によって 66.60 と 66.57 がある
+\item \textbf{会場と読んだ水準}：Dong 2026 は ICASSP とする記録と arXiv とする記録があり，数の書き方（片側 +6.0，正解率 +3.1）も揃っていない．Schuller 2010 は原本を取得していない．18 ページの Oliver 2018 は，今回読んだ記録では出典の行を確かめていない
+\item \textbf{「見つからなかった」の重さ}：各ノートの「見つからなかった」は，そのノートの検索の範囲での判定で，存在しないことの証明ではない
+\end{itemize}}{\EN}
+\msg{\T{論文の関連研究の節に使う前に，食い違いのある文献は原典で確かめる}{\EN}}
+\fnote{\T{出どころ：research\_notes/先行研究\_モダリティ別\_2026-11-11/report.md の 4 節・5 節}{\EN}}
+\end{frame}

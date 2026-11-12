@@ -1,0 +1,477 @@
+%% E．結果の後半：ほかのモダリティの予測を使う提案（スライド 26〜34）
+%% 数の出どころ：全ソース設定 results/e79/judge/units.csv（P5-*），results/e79_p4/judge/units.csv（P4）．
+%% LOCO 設定 results/dai1/stats/families_flagged.csv（評価の回 ba98974）．scripts/export_figdata.py が書き出す．英語は後で訳す（\EN）
+\setband{\T{学び直しの式}{\EN}}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{学び直しの式：4 つの情報源は，式のどの項に入るか}{\EN}}
+\centering
+\resizebox{0.94\linewidth}{!}{$\displaystyle
+\min_{W,\,b}\;
+\underbrace{\frac{1}{|\mathcal{L}|}\sum_{(x,y)\in\mathcal{L}} \ell\big(Wx+b,\;y\big)}_{\textcolor{eAng}{\text{\T{① K 本の損失}{\EN}}}}
+\;+\;
+\underbrace{\lambda\,\|W-W_0\|^2+\lambda_b\,\|b-b_0\|^2}_{\textcolor{mAccentBlue}{\text{\T{② 出発点 $(W_0, b_0)$ への L2 正則化}{\EN}}}}
+\;+\;
+\underbrace{\frac{\mu}{|\mathcal{U}|}\sum_{x\in\mathcal{U}} \ell\big(Wx+b,\;q(x)\big)}_{\textcolor{kV}{\text{\T{④ 疑似ラベル $q$ の損失}{\EN}}}}
+$}
+\vspace{0.3em}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textcolor{eAng}{\textbf{①}}：ターゲットの K 本 × 4 感情（$\mathcal{L}$）の交差エントロピー
+\item \textcolor{mAccentBlue}{\textbf{②}}：出発点はソースで学んだ分類器（K = 0 の分類器）．$\lambda$，$\lambda_b$ はメタ学習で選ぶ
+\end{itemize}}{\EN}
+\end{column}
+\begin{column}{0.5\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textcolor{kT}{\textbf{③}}：特徴 $x$ から，ターゲットのラベル無しの発話（$\mathcal{U}$）の平均を引く（LOCO 設定では標準偏差でも割る）
+\item \textcolor{kV}{\textbf{④}}：$q(x)$ は LOCO 設定では声・顔・言葉の分類器の確率の積（全ソース設定では出所と重みの付け方を候補から選ぶ．p.~\pageref{prop:def}）．$\mu$ はメタ学習で選ぶ
+\end{itemize}}{\EN}
+\end{column}
+\end{columns}
+\msg{\T{後半では，$\mu = 0$（K 本だけ）と $\mu > 0$（提案）を比べる}{\EN}}
+\fnote{\T{どの設定のどの学び方でどの項を使うかは，次のページの表}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{どの設定で，どの学び方に，どの項を使うか}{\EN}}
+\centering
+{\footnotesize \textcolor{eAng}{\T{① K 本の損失}{\EN}}\quad \textcolor{mAccentBlue}{\T{② ソース}{\EN}}\quad \textcolor{kT}{\T{③ ラベル無しの発話の平均を引く}{\EN}}\quad \textcolor{kV}{\T{④ 疑似ラベルの損失}{\EN}}\par}
+\vspace{0.15em}
+\scriptsize
+\renewcommand{\arraystretch}{1.05}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.16\linewidth}p{0.19\linewidth}p{0.035\linewidth}p{0.22\linewidth}p{0.035\linewidth}p{0.22\linewidth}@{}}
+\toprule
+\T{学び方}{\EN} & \T{設定（使う部）}{\EN} & \textcolor{eAng}{①} & \textcolor{mAccentBlue}{②} & \textcolor{kT}{③} & \textcolor{kV}{④} \\
+\midrule
+\T{ターゲットのみ}{\EN} & \T{単一ソース（前半）}{\EN} & ○ & — & — & — \\
+\T{ソースのみ}{\EN} & \T{単一ソース（前半）}{\EN} & — & \T{ソースの全発話で学ぶ}{\EN} & — & — \\
+\T{合併}{\EN} & \T{単一ソース（前半）}{\EN} & ○ & \T{① にソースの全発話を足す}{\EN} & — & — \\
+\T{平均を引く}{\EN} & \T{単一ソース（前半）}{\EN} & — & \T{ソースのみの分類器}{\EN} & ○ & — \\
+\midrule
+\T{K 本だけ（基準）}{\EN} & \T{全ソース，LOCO（後半）}{\EN} & ○ & \T{出発点への L2 正則化}{\EN} & ○ & —（$\mu = 0$） \\
+\textbf{\T{提案}{\EN}} & \T{全ソース，LOCO（後半）}{\EN} & ○ & \T{出発点への L2 正則化}{\EN} & ○ & \T{ほかのモダリティを含む予測}{\EN} \\
+\T{8 手法（比べる相手）}{\EN} & \T{全ソース（後半）}{\EN} & ○ & \T{出発点への L2 正則化}{\EN} & ○ & \T{手法ごとの項（同じモダリティ）}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{前半は学ぶデータの組み合わせを，後半は ④ の有無と中身を比べる}{\EN}}
+\fnote{\T{出発点：全ソース設定ではターゲット以外の全コーパスで学んだ分類器，LOCO 設定ではソースのコーパスごとの分類器の平均．8 手法の T3A とラベル伝播は予測を作り直す操作}{\EN}}
+\end{frame}
+
+\setband{\T{結果の後半：ほかのモダリティの予測を使う提案}{\EN}}
+\pgfplotsset{
+  corpx/.style={xtick={1,2,3,4}, xticklabels={AFEW, IEMOCAP, MELD, MOSEI}, xticklabel style={font=\scriptsize}, xmin=0.5, xmax=4.5},
+  jbar/.style={xbar stacked, bar width=13pt, xmin=0, xmax=100, axis x line*=bottom, axis y line*=left, y axis line style={draw=none}, ytick style={draw=none},
+    xtick={0,25,50,75,100}, xticklabel style={font=\scriptsize},
+    nodes near coords={\pgfmathprintnumber[fixed, precision=0]{\pgfplotspointmeta}}, every node near coord/.append style={font=\tiny},
+    point meta=explicit},
+}
+
+% ---------------------------------------------------------------------
+% 2026-11-11 追加：提案とは何かを 1 枚で（研究者「今何が提案手法かよくわからん」）
+\begin{frame}{\T{提案：同じ発話の複数のモダリティの予測から疑似ラベルを作り，学び直す}{\EN}}
+\label{prop:def}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{0.2\linewidth}p{0.75\linewidth}@{}}
+\toprule
+\T{使うもの}{\EN} & \T{ターゲットの K 本のラベル，ターゲットのラベル無しの発話（複数のモダリティがそろうもの），ソースで学んだ分類器（出発点）}{\EN} \\
+\T{LOCO 設定の版（本番）}{\EN} & \T{疑似ラベルは声・顔・言葉の 3 つの分類器の確率の積で，感情ごとの総量をそろえる（次のページ）．K 本と疑似ラベルで声・顔・言葉・融合の分類器を学び直す．設定はメタ学習で選んで固定し，ほとんど既定値が選ばれた}{\EN} \\
+\T{全ソース設定の版（探索）}{\EN} & \T{疑似ラベルの出所と重みの付け方を，条件ごとに仮のターゲットで候補から選ぶ．\N{oxn} の選択のうち，出所は各モダリティの分類器の積が \N{oxprod}，融合の分類器の予測が \N{oxpfk}，一致で重みをつけた版が \N{oxagree}．重みは総量をそろえる \N{oxbal}，確信度で切る \N{oxhard}，確率そのまま \N{oxraw}．AV の組では声と顔の 2 つの積}{\EN} \\
+\T{比べる相手}{\EN} & \T{K 本だけ（疑似ラベルの項が無い版．学び直しの式の $\mu = 0$），同じモダリティのラベル無しの発話を使う 8 手法（全ソース設定），標準の適応の手法（LOCO 設定）}{\EN} \\
+\T{提案ではないもの}{\EN} & \T{「なぜ上がるか」の下調べでは，疑似ラベルの出所を替えて比べる．中間層の下調べの疑似ラベルは顔と言葉の 2 つの積で，提案の疑似ラベルとは違う}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{疑似ラベルは，ほかのコーパスのデータを足すのではなく，同じ発話の複数のモダリティの予測（学び直す分類器自身のモダリティを含む）から作る}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{提案の作り方（LOCO 設定の版）：3 つの予測の積を疑似ラベルにする}{\EN}}
+\hosoku{supp:pseudo}{\T{疑似ラベルの数値例}{\EN}}
+\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.64\textheight}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  % ① 融合の分類器を K 本だけで学ぶ
+  \node[font=\scriptsize\bfseries, align=center, text width=3.0cm, anchor=south] at (1.2,2.75) {\T{① 融合の分類器を K 本だけで学び，候補の発話に予測を付ける}{\EN}};
+  \foreach \c [count=\r from 0] in {eNeu,eHap,eSad,eAng} {\foreach \i in {0,1,2} {\node[utt, fill=\c, draw=white, minimum size=2mm] at (0.55+0.27*\i,2.3-0.27*\r) {};}}
+  \node[font=\tiny, anchor=west] at (1.3,1.9) {\T{K 本}{\EN}};
+  \node[big, fill=white, draw=kAVT, line width=1pt, text width=2.2cm, minimum height=0.9cm] (f) at (1.2,0.75) {\T{融合の分類器}{\EN}};
+  \draw[arr] (1.2,1.25) -- (f.north);
+  % ② 声・顔・言葉の分類器を学び直す
+  \node[font=\scriptsize\bfseries, align=center, text width=3.4cm, anchor=south] at (5.0,2.75) {\T{② 声・顔・言葉の分類器を，K 本 ＋ ① の予測で学び直す}{\EN}};
+  \node[clf, draw=kA, line width=1pt, minimum width=2.4cm, font=\small] (ca) at (5.0,2.05) {\T{声の分類器}{\EN}};
+  \node[clf, draw=kV, line width=1pt, minimum width=2.4cm, font=\small] (cv) at (5.0,1.25) {\T{顔の分類器}{\EN}};
+  \node[clf, draw=kT, line width=1pt, minimum width=2.4cm, font=\small] (ct) at (5.0,0.45) {\T{言葉の分類器}{\EN}};
+  \draw[arr] (f.east) -- (ca.west); \draw[arr] (f.east) -- (cv.west); \draw[arr] (f.east) -- (ct.west);
+  % ③ 3 つの確率を掛ける
+  \node[font=\scriptsize\bfseries, align=center, text width=2.6cm, anchor=south] at (8.3,2.75) {\T{③ 3 つの確率を掛け，感情ごとの総量をそろえる}{\EN}};
+  \node[circle, draw=mDarkTeal, fill=cMod, line width=0.9pt, minimum size=0.8cm, font=\small\bfseries] (x) at (7.75,1.25) {$\times$};
+  \draw[arr] (ca.east) -- (x); \draw[arr] (cv.east) -- (x); \draw[arr] (ct.east) -- (x);
+  \node[draw=kAV, fill=cMod, rounded corners=3pt, minimum width=1.7cm, minimum height=1.7cm] (q) at (9.5,1.25) {};
+  \node[font=\scriptsize\bfseries] at (9.5,1.85) {\T{疑似ラベル $q$}{\EN}};
+  \foreach \c/\h [count=\i from 0] in {eNeu/0.25, eHap/0.85, eSad/0.12, eAng/0.18} {\fill[\c] (8.93+0.3*\i,0.55) rectangle ++(0.22,\h);}
+  \draw[mMuted] (8.85,0.55) -- (10.15,0.55);
+  \draw[arr] (x) -- (q);
+  % ④ 4 つの分類器を学び直す
+  \node[draw=cLearn, fill=cLearn!8, rounded corners=4pt, minimum width=12.6cm, minimum height=1.55cm] (band) at (5.6,-1.35) {};
+  \node[font=\scriptsize\bfseries, anchor=north west, text width=12.2cm] at (-0.6,-0.6) {\T{④ 4 つの分類器を，出発点から K 本 ＋ $q$ で学び直す（出発点への L2 正則化つき）}{\EN}};
+  \foreach \n/\col/\xx in {\T{声}{\EN}/kA/0.9, \T{顔}{\EN}/kV/3.6, \T{言葉}{\EN}/kT/6.3, \T{融合}{\EN}/kAVT/9.0} {\node[clf, draw=\col, line width=1pt, minimum width=2.2cm, font=\small] at (\xx,-1.7) {\n};}
+  \draw[arr, line width=1.1pt] (q.south) -- (9.5,-0.55);
+\end{tikzpicture}
+\end{adjustbox}
+\msg{\T{声の分類器は，顔と言葉の分類器の予測を含む $q$ から，ラベル無しの発話で学ぶ}{\EN}}
+\fnote{\T{④の損失：K 本の交差エントロピー ＋ 候補の発話での $q$ との交差エントロピー ＋ 出発点への L2 正則化．$q$ の重み，K 本の倍率，L2 正則化の強さ，③の指数はメタ学習（次のページ）で選んで固定した．③の指数は（コーパス，K）\N{mlmainof} 個すべてで (1, 1, 1)（掛けるだけ）が選ばれた．模式図で，棒は実験の値ではない}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{メタ学習：2 つの設定で，ハイパーパラメータをソースだけで選んだ}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}p{0.15\linewidth}p{0.24\linewidth}p{0.33\linewidth}p{0.2\linewidth}@{}}
+\toprule
+\T{設定}{\EN} & \T{仮のターゲット}{\EN} & \T{メタ学習で選んだもの}{\EN} & \T{使い道}{\EN} \\
+\midrule
+\T{全ソース設定}{\EN} & \T{ソースの群を 1 つずつターゲットに見立てる}{\EN} & \T{出発点の 5 つの値：ソースの比重，縮め方，切片の罰則，重みの罰則，罰則の計量}{\EN} & \T{比べる手法の学習器（K 本だけの基準そのものを強くする）}{\EN} \\
+\T{LOCO 設定}{\EN} & \T{ソースの 3 コーパスを 1 つずつターゲットに見立て，残り 2 つをソースにする}{\EN} & \T{L2 正則化の強さ，疑似ラベルの指数，各手法のハイパーパラメータ}{\EN} & \T{固定して，評価の回で 1 回だけ使う}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{どちらも，評価のターゲットのラベルを使わずに設定を決めた}{\EN}}
+\fnote{\T{全ソース設定のメタ学習は E39（2026-10-17），LOCO 設定は DAI-1 の選ぶ段（2026-11-04）．ほかに試したメタ学習は補足 11}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{メタ学習の手順（LOCO 設定の例）}{\EN}}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[x=1cm, y=1cm, every node/.append style={font=\small}]
+  % ステップ 1
+  \node[font=\small\bfseries, mDarkTeal, anchor=west] at (-1.2,2.75) {\T{ステップ 1：仮のターゲットの回（ラベルが全部あるソースだけを使う）}{\EN}};
+  \foreach \c/\a/\b/\y in {AFEW/IEMOCAP/MELD/2.0, IEMOCAP/AFEW/MELD/1.25, MELD/AFEW/IEMOCAP/0.5} {
+    \node[srcbox, text width=2.9cm, align=center, font=\scriptsize] at (0.3,\y) {\a，\b};
+    \draw[arr] (1.9,\y) -- (2.3,\y);
+    \node[tgtbox, text width=3.4cm, align=center, font=\scriptsize] at (4.2,\y) {\T{仮のターゲット}{\EN}：\c};
+  }
+  \node[font=\tiny, mMuted] at (0.3,0.0) {\T{ソース 2 つ}{\EN}};
+  \node[font=\tiny, mMuted, align=center] at (4.2,-0.05) {\T{K 本・候補・テスト（ラベルあり）}{\EN}};
+  \node[big, fill=white, text width=4.1cm, align=left, font=\scriptsize] (sel) at (8.6,1.25) {%
+    \T{格子の各設定を 30 回（3 × 5 分割 × 2 種）の UAR の平均で比べ，最良を選ぶ．差が 2 標準誤差以内なら既定値に近い点}{\EN}};
+  \draw[arr] (6.0,1.25) -- (sel.west);
+  \node[big, fill=cLearn!10, draw=cLearn, text width=1.9cm, align=center, font=\scriptsize] (fz) at (12.2,1.25) {\T{固定して}{\EN}\\\T{コミット}{\EN}};
+  \draw[arr] (sel) -- (fz);
+  % ステップ 2
+  \draw[mMuted, dashed] (-1.2,-0.45) -- (13.4,-0.45);
+  \node[font=\small\bfseries, mDarkTeal, anchor=west] at (-1.2,-0.85) {\T{ステップ 2：評価の回（1 回だけ）}{\EN}};
+  \node[srcbox, text width=2.9cm, align=center, font=\scriptsize] at (0.3,-1.6) {AFEW，IEMOCAP，\\MELD};
+  \draw[arr] (1.9,-1.6) -- (2.3,-1.6);
+  \node[tgtbox, text width=3.4cm, align=center, font=\scriptsize] at (4.2,-1.6) {\T{評価のターゲット}{\EN}：MOSEI};
+  \node[testbox, text width=4.6cm, align=center, font=\scriptsize] at (8.6,-1.6) {\T{固定した設定で学び直し，テストで 1 回だけ評価}{\EN}};
+  \draw[arr] (6.0,-1.6) -- (6.15,-1.6);
+  \draw[arr] (fz.south) |- (11.0,-1.6);
+\end{tikzpicture}
+\end{adjustbox}
+\msg{\T{選ぶもの：L2 正則化の強さ，疑似ラベルの指数，ハイパーパラメータ}{\EN}}
+\fnote{\T{評価のターゲットのデータはステップ 1 で一切使わない（台本は評価の回の出力が 1 つでもあると止まる）．全ソース設定でも同じ手順で選んだ}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{メタ学習の結果①：全ソース設定では，出発点の 5 つの値をまとめて選ぶと上がった}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.8\linewidth, height=4.5cm, ybar, bar width=7pt, xtick={1,2,3,4}, xticklabels={K = 1, K = 5, K = 10, K = 25}, ymin=0, ymax=2.6, ymajorgrids,
+  ylabel={\T{UAR の差}{\EN}}, legend style={at={(0.98,0.98)}, anchor=north east, font=\scriptsize, legend columns=4}, enlarge x limits=0.18]
+\addplot[mark=none, fill=kA, draw=kA] table[x=x, y=a, col sep=comma, comment chars={\#}]{figures/e39_meta.csv};
+\addplot[mark=none, fill=kAH, draw=kAH] table[x=x, y=ah, col sep=comma, comment chars={\#}]{figures/e39_meta.csv};
+\addplot[mark=none, fill=kV, draw=kV] table[x=x, y=v, col sep=comma, comment chars={\#}]{figures/e39_meta.csv};
+\addplot[mark=none, fill=kAV, draw=kAV] table[x=x, y=av, col sep=comma, comment chars={\#}]{figures/e39_meta.csv};
+\legend{A, A(Hu), V, AV}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{等しい比重の出発点を，4 種類・すべての K で上回った（K = 5 で \N{emdmin}〜\N{emdmax}）}{\EN}}
+\fnote{\T{UAR の差（ポイント）．種類ごとにターゲット 6〜7 個の平均，区間なし．テストで選んだ最良との差は \N{emoramin}〜\N{emoramax}．全ソースの発話を混ぜた出発点からは K = 5 で \N{empa}〜\N{empav}．検査の仕組みを入れる前の結果（E39）．出どころ：results/explore\_relation/e39\_tests.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{メタ学習の結果②：LOCO 設定では，選ばれた設定はほとんど既定値と同じだった}{\EN}}
+\centering
+\small
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\T{選んだもの}{\EN} & \T{結果}{\EN} \\
+\midrule
+\T{疑似ラベルの 3 モダリティの指数（主の版）}{\EN} & \T{（コーパス，K）\N{mlmainof} 個すべてで (1, 1, 1)}{\EN} \\
+\T{手法の設定（選んだ版 − 選択なし）}{\EN} & \T{\N{mldefaultof} 条件中 \N{mldefault} で同じ分類器}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{結論は設定の選び方にほとんど依らない：既定値のままでも同じ分類器になる}{\EN}}
+\fnote{\T{既定値：指数 (1, 1, 1)，K 本と疑似ラベルの重みの比 1，選択の格子の既定の点．選んだ版と選択なしの差を検定に残した 40 条件は，すべて同じ分類器で差は 0．出どころ：results/dai1/stats/desc/counts.csv，results/dai1/select/frozen.json}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{全ソース設定：同じ誤りの分け方で，8 手法と提案の向きの損を比べる}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\scriptsize
+\T{%
+\begin{itemize}
+\item \textbf{出発点}：ターゲット以外の全コーパスで学んだ分類器．K 本で学び直す（出発点への L2 正則化つき）
+\item \textbf{差}：K 本だけの分類器の向きの損 − 手法の向きの損（6 対の平均．誤りの分け方の部）
+\item \textbf{8 手法}：エントロピー最小化，自己学習，IM，T3A，ラベル伝播，CORAL，DANN，MME．判定（本番）は単独のモダリティの組の A・V・T，K = 0・5（\N{wpfn} 条件）．次のページの図は，提案と同じ組・同じ出発点で測った値
+\item \textbf{提案}（全ソース設定の版）：AVT と AV のモダリティの組の単独と融合の分類器，K = 0・5・25（\N{wpftn} 条件）
+\item \textbf{条件}：（モダリティの組，分類器，K，コーパス）．どの手法も設定はメタ学習（仮のターゲット）で選ぶ
+\end{itemize}}{\EN}
+\end{column}
+\begin{column}{0.46\textwidth}
+\scriptsize
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}lp{0.62\linewidth}@{}}
+\toprule
+\T{判定}{\EN} & \T{規則（差の 95\% 区間と点の値）}{\EN} \\
+\midrule
+\textcolor{jPos}{\textbf{\T{減らした}{\EN}}} & \T{区間が 0 より上，かつ点が $\delta$ 以上}{\EN} \\
+\textcolor{jNeg}{\textbf{\T{増やした}{\EN}}} & \T{区間が 0 より下，かつ点が $-\delta$ 以下}{\EN} \\
+\T{同じ水準}{\EN} & \T{区間が $[-\delta, +\delta]$ の中}{\EN} \\
+\T{判定できない}{\EN} & \T{上のどれでもない}{\EN} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.4em}
+\T{$\delta$：K 本だけの分類器の反復の揺れの 2 倍（約 1 ポイント）．判定の規則は計算の前に固定した}{\EN}
+\end{column}
+\end{columns}
+\fnote{\T{区間は話者を単位にした 2 段の引き直し（1,000 回）．8 手法の比べは本番の判定，提案の比べは設計に使ったターゲットでの探索．どちらも主張を作ったのと同じコーパスでの値}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-11 差し替え：判定の割合の 2 枚を，向きの損の減りの値をモダリティごとに並べた 1 枚にした（判定の数は注に移した）
+\begin{frame}{\T{全ソース設定：向きの損の減りの中央値は，8 手法で負，提案で正だった}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.9\linewidth, height=4.3cm, xtick={1,2,3,4,5},
+  xticklabels={\T{声}{\EN}\\（A）, \T{顔}{\EN}\\（V）, \T{言葉}{\EN}\\（T）, \T{声と顔の融合}{\EN}\\（AV）, \T{3 つの融合}{\EN}\\（AVT）}, xticklabel style={font=\scriptsize, align=center},
+  xmin=0.45, xmax=5.55, ymin=-14, ymax=7, ymajorgrids, ylabel={\T{向きの損の減り（ポイント）}{\EN}}, ylabel style={font=\scriptsize},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\scriptsize, legend columns=4, /tikz/every even column/.append style={column sep=0.8em}}, legend cell align=left]
+\addplot[only marks, mark=*, mark size=1.1pt, cOther, opacity=0.55] table[x=x, y=y, col sep=comma, comment chars={\#}]{figures/dirval_m8.csv};
+\addplot[only marks, mark=*, mark size=1.5pt, kA] table[x=x, y=y, col sep=comma, comment chars={\#}]{figures/dirval_prop.csv};
+\addplot[only marks, mark=-, mark size=7pt, line width=2pt, black, unbounded coords=discard] table[x=xm8, y=med_m8, col sep=comma, comment chars={\#}]{figures/dirval_med.csv};
+\addplot[only marks, mark=-, mark size=7pt, line width=2pt, kA!60!black, forget plot] table[x=xprop, y=med_prop, col sep=comma, comment chars={\#}]{figures/dirval_med.csv};
+\addplot[mMuted, dashed, domain=0.45:5.55, forget plot] {0};
+\legend{\T{8 手法（各条件）}{\EN}, \T{提案（各条件）}{\EN}, \T{中央値}{\EN}}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{中央値（声・顔・言葉）：8 手法 \N{dvmedmA}・\N{dvmedmV}・\N{dvmedmT}，提案 \N{dvmedpropA}・\N{dvmedpropV}・\N{dvmedpropT}}{\EN}}
+\fnote{\T{正は向きの損が減ったこと（K 本だけの分類器 − 手法．6 対の平均．点の値）．8 手法は提案と同じ組・同じ出発点・同じテストで測った値で，提案と同じ（組，分類器，K = 0・5，コーパス）にそろえた（8 手法 \N{dvnmall}，提案 \N{dvnpropall}）．融合の分類器は DANN・MME を除く 6 手法．融合の中央値は AV \N{dvmedmAV}／\N{dvmedpropAV}，AVT \N{dvmedmAVT}／\N{dvmedpropAVT}．同じ条件の \N{dvpairn} 対のうち \N{dvpairwin} で提案の値が大きい（声は \N{dvpairnA} 対すべて）．提案は全ソース設定の版で，候補 \N{dvcandpmin}〜\N{dvcandpmax} から選ぶ（8 手法は \N{dvcandmmin}〜\N{dvcandmmax}）．提案の K = 25 は中央値 \N{dvmedproptwentyfive}（\N{dvnproptwentyfive} 条件すべてで正）．区間を使った本番の判定は前のページの族（提案 \N{wpftn} 中 \N{wpftpos} で減，8 手法 \N{wpfn} 中 \N{wpfpos}）．提案の比べは探索．出どころ：図は results/e79/judge/units.csv（P5-3，P4\_uni\_world，P4′），8 手法の判定は results/e79\_p4/judge/units.csv（P4）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{UAR でも，提案は K 本だけの分類器と 8 手法の最良を上回った}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[jbar, width=0.92\linewidth, height=3.9cm, ytick={1,2}, ymin=0.4, ymax=2.6, yticklabels={\T{対 K 本だけ}{\EN}, \T{対 8 手法の最良}{\EN}}, yticklabel style={font=\small}, xlabel={\T{条件の割合（\%）}{\EN}},
+  legend style={at={(0.5,1.04)}, anchor=south, font=\scriptsize, legend columns=4, /tikz/every even column/.append style={column sep=0.6em}}, y dir=reverse]
+\addplot[fill=jPos, draw=jPos] table[x=pos, y=y, meta=pos, col sep=comma, comment chars={\#}, restrict expr to domain={\coordindex}{0:1}]{figures/world_uar.csv};
+\addplot[fill=jSame, draw=jSame] table[x=same, y=y, meta=same, col sep=comma, comment chars={\#}, restrict expr to domain={\coordindex}{0:1}]{figures/world_uar.csv};
+\addplot[fill=jUndet, draw=jSame] table[x=undet, y=y, meta=undet, col sep=comma, comment chars={\#}, restrict expr to domain={\coordindex}{0:1}]{figures/world_uar.csv};
+\addplot[fill=jNeg, draw=jNeg] table[x=neg, y=y, meta=neg, col sep=comma, comment chars={\#}, restrict expr to domain={\coordindex}{0:1}]{figures/world_uar.csv};
+\legend{\T{上回った}{\EN}, \T{同じ水準}{\EN}, \T{判定できない}{\EN}, \T{下回った}{\EN}}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{下回った条件は，K 本だけに対して \N{wpftuneg}，8 手法の最良に対して \N{wpftwoneg}}{\EN}}
+\fnote{\T{条件の数：対 K 本だけ 上回った \N{wpftupos}・下回った \N{wpftuneg}．対 8 手法の最良（仮のターゲットで選んだ手法）上回った \N{wpftwopos}・下回った \N{wpftwoneg}．全 \N{wpftn} 条件．出どころ：results/e79/judge/units.csv（P5-3u，P5-2）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-10 追加：後半の結果を前半の 2 つのずれで読む（物差しの模式図）
+\begin{frame}{\T{提案の UAR の上がり幅を，前半と同じ 2 つのずれの減りに分ける}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=0.8cm]
+  \fill[cOther!35] (0,0) rectangle (1.1,1.3);
+  \fill[cCrit!35] (0,1.3) rectangle (1.1,2.0);
+  \fill[kA!45] (2.3,0) rectangle (3.4,2.7);
+  \fill[cCrit!35] (2.3,2.7) rectangle (3.4,3.0);
+  \node[font=\scriptsize] at (0.55,0.65) {UAR};
+  \node[font=\scriptsize] at (2.85,1.35) {UAR};
+  \draw[cSame, dashed, line width=1pt] (-1.9,3.9) -- (4.6,3.9);
+  \node[font=\tiny, cSame, anchor=south east] at (4.6,3.92) {\T{全ラベルで学んだ分類器}{\EN}};
+  \draw[cDisc, line width=1pt, decorate, decoration={brace, amplitude=4pt}] (-0.1,2.0) -- (-0.1,3.9) node[midway, left=5pt, font=\scriptsize, align=right] {\T{向きの}{\EN}\\\T{ずれ}{\EN}};
+  \draw[cDisc, line width=1pt, decorate, decoration={brace, amplitude=4pt}] (3.5,3.9) -- (3.5,3.0) node[midway, right=5pt, font=\scriptsize, align=left] {\T{向きの}{\EN}\\\T{ずれ}{\EN}};
+  \draw[cCrit, line width=1pt, decorate, decoration={brace, amplitude=3pt}] (-0.1,1.3) -- (-0.1,2.0) node[midway, left=4pt, font=\scriptsize] {\T{切片のずれ}{\EN}};
+  \draw[cCrit, line width=1pt, decorate, decoration={brace, amplitude=2pt}] (3.5,3.0) -- (3.5,2.7) node[midway, right=4pt, font=\scriptsize] {\T{切片のずれ}{\EN}};
+  \node[font=\small] at (0.55,-0.35) {\T{K 本だけ}{\EN}};
+  \node[font=\small] at (2.85,-0.35) {\T{提案}{\EN}};
+\end{tikzpicture}
+\notreal
+\end{column}
+\begin{column}{0.48\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textcolor{cCrit}{\textbf{切片のずれ}}：重みはそのままで，切片だけをテストの発話のラベルで解き直すと取り戻せる UAR
+\item \textcolor{cDisc}{\textbf{向きのずれ}}：解き直した後も，全ラベルで学んだ分類器との間に残る UAR の差
+\item 提案の UAR の上がり幅（提案 − K 本だけ）は，\textcolor{cDisc}{向きのずれの減り}と\textcolor{cCrit}{切片のずれの減り}の和になる
+\end{itemize}}{\EN}
+\end{column}
+\end{columns}
+\msg{\T{前半の 2 つのずれを，後半では UAR のポイントで測って足し合わせる}{\EN}}
+\fnote{\T{向きのずれの減り ＝ 切片を解き直した後の UAR の差（提案 − K 本だけ）．切片は感情の釣り合いの重みをつけた交差エントロピーで解く．足し算の形は 2 つの設定で同じだが，全ソース設定はテスト全体で解いて同じテストで測り，LOCO 設定はテストを 2 組に分けて交差に解く．「向き」と呼ぶための物差しの確かめは LOCO 設定にだけある．前半の対の模型の値とは尺度が違う．解き直しにテストのラベルを使うので，それぞれの切片のずれは大きめに出うる．差に入る偏りの向きは測っていない}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{全ソース設定：提案の UAR の上がり幅の \N{wdshareall}\% は，向きのずれの減りだった}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\linewidth, height=4.5cm, ybar, bar width=7pt, xtick={1,2,3,4,5},
+  xticklabels={\T{声}{\EN}\\（A）, \T{顔}{\EN}\\（V）, \T{言葉}{\EN}\\（T）, \T{声と顔の融合}{\EN}\\（AV）, \T{3 つの融合}{\EN}\\（AVT）}, xticklabel style={font=\scriptsize, align=center},
+  xmin=0.5, xmax=5.5, ymin=-0.3, ymax=4.6, ymajorgrids, ylabel={\T{提案 − K 本だけ（UAR）}{\EN}},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\scriptsize, legend columns=3, /tikz/every even column/.append style={column sep=1em}}, legend cell align=left]
+\addplot[mark=none, fill=cOther!60, draw=cOther] table[x=ci, y=total, col sep=comma, comment chars={\#}]{figures/split_world.csv};
+\addplot[mark=none, fill=cDisc, draw=cDisc] table[x=ci, y=dir, col sep=comma, comment chars={\#}]{figures/split_world.csv};
+\addplot[mark=none, fill=cCrit, draw=cCrit] table[x=ci, y=pos, col sep=comma, comment chars={\#}]{figures/split_world.csv};
+\legend{\T{UAR の上がり幅}{\EN}, \T{向きのずれの減り}{\EN}, \T{切片のずれの減り}{\EN}}
+\node[font=\scriptsize\bfseries, cDisc] at (axis cs:1,4.2) {\N{wdshareA}\%};
+\node[font=\scriptsize\bfseries, cDisc] at (axis cs:2,4.2) {\N{wdshareV}\%};
+\node[font=\scriptsize\bfseries, cDisc] at (axis cs:3,4.2) {\N{wdshareT}\%};
+\node[font=\scriptsize\bfseries, cDisc] at (axis cs:4,4.2) {\N{wdshareAV}\%};
+\node[font=\scriptsize\bfseries, cDisc] at (axis cs:5,4.2) {\N{wdshareAVT}\%};
+\end{axis}
+\end{tikzpicture}
+\msg{\T{\N{wdn} 条件の平均：上がり幅 \N{wdtotall} ＝ 向き \N{wddirall} ＋ 切片 \N{wdposall}}{\EN}}
+\fnote{\T{上の数は上がり幅のうち向きのずれの減りの割合．条件ごとの点の値の平均で，区間は無い（この量は区間を作らず判定に使わないと計算の前に決めた）．提案の疑似ラベルは学び直す分類器自身のモダリティも含むので，この減りをほかのモダリティだけに帰すことはできない（条件の数：A \N{wdnA}，V \N{wdnV}，T \N{wdnT}，AV \N{wdnAV}，AVT \N{wdnAVT}．K = 0・5・25）．向きのずれの減りが正の条件は \N{wdn} 中 \N{wddirposn}．提案の比べは設計に使ったターゲットでの探索．出どころ：results/e79/judge/units.csv（P5-3u，P5-3\_desc\_bfix，P5-3\_desc\_ofix）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{LOCO 設定：メタ学習で設定を固定し，評価は 1 回だけ}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \foreach \n/\x in {AFEW/0, IEMOCAP/1.9, MELD/3.8} {\node[srcbox, minimum width=1.75cm, minimum height=0.9cm] at (\x,1.4) {\n\\[-2pt]{\tiny\T{分類器だけを渡す}{\EN}}};}
+  \node[tgtbox, minimum width=3.0cm, minimum height=0.9cm] (t) at (1.9,-0.3) {\T{ターゲット}{\EN}：MOSEI};
+  \draw[arr] (1.9,0.9) -- (t);
+  \node[font=\scriptsize, align=center, mDarkTeal] at (1.9,-1.35) {\T{4 コーパスを順にターゲットにする}{\EN}\\\T{設定はメタ学習で選んで固定する}{\EN}};
+\end{tikzpicture}
+\end{adjustbox}
+\end{column}
+\begin{column}{0.52\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item ソースはデータではなく，コーパスごと・モダリティごとの線形分類器として渡す．出発点はその平均
+\item 特徴はコーパスごとに標準化する
+\item K ∈ \{0, 1, 5, 10, 25\}（検定の族は 0・5・25）．5 分割 × 10 種 ＝ 50 回の反復
+\item 区間：テストのクラスタの jackknife ＋ 種の項（MOSEI はクラスタの引き直し）．Holm はコーパスごとの族
+\item 検出力が足りると評価の前に判定した条件だけを検定する（\N{locells} 条件中 \N{locellstest}）．残りは区間つきの記述
+\end{itemize}}{\EN}
+\end{column}
+\end{columns}
+\fnote{\T{計算の前に，検査役と査読想定の 2 役（機械学習，感情認識）の OK を得た．手法の形は評価と同じ 4 コーパスで作ったので，p 値は確認の検定ではない}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{本番でも，声の分類器は 4 コーパスすべてで上がった}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.7\linewidth, height=4.4cm, corpx, ymin=-1, ymax=8, ymajorgrids, ylabel={\T{提案 − K 本だけ（UAR）}{\EN}},
+  legend style={at={(0.5,1.03)}, anchor=south, font=\scriptsize, legend columns=3, /tikz/every even column/.append style={column sep=1em}}]
+\addplot[sK0] table[x=x0, y=y0, y error plus=ep0, y error minus=em0, col sep=comma, comment chars={\#}]{figures/fone_A.csv};
+\addplot[sK5] table[x=x5, y=y5, y error plus=ep5, y error minus=em5, col sep=comma, comment chars={\#}]{figures/fone_A.csv};
+\addplot[sK25] table[x=x25, y=y25, y error plus=ep25, y error minus=em25, col sep=comma, comment chars={\#}]{figures/fone_A.csv};
+\addplot[mMuted, dashed, domain=0.5:4.5] {0};
+\legend{K = 0, K = 5, K = 25}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{12 条件すべてで正，\N{foneloa} 条件で区間の下端が 0 より上（\N{fonemina}〜\N{fonemaxa} ポイント）}{\EN}}
+\fnote{\T{検定に残ったのは MOSEI の 3 条件（Holm 後 p < 0.001）と MELD の K = 0・5（\N{fonemeldpzero}，\N{fonemeldpfive}）．ほかは評価の前に記述に回した条件．IEMOCAP は即興の対話だけで，テストと候補が筋書きの話題を共有する．出どころ：results/dai1/stats/families\_flagged.csv（族 1）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-10 追加：本番の上がり幅を前半の 2 つのずれに分ける（声，K = 5）
+\begin{frame}{\T{本番でも，声の分類器の UAR の上がり幅の大部分は向きのずれの減りだった}{\EN}}
+\hosoku{supp:splitloco}{\T{4 分類器・K = 5, 25 の全表}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.8\linewidth, height=4.5cm, ybar, bar width=8pt, corpx, ymin=-2, ymax=8, ymajorgrids, ylabel={\T{提案 − K 本だけ（UAR）}{\EN}},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\scriptsize, legend columns=3, /tikz/every even column/.append style={column sep=1em}}, legend cell align=left]
+\addplot[mark=none, fill=cOther!60, draw=cOther, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=ci, y=total, y error plus=tep, y error minus=tem, col sep=comma, comment chars={\#}]{figures/split_loco_a.csv};
+\addplot[mark=none, fill=cDisc, draw=cDisc, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=ci, y=dir, y error plus=dep, y error minus=dem, col sep=comma, comment chars={\#}]{figures/split_loco_a.csv};
+\addplot[mark=none, fill=cCrit, draw=cCrit] table[x=ci, y=pos, col sep=comma, comment chars={\#}]{figures/split_loco_a.csv};
+\addplot[mMuted, dashed, domain=0.5:4.5, forget plot] {0};
+\legend{\T{UAR の上がり幅}{\EN}, \T{向きのずれの減り}{\EN}, \T{切片のずれの減り}{\EN}}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{向きのずれの減りは \N{lsdirminfive}〜\N{lsdirmaxfive}，切片のずれの減りは \N{lsposmin}〜\N{lsposmax}（K = 5）}{\EN}}
+\fnote{\T{LOCO 設定の評価の回．ひげは 95\% 区間（切片のずれの減りは区間を保存していない）．上がり幅（前のページの値）に占める向きのずれの減り：AFEW \N{lsshareAFEW}\%（区間は 0 を含む），IEMOCAP \N{lsshareIEMOCAP}\%（提案で切片のずれが増えた），MELD \N{lsshareMELD}\%，MOSEI \N{lsshareMOSEI}\%．表示の桁では和が 0.1 合わないことがある．向きのずれ（K 本だけ → 提案）：AFEW \N{lsdirnoneAFEW} → \N{lsdirpropAFEW}，IEMOCAP \N{lsdirnoneIEMOCAP} → \N{lsdirpropIEMOCAP}，MELD \N{lsdirnoneMELD} → \N{lsdirpropMELD}，MOSEI \N{lsdirnoneMOSEI} → \N{lsdirpropMOSEI}．K = 5・25 の \N{lsan} 条件中 \N{lsapos} で向きのずれの減りの区間が 0 より上（\N{lsadirmin}〜\N{lsadirmax}）．声は 4 コーパスとも物差しの確かめに合格した．提案の疑似ラベルは声自身の予測も含む．IEMOCAP はテストと候補が筋書きの話題を共有する．出どころ：results/dai3/eval/decomp.csv，expl1.csv，families\_flagged.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{言葉・顔・融合の分類器も，上がるコーパスがあった}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=3 by 1, horizontal sep=1.0cm}, width=0.37\linewidth, height=4.4cm, corpx, xticklabel style={font=\tiny, rotate=30, anchor=east},
+  ymin=-5, ymax=11, ymajorgrids]
+\nextgroupplot[title={\T{言葉}{\EN}（T）}, title style={font=\small}, ylabel={\T{提案 − K 本だけ}{\EN}}]
+\addplot[sK0] table[x=x0, y=y0, y error plus=ep0, y error minus=em0, col sep=comma, comment chars={\#}]{figures/fone_T.csv};
+\addplot[sK5] table[x=x5, y=y5, y error plus=ep5, y error minus=em5, col sep=comma, comment chars={\#}]{figures/fone_T.csv};
+\addplot[sK25] table[x=x25, y=y25, y error plus=ep25, y error minus=em25, col sep=comma, comment chars={\#}]{figures/fone_T.csv};
+\addplot[mMuted, dashed, domain=0.5:4.5] {0};
+\nextgroupplot[title={\T{顔}{\EN}（V）}, title style={font=\small}]
+\addplot[sK0] table[x=x0, y=y0, y error plus=ep0, y error minus=em0, col sep=comma, comment chars={\#}]{figures/fone_V.csv};
+\addplot[sK5] table[x=x5, y=y5, y error plus=ep5, y error minus=em5, col sep=comma, comment chars={\#}]{figures/fone_V.csv};
+\addplot[sK25] table[x=x25, y=y25, y error plus=ep25, y error minus=em25, col sep=comma, comment chars={\#}]{figures/fone_V.csv};
+\addplot[mMuted, dashed, domain=0.5:4.5] {0};
+\nextgroupplot[title={\T{融合}{\EN}（AVT）}, title style={font=\small}]
+\addplot[sK0] table[x=x0, y=y0, y error plus=ep0, y error minus=em0, col sep=comma, comment chars={\#}]{figures/fone_AVT.csv};
+\addplot[sK5] table[x=x5, y=y5, y error plus=ep5, y error minus=em5, col sep=comma, comment chars={\#}]{figures/fone_AVT.csv};
+\addplot[sK25] table[x=x25, y=y25, y error plus=ep25, y error minus=em25, col sep=comma, comment chars={\#}]{figures/fone_AVT.csv};
+\addplot[mMuted, dashed, domain=0.5:4.5] {0};
+\end{groupplot}
+\end{tikzpicture}
+\msg{\T{言葉は IEMOCAP，顔は MOSEI（K = 25），融合は MELD で上がった}{\EN}}
+\fnote{\T{「上がった」＝区間の下端が 0 より上．融合は MOSEI の K = 25 でも上がった．灰色の丸 K = 0，青の四角 K = 5，紺の三角 K = 25．言葉の IEMOCAP の gain は，筋書きの話題の共有と分けられない．顔の IEMOCAP は 3 つの K で負（区間は 0 を含む）．出どころ：results/dai1/stats/families\_flagged.csv（族 1）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% ほかの手法との比べの格子を描く命令（figures/cmp_loco.tex が呼ぶ）
+\def\cw{1.8}\def\rh{0.37}\def\xz{6.3}
+\newcommand{\cmpy}[1]{\pgfmathsetmacro\yy{0.55 + #1*\rh + 0.3*(#1>5) + 0.3*(#1>10) + 0.3*(#1>12)}}
+\newcommand{\cmpcell}[5]{\cmpy{#2}\pgfmathsetmacro\xx{\xz + #1*\cw}\pgfmathtruncatemacro\pc{round(80*#3/#5)}%
+  \fill[jPos!\pc!white] (\xx,\yy) rectangle ++(\cw-0.06,\rh-0.05);%
+  \ifnum\pc>50 \def\tc{white}\else\def\tc{black}\fi
+\node[font=\scriptsize, text=\tc] at (\xx+0.5*\cw-0.03,\yy+0.5*\rh-0.025) {#3/#5\ifnum#4>0 \,\textcolor{jNeg}{\textbf{↓#4}}\fi};}
+\newcommand{\cmpna}[2]{\cmpy{#2}\pgfmathsetmacro\xx{\xz + #1*\cw}\fill[jInact] (\xx,\yy) rectangle ++(\cw-0.06,\rh-0.05);\node[font=\scriptsize, mMuted] at (\xx+0.5*\cw-0.03,\yy+0.5*\rh-0.025) {—};}
+\newcommand{\cmplab}[2]{\cmpy{#1}\node[font=\scriptsize, anchor=east] at (\xz-0.1,\yy+0.5*\rh-0.025) {#2};}
+\newcommand{\cmpgroup}[3]{\cmpy{#1}\node[font=\scriptsize\bfseries, text=mDarkTeal, anchor=west] at (0.2,\yy-0.15) {#3};}
+\begin{frame}{\T{ほかの手法との比べ（LOCO 設定）：声の分類器は，どの手法にも下回らなかった}{\EN}}
+\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.6\textheight}
+\begin{tikzpicture}[x=1cm, y=-1cm]
+  \foreach \n [count=\c from 0] in {\T{声}{\EN}（A）, \T{顔}{\EN}（V）, \T{言葉}{\EN}（T）, \T{融合}{\EN}（AVT）} {\node[font=\small\bfseries] at (\xz+\c*\cw+0.5*\cw-0.03,0.0) {\n};}
+  \input{figures/cmp_loco.tex}
+\end{tikzpicture}
+\end{adjustbox}
+\msg{\T{顔の分類器では，半分を超える条件で上回った手法は \N{cmpnmethods} 中 \N{cmpvhalf}}{\EN}}
+\fnote{\T{LOCO 設定．数：提案 − 手法の 95\% 区間の下端が 0 より上の条件（提案が上）／条件の数（4 コーパス × K = 0, 5, 25）．赤の ↓：上端が 0 より下（手法が上）．融合の列は照合済みの文の値，ほかはこの資料で同じファイルから数えた値．出どころ：results/dai2/stats/prop\_minus\_method.csv}{\EN}}
+\end{frame}
+
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ここまでの答えと，次の問い}{\EN}}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[big, fill=jPos!12, draw=jPos, text width=11.5cm, align=left] (a) at (0,1.25) {%
+    \textbf{\T{答え}{\EN}}\quad\T{提案は，ラベル無しのデータで向きのずれを \N{wpftn} 条件中 \N{wpftpos} で減らした．UAR の上がり幅の大部分は向きのずれの減りだった（全ソース設定の \N{wdn} 条件の平均の点の値で \N{wdshareall}\%．設計に使ったターゲットでの探索．LOCO 設定の声の分類器の K = 5 で \N{lssharemin}\% 以上）．メタ学習で設定を固定した本番でも，声の分類器が 4 コーパスすべてで上がった（\N{fonemina}〜\N{fonemaxa}）}{\EN}};
+  \node[big, fill=cAsk!8, draw=cAsk, text width=11.5cm, align=left] (q) at (0,-1.45) {%
+    \textbf{\T{問い}{\EN}}\quad\T{gain はどこから来て，どこまで移るか．顔と融合の分類器で上がらない条件が多いのはなぜか}{\EN}};
+  \draw[arr, line width=1.2pt] (a) -- (q);
+\end{tikzpicture}
+\end{frame}

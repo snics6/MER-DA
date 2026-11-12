@@ -1,0 +1,138 @@
+%% C．誤りの分け方：誤りを切片のずれと重みの向きのずれに分ける（スライド 15〜18）
+%% 定義の出どころ：docs/exploratory-analyses.md 3305〜3306 行（式 (2)・(3)．E13），E79 の 9156 行（6 対の平均），
+%% 測り方の確かめ：judge_比較.md 4 節の 2 行目（E75．向きの損の模型は顔を除いて基準を満たす．位置の損の模型の値は使わない），
+%% LOCO 設定の UAR 版：DAI/docs/実験3_設計.md（version four）
+\setband{\T{誤りの分け方}{\EN}}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{4 クラスの誤りを，6 つの感情の対の判定に分けて見る}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.40\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[emo, fill=eNeu, minimum width=1.3cm] (n) at (0,1.6) {\T{平静}{\EN}};
+  \node[emo, fill=eHap, minimum width=1.3cm] (h) at (3.0,1.6) {\T{喜び}{\EN}};
+  \node[emo, fill=eSad, minimum width=1.3cm] (s) at (0,-0.6) {\T{悲しみ}{\EN}};
+  \node[emo, fill=eAng, minimum width=1.3cm] (a) at (3.0,-0.6) {\T{怒り}{\EN}};
+  \foreach \u/\v in {n/h, n/s, n/a, h/s, h/a, s/a} {\draw[mDarkTeal, line width=0.9pt] (\u) -- (\v);}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.58\textwidth}
+\small
+\T{感情 $k$ と $l$ を分ける判定}{\EN}
+\[
+s_{kl}(x) = \underbrace{(w_k - w_l)^{\top}}_{\textcolor{cDisc}{\text{\T{向き}{\EN} } v_{kl}}} x \;+\; \underbrace{(b_k - b_l)}_{\textcolor{cCrit}{\text{\T{切片}{\EN}}}}
+\]
+\T{$s_{kl}(x) > 0$ なら $k$，そうでなければ $l$．線形の分類器の誤りは，6 対それぞれの\textcolor{cDisc}{\textbf{向き}}と\textcolor{cCrit}{\textbf{切片}}の誤りに分けられる}{\EN}
+\end{column}
+\end{columns}
+\msg{\T{対ごとに，2 つの感情の発話を判定の軸 $v_{kl}$ に射影して調べる}{\EN}}
+\fnote{\T{$w_k$，$b_k$：分類器の重み $W$ の $k$ 行目と切片 $b$ の $k$ 番目．4 感情なので対は 6 つ．誤りの分け方の値は 6 対の平均で表す}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{切片のずれ $o$：境目が中点からずれ，答えが一方の感情に偏る}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.3cm, xmin=-4.5, xmax=4.5, ymin=0, ymax=0.48, axis x line=bottom, axis y line=none, ytick=\empty, xtick=\empty,
+  xlabel={\T{判定の軸 $v_{kl}$ への射影（標準偏差の単位）}{\EN}}, clip=false]
+\addplot[domain=-4.5:4.5, samples=120, line width=1.2pt, eHap, fill=eHap, fill opacity=0.15] {exp(-(x-1.25)^2/2)/sqrt(2*pi)};
+\addplot[domain=-4.5:4.5, samples=120, line width=1.2pt, eNeu, fill=eNeu, fill opacity=0.15] {exp(-(x+1.25)^2/2)/sqrt(2*pi)};
+\draw[mMuted, dashed, line width=0.8pt] (axis cs:0,0) -- (axis cs:0,0.45);
+\draw[cCrit, line width=1.6pt] (axis cs:0.9,0) -- (axis cs:0.9,0.45);
+\draw[cCrit, <->, line width=0.9pt] (axis cs:0,0.42) -- node[above, font=\small]{$o$} (axis cs:0.9,0.42);
+\node[font=\scriptsize, eNeu] at (axis cs:-2.6,0.3) {\T{平静}{\EN}};
+\node[font=\scriptsize, eHap] at (axis cs:2.7,0.3) {\T{喜び}{\EN}};
+\draw[<->, mDarkTeal] (axis cs:-1.25,0.05) -- node[below, font=\scriptsize]{$d$} (axis cs:1.25,0.05);
+\end{axis}
+\end{tikzpicture}
+\notreal
+\end{column}
+\begin{column}{0.46\textwidth}
+\small
+\T{2 つの山を共通の分散の正規分布とみなすと，対の判定の UAR は}{\EN}
+\[
+A(d, o) = \tfrac{1}{2}\big[\Phi(\tfrac{d}{2} - o) + \Phi(\tfrac{d}{2} + o)\big]
+\]
+\T{\textcolor{cCrit}{\textbf{切片の損}}}{\EN}
+\[
+A(d, 0) - A(d, o) \;\approx\; \tfrac{d}{4}\,\phi(\tfrac{d}{2})\,o^{2}
+\]
+\end{column}
+\end{columns}
+\msg{\T{切片のずれは，重み $W$ を変えずに切片 $b$ を当て直せば取り戻せる}{\EN}}
+\fnote{\T{$d$：射影した 2 つの山の中心の距離．$o$：境目の中点からのずれ．どちらも標準偏差の単位．$\Phi$，$\phi$：標準正規分布の累積分布関数と密度．模式図の値は $d = 2.5$，$o = 0.9$}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{向きのずれ：判定の軸が最良の向きからずれると，2 つの山が重なる}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.36\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \fill[eNeu, opacity=0.18, rotate around={60:(-0.8,0)}] (-0.8,0) ellipse (1.25 and 0.45);
+  \fill[eHap, opacity=0.18, rotate around={60:(0.8,0)}] (0.8,0) ellipse (1.25 and 0.45);
+  \draw[eNeu, rotate around={60:(-0.8,0)}] (-0.8,0) ellipse (1.25 and 0.45);
+  \draw[eHap, rotate around={60:(0.8,0)}] (0.8,0) ellipse (1.25 and 0.45);
+  \draw[cDisc, -{Stealth[length=2.4mm]}, line width=1.3pt] ({-1.7*cos(-26)},{-1.7*sin(-26)}) -- ({1.7*cos(-26)},{1.7*sin(-26)}) node[right, font=\scriptsize]{$v^{*}$};
+  \draw[cCrit, dashed, -{Stealth[length=2.4mm]}, line width=1.3pt] ({-1.7*cos(30)},{-1.7*sin(30)}) -- ({1.7*cos(30)},{1.7*sin(30)}) node[right, font=\scriptsize]{$v$};
+  \node[font=\tiny, align=center] at (0,-1.6) {$v^{*} \propto \Sigma^{-1}(\mu_k - \mu_l)$：\T{最良の向き}{\EN}};
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.30\textwidth}
+\centering
+{\scriptsize\T{最良の向き $v^{*}$ に射影}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=2.7cm, xmin=-4.5, xmax=4.5, ymin=0, ymax=0.45, axis x line=bottom, axis y line=none, ytick=\empty, xtick=\empty]
+\addplot[domain=-4.5:4.5, samples=100, eHap, fill=eHap, fill opacity=0.15, line width=1pt] {exp(-(x-1.6)^2/2)/sqrt(2*pi)};
+\addplot[domain=-4.5:4.5, samples=100, eNeu, fill=eNeu, fill opacity=0.15, line width=1pt] {exp(-(x+1.6)^2/2)/sqrt(2*pi)};
+\end{axis}
+\end{tikzpicture}\\
+{\scriptsize $D = \sqrt{(\mu_k-\mu_l)^{\top}\Sigma^{-1}(\mu_k-\mu_l)}$}
+\end{column}
+\begin{column}{0.30\textwidth}
+\centering
+{\scriptsize\T{分類器の向き $v$ に射影}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=2.7cm, xmin=-4.5, xmax=4.5, ymin=0, ymax=0.45, axis x line=bottom, axis y line=none, ytick=\empty, xtick=\empty]
+\addplot[domain=-4.5:4.5, samples=100, eHap, fill=eHap, fill opacity=0.15, line width=1pt] {exp(-(x-0.6)^2/2)/sqrt(2*pi)};
+\addplot[domain=-4.5:4.5, samples=100, eNeu, fill=eNeu, fill opacity=0.15, line width=1pt] {exp(-(x+0.6)^2/2)/sqrt(2*pi)};
+\end{axis}
+\end{tikzpicture}\\
+{\scriptsize $d = \dfrac{v^{\top}(\mu_k-\mu_l)}{\sqrt{v^{\top}\Sigma v}} \;\le\; D$}
+\end{column}
+\end{columns}
+\vspace{0.2em}
+\[
+\textcolor{cDisc}{\textbf{\T{向きの損}{\EN}}}\quad A(D, 0) - A(d, 0)
+\]
+\msg{\T{向きのずれは，切片をどう当て直しても取り戻せない．$W$ を変える情報が要る}{\EN}}
+\fnote{\T{$\mu_k$，$\Sigma$：感情 $k$ の特徴の平均と，感情に共通の共分散．模式図の値は $D \approx 3.2$，$d \approx 1.2$（左の楕円から計算）．実際の $D$ は縮小 LDA で推定する}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{損を 2 つに分け，情報源ごとにどちらを減らしたかを数える}{\EN}}
+\centering
+\[
+\underbrace{A(D, 0) - A(d, o)}_{\text{\T{対の損（最良の線形判別との差）}{\EN}}}
+\;=\;
+\underbrace{\big[A(D, 0) - A(d, 0)\big]}_{\textcolor{cDisc}{\text{\T{向きの損}{\EN}}}}
+\;+\;
+\underbrace{\big[A(d, 0) - A(d, o)\big]}_{\textcolor{cCrit}{\text{\T{切片の損}{\EN}}}}
+\]
+\vspace{0.1em}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{0.2\linewidth}p{0.37\linewidth}p{0.37\linewidth}@{}}
+\toprule
+\T{設定}{\EN} & \textcolor{cDisc}{\T{向きの損の測り方}{\EN}} & \textcolor{cCrit}{\T{切片の分の測り方}{\EN}} \\
+\midrule
+\T{単一ソース設定，全ソース設定}{\EN} & \T{上の式の対の模型．6 対の平均}{\EN} & \T{「切片だけを K 本で直す方法」の UAR の上がり幅（模型の値は誤差と同じ大きさなので使わない）}{\EN} \\
+\T{LOCO 設定}{\EN} & \T{候補の全ラベルで学んだ $W^{*}$ との UAR の差のうち，切片を当て直しても残る分}{\EN} & \T{同じ差のうち，切片の当て直しで減る分}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{同じ誤りの分け方で，4 つの情報源がそれぞれどちらの損を減らすかを数える}{\EN}}
+\fnote{\T{対の模型の向きの損は顔を除いて当てはまりの基準を満たした．LOCO 設定で確かめに不合格の 5 組は「向き」と呼ばない（補足 2）}{\EN}}
+\end{frame}

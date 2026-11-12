@@ -1,0 +1,63 @@
+%% G．まとめ（スライド 42〜45）．数はこれまでの部と同じ \N{key} を使う．英語は後で訳す（\EN）
+\setband{\T{まとめ}{\EN}}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{結果のまとめ：4 つの情報源がそれぞれ直したもの}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}p{0.18\linewidth}p{0.29\linewidth}p{0.33\linewidth}p{0.13\linewidth}@{}}
+\toprule
+\T{情報源}{\EN} & \textcolor{cCrit}{\T{切片のずれ}{\EN}} & \textcolor{cDisc}{\T{向きのずれ}{\EN}} & \T{設定}{\EN} \\
+\midrule
+\T{① ターゲットの K 本}{\EN} & \textcolor{mGood}{\T{速く直す}{\EN}}\T{（合併の gain の \N{ratioa} 倍が切片だけで出る．声）}{\EN} & \T{遅くしか直らない（声で $q$ = \N{qa}）}{\EN} & \T{単一}{\EN} \\
+\T{② ソースのコーパス}{\EN} & \T{K が小さいとき gain が正．全件では平均で負}{\EN} & — & \T{単一}{\EN} \\
+\T{③ ラベル無しの発話}{\EN} & \textcolor{mGood}{\T{平均を引くだけで直す}{\EN}}\T{（声 \N{centera}．K 本の切片直し \N{crita} と同じ大きさ）}{\EN} & \T{同じモダリティの 8 手法では減らない（\N{wpfn} 条件中 \N{wpfpos}）}{\EN} & \T{単一，全ソース}{\EN} \\
+\T{④ ほかのモダリティ（提案）}{\EN} & \T{上がり幅のうち切片のずれの減りは全ソースで \N{wdposall}（\N{wdposshare}\%），LOCO の声で \N{lsposmin}〜\N{lsposmax}（区間なし）}{\EN} & \textcolor{mGood}{\T{減らす}{\EN}}\T{（模型の判定で \N{wpftn} 条件中 \N{wpftpos} で減らし，増やしたのは \N{wpftneg}．UAR の版で上がり幅の \N{wdshareall}\%）．本番の声で K = 5 の減りは \N{lsdirminfive}〜\N{lsdirmaxfive}（AFEW は区間が 0 を含む）}{\EN} & \T{全ソース，LOCO}{\EN} \\
+\bottomrule
+\end{tabular}
+\msg{\T{切片のずれはラベル無しで，向きのずれは提案で減らせた}{\EN}}
+\fnote{\T{④の UAR の版：上がり幅を切片の解き直しで分けた点の値（全ソースは \N{wdn} 条件の平均，LOCO は声の K = 5）．提案の疑似ラベルは学び直す分類器自身のモダリティも含むので，減りをほかのモダリティだけに帰せない．単一・全ソース・LOCO は設定の名前}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{この研究の貢献：何がどこまで直るかを，同じ誤りの分け方で測った}{\EN}}
+\footnotesize
+\T{%
+\begin{enumerate}\setlength{\itemsep}{0pt}
+\item \textbf{4 つの情報源の分業を，実データで測った．}切片のずれは特徴の平均を引くと減り，向きのずれは提案で学び直すと減った．理論の予言（Blum \& Mansour 2017）と同じ向きの結果を，条件つき独立が保証されない感情認識のコーパスで得た．ただし提案の疑似ラベルは学び直す分類器自身の予測も含み，この予言を計算の前に規則にした LOCO 設定の判定（説明 1）は「判定できない」だった（補足 14）
+\item \textbf{提案が向きのずれを減らすことを，標準の 8 手法と並べて示した．}同じモダリティのラベル無しを使う手法は向きのずれをほとんど減らさず，提案は減らした
+\item \textbf{メタ学習で設定を固定した 1 回だけの評価で，声の分類器が 4 コーパスすべてで上がった．}少数ラベル・コーパス間・凍結した特徴の組み合わせ
+\item \textbf{gain が移る範囲を数で示した．}当たる幅と真似できる分で gain の順位がつき，線形と隠れ層つきの読み比べで差が無い（Xue ほか 2023 が人工データでだけ動かした量を実データで測った）．最終層で真似できない分の \N{mlsharemin}〜\N{mlsharemax}\% は中間層を足すと取り戻せた（下調べ，K = 5）
+\end{enumerate}}{\EN}
+\msg{\T{新しいのは手法ではなく，何がどこまで直るかの測定}{\EN}}
+\fnote{\T{先行研究との差は，調べ直しのノートで「見つからなかった」と判定したものに限る（research\_notes/解析論文のストーリー\_2026-11-08/judge\_型6.md ほか）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{新しいコーパスで手間をかける順番}{\EN}}
+\centering
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[big, fill=kT!12, draw=kT, text width=3.5cm, minimum height=2.4cm, align=center] (s1) at (0,0) {\textbf{\T{① 特徴をコーパスごとに標準化する}{\EN}}\\[3pt]{\scriptsize\T{ラベル不要．切片のずれが直る}{\EN}}};
+  \node[big, fill=cMod, draw=kAV, text width=3.7cm, minimum height=2.4cm, align=center] (s2) at (4.6,0) {\textbf{\T{② ほかのモダリティもそろうラベル無しの録画で提案を使う}{\EN}}\\[3pt]{\scriptsize\T{向きのずれが減る．疑似ラベルがよく当たり，その当たり方を特徴で真似できるときに上がる}{\EN}}};
+  \node[big, fill=cTgt, draw=mLightBrown, text width=3.5cm, minimum height=2.4cm, align=center] (s3) at (9.2,0) {\textbf{\T{③ 残りの手間をラベル付けに回す}{\EN}}\\[3pt]{\scriptsize\T{K 本は向きを少しずつ直す}{\EN}}};
+  \draw[arr, line width=1.2pt] (s1) -- (s2); \draw[arr, line width=1.2pt] (s2) -- (s3);
+\end{tikzpicture}
+\msg{\T{ラベル付けの前に，ラベル無しでできることが 2 つある}{\EN}}
+\fnote{\T{これは結果から読んだ考察である．この順番そのものをほかの順番と比べた実験はしていない}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{まだ言えないこと}{\EN}}
+\small
+\T{%
+\begin{itemize}
+\item 手法の形と評価に同じ 4〜7 コーパスを使った．見ていないコーパスでの確認は無い
+\item エンコーダは 1 組だけ．LOCO 設定は第 2 のエンコーダで繰り返していない
+\item IEMOCAP と MELD では，テストの発話の多くが候補と同じ対話に属する
+\item 検定に残った条件は \N{locells} 中 \N{locellstest}．多くは区間つきの記述
+\item 節ごとに設定が違う（単一ソース，全ソース，LOCO）
+\item 中間層の結果は候補の発話の上の値で，中間層の特徴で学び直したときのテストの gain は結果の文にしていない
+\end{itemize}}{\EN}
+\fnote{\T{記録：research\_notes/解析論文のストーリー\_2026-11-08/inventory\_C・inventory\_D の「答えていない指摘」の節}{\EN}}
+\end{frame}

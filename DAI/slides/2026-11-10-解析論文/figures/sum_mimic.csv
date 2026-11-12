@@ -1,0 +1,4 @@
+# results/dai11_probe/req_vs_gain.csv の 2 行（IEMOCAP の V と MOSEI の A，teacher=other，K=5）．delta_uar = 疑似ラベルの候補での UAR − K 本だけの候補での UAR，proj_gain = 疑似ラベルを学び直す分類器の特徴から線形に交差予測した判定の UAR − K 本だけの UAR，gain = 学び直した版 − K 本だけのテストの UAR（30 単位の平均）
+x,c,student,delta_uar,proj_gain,gain
+1,IEMOCAP,V,17.83380799346561,1.8029382831975649,-0.0503859123846702
+2,MOSEI,A,6.762048466648882,3.5225456646746007,3.4878961164060933

@@ -1,0 +1,300 @@
+%% H．補足資料（本編の後．\appendix でページ番号の分母から外す）．英語は後で訳す（\EN）
+\appendix
+\bandheadline
+\setband{\T{補足}{\EN}}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 1：3 つの設定の比較}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.15\linewidth}p{0.26\linewidth}p{0.26\linewidth}p{0.26\linewidth}@{}}
+\toprule
+& \T{単一ソース設定}{\EN} & \T{全ソース設定}{\EN} & \T{LOCO 設定}{\EN} \\
+\midrule
+\T{使った部}{\EN} & \T{結果の前半}{\EN} & \T{8 手法と提案の向きの比べ}{\EN} & \T{本番の評価，なぜ上がるか}{\EN} \\
+\T{ターゲット}{\EN} & \T{7 群}{\EN} & \T{AVT の組 3 コーパス，AV の組 5 コーパス}{\EN} & \T{4 コーパス}{\EN} \\
+\T{ソース}{\EN} & \T{1 つのコーパスの全発話}{\EN} & \T{ターゲット以外の全コーパスで学んだ分類器}{\EN} & \T{3 コーパスのコーパスごとの分類器}{\EN} \\
+\T{学習器}{\EN} & \T{合併（ソース＋K 本）とターゲットのみ}{\EN} & \T{出発点から K 本で学び直す（出発点への L2 正則化つき）}{\EN} & \T{同左．提案はこれに疑似ラベルの項を足す}{\EN} \\
+K & 1, 5, 10, 25, 50, \T{全件}{\EN} & \T{0, 5, 25（8 手法は 0, 5）}{\EN} & 0, 1, 5, 10, 25 \\
+\T{区間}{\EN} & \T{話者を単位にした 2 段の引き直し}{\EN} & \T{同左（1,000 回）}{\EN} & \T{テストのクラスタの jackknife ＋ 種の項}{\EN} \\
+\T{設定の選び方}{\EN} & \T{合併の罰則はソースのみで選んだ値に固定}{\EN} & \T{メタ学習（仮のターゲット）}{\EN} & \T{メタ学習（仮のターゲット）}{\EN} \\
+\T{位置づけ}{\EN} & \T{主張を作った同じ群での再推定}{\EN} & \T{8 手法は本番の判定，提案は探索}{\EN} & \T{評価の回は 1 回だけ}{\EN} \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 2：誤りの分け方の確かめと，使わなかった値}{\EN}}
+\small
+\T{%
+\begin{itemize}
+\item \textbf{単一ソース設定・全ソース設定}：対ごとの正規分布の模型で向きの損を測る．模型の当てはまりは，顔を除いて基準を満たした．8 手法の回では，すべての行で満たした
+\item \textbf{切片の分}：模型で測った値は模型の誤差と同じ大きさなので使わない．代わりに「切片だけを K 本で直す方法」の UAR の上がり幅で測る
+\item \textbf{最良の向きの離れ方 $D$}：縮小 LDA（話者の半分で学ぶ）で推定する．過小に出ると，向きの損が負になる対がある
+\item \textbf{模型に依る条件}：模型の誤差が差より大きい条件には印を付け，除いた版でも判定を数え直した
+\item \textbf{LOCO 設定}：UAR 版（全ラベルで学んだ $W^{*}$ を参照）．参照の確かめに不合格の組（AFEW の顔・言葉・融合，IEMOCAP の顔・融合）では「向き」と呼ばない
+\end{itemize}}{\EN}
+\fnote{\T{記録：docs/exploratory-analyses.md の E75，E79 の 9156 行付近，DAI/docs/結果の文の下書き\_2026-11-05.md の C5}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 3：疑似ラベルの作り方の数値例（LOCO 設定の版，1 発話）}{\EN}}
+\label{supp:pseudo}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+& \textcolor{eNeu}{\T{平静}{\EN}} & \textcolor{eHap}{\T{喜び}{\EN}} & \textcolor{eSad}{\T{悲しみ}{\EN}} & \textcolor{eAng}{\T{怒り}{\EN}} \\
+\midrule
+\T{声の分類器の確率}{\EN} & 0.40 & 0.30 & 0.20 & 0.10 \\
+\T{顔の分類器の確率}{\EN} & 0.50 & 0.30 & 0.10 & 0.10 \\
+\T{言葉の分類器の確率}{\EN} & 0.30 & 0.50 & 0.10 & 0.10 \\
+\midrule
+\T{3 つの積}{\EN} & 0.060 & 0.045 & 0.002 & 0.001 \\
+\T{和を 1 にした疑似ラベル $q$}{\EN} & \textbf{0.56} & \textbf{0.42} & 0.02 & 0.01 \\
+\bottomrule
+\end{tabular}
+\msg{\T{3 つが同時に低い感情は消え，同時に高い感情が残る}{\EN}}
+\fnote{\T{模式の数値例（実験の値ではない）．実際は，候補の全発話で感情ごとの $q$ の合計をそろえてから，K 本と一緒に学ぶ．声・顔・言葉の分類器は，K 本と「K 本だけの融合の分類器の予測」で学び直したもの}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 4：単一ソース設定の gain の全表（合併 − ターゲットのみ）}{\EN}}
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+\T{種類}{\EN} & \T{組}{\EN} & K = 1 & 5 & 10 & 25 & 50 & \T{全件}{\EN} \\
+\midrule
+\tabrows{figures/tab_gain.tex}
+\bottomrule
+\end{tabular}
+\fnote{\T{種類の組の平均（ポイント）．$\uparrow$：区間が 0 より上，$\downarrow$：0 より下（話者を単位にした区間）．出どころ：results/e76\_analysis/e76a\_1\_kind.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 5：LOCO 設定の本番の全条件（提案 − K 本だけ）}{\EN}}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}l*{12}{r}@{}}
+\toprule
+& \multicolumn{3}{c}{AFEW} & \multicolumn{3}{c}{IEMOCAP} & \multicolumn{3}{c}{MELD} & \multicolumn{3}{c}{MOSEI} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}\cmidrule(lr){11-13}
+K & 0 & 5 & 25 & 0 & 5 & 25 & 0 & 5 & 25 & 0 & 5 & 25 \\
+\midrule
+\tabrows{figures/tab_fam1.tex}
+\bottomrule
+\end{tabular}
+\fnote{\T{UAR のポイント．$\uparrow$：区間が 0 より上，$\downarrow$：0 より下，$*$：評価の前に検出力が足りると判定した（検定に残った）条件．ほかは区間つきの記述．出どころ：results/dai1/stats/families\_flagged.csv（族 1）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 6：標準の手法との比べ（融合の分類器，12 条件）}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\T{手法}{\EN} & \T{条件}{\EN} & \T{提案が上}{\EN} & \T{手法が上}{\EN} \\
+\midrule
+\tabrows{figures/tab_dai2.tex}
+\bottomrule
+\end{tabular}
+\fnote{\T{提案 − 手法の区間の下端 > 0（提案が上）と上端 < 0（手法が上）の条件の数（4 コーパス × K = 0, 5, 25）．手法は提案と使う情報が違うので，優劣ではなく情報の違いとして読む．p 値は付けない．出どころ：results/dai2/stats/prop\_minus\_method.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 7：統計の決まり}{\EN}}
+\small
+\T{%
+\begin{itemize}
+\item \textbf{LOCO 設定}：区間はテストのクラスタ（話者の代わり）の jackknife と種の項の和に t 分布（AFEW・IEMOCAP・MELD）．MOSEI はクラスタの引き直し 2,000 回．学習側とソースの分類器の揺れは含まない
+\item \textbf{検定}：評価の前に検出力が足りると判定した条件だけ．Holm の補正はコーパスごとの族．p 値は確認の検定ではない（手法の形を同じコーパスで作った）
+\item \textbf{記述の条件}：区間を添え，「差が無い」「効果が無い」とは書かない
+\item \textbf{単一ソース設定}：話者を単位にした 2 段の引き直し（または jackknife）．組ごとの判定は種類ごとに Holm で補正
+\item \textbf{全ソース設定}：条件ごとの区間（1,000 回）と $\delta$（K 本だけの反復の揺れの 2 倍）で判定．偶然の見込みは条件の数 × 0.025
+\item \textbf{下調べ}：仮のターゲットの回の値．順位相関の偶然の水準はクラスタの並べ替えの 95\% 点
+\end{itemize}}{\EN}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 8：近い先行研究と，この研究との違い}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{@{}p{0.25\linewidth}p{0.33\linewidth}p{0.36\linewidth}@{}}
+\toprule
+\T{研究}{\EN} & \T{示したこと}{\EN} & \T{この研究との違い}{\EN} \\
+\midrule
+Albanie et al. 2018 & \T{顔のモデルの予測で声のネットを学ぶ}{\EN} & \T{ターゲットのラベル 0 本．コーパス間で K を変えていない}{\EN} \\
+Zhang et al. 2021 & \T{IEMOCAP で顔と声の予測を混ぜた疑似ラベル}{\EN} & \T{K を変えていない．誤りを切片と向きに分けていない}{\EN} \\
+Gong et al. 2023 (LanSER) & \T{言葉から作った弱いラベルで声を事前学習}{\EN} & \T{ネット全体を学ぶ．ラベル無しはターゲット外}{\EN} \\
+Zhuang et al. 2025 (ACL-MER) & \T{ラベルが多いと疑似ラベルの gain が消える}{\EN} & \T{同じコーパスの中．なぜかを測っていない}{\EN} \\
+Yun et al. 2024 (TelME) & \T{弱いモダリティからの蒸留は下げる}{\EN} & \T{ラベルは全部ある．コーパス間ではない}{\EN} \\
+Xue et al. 2023 (MFH) & \T{移るのは共通の手がかりだけ}{\EN} & \T{共通の割合は人工データでだけ動かした}{\EN} \\
+Lee et al. 2021 & \T{線形の読み出しでは，gain はラベルの節約だけ}{\EN} & \T{理論．ずれも実データも無い}{\EN} \\
+Blum \& Mansour 2017 & \T{中心化と別の見方とラベル 1 本で学べる}{\EN} & \T{理論．切片の無い模型}{\EN} \\
+Dong et al. 2026 & \T{音声感情のテスト時適応は一様には勝たない}{\EN} & \T{単一モダリティ．誤りを分けていない}{\EN} \\
+Zhou et al. 2024 (BC) & \T{ラベル無しの平均で偏りを引く}{\EN} & \T{LLM と CLIP．感情認識ではない}{\EN} \\
+\bottomrule
+\end{tabular}
+\fnote{\T{内容は research\_notes の調べ直し（11-03〜11-09）に従う．Blum \& Mansour 2017 は抄録と 1 節だけを読んでいる}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 9：コーパスの事情}{\EN}}
+\small
+\T{%
+\begin{itemize}
+\item \textbf{IEMOCAP 即興}：テストと候補が筋書きの話題を共有する（言葉の gain と分けられない）．話者 10 人でクラスタは 5 セッション．区間が広い．顔は 2 人が映る画面から検出した小さい顔で，マーカーが付く
+\item \textbf{MOSEI}：話者の代わりにチャンネルか動画で分ける．同じ人の別の動画が候補に残りうる．平静は「どの感情の強さも 0.5 未満」で決まる
+\item \textbf{MELD}：テストの多くを主役 1 人が占める分割がある．テストと候補が同じ対話に属する発話が多い
+\item \textbf{AFEW}：言葉は Whisper large-v3 の書き起こし．1 つのクラスタが大半を占める分割がある
+\item \textbf{共通}：英語の 4〜7 コーパス，4 感情だけ
+\end{itemize}}{\EN}
+\fnote{\T{記録：research\_notes/解析論文のストーリー\_2026-11-08/inventory\_D\_DAI.md の 4 節，data/README.md}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 10：スライドの語と記録の対応}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.22}
+\begin{tabular}{@{}p{0.3\linewidth}p{0.25\linewidth}p{0.38\linewidth}@{}}
+\toprule
+\T{スライドの語}{\EN} & \T{記録の名前}{\EN} & \T{結果の場所}{\EN} \\
+\midrule
+\T{単一ソース設定の gain}{\EN} & E17，E76 & results/fixc\_map/，results/e76\_analysis/ \\
+\T{切片だけを直す方法，平均を引く}{\EN} & E25，E29，E75，E76 & results/e75/，e76a\_4\_*.csv \\
+\T{向きが直る速さ $q$}{\EN} & E28，E76 & e76a\_3\_q\_summary.csv \\
+\T{8 手法と提案の向きの比べ}{\EN} & E77〜E79（P4，P5） & results/e79\_p4/，results/e79/ \\
+\T{メタ学習（仮のターゲット）}{\EN} & \T{DAI-1 の選ぶ段}{\EN} & results/dai1/select/frozen.json \\
+\T{本番（LOCO 設定）}{\EN} & \T{DAI-1〜3 の評価の回}{\EN} & results/dai1/，dai2/，dai3/ \\
+\T{なぜ上がるか}{\EN} & DAI-11，DAI-12 & results/dai11\_probe/，dai12\_probe/ \\
+\T{上がり幅を 2 つのずれの減りに分ける}{\EN} & \T{E79（P5-3 の記述），DAI-3 の説明 1}{\EN} & results/e79/judge/，results/dai3/eval/ \\
+\T{中間層}{\EN} & \T{DAI-13（下調べ）}{\EN} & results/dai13\_probe/summary\_seeds2/ \\
+\T{提案／K 本だけ}{\EN} & \T{joint（台本）・prop（結果）・oursx（全ソース）／none}{\EN} & — \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 11：試したメタ学習の一覧（どれもソースを仮のターゲットにして選ぶ）}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.1\linewidth}p{0.42\linewidth}p{0.4\linewidth}@{}}
+\toprule
+\T{記録}{\EN} & \T{メタ学習で選んだもの}{\EN} & \T{結果}{\EN} \\
+\midrule
+E35 & \T{ソースごとの分類器を足す重み（K 本で適応した後の UAR を損失にする）}{\EN} & \T{gain は小さい．等しい重みで足した出発点を下回った}{\EN} \\
+E36 & \T{ラベル無しで選ぶラベル付けの順番の族から 1 つ}{\EN} & \T{上回らなかった}{\EN} \\
+E37 & \T{機械教示の学習器の歩幅}{\EN} & \T{上回った（候補のラベルを知っている設定）}{\EN} \\
+E38 & \T{罰則の計量の白色化の度合いを K の関数として}{\EN} & \T{gain は小さい（声の K = 5 だけ）}{\EN} \\
+E39 & \T{出発点の 5 つの値をまとめて}{\EN} & \T{上回った（本編の結果①）．全ソース設定の学習器に使った}{\EN} \\
+DAI-1 & \T{L2 正則化の強さ，疑似ラベルの指数，ハイパーパラメータ}{\EN} & \T{ほとんど既定値が選ばれた（本編の結果②）}{\EN} \\
+\bottomrule
+\end{tabular}
+\fnote{\T{E35〜E39 は検査の仕組みを入れる前の結果．記録：docs/results.md の E35〜E39 の行，DAI/docs/実験1\_設計.md の 8 節}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 12：ターゲットのみの向きの式 $d_T(K) = D/\sqrt{1 + q/K}$ の導出}{\EN}}
+\label{supp:qderiv}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\T{%
+\begin{enumerate}
+\item \textbf{座標}：感情に共通の共分散 $\Sigma$ で特徴を白色化する（$x \mapsto \Sigma^{-1/2}x$）．2 つの感情の平均の差は $D\,w$（$w$：単位ベクトル，$D$：最良の向きでの離れ方．式の中の量で，実測では縮小 LDA の値を物差しに使う）
+\item \textbf{K 本の平均の差}：感情ごとに K 本で平均を取ると，平均の誤差は各次元に分散 $1/K$．差は $\hat m = D\,w + \varepsilon$ で，$\varepsilon$ の各成分の分散は $2/K$
+\item \textbf{分類器の向き}：ターゲットのみの分類器の向き $u$ を $\hat m$ の向きとみなす（白色化した座標での LDA の向き．近似）
+\end{enumerate}}{\EN}
+\end{column}
+\begin{column}{0.48\textwidth}
+\footnotesize
+\T{%
+\begin{enumerate}\setcounter{enumi}{3}
+\item \textbf{離れ方}：$u$ に射影した離れ方は $d_T = u^{\top}(D\,w) = D\cos\theta$（$\theta$：$u$ と $w$ の角）
+\item \textbf{角}：$w$ の向きの雑音を無視し，雑音の効く次元の数を $p$ とすると
+\[ \cos^2\theta \approx \frac{D^2}{D^2 + 2p/K} \]
+\item \textbf{結果}：
+\[ d_T(K) = \frac{D}{\sqrt{1 + q/K}}, \qquad q = \frac{2p}{D^2} \]
+\end{enumerate}}{\EN}
+\end{column}
+\end{columns}
+\fnote{\T{記録：docs/exploratory-analyses.md の E28 の 9 節（基準モデル．3128〜3141 行）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{補足 13：$q$ の読み方と当てはめ方}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\small
+\textbf{\T{読み方}{\EN}}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 導出の中では $q = 2p/D^2$ になるが，$p$ は測っていない．$q$ を雑音の次元の数として読まず，K ≤ 10 の直り方を 1 つの数で要約した係数として読む（記録の決まり）
+\item 式の上では K = $q$ で $d_T = D/\sqrt{2} \approx 0.71\,D$，K → ∞ で $D$ に近づく．実測では全件で $d_T$ が $D$ を超える（本編）
+\item $q$ は 6 対の平均の曲線の係数で，6 対で共通の値ではない
+\end{itemize}}{\EN}
+\end{column}
+\begin{column}{0.5\textwidth}
+\small
+\textbf{\T{当てはめ方}{\EN}}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 6 対それぞれの $d_T(K)$ を K = 1, 5, 10 で測り，$D$ は縮小 LDA で推定して固定する
+\item $q$ は 0.1〜1,000 の対数の格子で最小 2 乗に当てる（ターゲットごと．本編の $q$ はその中央値）
+\item K を 1 つ抜いた予測では，声と顔で 2 母数の形のほうが良いターゲットが多い．声と顔では使い道を K ≤ 10 に限る
+\end{itemize}}{\EN}
+\end{column}
+\end{columns}
+\fnote{\T{記録：docs/exploratory-analyses.md の E28 の 9 節，E76 の 3 節（e76a\_3\_q\_summary.csv）．同じ 9 節に，ソースの向きと K 本を最良に組み合わせた向きの式 $d^{*}(K) = D/\sqrt{1 + t/(1 + r t)}$（$t = q/K$，$r = e^2/(1 - e^2)$，$e$：ソースの向きの効率）もある}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-10 追加：LOCO 設定の 2 つのずれの減りの全表
+\begin{frame}{\T{補足 14：LOCO 設定で，提案が減らした 2 つのずれ（提案 − K 本だけ）}{\EN}}
+\label{supp:splitloco}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.02}
+\setlength{\tabcolsep}{3.6pt}
+\begin{tabular}{@{}ll*{4}{rr}@{}}
+\toprule
+ & & \multicolumn{2}{c}{AFEW} & \multicolumn{2}{c}{IEMOCAP} & \multicolumn{2}{c}{MELD} & \multicolumn{2}{c}{MOSEI} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+\T{分類器}{\EN} & K & \textcolor{cDisc}{\T{向き}{\EN}} & \textcolor{cCrit}{\T{切片}{\EN}} & \textcolor{cDisc}{\T{向き}{\EN}} & \textcolor{cCrit}{\T{切片}{\EN}} & \textcolor{cDisc}{\T{向き}{\EN}} & \textcolor{cCrit}{\T{切片}{\EN}} & \textcolor{cDisc}{\T{向き}{\EN}} & \textcolor{cCrit}{\T{切片}{\EN}} \\
+\midrule
+\tabrows{figures/tab_split_loco.tex}
+\bottomrule
+\end{tabular}
+\msg{\T{向きのずれの減りの区間が 0 より上：声 \N{lsapos}/\N{lsan}，顔・言葉・融合 \N{lsotherpos}/\N{lsothern}}{\EN}}
+\fnote{\T{UAR のポイント．向き：向きのずれの減り（↑ 区間が 0 より上，↓ 0 より下）．切片：切片のずれの減り（区間なし）．†：物差しの確かめに不合格の \N{lsfail} 組（「向き」と呼ばない）．\N{lsothern} 条件は顔・言葉・融合で確かめに合格した条件．計算の前に規則を決めた説明 1（K 本は主に切片を直し，別のモダリティの予測は方向を直す）は 4 コーパスとも判定できない（K 本で切片だけを直す版が，重みも学び直す基準を \N{eonen} 条件中 \N{eonebelow} で下回った．中央値 \N{eonemed}．切片だけの版は 2 点から，基準は 14 点から選ぶので，説明 1 を支持しにくい向きの偏りがある）．提案の疑似ラベルは学び直す分類器自身の予測も含む．IEMOCAP の声と言葉は，筋書きの話題の共有と分けられない．出どころ：results/dai3/eval/decomp.csv，expl1.csv，verdicts.json}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-10 追加：中間層の下調べ（DAI-13）の添え書き（照合済みの文 実験13_下調べ_結果の文の下書き_2026-11-10.md 第 6 版から）
+\begin{frame}{\T{補足 15：中間層の下調べの添え書き}{\EN}}
+\label{supp:layers}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{比の作り方}：本編の比は K = 5 の点推定の比．K = 1, 5, 10, 25 の平均どうしの比では AFEW \N{mlshareavgAFEW}\%，MELD \N{mlshareavgMELD}\%，MOSEI \N{mlshareavgMOSEI}\%
+\item \textbf{対照}：自分自身の予測を目標にした版でも，AFEW では重みつき和が最終層より \N{mlselfminAFEW}〜\N{mlselfmaxAFEW} 上がる（K = 0〜25 の点推定．区間はすべて 0 をまたぐ．最終層への置き換えを選ぶ前の量で，置き換えの後は 0）．この分を割り引くと，AFEW の比は K = 5 で \N{mlsharediscAFEW}\%（最大の \N{mlselfmaxAFEW} を引くと \N{mlsharediscmaxAFEW}\%）．MOSEI では一様平均の得の半分程度が，疑似ラベルに依らない分でありうる（探索の読み．原因は測っていない）
+\item \textbf{層の重みを学ぶ寄与}（重みつき和 − 一様平均，K = 5）：AFEW \N{mlluAFEW}（区間 \N{mlluloAFEW}〜\N{mlluhiAFEW}），MELD \N{mlluMELD}，MOSEI \N{mlluMOSEI}，IEMOCAP \N{mlluIEMOCAP}
+\item \textbf{IEMOCAP}：即興の対話で，テストと候補が筋書きの話題を共有する．塊が 5 で区間が広い（真似できない分の区間 \N{mlgaploIEMOCAP}〜\N{mlgaphiIEMOCAP}）．層の重みの学習が足りていない
+\item \textbf{取り戻した情報の中身}：感情そのもののほかに，言葉の内容や，感情と結びついた録音環境の情報も入りうる
+\item \textbf{テストでの値}：中間層の特徴で提案を学び直したときのテストの gain は，結果の文にしていない
+\end{itemize}}{\EN}
+\fnote{\T{出どころ：results/dai13\_probe/summary\_seeds2/diffs.csv（コミット 494eaf8），照合済みの文 DAI/docs/実験13\_下調べ\_結果の文の下書き\_2026-11-10.md}{\EN}}
+\end{frame}
+

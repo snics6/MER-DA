@@ -1,0 +1,316 @@
+%% D．結果の前半：ターゲットのラベルとソースのコーパス（単一ソース設定．スライド 19〜25）
+%% 数の出どころ：results/e76_analysis/（E76 の再解析．コミット e39e54a．話者を単位にした区間）．scripts/export_figdata.py が書き出す．
+%% 同じ 7 群・反復 0〜9 での再推定で，確認ではない（docs/exploratory-analyses.md の E76 11 節）．英語は後で訳す（\EN）
+\setband{\T{結果の前半：ターゲットのラベルとソースのコーパス}{\EN}}
+\pgfplotsset{
+  kindx/.style={xtick={1,...,8}, xticklabels={A, A(Hu), V, T, AV, VT, AT, AVT}, xticklabel style={font=\scriptsize}, xmin=0.4, xmax=8.6},
+}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{単一ソース設定：1 つのソースの全発話とターゲットの K 本を合併して学ぶ}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  \node[srcbox, minimum width=2.4cm, minimum height=1.0cm] (s) at (0,1.2) {\T{ソース 1 つの全発話}{\EN}};
+  \node[tgtbox, minimum width=2.4cm] (k) at (0,0) {\T{ターゲットの K 本}{\EN}};
+  \node[big, fill=cLearn!10, draw=cLearn, minimum width=2.2cm] (m) at (3.4,0.6) {\T{合併}{\EN}\\[-2pt]{\tiny\T{1 つの分類器}{\EN}}};
+  \node[tgtbox, minimum width=2.4cm] (k2) at (0,-1.3) {\T{ターゲットの K 本}{\EN}};
+  \node[big, fill=white, minimum width=2.2cm] (t) at (3.4,-1.3) {\T{ターゲットのみ}{\EN}};
+  \draw[arr] (s.east) -- (m); \draw[arr] (k.east) -- (m); \draw[arr] (k2) -- (t);
+  \node[font=\small, align=center] at (6.45,-0.35) {gain\\$=$ \T{合併}{\EN}\\$-$ \T{ターゲットのみ}{\EN}};
+  \draw[mMuted, decorate, decoration={brace, amplitude=5pt}] (4.7,1.1) -- (4.7,-1.8);
+\end{tikzpicture}
+\end{adjustbox}
+\end{column}
+\begin{column}{0.52\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 7 群がそれぞれターゲット．ソースは 1 つずつ（IEMOCAP 即興と台本の組は除く）
+\item 特徴は 8 種類：A（WavLM），A(Hu)（HuBERT），V，T，AV，VT，AT，AVT（つないだ融合）
+\item 組の数：A・A(Hu) 40，V・AV 28，言葉を含む 4 種類 10
+\item K ∈ \{1, 5, 10, 25, 50, 全件\}．K 本の抜き方とテストの分割を変えた反復 10 回
+\item 区間：話者を単位にした 2 段の引き直し（95\%）．組ごとの判定は Holm で補正
+\end{itemize}}{\EN}
+\end{column}
+\end{columns}
+\fnote{\T{合併の分類器の罰則の強さは，ソースのみの分類器で選んだ値に固定した．この節の値は，主張を作ったのと同じ 7 群・反復での再推定で，確認ではない（E76）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ターゲットのラベルが少ないうちは，ソースを混ぜると上がる}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=5.0cm, xtick={1,...,6}, xticklabels={1,5,10,25,50,\T{全件}{\EN}}, xlabel={K}, ylabel={\T{gain（合併 − ターゲットのみ）}{\EN}},
+  ymin=-7, ymax=15, xmin=0.7, xmax=6.3, ymajorgrids, legend style={at={(0.98,0.98)}, anchor=north east, font=\tiny, legend columns=2}, legend cell align=left]
+\addplot[kA, line width=1.2pt, mark=*, mark size=1.2pt] table[x=x, y=a, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kAH, line width=1.0pt, mark=*, mark size=1.2pt] table[x=x, y=ah, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kV, line width=1.2pt, mark=*, mark size=1.2pt] table[x=x, y=v, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kT, line width=1.2pt, mark=*, mark size=1.2pt] table[x=x, y=t, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kAV, line width=1.0pt, mark=*, mark size=1.2pt] table[x=x, y=av, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kVT, line width=1.0pt, mark=*, mark size=1.2pt] table[x=x, y=vt, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kAT, line width=1.0pt, mark=*, mark size=1.2pt] table[x=x, y=at, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[kAVT, line width=1.0pt, mark=*, mark size=1.2pt] table[x=x, y=avt, col sep=comma, comment chars={\#}]{figures/gain_curve.csv};
+\addplot[mMuted, dashed, domain=0.7:6.3] {0};
+\legend{A, A(Hu), V, T, AV, VT, AT, AVT}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.43\textwidth}
+\centering
+{\scriptsize\T{K = 1 の gain と 95\% 区間}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.6cm, kindx, ymin=0, ymax=16, ymajorgrids]
+\addplot[only marks, mark=*, mark size=2pt, mAccentBlue, error bars/.cd, y dir=both, y explicit, error bar style={line width=1pt}]
+  table[x=x, y=g, y error plus=ep, y error minus=em, col sep=comma, comment chars={\#}]{figures/gain_k1.csv};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\msg{\T{K = 1 では 8 種類すべてで区間が 0 より上（\N{gonemink} \N{gonemin}〜\N{gonemaxk} \N{gonemax} ポイント）}{\EN}}
+\fnote{\T{gain は種類の組の平均．組ごとに Holm で補正して「上」と言える組（K = 1）：T・AT・VT・AVT 10/10，AV \N{goneupav}/\N{gonenav}，A \N{goneupa}/\N{gonena}，A(Hu) \N{goneupah}/\N{gonenah}，V \N{goneupv}/\N{gonenv}．出どころ：e76a\_1\_kind.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ターゲットのラベルが全件あると，ソースを混ぜると下がる}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.7\linewidth, height=4.6cm, kindx, ymin=-7, ymax=1, ymajorgrids, ylabel={\T{gain（K = 全件）}{\EN}}]
+\addplot[only marks, mark=*, mark size=2.2pt, mBad, error bars/.cd, y dir=both, y explicit, error bar style={line width=1pt}]
+  table[x=x, y=g, y error plus=ep, y error minus=em, col sep=comma, comment chars={\#}]{figures/gain_all.csv};
+\addplot[mMuted, dashed, domain=0.4:8.6] {0};
+\end{axis}
+\end{tikzpicture}
+\msg{\T{平均は 8 種類すべてで区間が 0 より下（A \N{galla}，区間 \N{gallcia}〜\N{gallcihia}）}{\EN}}
+\fnote{\T{ただし組ごとに Holm で補正して「下」と言える組は半分未満：A \N{galldowna}/\N{gonena}，A(Hu) \N{galldownah}/\N{gonenah}，V \N{galldownv}/\N{gonenv}，AV \N{galldownav}/\N{gonenav}，T \N{galldownt}/10，AT \N{galldownat}/10，VT \N{galldownvt}/10，AVT \N{galldownavt}/10．「大きい K では下がる組がある」と書く}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{K 本が合併でしている仕事の大部分は，切片の直し（単独の声と顔）}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\linewidth, height=4.5cm, kindx, ybar, bar width=7pt, ymin=-0.5, ymax=6.8, ymajorgrids, ylabel={\T{gain（ソースのみとの差，K = 5）}{\EN}},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\scriptsize, legend columns=2, /tikz/every even column/.append style={column sep=1em}}, legend cell align=left]
+\addplot[mark=none, fill=cOther, draw=cOther, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=x, y=merge, y error plus=merge_ep, y error minus=merge_em, col sep=comma, comment chars={\#}]{figures/crit_merge_k5.csv};
+\addplot[mark=none, fill=cCrit, draw=cCrit, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=x, y=crit, y error plus=crit_ep, y error minus=crit_em, col sep=comma, comment chars={\#}]{figures/crit_merge_k5.csv};
+\legend{\T{合併（ソース＋K 本で学び直す）}{\EN}, \T{K 本で切片だけを直す}{\EN}}
+\node[font=\scriptsize\bfseries, cCrit] at (axis cs:1,6.35) {\N{ratioa}};
+\node[font=\scriptsize\bfseries, cCrit] at (axis cs:2,6.35) {\N{ratioah}};
+\node[font=\scriptsize\bfseries, cCrit] at (axis cs:3,6.35) {\N{ratiov}};
+\node[font=\scriptsize, mMuted] at (axis cs:5,6.35) {\N{ratioav}};
+\end{axis}
+\end{tikzpicture}
+\msg{\T{切片だけの方法が，合併の gain の \N{ratioa}（A）・\N{ratiov}（V）倍を出す（K = 5）}{\EN}}
+\fnote{\T{gain はソースのみの分類器からの UAR の差．上の数は「切片だけ ÷ 合併」（A(Hu) \N{ratioah}，AV \N{ratioav}）．言葉を含む種類は gain そのものが小さい．この結論は合併の学習器に限る．切片の罰則を 10 倍にすると，A の切片だけの方法の gain は \N{crita} → \N{critlta} に下がる．出どころ：e76a\_4\_kind.csv（G\_merge，G\_crit）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{切片は，ラベル無しで特徴の平均を引くだけで直せる}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\linewidth, height=4.5cm, kindx, ybar, bar width=6pt, ymin=-1.2, ymax=6.2, ymajorgrids, ylabel={\T{gain（ソースのみとの差，K = 5）}{\EN}},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\scriptsize, legend columns=3, /tikz/every even column/.append style={column sep=0.8em}}, legend cell align=left]
+\addplot[mark=none, fill=kT, draw=kT, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=x, y=center, y error plus=center_ep, y error minus=center_em, col sep=comma, comment chars={\#}]{figures/crit_merge_k5.csv};
+\addplot[mark=none, fill=cCrit, draw=cCrit, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=x, y=crit, y error plus=crit_ep, y error minus=crit_em, col sep=comma, comment chars={\#}]{figures/crit_merge_k5.csv};
+\addplot[mark=none, fill=cCrit!35, draw=cCrit, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=x, y=critc, y error plus=critc_ep, y error minus=critc_em, col sep=comma, comment chars={\#}]{figures/crit_merge_k5.csv};
+\legend{\T{平均を引く（ラベル無し）}{\EN}, \T{K 本で切片を直す}{\EN}, \T{平均を引いた後に K 本で切片を直す}{\EN}}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{平均を引く gain は切片直しとほぼ同じ（A \N{centera} 対 \N{crita}）．その後の切片直しは残らない}{\EN}}
+\fnote{\T{どれもソースのみの分類器からの gain．平均を引いた後の切片直しは，8 種類とも区間の下端が 0 を超えない（AV は 0 より下）．平均はテストの発話も含めて取る．候補だけの平均では，平均を引く gain は A \N{centerpoola}，その後の切片直しは A だけ \N{critcpoola}（区間 \N{critcpoolloa}〜\N{critcpoolhia}）で 0 より上．出どころ：e76a\_4\_kind.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{声と言葉では，向きのずれはラベルを足しても少しずつしか直らない}{\EN}}
+\hosoku{supp:qderiv}{\T{式の導出}{\EN}}
+\centering
+\begin{adjustbox}{max width=\linewidth, max totalheight=0.53\textheight}
+\begin{tikzpicture}[x=1cm, y=1cm]
+  % 左：K 本の平均の差の向き（白色化した座標の模式）
+  \node[font=\small\bfseries, anchor=west] at (-0.2,3.35) {\T{なぜ遅いか（模式図）}{\EN}};
+  \coordinate (O) at (0,0.6);
+  \draw[cDisc, -{Stealth[length=2.6mm]}, line width=1.6pt] (O) -- (4.2,0.6);
+  \node[font=\scriptsize, text=cDisc] at (2.1,0.3) {\T{最良の向き（長さ $D$）}{\EN}};
+  \draw[mBad, -{Stealth[length=2.2mm]}, line width=1.1pt] (4.2,0.6) -- (4.2,3.0);
+  \node[font=\scriptsize, text=mBad, anchor=west, align=left] at (4.3,2.75) {\T{雑音}{\EN}\\\T{（K = 1）}{\EN}};
+  \draw[mBad!40, -{Stealth[length=2.2mm]}, line width=2.2pt] (4.2,0.6) -- (4.2,1.36);
+  \node[font=\scriptsize, text=mBad!70, anchor=west, align=left] at (4.3,1.15) {\T{雑音}{\EN}\\\T{（K = 10）}{\EN}};
+  \draw[mBad, dashed, line width=0.9pt] (O) -- (4.2,3.0);
+  \draw[mBad!50, dashed, line width=0.9pt] (O) -- (4.2,1.36);
+  \draw[mMuted] (1.2,0.6) arc[start angle=0, end angle=29.7, radius=1.2];
+  \node[font=\scriptsize] at (1.45,0.92) {$\theta$};
+  \node[font=\scriptsize, align=left, anchor=north west, text width=5.8cm] at (-0.2,-0.05) {\T{K 本の平均の差の向き（破線）は，最良の向きに雑音が乗ったもの．雑音は多くの次元に散らばり，大きさは $1/\sqrt{K}$ でしか縮まない}{\EN}};
+  \node[font=\small, anchor=north west] at (-0.2,-1.35) {$\dfrac{d_T(K)}{D} = \cos\theta = \dfrac{1}{\sqrt{1 + q/K}}$};
+  % 右：K を増やしたときの離れ方の比
+  \begin{axis}[at={(6.9cm,-2.5cm)}, anchor=south west, width=8.4cm, height=5.6cm, xmode=log, xmin=1, xmax=50, xtick={1,5,10,25,50}, xticklabels={1,5,10,25,50},
+    xlabel={\T{ターゲットのラベル K（感情ごとの本数）}{\EN}}, ylabel={\T{離れ方の比 $d_T(K)/D$}{\EN}}, ymin=0, ymax=1.1, ytick={0,0.25,0.5,0.75,1}, ymajorgrids, clip=false,
+    legend style={at={(0.5,1.03)}, anchor=south, font=\scriptsize, legend columns=2, /tikz/every even column/.append style={column sep=0.8em}}, legend cell align=left]
+  \addplot[kV, line width=1.3pt, restrict expr to domain={\thisrow{inrange}}{1:1}] table[x=K, y=v, col sep=comma, comment chars={\#}]{figures/q_curve.csv};
+  \addplot[kA, line width=1.3pt, restrict expr to domain={\thisrow{inrange}}{1:1}] table[x=K, y=a, col sep=comma, comment chars={\#}]{figures/q_curve.csv};
+  \addplot[kT, line width=1.3pt, restrict expr to domain={\thisrow{inrange}}{1:1}] table[x=K, y=t, col sep=comma, comment chars={\#}]{figures/q_curve.csv};
+  \addplot[mMuted, dashed, line width=0.9pt, domain=1:50, samples=2] {1};
+  \legend{\T{顔}{\EN}（$q$ = \N{qv}）, \T{声}{\EN}（$q$ = \N{qa}）, \T{言葉}{\EN}（$q$ = \N{qt}）, \T{$d_T = D$（物差し）}{\EN}}
+  \addplot[kV, line width=1pt, dashed, forget plot, restrict expr to domain={\thisrow{inrange}}{0:0}] table[x=K, y=v, col sep=comma, comment chars={\#}]{figures/q_curve.csv};
+  \addplot[kA, line width=1pt, dashed, forget plot, restrict expr to domain={\thisrow{inrange}}{0:0}] table[x=K, y=a, col sep=comma, comment chars={\#}]{figures/q_curve.csv};
+  \addplot[kT, line width=1pt, dashed, forget plot, restrict expr to domain={\thisrow{inrange}}{0:0}] table[x=K, y=t, col sep=comma, comment chars={\#}]{figures/q_curve.csv};
+  \addplot[kV, only marks, mark=square*, mark size=2pt, forget plot] table[x=K, y=v, col sep=comma, comment chars={\#}]{figures/q_pts.csv};
+  \addplot[kA, only marks, mark=*, mark size=2pt, forget plot] table[x=K, y=a, col sep=comma, comment chars={\#}]{figures/q_pts.csv};
+  \addplot[kT, only marks, mark=triangle*, mark size=2.4pt, forget plot] table[x=K, y=t, col sep=comma, comment chars={\#}]{figures/q_pts.csv};
+  \draw[mMuted, densely dotted] (axis cs:10,0) -- (axis cs:10,1.1);
+  \end{axis}
+\end{tikzpicture}
+\end{adjustbox}
+\msg{\T{古典の式と同じ形の，母数 1 つの経験式で K ≤ 10 の直り方を要約した．K = 10 でも離れ方は $D$ の \N{dtraten} 倍（声），\N{dtrtten} 倍（言葉）}{\EN}}
+\fnote{\T{$d_T(K)$：K 本だけの分類器の向きで測った離れ方．$D$：半分の話者で学んだ縮小 LDA の向きでの離れ方で，比べるための物差し（全件の到達点より小さい．次の 5 ページで補う）．点は実測，実線は K = 1, 5, 10 に当てた式，破線は延長．声と顔では K を 1 つ抜いた予測で 2 母数の形の方が良いターゲットが多い（$D$ で声 \N{qlooa}/\N{qna}，顔 \N{qloov}/\N{qnv}．$D'$ で \N{qloodpa}/\N{qndpa}，\N{qloodpv}/\N{qndpv}）ので，1 母数の形は K ≤ 50 の曲線を表さないとみなし，$q$ は K ≤ 10 の要約に使う．左は模式図．出どころ：e76a\_3\_dT.csv，e76a\_3\_q\_targets.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-11 追加：33 ページへの質問（研究者「これは理論？導出も見せて．何が言えるんですか？今回の結果は理論に則った？A，V，T の違いは？」）への答え 5 枚
+\begin{frame}{\T{前のページの式は定理ではなく，古典の式と同じ形の経験式である}{\EN}}
+\footnotesize
+\T{%
+\begin{itemize}
+\item \textbf{何を表す式か}：K 本だけで学んだ分類器の向きで測った 2 つの感情の離れ方 $d_T(K)$ が，K を増やすと $D$ に近づく速さを，母数 $q$ 1 つで表す
+\item \textbf{どこから来たか}：2 つの感情の山を正規分布とみなし，「K 本の平均の差の向き」と「最良の向き」の角度を計算した簡単なモデルから出した（導出は次のページ）．同じ形の項（向きの誤差が $\propto 1/K$）は，線形判別の誤判別率を標本の数で展開した古典の結果（Okamoto 1963，Raudys 1998）に現れる
+\item \textbf{証明した定理ではない}：導出は 4 つの仮定を置いた近似である．今回のデータでは，仮定 (d)（$D$ が到達点）は満たさないことが分かった（3 ページ後）．古典の展開は標本の数が特徴の次元より十分多いときの式で，今回は次元 512〜1,024 に対し K ≤ 50 である
+\item \textbf{記録の決まり}：この式は「K ≫ p の古典の展開と同じ形の経験式」と書き，$q$ を「有効次元」とは呼ばない（E76 の設計で計算の前に決めた）
+\end{itemize}}{\EN}
+\msg{\T{確かめたのは式の形の当てはまりで，式が成り立つ理由ではない}{\EN}}
+\fnote{\T{Okamoto 1963 は再掲（Shutoh の技術報告）で読み，原著は確かめていない．古典の係数から向きの項が出ることは本研究の計算で，「閾値と向きに分ける」解釈は原著に無い（docs/related-work.md 1.13・1.14 節）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{導出：K 本の平均の差の向きは，最良の向きに雑音が乗ったもの}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\footnotesize
+\T{%
+\begin{enumerate}
+\item 特徴を感情に共通の共分散で白色化する．2 つの感情の平均の差は $D\,w$（$w$：最良の向きの単位ベクトル）
+\item 感情ごとに K 本で平均を取ると，差の推定は $\hat m = D\,w + \varepsilon$．$\varepsilon$ の各成分の分散は $2/K$
+\item K 本だけの分類器の向き $u$ を $\hat m$ の向きとみなす（仮定）
+\item $u$ で測った離れ方は $d_T = u^{\top}(D\,w) = D\cos\theta$
+\item $w$ の向きの雑音を無視し，雑音が効く次元を $p$ 個とすると $\cos^2\theta \approx \dfrac{D^2}{D^2 + 2p/K}$
+\item よって $d_T(K) = \dfrac{D}{\sqrt{1 + q/K}}$，$q = \dfrac{2p}{D^2}$
+\end{enumerate}}{\EN}
+\end{column}
+\begin{column}{0.42\textwidth}
+\footnotesize
+\textbf{\T{置いた仮定}{\EN}}\par
+\T{(a) 2 つの山は共分散が同じ正規分布．(b) 雑音は等方．(c) 分類器の向き ＝ 平均の差の向き．(d) $D$ は K → ∞ の到達点}{\EN}\par\vspace{0.6em}
+\textbf{\T{数値例（声の $q$ ＝ \N{qa}）}{\EN}}\par
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+K & 1 & 5 & 10 & 50 \\
+$d_T/D$（\T{式}{\EN}） & \N{qfaone} & \N{qfafive} & 0.\N{qtena} & \N{qfafifty} \\
+\bottomrule
+\end{tabular}\par\vspace{0.4em}
+\T{$p$ は測っていない．$q$ は K = 1, 5, 10 の実測に当てはめて決めた}{\EN}
+\end{column}
+\end{columns}
+\msg{\T{雑音は $1/\sqrt{K}$ でしか縮まないので，向きは少しずつしか最良に近づかない}{\EN}}
+\fnote{\T{表の値は式の値で，実測ではない（実測は次のページ）．記録：docs/exploratory-analyses.md の E28 の 9 節（3128 行〜）．補足 12 に同じ導出}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{言えること：K = 10 でも，離れ方は $D$ の声 \N{dtraten} 倍，言葉 \N{dtrtten} 倍にとどまる}{\EN}}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\T{実測の $d_T(K)/D$}{\EN} & K = 1 & 5 & 10 & 25 & 50 & \T{全件}{\EN} \\
+\midrule
+\textcolor{kA}{\T{声}{\EN}} & \N{dtraone} & \N{dtrafive} & \N{dtraten} & \N{dtratf} & \N{dtrafifty} & \N{dtraall} \\
+\textcolor{kV}{\T{顔}{\EN}} & \N{dtrvone} & \N{dtrvfive} & \N{dtrvten} & \N{dtrvtf} & \N{dtrvfifty} & \N{dtrvall} \\
+\textcolor{kT}{\T{言葉}{\EN}} & \N{dtrtone} & \N{dtrtfive} & \N{dtrtten} & \N{dtrttf} & \N{dtrtfifty} & \N{dtrtall} \\
+\bottomrule
+\end{tabular}
+\par\vspace{0.5em}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 言えること：声と言葉では，K 本だけで学ぶ分類器の向きは K = 10 でも全件の到達点より大きく劣る．向きを直すには，K 本以外の情報が要る（この資料の後半の問いの出発点）
+\item 言えないこと：1 を超える値は，$D$ が全件の到達点より小さいことを示す．$D$ を基準にした割合は「最良の向きの何割か」ではなく「半分の話者で学んだ LDA の向きの何割か」である
+\end{itemize}}{\EN}
+\msg{\T{全件で 1 を超えるので，$D$ は最良の向きではなく比べる物差しとして読む}{\EN}}
+\fnote{\T{全件の到達点 $D'$ を基準にすると，K = 10 で声 \N{dtrpaten}，顔 \N{dtrpvten}，言葉 \N{dtrptten} 倍．単一ソース設定のターゲットのみの分類器．6 対で平均し，ターゲット（声 \N{qna}，顔 \N{qnv}，言葉 \N{qnt}）の中央値を取った．出どころ：results/e76\_analysis/e76a\_3\_dT.csv（rule=main）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{式の仮定どおりか：声・顔は 2 母数の形が良く，仮定も満たさない}{\EN}}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.36\linewidth}ccc p{0.2\linewidth}@{}}
+\toprule
+\T{確かめ（計算の前に基準を決めた）}{\EN} & \textcolor{kA}{\T{声}{\EN}} & \textcolor{kV}{\T{顔}{\EN}} & \textcolor{kT}{\T{言葉}{\EN}} & \T{判定}{\EN} \\
+\midrule
+\T{形：K = 1〜50 の残差が基準の中（ターゲットの数）}{\EN} & \multicolumn{3}{c}{\T{\N{qfitn} ターゲットすべて}{\EN}} & \textcolor{mGood}{\T{合う}{\EN}} \\
+\T{K を 1 つ抜いて予測したとき，2 母数の形の方が良いターゲット（$D$／$D'$）}{\EN} & \N{qlooa}/\N{qna}，\N{qloodpa}/\N{qndpa} & \N{qloov}/\N{qnv}，\N{qloodpv}/\N{qndpv} & \N{qloot}/\N{qnt}，\N{qloodpt}/\N{qndpt} & \textcolor{mBad}{\T{声・顔は 1 母数では足りない}{\EN}} \\
+\T{仮定 (d)：$D$ が到達点．全件で $d_T > D$ になった（ターゲット，対）}{\EN} & \N{gtdaall}/\N{gtdna} & \N{gtdvall}/\N{gtdnv} & \N{gtdtall}/\N{gtdnt} & \textcolor{mBad}{\T{満たさない}{\EN}} \\
+\T{6 対で $q$ が共通（$q$ の最大 ÷ 最小．基準 3 以下）}{\EN} & \N{qpairratioa} & \N{qpairratiov} & \N{qpairratiot} & \textcolor{mBad}{\T{満たさない}{\EN}} \\
+\bottomrule
+\end{tabular}
+\msg{\T{式は K ≤ 10 の要約として使えるが，仮定した仕組みで起きたとは言えない}{\EN}}
+\fnote{\T{2 母数の形：$D$ も当てる形と $d = aK^b$．言葉は設計の条件（$D$ と $D'$ の両方で 3 分の 2 以上）に当たらないので $q$ を出す．$q$ は 6 対の平均の曲線の係数として読む．仮定 (a)〜(c) は直接は測っていない．$D$ の代わりに全件の到達点 $D'$ を基準にすると $q$ は声 \N{qdpa}，顔 \N{qdpv}，言葉 \N{qdpt}（次のページ）．記録：docs/exploratory-analyses.md の E76 の 11 節（9009〜9010 行）．出どころ：e76a\_3\_q\_targets.csv，e76a\_3\_dT\_gt\_D.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{A・V・T の違い：中央値の $q$ は顔 < 声 < 言葉．顔の値は基準 $D$ に強く依る}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & \textcolor{kA}{\T{声}{\EN}} & \textcolor{kV}{\T{顔}{\EN}} & \textcolor{kT}{\T{言葉}{\EN}} \\
+\midrule
+\T{$q$（$D$ で当てる）}{\EN} & \N{qa} & \N{qv} & \N{qt} \\
+\T{$q$（$D'$ で当てる）}{\EN} & \N{qdpa} & \N{qdpv} & \N{qdpt} \\
+\T{ターゲットごとの $q$}{\EN} & \N{qmina}〜\N{qmaxa} & \N{qminv}〜\N{qmaxv} & \N{qmint}〜\N{qmaxt} \\
+\T{$D$ の中央値}{\EN} & \N{dmeda} & \N{dmedv} & \N{dmedt} \\
+\T{$D'/D$ の中央値}{\EN} & \N{dpda} & \N{dpdv} & \N{dpdt} \\
+\T{K = 10 で $d_T > D$ の対}{\EN} & \N{gtdaten}/\N{gtdna} & \N{gtdvten}/\N{gtdnv} & \N{gtdtten}/\N{gtdnt} \\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.48\textwidth}
+\footnotesize
+\T{%
+\begin{itemize}
+\item 顔は K = 10 ですでに半分近くの対で $d_T > D$．$D$ が小さすぎ，$D$ で当てた $q$ = \N{qv} は小さく出る．$D'$ どうしでは顔 \N{qdpv}，声 \N{qdpa}，言葉 \N{qdpt} で，差は小さくなる
+\item 同じターゲットで比べると，言葉が声より遅いのは $D$ でも $D'$ でも \N{tcommond} 中 \N{tslowerd}（MELD は逆：$D$ で言葉 \N{qmeldtd}，声 \N{qmeldad}）
+\item ターゲットごとの $q$（$D$ で当てた値）の最大 ÷ 最小は声 \N{qratioa}，顔 \N{qratiov}，言葉 \N{qratiot} 倍
+\item 言葉の向きが遅い理由は測っていない
+\end{itemize}}{\EN}
+\end{column}
+\end{columns}
+\msg{\T{中央値の並びは $D$ でも $D'$ でも同じだが例外がある．顔の速さは $D$ に依る}{\EN}}
+\fnote{\T{読み（未検証）：顔は表情のラベルで微調整したモデルの特徴で，感情の向きが最初から目立ちうる．$D'$：同じ学習器を全件で学んだときの離れ方．出どころ：e76a\_3\_q\_summary.csv，q\_targets.csv，dT.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{ここまでの答えと，残る問い}{\EN}}
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\T{情報源}{\EN} & \textcolor{cCrit}{\T{切片のずれ}{\EN}} & \textcolor{cDisc}{\T{向きのずれ}{\EN}} \\
+\midrule
+\T{① ターゲットの K 本}{\EN} & \T{速く直す（合併の gain の大部分）}{\EN} & \T{遅くしか直さない（$q$）}{\EN} \\
+\T{② ソースのコーパス（合併）}{\EN} & \T{K が小さいとき gain が正．全件では負}{\EN} & — \\
+\T{③ ラベル無し（平均を引く）}{\EN} & \T{ラベル無しで直す}{\EN} & \textcolor{cAsk}{\textbf{?}} \\
+\T{④ ほかのモダリティ}{\EN} & \textcolor{cAsk}{\textbf{?}} & \textcolor{cAsk}{\textbf{?}} \\
+\bottomrule
+\end{tabular}
+\vspace{0.8em}
+\band{cAsk}{\T{問い}{\EN}}{\T{ラベルを増やさずに，向きのずれを直せるものはあるか}{\EN}}
+\end{frame}

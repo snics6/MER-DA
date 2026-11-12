@@ -1,0 +1,94 @@
+%% =====================================================================
+%%  2026-11-10-解析論文：DAI に出す解析論文の発表資料（初めて見る大学生に向けた版）
+%%  構成：research_notes/解析論文のストーリー_2026-11-08/論の筋_2026-11-09.md と，2026-11-10 に研究者と決めた 37 枚の構成
+%%  日本語版 main_ja.tex と英語版 main_en.tex が同じこのファイルを読む．文は \T{日本語}{English} で書く
+%%  数値は figures/numbers.tex から \N{key} で引く（scripts/export_figdata.py が結果ファイルから書く．手で数を書かない）
+%%  決まり：1 枚に図 1 つと短い文 2 行まで．タイトルはそのまま主張の文にする．専門家に向けた語で書く（2026-11-10 研究者）
+%%  英語版は日本語版が完成してから作る．それまでは日本語版だけを組む（make DECK=2026-11-10-解析論文 LANGS=ja）
+%% =====================================================================
+\input{preamble}   % common/preamble.tex（日本語・テーマ・パッケージ・マクロ）
+\input{merda}      % common/merda.tex（上端の帯，補足のページを指す命令，色，図の部品）
+\input{figures/numbers.tex}
+
+% ---------- 言語 ----------
+\newcommand{\T}[2]{\iflangja #1\else #2\fi}
+\newcommand{\N}[1]{\ifcsname NUM@#1\endcsname\csname NUM@#1\endcsname\else\PackageError{numbers}{no number #1}{}\fi}
+\renewcommand{\hosoku}[2]{\gdef\hosokutext{\textcolor{mDarkTeal}{\T{補足}{Appendix} p.~\pageref{#1}\T{：}{: }#2}}}
+\newcommand{\notreal}{\par{\tiny\color{mMuted}\T{模式図．実験の値ではない}{Schematic; not experimental values}}\par}
+\newcommand{\pt}{\T{ポイント}{pt}}
+% 表の中で台本が書いた行を読む（LaTeX の \input は表の中で使えないので，元の \@@input を使う）
+\makeatletter\newcommand{\tabrows}[1]{\@@input #1 }\makeatother
+% 英語版は日本語版が完成してから作る（2026-11-10 研究者）．それまで英語の文は \EN の印だけを置く
+\newcommand{\EN}{\textcolor{red}{[EN]}}
+% 1 枚の主な文（大きめ，中央）と，小さな注
+\newcommand{\msg}[1]{\par\vspace{0.3em}{\centering\large #1\par}}
+\newcommand{\fnote}[1]{\par\vfill{\tiny\color{mMuted}#1\par}}
+% 先行研究の札：\refcard{著者 年（会議）}{何を示したか}
+\newcommand{\refcard}[2]{\par\noindent\fcolorbox{mDarkTeal!35}{white}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{\raggedright{\scriptsize\bfseries\color{mDarkTeal}#1}\par\vspace{1pt}{\footnotesize #2}}}\par\vspace{0.35em}}
+% まだ分かっていないこと（各スライドの下）
+\newcommand{\gap}[1]{\par\vspace{0.2em}{\centering\fcolorbox{cAsk}{cAsk!7}{\parbox{0.92\linewidth}{\centering\small\color{cAsk}\textbf{\T{未解明}{Open}}\enspace #1}}\par}}
+
+% ---------- 色 ----------
+\definecolor{eNeu}{HTML}{8A8985}   % 平静
+\definecolor{eHap}{HTML}{E0A100}   % 喜び
+\definecolor{eSad}{HTML}{2A6FA8}   % 悲しみ
+\definecolor{eAng}{HTML}{B3312B}   % 怒り
+\definecolor{kA}{HTML}{2A78D6}\definecolor{kV}{HTML}{EB6834}\definecolor{kT}{HTML}{1BAF7A}
+\definecolor{cK0}{HTML}{B0B0B0}\definecolor{cK5}{HTML}{2A78D6}\definecolor{cK25}{HTML}{0B3D6E}
+\definecolor{jPos}{HTML}{1B7F5C}\definecolor{jSame}{HTML}{B9C2C4}\definecolor{jUndet}{HTML}{E3E7E8}\definecolor{jInact}{HTML}{F2F2F2}\definecolor{jNeg}{HTML}{B3312B}
+\pgfplotsset{
+  sK0/.style={cK0, mark=*, mark size=1.7pt, only marks, error bars/.cd, y dir=both, y explicit, error bar style={cK0, line width=0.8pt}},
+  sK5/.style={cK5, mark=square*, mark size=1.7pt, only marks, error bars/.cd, y dir=both, y explicit, error bar style={cK5, line width=0.8pt}},
+  sK25/.style={cK25, mark=triangle*, mark size=2.1pt, only marks, error bars/.cd, y dir=both, y explicit, error bar style={cK25, line width=0.8pt}},
+}
+\definecolor{kAH}{HTML}{86B6EE}\definecolor{kAV}{HTML}{9B4FB0}\definecolor{kVT}{HTML}{A8A23A}\definecolor{kAT}{HTML}{1E8C8C}\definecolor{kAVT}{HTML}{3D3D3D}
+\definecolor{cOther}{HTML}{8A8985}  % ほかのコーパスで学んだ分類器
+\definecolor{cSame}{HTML}{1B7F5C}   % 同じコーパスの全ラベル
+\definecolor{cFixed}{HTML}{B9C2C4}  % 固定した部分
+\definecolor{cLearn}{HTML}{2A78D6}  % 学ぶ部分
+\tikzset{
+  emo/.style={rounded corners=2pt, text=white, font=\small\bfseries, minimum width=1.5cm, minimum height=0.6cm, inner sep=2pt},
+  utt/.style={draw=mMuted, fill=white, minimum size=3.2mm, inner sep=0pt},
+  big/.style={draw=mDarkTeal!70, rounded corners=3pt, align=center, font=\small, inner sep=5pt},
+  tagw/.style={rounded corners=1.5pt, inner sep=2pt, font=\scriptsize\bfseries, text=white},
+}
+% 声・顔・言葉の小さな絵（\icvoice，\icface，\ictext．引数は位置の名前）
+\newcommand{\icvoice}[1]{%
+  \begin{scope}[shift={(#1)}]
+    \draw[kA, line width=1pt] plot[domain=-0.6:0.6, samples=80, smooth] (\x,{0.28*sin(1500*\x)*exp(-6*\x*\x)});
+  \end{scope}}
+\newcommand{\icface}[1]{%
+  \begin{scope}[shift={(#1)}]
+    \draw[kV, line width=1pt] (0,0) circle (0.36);
+    \fill[kV] (-0.12,0.09) circle (0.04); \fill[kV] (0.12,0.09) circle (0.04);
+    \draw[kV, line width=1pt] (-0.15,-0.1) arc[start angle=200, end angle=340, radius=0.16];
+  \end{scope}}
+\newcommand{\ictext}[1]{%
+  \begin{scope}[shift={(#1)}]
+    \draw[kT, line width=1pt, rounded corners=3pt] (-0.68,-0.25) rectangle (0.68,0.25);
+    \draw[kT, line width=1pt] (-0.25,-0.25) -- (-0.32,-0.42) -- (-0.08,-0.25);
+    \node[kT, font=\tiny] at (0,0) {\T{「やった！」}{``I did it!''}};
+  \end{scope}}
+
+% ---------- 発表情報 ----------
+\title{\T{新しいコーパスで，感情認識の間違いを何が直すか}{What repairs emotion-recognition errors on a new corpus?}}
+\subtitle{\T{少数のラベル，ほかのコーパス，ラベル無しの発話，ほかのモダリティ}{Few labels, other corpora, unlabeled utterances, and other modalities}}
+\author{\T{杉浦 伸一}{Shinichi Sugiura}}
+\institute[\T{北陸先端科学技術大学院大学}{JAIST}]{\T{北陸先端科学技術大学院大学}{Japan Advanced Institute of Science and Technology}}
+\date{\T{2026年11月10日}{November 10, 2026}}
+
+\begin{document}
+\maketitle
+
+\input{parts/a0_summary}
+
+\input{parts/a_intro}
+\input{parts/b_prior}
+\input{parts/c_yardstick}
+\input{parts/d_part1}
+\input{parts/e_part2}
+\input{parts/f_why}
+\input{parts/g_summary}
+\input{parts/h_supp}
+
+\end{document}

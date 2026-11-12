@@ -1,0 +1,97 @@
+path	sections	sha256_at_copy	result_commit	since_result_commit	working_tree
+DAI/evidence/make_evidence.py	evidence	16c849d6f2fef8193dc8e4fd91fb902b4912ea603bb40efa6ee5fe7160d88082			
+DAI/evidence/make_paper_code.py	evidence	f97fc1a5fd70fbf6dd392d1480cc1e18c77afc2464e9404282c7f49ed1f4d68f			未コミットの変更あり
+DAI/exp/dai1.py	sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	54ad8f921cc676b156c4984073b2e787c4ba2a9bc9798b7e5c78c3244cb1796d	ba98974	同じ	
+DAI/exp/dai11_probe.py	sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	ae18a59bcb79afbb05fbdf8bf65a69021a901b197c11c9a3a2995df137475d03	67e3553	同じ	
+DAI/exp/dai12_probe.py	sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	bd287f689ba53839bab20aa4476711c307be28e976bc79c20c58253a99eb5a02			
+DAI/exp/dai13_probe.py	sec9_layers(DAI-13)	19960ba6b4257a27b0e9ef757bda776dd7d9e68229e8a69b133877fd210a7b1f			
+DAI/exp/dai14.py	sec8_mechanism(DAI-11,12,14)	f552575183888045481f42994c1701f4b093d5d7ee18e5ae5ba7923d4870f1f0	fbd6c07	同じ	
+DAI/exp/dai1_desc.py	sec7_loco_eval(DAI-1,2,3)	b7761c805edbd61ae6818cf975ef945d59b66c05069fcd56022f28d5c969c711	ba98974	同じ	
+DAI/exp/dai1_select.py	sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	a6cc0454fb517d0a7f94438fbfd92f2d39f54578d0336a971f135d9d3f6c44a4	ba98974	同じ	
+DAI/exp/dai1_stats.py	sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	221d5187864569100a44e6bf283cadf981754f15250a97003ea9a32f0e2ae8b0	ba98974	同じ	
+DAI/exp/dai2.py	sec7_loco_eval(DAI-1,2,3)	681f2e599d4a5da73ab1b1c0843b1964dada8b95b258e61f9cd5227a403369e5			
+DAI/exp/dai2_grad.py	sec7_loco_eval(DAI-1,2,3)	9a2cce20fafbf5d99d378d1d778fbba84e62055b790c32a099d2a68572aa6f8a			
+DAI/exp/dai2_select.py	sec7_loco_eval(DAI-1,2,3)	7cbfde8cd02ba69d4d81ed97e87c23adb74ec3d81c4d3c54ae0d4446e2aac81e			
+DAI/exp/dai2_stats.py	sec7_loco_eval(DAI-1,2,3)	94a4b92e312b169b4b00498fa371f6796f8f926fc76059e524a18e80e688df21			
+DAI/exp/dai3.py	sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	2ea7e193393535cccb2742b1383516738ab25b92f37e66f4c37adc9806e2e7bd	ba98974	同じ	
+DAI/exp/dai5.py	sec7_loco_eval(DAI-1,2,3)	1471ebed86e80aaa990712c21dfd7d3998ea3164e52022e211dac818cb30247d			
+DAI/exp/dai5_stats.py	sec7_loco_eval(DAI-1,2,3)	eeedb4f4839b2bc8d6b7aab520a61284fa9bff16d7b45e0a6a02bb2e6e56cd68			
+DAI/exp/dai_data.py	sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	f228e73baceb90e57f9f792492534d3c1199327796b3a13cb700eb8ee2dbe937			
+DAI/exp/dai_solver.py	sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	e26d60fb439325330508c9441cc723a6afcfcd65d394398d525250a32bf6a71f			
+DAI/exp/dai_subsets.py	sec7_loco_eval(DAI-1,2,3)	9b4c185298ef7ed4b14501c56af455e22f19d40d2938226bfd8d6dc03ff41d62			
+DAI/exp/table_dai11_cells.py	sec8_mechanism(DAI-11,12,14)	24d221918050c19267c9b888239c46c723ef9b9d85179bf82d412f81b19d4e43			
+DAI/exp/table_dai12_cells.py	sec8_mechanism(DAI-11,12,14)	6b96206ee58ebeacd738ec8b92ec97b183da5a7b470b6702701ed86323b7bc50			
+DAI/exp/table_dai13_cells.py	sec9_layers(DAI-13)	7ba65b2cceab2e943a625d7d8f640e5f98fc207c76e603afcb576aef6f9abcbe			
+DAI/run/dai11_probe.sh	sec8_mechanism(DAI-11,12,14)	8bf987d31219f7cc5149f10b274c7b7d4c5b4104913796d7b1934f7a8d2724ca			
+DAI/run/dai12_probe.sh	sec8_mechanism(DAI-11,12,14)	b0d9880cf0d8313c86ed6efc937f0c45a470b6b3e03b4d552abd60a86acad45d			
+DAI/run/dai13_probe.sh	sec9_layers(DAI-13)	a46666979fc669634e4e8a8489d1cd48b0e284eca1e07b6e9b9f4eda321ec524			
+DAI/run/dai13_probe_r1.sh	sec9_layers(DAI-13)	82a85f9c76026d7ae7999bf4908ce3b7eab523f85bc856eaae2bf9c53e23f661			
+DAI/run/dai1_pseudo.sh	sec7_loco_eval(DAI-1,2,3)	c00e45f3ae28df95f7267c49056f387636bd7ad57e824d683afae1a501d38629			
+DAI/run/dai2_pseudo.sh	sec7_loco_eval(DAI-1,2,3)	277d84c65962306f8123abd6d776cd2a3ecefe0994fbe5488b245ebb8f2b52ce			
+DAI/run/dai_eval.sh	sec7_loco_eval(DAI-1,2,3)	0a4ff6fc7016e1538860b45f4538ccb1ae494700550c418cf750559c43b1c552			
+DAI/run/make_eval_gate5.py	sec7_loco_eval(DAI-1,2,3)	cad3c920bee4a26ecde9914b48d490f41b839f393d7afc269bd15164b8c6e260			
+exp/analyze_e76.py	sec3-5_pair_setting(E75,E76)	4c51def793aa3c1fedacb71e4f1c234446bfbaaef8bb926900e8595aaebfc94a	e39e54a	同じ	
+exp/analyze_e79.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	09f3a345b9455249f203e7691e4953594833bf8cad893b351282740e7ff8c1b3	ec0aeb6	同じ	
+exp/baselines_distill.py	sec6_world_setting(E77-E80,E79)	23f91247cc1ad0c10a52d2bb19a121dfd5dec7a176d86a77f58948d5e8461a3e			
+exp/belief_check.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	183426e81abff17478e7b60fda243381fdd4812369f2fd5f12dc2d1831513b62			
+exp/belief_correct.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	0a6d122c5d0651ff28d596e92a245b7248276efec0d59ecdb1df8ce289603d90			
+exp/check_lll_cues.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	a74e8d9ec4989897ae19aa09f8f01f0f056169bcc77a2e34a228b93619c6ebe4			
+exp/combine_drafts.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	2b4e9577928f1e7ae17e7c328c61042ebe5755c507fe179c351dae92de476a87			
+exp/committee.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	9a7ee4b36945a98cb374df1c0fbd39c1685779dcf583edf1989ca5a79f744101			
+exp/compare_b1.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	d2ff084bc91ec18cbbd8c5b489a0fa607324aeabec44f1dfdb0db7c7da30a971			
+exp/compare_dai.py	sec6_world_setting(E77-E80,E79)	ae673f9ac4daf9614f047a57aab14701db1cfcc9bd74bc028834bcfd14123fda			
+exp/compare_dai2.py	sec6_world_setting(E77-E80,E79)	84af8c1384e5753ee2b43b09ff547e38c8ba0b4fbe10bdcab65828855ccdc07e			
+exp/distill_belief.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	c343277a99c06d3989036e40c59d2ae8a371667bddb4bb9f494a55590e5b6439			
+exp/e80_stage_c.py	sec6_world_setting(E77-E80,E79)	9ba2bd158b259b485ed11b193de5decd0a872351362980fe9ae93a768a7cd0a9			
+exp/e80_teacher_j.py	sec6_world_setting(E77-E80,E79)	86dbbc020878f9564337af8a48208ac91157183a51f6d70c6f1a5a7b4b03b666	66eacca	同じ	
+exp/explore_compare.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	df7ced274aeb5437a4c6a54c413c8c939b92f6975e511c850e58435629dee5ae			
+exp/explore_direction_bound.py	sec3-5_pair_setting(E75,E76)	5d23b34160315d4bbc3e81b6a6ee2a4888d94473f2387a53e05f77bf2cdf1d99			
+exp/explore_factor.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	57744e8ecf79946c39a51669426752135863a40716c8bf1caa03c9272389135f			
+exp/explore_geometry.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	17baf181bd9f40a1846a7cb84c5b96fdee2496e667d1faf70f6d4381b02b850e			
+exp/explore_mechanism.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	baf0f0be532fa2f1f372e2d1bb7e17b057813194d749e431dc17c8d041c47cb2			
+exp/explore_pairs.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	0d23c7a496565ccec00f24fbb665cece41688007a0edfe53c1a0944bfe4b05f3			
+exp/explore_source_value.py	sec3-5_pair_setting(E75,E76)	a1a99945b2a199ca83bd9480fb9108c38c4f8f1a5e62d17e05e8f1ad387f6e1e			
+exp/explore_synergy.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	3bc0141478a79cf74aed706dd09e9a6797c76500a3140e8a42ddb99e61a6c7bd			
+exp/explore_uar_link.py	sec3-5_pair_setting(E75,E76)	cf642d8c5ac46790b55c8b7e5926148dd036764fc7c8e561357174c4db3e282c			
+exp/fixc_map.py	sec3-5_pair_setting(E75,E76)	e8e54676b63673efd45a8d902c3ef567ec3bc8c47a01eb00366e87e79d8b8d07			
+exp/geom_e0.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	c133eaa3779f8ed12ccec8caa948ac75f47fcc46d37e8a86f4753933a69d2599			
+exp/interventions.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	8ab1d1abf1058be119ffcba8db15f6654b62d2266152108b152d4ded36e8c264			
+exp/logreg.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	cf8727d4ff0c113859576de541fb1ae2837b2c14e97bf6371c340fc3852d50fc			
+exp/map.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	993b38fa939cf080375a66fdb4f4956425c241d16a2231cf928a2901a6bb9c4a			
+exp/merged_scores.py	sec3-5_pair_setting(E75,E76)	289b5cab623407d2b122f3c35a109c6c4e1ed731612afa812ecc7a5ae2e50109			
+exp/meta5.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	ec76acbde16329a32c72122d47859dacd99ab02302ec8e20334aa51b24d58de5			
+exp/multimodal_distill.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	59c05006665069d0b129614a8403fd520c13a012032e4a43ccbf5383b0243c72			
+exp/pair_table.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	62e543284abb9b83b31cbd782aca1b4cceef33b69ae6c8fbef221ba4a2af2ba0			
+exp/reanalysis_e75.py	sec3-5_pair_setting(E75,E76)	5a03b5ccd4ed4dbc236edcf6da72d3b7759787db855875a93c2e75ed9f3c6d0f	c452b38	同じ	
+exp/relearn_e76.py	sec3-5_pair_setting(E75,E76)	248f51d4b2124fbc2f065680ee4d5fe2c7e335384bc7753478312d2633c22c96	a14d436	同じ	
+exp/relearn_e76_finish.py	sec3-5_pair_setting(E75,E76)	04b15036bdc6308da46694ebe18f062ad62a2d1f7edccfe1d215d9555af6db45	a14d436	変わった	
+exp/select_baselines.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	ded271ba2322aea732224f326fa3aea1bd1042f0827b17a414cae5e54005d67c			
+exp/select_herding.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	b4684d128586479380e82ae87c98469c09ac06c33c6b33330b5c542e61311b36			
+exp/select_kshot.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	69ad0f1f98cb5e30e206a6058919e7515d78d4e96525615e6f71360f061b7f24			
+exp/select_labelfree.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	a5b8561a8432c1ec3b55d335d74a9d5145abb6bc7e9e9ff99dc7a0282ce748ae			
+exp/select_teach.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	0524d6a25d3172ea089421e03a1fe293625142ab8c6cd438ace681915a811c06			
+exp/summarize_map.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	d1d8c197572d038a930de37472d460d39430e3dac8e0c33e95dd706dc49476cd			
+exp/teach_ablate.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	fc55b390298288420ea83d0041ce1310c545c6b245bd2f01b0059b124b74f9f1			
+exp/teach_stack.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	717d9dc0ed5592d8725ad1a138b2b81e50dac2b09c0f73c0ec2412556987dc3d			
+exp/teach_student39.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	6e557f8f82d5b180d2dc7a3e88a553d051da34b966dee8452396b3fbb6273431			
+exp/text_cond2.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	ab89012a5bafddf6461bdd33886a4cead77b71501eea553aec87550d05dfe0fa			
+exp/tgt_scores.py	sec3-5_pair_setting(E75,E76)	f6f8553c78c0ec6cb7475be27bc7ba2616d53bca78b951734bbb411be83f72d8			
+exp/transfer_scores.py	sec3-5_pair_setting(E75,E76)	b68944b17465501b1868b9f11e1c8a3cc620a251264a68a6c7abf2153e88e99f			
+features/build_audio.py	data	1857f3bde33981e5a5ae703cee9778c6d973761e250518d9395e7401ae47a29a			
+features/build_audio_layers.py	data	da372f2fff485e4647991358767885e221ae634734aeb6ac09c9df8ac3c5a431			
+features/build_manifest_afew.py	data	1098c0ebe31e3f71d4b1fe2cb76d3b5729369048a9a199640cbebe94de2836b7			
+features/build_manifest_extra.py	data	c2901707d62776b30aee81d068c501e9c025f1e7234f87422bce6397fcc5e26c			
+features/build_manifest_iemocap.py	data	ef7a464572a1d1fbddb6bd32413b7747467eb145019b62238d6c0ce6c98e767e			
+features/build_manifest_meld.py	data	8c1424cde214a3740cb650ca86fde92e969f6a343f06e04ab2f57c037c1246d7			
+features/build_manifest_mosei.py	data	e7cd19e04be9a00ee4f2a48aa380914f23f7ef3142bf1672b3baabb32915b474			
+features/build_text.py	data	73ca020daa3464cfc911ca0b5e8fab61a9c8909779a87ce0255238f7c2a59b99			
+features/build_transcript_afew.py	data	ca67b12b74975b9d1a5daf5c70af8ebd67291a2bf32c907427885b046eb7a2c8			
+features/build_video.py	data	11d299197b0bd2ae06c76c4b64bf04642b051cb43ed9b3d218fed23d866c18b5			
+features/common.py	data;sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79);sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	713fc08ad0edd0640396dbc8ecac87fe671bbbc7aa83c12f12a2d898a5ee6404			
+features/resnet50_affectnet.py	data	23e4e712049c760beb6a1f5ecec147b3cb33a7f16ce641f513ec6af5e5d18843			
+measure/ablate.py	data;sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	0146fe591aedfa498a35272fb2c8da9bbd030847533d1f54833492c7dc541ce8			
+measure/data.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79);sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	1fe245175f57d7460fd5da019be737b17ff9c9602d03b36554b7099f2227ca40			
+measure/shift.py	data;sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79)	04b763328d4c7abfbc0eb5d6e9fdf01d5fe799ab7786c12a26b39c493eb59216			
+measure/split.py	sec3-5_pair_setting(E75,E76);sec6_world_setting(E77-E80,E79);sec7_loco_eval(DAI-1,2,3);sec8_mechanism(DAI-11,12,14);sec9_layers(DAI-13)	2bae48dd89de94c689e4486f35f60f3159788552fb53730a374293b43d75ce0d			
+measure/test_shift.py	data	c17e2c76ac4747a59f66117016bba09e8ec993443fc3ff9473dc7c1eb93533a8			
+run/build_data.sh	data	858a471d6eee4d1de33f580b9b7b5932ce28279fff192f9e958ee306d12b8622			

@@ -1,0 +1,158 @@
+%% F．なぜ上がるか（下調べ 11・12．仮のターゲットの回．スライド 38〜42）
+%% 数の出どころ：results/dai11_probe/（req_vs_gain.csv，rank_corr.csv，cells.csv），results/dai12_probe/（diffs.csv，criteria.csv，q2_cells.csv），
+%% results/dai3/eval/expl4_corpus_restored.csv（余地．評価の回）．scripts/export_figdata.py が書き出す．英語は後で訳す（\EN）
+\setband{\T{なぜ上がるか}{\EN}}
+\pgfplotsset{
+  whyscat/.style={only marks, mark size=1.5pt, opacity=0.8},
+}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{なぜ上がるか①：疑似ラベルが学び直す分類器より当たるほど，gain が大きい}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.72\linewidth, height=5.0cm, xlabel={\T{疑似ラベルの当たる幅 $\Delta$（候補の上の UAR の差）}{\EN}}, ylabel={\T{gain（学び直した版 − K 本だけ）}{\EN}},
+  xmin=-12, xmax=34, ymin=-4, ymax=9, ymajorgrids, xmajorgrids, legend style={at={(0.02,0.98)}, anchor=north west, font=\scriptsize}]
+\addplot[whyscat, kA, mark=*] table[x=delta_uar, y=gain, col sep=comma, comment chars={\#}]{figures/why_A.csv};
+\addplot[whyscat, kV, mark=square*] table[x=delta_uar, y=gain, col sep=comma, comment chars={\#}]{figures/why_V.csv};
+\addplot[whyscat, kT, mark=triangle*] table[x=delta_uar, y=gain, col sep=comma, comment chars={\#}]{figures/why_T.csv};
+\addplot[whyscat, kAVT, mark=diamond*] table[x=delta_uar, y=gain, col sep=comma, comment chars={\#}]{figures/why_AVT.csv};
+\addplot[mMuted, dashed, domain=-12:34] {0};
+\legend{\T{声}{\EN}（A）, \T{顔}{\EN}（V）, \T{言葉}{\EN}（T）, \T{融合}{\EN}（AVT）}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{gain の順位は当たる幅 $\Delta$ と並ぶ（全体 \N{rhodall}，声 \N{rhoda}）}{\EN}}
+\fnote{\T{280 条件（4 コーパス × 4 分類器 × K 5 × 出所 4．出所は同じモダリティの別のエンコーダと，ほかのモダリティを含む 3 種）．順位相関は（コーパス，分類器，K）の中で中心化したスピアマン．偶然の水準（クラスタの並べ替えの 95\% 点）は全体 \N{nulldall}，声 \N{nullda}．顔は \N{rhodv} で並ばない．下調べ（仮のターゲットの回）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{なぜ上がるか②：疑似ラベルのうち，自分の特徴で真似できる分だけが gain になる}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.72\linewidth, height=5.0cm, xlabel={\T{真似できる分（疑似ラベルを特徴から線形に当てたときの UAR の差）}{\EN}}, ylabel={\T{gain（学び直した版 − K 本だけ）}{\EN}},
+  xmin=-7, xmax=11, ymin=-4, ymax=9, ymajorgrids, xmajorgrids, legend style={at={(0.98,0.02)}, anchor=south east, font=\tiny}]
+\addplot[whyscat, kA, mark=*] table[x=proj_gain, y=gain, col sep=comma, comment chars={\#}]{figures/why_A.csv};
+\addplot[whyscat, kV, mark=square*] table[x=proj_gain, y=gain, col sep=comma, comment chars={\#}]{figures/why_V.csv};
+\addplot[whyscat, kT, mark=triangle*] table[x=proj_gain, y=gain, col sep=comma, comment chars={\#}]{figures/why_T.csv};
+\addplot[whyscat, kAVT, mark=diamond*] table[x=proj_gain, y=gain, col sep=comma, comment chars={\#}]{figures/why_AVT.csv};
+\addplot[only marks, mark=o, mark size=3.2pt, mBad, line width=0.8pt] table[x=proj_gain, y=gain, col sep=comma, comment chars={\#}]{figures/why_flag.csv};
+\addplot[mMuted, dashed, domain=-7:11] {0};
+\legend{A, V, T, AVT, \T{赤丸}{\EN}}
+\end{axis}
+\end{tikzpicture}
+\msg{\T{真似できる分とも並ぶ（全体 \N{rhopall}，声 \N{rhopa}）．赤丸の \N{wflagn} 条件は割合 \N{wflagfracmax} 以下}{\EN}}
+\fnote{\T{赤丸：$\Delta \ge 5$ なのに gain $< 0.5$ の条件．真似できる分：学び直す分類器の特徴から疑似ラベルの対数確率をリッジ回帰で交差予測した判定の UAR − K 本だけの UAR．真似できる割合 ＝ 真似できる分 ÷ $\Delta$．$\Delta \ge 5$ の \N{wdeltage} 条件のうち \N{wdeltageok} で gain $\ge 0.5$．言葉 \N{rhopt}，顔 \N{rhopv}．出どころ：results/dai11\_probe/req\_vs\_gain.csv，rank\_corr.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{例：IEMOCAP の顔は，疑似ラベルが \N{wfvdmin}〜\N{wfvdmax} ポイント当たっても上がらない}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering
+{\scriptsize\T{候補の上の UAR（出所：3 つの積．顔自身を含む）}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.3cm, ybar, bar width=9pt, xtick={1,2,3}, xticklabels={K = 0, K = 5, K = 25}, ymin=40, ymax=85, ymajorgrids,
+  legend style={at={(0.5,1.02)}, anchor=south, font=\tiny, legend columns=2}, enlarge x limits=0.3]
+\addplot[mark=none, fill=kV, draw=kV] table[x=x, y=pool_s, col sep=comma, comment chars={\#}]{figures/why_face_iemocap.csv};
+\addplot[mark=none, fill=cMod, draw=kAV] table[x=x, y=pool_t, col sep=comma, comment chars={\#}]{figures/why_face_iemocap.csv};
+\legend{\T{顔の分類器（K 本だけ）}{\EN}, \T{疑似ラベル}{\EN}}
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+{\scriptsize\T{テストの UAR}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.3cm, ybar, bar width=9pt, xtick={1,2,3}, xticklabels={K = 0, K = 5, K = 25}, ymin=40, ymax=85, ymajorgrids,
+  legend style={at={(0.5,1.02)}, anchor=south, font=\tiny, legend columns=2}, enlarge x limits=0.3]
+\addplot[mark=none, fill=kV, draw=kV] table[x=x, y=test_none, col sep=comma, comment chars={\#}]{figures/why_face_iemocap.csv};
+\addplot[mark=none, fill=kV!40, draw=kV] table[x=x, y=test_other, col sep=comma, comment chars={\#}]{figures/why_face_iemocap.csv};
+\addplot[mBad, dashed, line width=1.2pt, sharp plot, forget plot] coordinates {(0.5,53.799) (3.5,53.799)};
+\legend{\T{K 本だけ}{\EN}, \T{提案}{\EN}}
+\node[font=\tiny, mBad, anchor=south east] at (axis cs:3.45,54.3) {\T{全ラベルの上限}{\EN} \N{wfvoracle}};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\msg{\T{顔の特徴では，疑似ラベルの当たり方をほとんど真似できない（真似できる割合 \N{wfvfmin}〜\N{wfvfmax}）}{\EN}}
+\fnote{\T{全ラベルで学んでも顔は \N{wfvoracle} で，K 本だけ（\N{wfvnonemin}〜\N{wfvnonemax}）との差は 2 ポイント未満．隠れ層つきの読み取りでも 14 条件中 12 で「特徴に情報が無い」側（残り 2 は判定できない）．IEMOCAP の顔は，2 人が映る画面から検出した小さい顔とマーカーという入力の事情がある（原因かは測っていない）}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{なぜ上がるか③：分類器を大きくしても，読み取れる分は増えない}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.6\textwidth}
+\centering
+{\scriptsize\T{疑似ラベルの読み取り：隠れ層つき − 線形（\N{nlcells} 条件）}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.4cm, xtick={3,9,15}, xticklabels={\T{声}{\EN}, \T{顔}{\EN}, \T{言葉}{\EN}}, xmin=0, xmax=18, ymin=-1.5, ymax=2, ymajorgrids,
+  ylabel={\T{UAR の差}{\EN}}, extra x ticks={6,12}, extra x tick labels={}, extra x tick style={grid=major, major grid style={mMuted!50}}]
+\addplot[only marks, mark=*, mark size=1.2pt, cDisc, opacity=0.6] table[x=x, y=est, col sep=comma, comment chars={\#}]{figures/why_nl.csv};
+\addplot[mMuted, dashed, domain=0:18] {0};
+\addplot[mBad, dotted, line width=1pt, domain=0:18] {1};
+\node[font=\tiny, mBad, anchor=south east] at (axis cs:17.8,1.02) {\T{「上回る」の下限 1.0}{\EN}};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.38\textwidth}
+\centering
+{\scriptsize\T{全ラベルで学んだとき（60 条件）}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.4cm, xtick={3,9,15}, xticklabels={\T{声}{\EN}, \T{顔}{\EN}, \T{言葉}{\EN}}, xmin=0, xmax=18, ymin=-1.5, ymax=2, ymajorgrids, yticklabels={}]
+\addplot[only marks, mark=*, mark size=1.2pt, cCrit, opacity=0.7] table[x=x, y=est, col sep=comma, comment chars={\#}]{figures/why_lab.csv};
+\addplot[mMuted, dashed, domain=0:18] {0};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\msg{\T{上回ると言える組は \N{nlgroups} 組中 0．全ラベルで学んでも差は \N{labmin}〜\N{labmax}}{\EN}}
+\fnote{\T{隠れ層つき：線形の項に隠れ層 1 つ（256）を足したネット．線形の版を候補に含めて選ぶ．左：出所 5 つ × K 4 の点推定（\N{nlmin}〜\N{nlmax}），各分類器の中は出所の順．同じ罰則で隠れ層を縮めたので，「上回らない」は実際より出やすい．下調べ（仮のターゲットの回）．出どころ：results/dai12\_probe/diffs.csv，criteria.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+% 2026-11-10 追加：下調べ 13（中間層）
+\begin{frame}{\T{なぜ上がるか④：最終層で真似できない分の一部は，中間層を足すと取り戻せた（声）}{\EN}}
+\hosoku{supp:layers}{\T{中間層の下調べの添え書き}{\EN}}
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.8\linewidth, height=4.0cm, ybar, bar width=9pt, corpx, ymin=-2, ymax=24, ymajorgrids, ylabel={\T{候補の発話の UAR の差}{\EN}},
+  legend style={at={(0.5,1.02)}, anchor=south, font=\scriptsize, legend columns=3, /tikz/every even column/.append style={column sep=1em}}, legend cell align=left]
+\addplot[mark=none, fill=cOther!45, draw=cOther] table[x=ci, y=gap, col sep=comma, comment chars={\#}]{figures/why_layers.csv};
+\addplot[mark=none, fill=kA, draw=kA, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=ci, y=lw, y error plus=lwp, y error minus=lwm, col sep=comma, comment chars={\#}]{figures/why_layers.csv};
+\addplot[mark=none, fill=kA!35, draw=kA, error bars/.cd, y dir=both, y explicit, error bar style={black, line width=0.6pt}] table[x=ci, y=unif, y error plus=unp, y error minus=unm, col sep=comma, comment chars={\#}]{figures/why_layers.csv};
+\legend{\T{最終層で真似できない分}{\EN}, \T{25 層の重みつき和で取り戻した分}{\EN}, \T{25 層の一様平均で取り戻した分}{\EN}}
+\node[font=\scriptsize\bfseries, kA] at (axis cs:1,22) {\N{mlshareAFEW}\%};
+\node[font=\scriptsize, mMuted] at (axis cs:2,22) {\T{言えない}{\EN}};
+\node[font=\scriptsize\bfseries, kA] at (axis cs:3,22) {\N{mlshareMELD}\%};
+\node[font=\scriptsize\bfseries, kA] at (axis cs:4,22) {\N{mlshareMOSEI}\%};
+\end{axis}
+\end{tikzpicture}
+\msg{\T{AFEW・MELD・MOSEI では真似できない分の \N{mlsharemin}〜\N{mlsharemax}\% を取り戻せた（K = 5）}{\EN}}
+\fnote{\T{下調べ（仮のターゲットの回），K = 5，テストではなく候補の発話の上の値．疑似ラベルは顔と言葉の K 本だけの分類器の確率の積で，提案の疑似ラベル（声も含む 3 つの積）とは違う．真似できない分：疑似ラベルの UAR − 最終層から線形に真似した UAR．取り戻した分：WavLM の 25 層の重みつき和（層の重みもラベル無しで学ぶ）から真似した UAR − 最終層から真似した UAR．上の数は点推定の比で，AFEW は対照の分を割り引くと \N{mlsharediscmaxAFEW}〜\N{mlsharediscAFEW}\%（補足 15）．ひげは 95\% 区間．対照，層の重みを学ぶ寄与，IEMOCAP，取り戻した情報の中身の添え書きは補足 15．出どころ：results/dai13\_probe/summary\_seeds2/diffs.csv}{\EN}}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{\T{提案は，特徴にある感情の情報を，ラベル無しの発話を使って学ぶ}{\EN}}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\small
+\T{%
+\begin{itemize}
+\item gain は，疑似ラベルの当たる幅のうち，\textbf{自分の特徴で真似できる分}で決まる
+\item 真似できない分は，最終層の特徴の上では分類器を大きくしても取り出せない．中間層を足すと，その \N{mlsharemin}〜\N{mlsharemax}\% を取り戻せた（AFEW・MELD・MOSEI，K = 5）
+\item だから提案は\textbf{ラベルの代わり}として働く．特徴に情報がある声で上がり，顔の IEMOCAP では上がらない
+\end{itemize}}{\EN}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+{\scriptsize\T{声：全ラベルの改善のうち提案が埋めた割合（K = 5）}{\EN}}\\
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth, height=4.2cm, ybar, bar width=14pt, xtick={1,2,3,4}, xticklabels={AFEW, IEMOCAP, MELD, MOSEI}, xticklabel style={font=\scriptsize},
+  ymin=0, ymax=100, ymajorgrids, ylabel={\%}, nodes near coords={\pgfmathprintnumber[fixed, precision=0]{\pgfplotspointmeta}}, every node near coord/.append style={font=\scriptsize}, enlarge x limits=0.18]
+\addplot[mark=none, fill=kA, draw=kA] table[x=ci, y=share, col sep=comma, comment chars={\#}]{figures/why_room.csv};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\msg{\T{ラベル無しの発話で，全ラベルの改善の \N{shareAIEMOCAP}〜\N{shareAAFEW}\% を埋めた（声，K = 5）}{\EN}}
+\fnote{\T{全ラベルの改善：候補の全ラベルで学んだ重みに，テストの発話のラベルで切片だけを解き直した分類器 − K 本だけ（評価の回の点の値．区間なし）．左の 3 点は下調べ 11〜13 の結果．中間層から取り戻した分には，感情のほかに言葉の内容や録音環境の情報も入りうる}{\EN}}
+\end{frame}
