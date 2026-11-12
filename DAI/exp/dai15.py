@@ -1,5 +1,5 @@
 """実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
-（設計 `DAI/docs/実験15_設計.md` 第 4 版）．
+（設計 `DAI/docs/実験15_設計.md` 第 5 版）．
 
 提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
 疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
@@ -246,9 +246,10 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
         try:
             rj = np.linalg.solve(Cw0.T, wq.T).T                                # C′ の逆を掛けて判定し直す（記録．負の値もそのまま）
             arr[f"pred_K{K}_teacher_rj0"] = rj.argmax(1).astype(np.int8)
-            rows.append(dict(K=K, option="_teacher_rj0", neg_share=float((rj < 0).any(1).mean())))
+            rows.append(dict(K=K, option="_teacher_rj0", neg_share=float((rj < 0).any(1).mean()), singular=False))
         except np.linalg.LinAlgError:
             arr[f"pred_K{K}_teacher_rj0"] = arr[f"pred_K{K}_teacher_w"]
+            rows.append(dict(K=K, option="_teacher_rj0", neg_share=np.nan, singular=True))
         arr[f"candcount"] = np.bincount(u.ypool, minlength=4)
         gk = u.gK(K)
         for s in STU:
@@ -396,18 +397,25 @@ VERS = {"sel": None, "sel_adj": None, "I": "I", "lam0": "0.0", "lam05": "0.5", "
 CONTRASTS = [("sel", "prop"), ("sel_adj", "prop"), ("sel", "I"), ("I", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "kd_one"),
              ("lam0", "sym"), ("lam0_adj", "sym_adj"), ("lam0_adj", "I_adj"), ("oracle", "I"), ("oracle", "prop"), ("oracle", "lam0"),
              ("oracle_adj", "lam0_adj"), ("oracle_adj", "I_adj"), ("lam0", "I"), ("lam05", "I"), ("sym", "I"), ("naive", "lam0"),
-             ("naive_adj", "lam0_adj"), ("prop", "none"), ("sel", "sel_adj"), ("lam05_adj", "I_adj")]
+             ("naive_adj", "lam0_adj"), ("prop", "none"), ("sel", "sel_adj"), ("lam05_adj", "I_adj"), ("sel_adj", "I_adj")]
 TEACHER_CONTRASTS = [("teacher_rj0", "teacher_w")]
 LPI = {"sel_lpi": None, "lam0_lpi": "0.0"}                              # 記録の版：生徒が学ぶ問の割合 π′ の対数を引いて判定（予言に使わない）
 LPI_CONTRASTS = [("sel_lpi", "prop"), ("lam0_lpi", "I")]
 
 
-def lpi_pred(a: dict, K: int, s_: str, opt: str) -> tuple[np.ndarray, bool]:
-    """保存した確率と重みに合わせた表から，log π′ を引いた判定．π′ が 0 以下の成分は 1e-6 に切って正規化（旗を返す）．"""
-    pi = np.linalg.solve(a[f"Cw_K{K}_{opt}"].T, np.full(4, 0.25))
-    ok = bool(np.all(pi > 0))
-    pi = np.clip(pi, 1e-6, None); pi = pi / pi.sum()
-    return (np.log(np.clip(a[f"prob_K{K}_{s_}_{opt}"], 1e-12, None)) - np.log(pi)[None]).argmax(1), ok
+LPI_MIN_SHARE = 0.5                     # π′ が正の単位がこれ未満の割合なら，記録の差を作らない
+
+
+def lpi_pred(a: dict, K: int, s_: str, opt: str) -> np.ndarray | None:
+    """保存した確率と重みに合わせた表から，log π′ を引いた判定．π′ に 0 以下の成分があれば定義しないので None
+    （その単位は記録の差の両側から外す．第 5 版）．"""
+    try:
+        pi = np.linalg.solve(a[f"Cw_K{K}_{opt}"].T, np.full(4, 0.25))
+    except np.linalg.LinAlgError:
+        return None
+    if not np.all(pi > 0):
+        return None
+    return (np.log(np.clip(a[f"prob_K{K}_{s_}_{opt}"], 1e-12, None)) - np.log(pi)[None]).argmax(1)
 
 
 def stage_summary(out: Path) -> None:
@@ -448,24 +456,22 @@ def stage_summary(out: Path) -> None:
                     e = dai14.combo_stats([cell(A_), cell(B_)], [1, -1], g_eff, rng)
                     res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt) | e |
                                dict(verdict=dai14.verdict(e["lo"], e["hi"])))
-                lpi_bad = 0
-
-                def lcell(v):
-                    nonlocal lpi_bad
-                    o = LPI[v] if LPI[v] is not None else (None if opt == "off" else opt)
-                    out_ = {}
+                for A_, B_ in LPI_CONTRASTS:                                     # 記録の版（予言に使わない）
+                    o = LPI[A_] if LPI[A_] is not None else (None if opt == "off" else opt)
+                    cA_, cB_ = {}, {}
                     for k, a in U.items():
-                        if o is None:
-                            pr_ = a[f"pred_K{K}_{s}_prop"]
-                        else:
-                            pr_, ok_ = lpi_pred(a, K, s, o)
-                            lpi_bad += int(not ok_)
-                        out_[k] = dai14.counts(a["y"], pr_, a["cl"])
-                    return out_
-                for A_, B_ in LPI_CONTRASTS:
-                    e = dai14.combo_stats([lcell(A_), cell(B_)], [1, -1], g_eff, rng)
-                    res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt, n_pi_nonpos=lpi_bad) | e |
-                               dict(verdict=dai14.verdict(e["lo"], e["hi"])))
+                        pr_ = a[f"pred_K{K}_{s}_prop"] if o is None else lpi_pred(a, K, s, o)
+                        if pr_ is None:
+                            continue
+                        cA_[k] = dai14.counts(a["y"], pr_, a["cl"])
+                        cB_[k] = dai14.counts(a["y"], a[f"pred_K{K}_{s}_{key[B_]}"], a["cl"])
+                    n_used = len(cA_)
+                    row = dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt, n_units_used=n_used, n_units_all=len(U))
+                    if n_used < LPI_MIN_SHARE * len(U) or len({f for f, _ in cA_}) < 2:
+                        res.append(row | dict(verdict="作らない"))
+                        continue
+                    e = dai14.combo_stats([cA_, cB_], [1, -1], g_eff, rng)
+                    res.append(row | e | dict(verdict=dai14.verdict(e["lo"], e["hi"])))
                 if s == "AVT":
                     for A_, B_ in TEACHER_CONTRASTS:
                         cA = {k: dai14.counts(a["y"], a[f"pred_K{K}_{A_}"], a["cl"]) for k, a in U.items()}
@@ -631,7 +637,7 @@ def main() -> None:
                 scripts={n: sha(HERE / n) for n in SCRIPTS}, design_sha256=sha(DESIGN),
                 frozen_sha256=(sha(frozen_path(out)) if frozen_path(out).exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 python=platform.python_version(), pandas=pd.__version__, KS=KS, LAMBDAS=LAMBDAS, NF=NF, TOL=TOL, MAX_ITER=MAX_ITER,
-                SEL_OPTS=SEL_OPTS, D_MIN=D_MIN, CHECK_TEACHER=CHECK_TEACHER, CHECK_W=CHECK_W, ADJ_TOL=ADJ_TOL, ADJ_ITERS=ADJ_ITERS,
+                SEL_OPTS=SEL_OPTS, D_MIN=D_MIN, LPI_MIN_SHARE=LPI_MIN_SHARE, CHECK_TEACHER=CHECK_TEACHER, CHECK_W=CHECK_W, ADJ_TOL=ADJ_TOL, ADJ_ITERS=ADJ_ITERS,
                 tie="厳密な最大．同点は off", rng_seed=20261113)
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
