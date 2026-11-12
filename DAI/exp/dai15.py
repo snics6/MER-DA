@@ -58,7 +58,7 @@ MAX_ITER = 20000
 CHECK_TEACHER = 1e-4                    # K 本を全部使って作り直した疑似ラベルと保存の積の差の許し
 CHECK_W = 1e-2                          # C = 単位行列の補正版と保存の提案の (W, b) の相対の差の許し（判定の入れ替わりは数を記録だけ）
 SCRIPTS = ("dai15.py", "dai14.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
-RUN = {"commit": "", "dirty": True}
+RUN = {"commit": "", "dirty": True, "partial": False}
 
 
 def sha(path: Path) -> str:
@@ -309,18 +309,19 @@ def frozen_path(out: Path) -> Path:
 
 def stage_select(out: Path) -> None:
     rows = pd.concat([pd.read_csv(p) for p in sorted((out / "pseudo" / "units").glob("*.csv"))])
-    if rows.commit.nunique() != 1 or rows.dirty.astype(str).ne("False").any():
+    if not RUN["partial"] and (rows.commit.nunique() != 1 or rows.dirty.astype(str).ne("False").any()):
         raise SystemExit("仮のターゲットの単位のコミットが 1 つでないか，汚れた作業木の単位がある")
     fz1, _ = dai3.load_fz1(OUT1)
     for T in DD.CORPORA:
         need = {(c, f, r) for c, f, r in dai3.pseudo_units(OUT1, T)}
         got = {(c, f, r) for c, f, r in rows[rows["T"] == T][["c", "fold", "seed"]].drop_duplicates().itertuples(index=False)}
-        if need != got:
+        if need != got and not RUN["partial"]:
             raise SystemExit(f"{T}：仮のターゲットの単位がそろっていない（{len(got)} / {len(need)}）")
     r = rows[rows.option.isin(["I", "0.0", "0.5", "1.0"])].copy()
     r["option"] = r.option.replace({"I": "off"})
     mean = r.groupby(["T", "student", "K", "option"]).uar.mean().unstack("option")
     sel = {}
+    mean = mean.dropna(how="all")
     for (T, s, K), x in mean.iterrows():
         best = "off"
         for o in ("0.0", "0.5"):                                         # 同点は off（補正しない）を残す
@@ -351,10 +352,12 @@ def stage_summary(out: Path) -> None:
     for T in DD.CORPORA:
         files = sorted((out / "eval" / "units").glob(f"{T}_{T}_f*_r*.npz"))
         need = DD.N_FOLDS * int(fz1[T]["n_seeds_eval"])
-        if len(files) != need:
+        if not files and RUN["partial"]:
+            continue
+        if len(files) != need and not RUN["partial"]:
             raise SystemExit(f"{T}：評価の単位が {len(files)} / {need}")
         csvs = pd.concat([pd.read_csv(str(p).replace(".npz", ".csv")) for p in files])
-        if csvs.commit.nunique() != 1 or csvs.dirty.astype(str).ne("False").any():
+        if not RUN["partial"] and (csvs.commit.nunique() != 1 or csvs.dirty.astype(str).ne("False").any()):
             raise SystemExit(f"{T}：評価の単位のコミットが 1 つでないか，汚れた作業木の単位がある")
         U = {}
         for p in files:
@@ -469,6 +472,7 @@ def main() -> None:
     ap.add_argument("--folds", nargs="*", type=int, default=None)
     ap.add_argument("--seeds", nargs="*", type=int, default=None)
     ap.add_argument("--allow-dirty", action="store_true")
+    ap.add_argument("--allow-partial", action="store_true", help="試しの置き場だけ：単位のそろいとコミットの確かめを省く")
     args = ap.parse_args()
     if args.stage == "selftest":
         selftest()
@@ -481,7 +485,8 @@ def main() -> None:
         sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
     if prod and not dai1.committed_clean(DESIGN):
         sys.exit("設計の文書がコミットされていない")
-    if prod and (args.folds is not None or args.seeds is not None or set(args.targets) != set(DD.CORPORA)):
+    RUN["partial"] = bool(args.allow_partial)
+    if prod and (args.folds is not None or args.seeds is not None or set(args.targets) != set(DD.CORPORA) or args.allow_partial):
         sys.exit("本番の置き場では対象を絞らない")
     if args.stage == "summary" and not frozen_path(out).exists():
         sys.exit("固定のファイルが無い")
