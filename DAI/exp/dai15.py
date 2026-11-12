@@ -53,7 +53,7 @@ NF = 5                                  # K 本を感情ごとに分ける組の
 TOL = 1e-6
 MAX_ITER = 20000
 CHECK_TEACHER = 1e-4                    # K 本を全部使って作り直した疑似ラベルと保存の積の差の許し
-CHECK_PROP = 1e-3                       # C = 単位行列の補正版と保存の提案のテストの UAR の差の許し（点）
+CHECK_PROP = 5e-3                       # C = 単位行列の補正版と保存の提案のテストの判定が違う発話の割合の許し
 SCRIPTS = ("dai15.py", "dai14.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
 RUN = {"commit": "", "dirty": True}
 
@@ -214,10 +214,10 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
             refs = {"prop": S.logits(u.Xt[s], Wp, bp).argmax(1).cpu().numpy(),
                     "none": S.logits(u.Xt[s], Wn, bn).argmax(1).cpu().numpy(),
                     "partner": S.logits(u.Xt[s], Wk, bk).argmax(1).cpu().numpy()}
-            uI = 100 * S.uar(yt, pred[0])
-            uP = 100 * S.uar(yt, refs["prop"])
-            if abs(uI - uP) > CHECK_PROP:
-                raise SystemExit(f"{sv.base.name}：C = 単位行列の補正版（{uI:.4f}）が保存の提案（{uP:.4f}）と違う（{s}, K={K}）")
+            frac = float((pred[0] != refs["prop"]).mean())                # 同じ凸の問を別に解くので，境目の発話の判定が入れ替わりうる
+            if frac > CHECK_PROP:
+                raise SystemExit(f"{sv.base.name}：C = 単位行列の補正版と保存の提案のテストの判定が {100 * frac:.2f}% 違う（{s}, K={K}）")
+            rows.append(dict(K=K, student=s, option="_I_vs_prop_frac", value=frac))
             for (nm, _), pr, gp, stl in zip(opts, pred, res["grad_p"], res["stalled_p"]):
                 arr[f"pred_K{K}_{s}_{nm}"] = pr.astype(np.int8)
                 rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr), grad=float(gp), stalled=bool(stl),
