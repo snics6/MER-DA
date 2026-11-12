@@ -1,12 +1,14 @@
 """実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
-（設計 `DAI/docs/実験15_設計.md`）．
+（設計 `DAI/docs/実験15_設計.md` 第 2 版）．
 
 提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
 疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
 生徒の確率 p を C で混ぜた p̃ = Cᵀp（p̃_j = Σ_i p_i C_ij）を，疑似ラベルの項の目標 q に合わせる（Hendrycks ほか 2018）．
 C は K 本で推す．K 本は疑似ラベルのモデルの学習にも入るので，K 本を感情ごとに 5 組に分け，組を抜いて疑似ラベルのモデルを
 作り直し（K 本だけの融合の分類器 → 声・顔・言葉の学び直し → 積），抜いた組の上で数える（交差の推定．Dao ほか 2021 の型）．
-縮小：C_λ = (1 − λ)Ĉ + λ S(Ĉ)．S(Ĉ) は対角の平均を保った対称の表．λ = 1 は「取り違えの向きの情報を持たない」対照．
+縮小：C_λ = (1 − λ)Ĉ + λ S(Ĉ)．S(Ĉ) は対角の平均を保った対称の表．λ = 1 は「表の非対称な形の情報を持たない」対照．
+提案は疑似ラベルの項を感情ごとの総量でそろえる（列 j に w_j = 1 / Σ_n q_nj を掛ける）ので，その目標に合う表は
+C′ = 行の正規化(C_λ · diag(w)) である（第 2 版．関門の指摘）．補正にはこの C′ を使う．
 生徒の K 本の項・疑似ラベルの総重み・出発点・引き戻しは，提案の選んだ設定と同じ（補正だけを変える）．
 
 段：
@@ -48,12 +50,13 @@ KS = (5, 25)
 K_MAIN = 5
 STU = DD.STUDENTS                       # ("A", "V", "T", "AVT")
 LAMBDAS = (0.0, 0.5, 1.0)               # 1.0 は対称の対照
+D_MIN = 0.25                            # 交差の推定の表の対角の平均がこれ以下なら補正しない（でたらめと同じ当たり）
 SEL_OPTS = ("off", "0.0", "0.5")        # 選ぶ候補（off は提案そのもの）
 NF = 5                                  # K 本を感情ごとに分ける組の数
 TOL = 1e-6
 MAX_ITER = 20000
 CHECK_TEACHER = 1e-4                    # K 本を全部使って作り直した疑似ラベルと保存の積の差の許し
-CHECK_PROP = 5e-3                       # C = 単位行列の補正版と保存の提案のテストの判定が違う発話の割合の許し
+CHECK_W = 1e-2                          # C = 単位行列の補正版と保存の提案の (W, b) の相対の差の許し（判定の入れ替わりは数を記録だけ）
 SCRIPTS = ("dai15.py", "dai14.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
 RUN = {"commit": "", "dirty": True}
 
@@ -94,6 +97,12 @@ def shrink(C: np.ndarray, lam: float) -> np.ndarray:
     return (1 - lam) * C + lam * Sm
 
 
+def weight_table(C: np.ndarray, w: np.ndarray) -> np.ndarray:
+    """感情ごとの総量をそろえる重み w（列 j の倍率）に合う前向きの表：C′_ij = C_ij w_j / Σ_k C_ik w_k．"""
+    M = C * w[None, :]
+    return M / M.sum(1, keepdims=True)
+
+
 def fit_glc(X: torch.Tensor, GK: torch.Tensor, GQ: torch.Tensor, Cm: torch.Tensor, W0, b0, Cw: float, Cb: float) -> dict:
     """問 p の目的関数（S_p は GK と GQ の重みの和）：
         [ Σ_i Σ_k GK[p,i,k](−log p_ik) + Σ_i Σ_j GQ[p,i,j](−log (p_i Cm_p)_j) + ‖W − W0‖²/(2Cw) + ‖b − b0‖²/(2Cb) ] / S_p
@@ -104,6 +113,7 @@ def fit_glc(X: torch.Tensor, GK: torch.Tensor, GQ: torch.Tensor, Cm: torch.Tenso
     W0 = S.t(W0).expand(P, k, d).contiguous() if S.t(W0).dim() == 2 else S.t(W0)
     b0 = S.t(b0).expand(P, k).contiguous() if S.t(b0).dim() == 1 else S.t(b0)
     Ssum = (GK.sum((1, 2)) + GQ.sum((1, 2))).clamp(min=1e-12)
+    logC = Cm.clamp(min=1e-300).log()
     lw, lb = 1.0 / (2 * Cw), 1.0 / (2 * Cb)
     kd = k * d
 
@@ -115,8 +125,8 @@ def fit_glc(X: torch.Tensor, GK: torch.Tensor, GQ: torch.Tensor, Cm: torch.Tenso
         b = th[:, kd:]
         Z = torch.einsum("nd,pkd->pnk", X, W) + b[:, None, :]
         lp = torch.log_softmax(Z, 2)
-        pt = torch.bmm(lp.exp(), sel(Cm)).clamp(min=1e-12)
-        nll = -(sel(GK) * lp).sum((1, 2)) - (sel(GQ) * pt.log()).sum((1, 2))
+        lpt = torch.logsumexp(lp[:, :, :, None] + sel(logC)[:, None, :, :], dim=2)   # log Σ_i p_i C_ij
+        nll = -(sel(GK) * lp).sum((1, 2)) - (sel(GQ) * lpt).sum((1, 2))
         reg = lw * ((W - sel(W0)) ** 2).sum((1, 2)) + lb * ((b - sel(b0)) ** 2).sum(1)
         f = (nll + reg) / sel(Ssum)
         (g,) = torch.autograd.grad(f.sum(), th)
@@ -127,7 +137,7 @@ def fit_glc(X: torch.Tensor, GK: torch.Tensor, GQ: torch.Tensor, Cm: torch.Tenso
     gp = grad.abs().amax(1)
     finite = torch.isfinite(gp) & torch.isfinite(theta).all(1) & torch.isfinite(f)
     return {"W": theta[:, :kd].view(P, k, d).clone(), "b": theta[:, kd:].clone(), "grad_p": gp.cpu().numpy(),
-            "stalled_p": stalled.cpu().numpy(), "finite_p": finite.cpu().numpy()}
+            "stalled_p": stalled.cpu().numpy(), "finite_p": finite.cpu().numpy(), "f_p": f.cpu().numpy()}
 
 
 # ------------------------------------------------------------------ 疑似ラベルのモデルの作り直し（交差の推定）
@@ -143,6 +153,7 @@ def teachers(u, tether: dict, K: int, kid_sets: list) -> torch.Tensor:
     r = S.fit(u.Xp["AVT"], G0, W0, b0, Cw=cw, Cb=cb)
     if not r["finite_p"].all():
         raise SystemExit("疑似ラベルのモデルの作り直し（融合）が有限でない")
+    conv = [float(r["grad_max"]), int(r["stalled"])]
     F = torch.softmax(S.logits(u.Xp["AVT"], r["W"], r["b"]), -1)
     L = 0
     for m in "AVT":
@@ -152,8 +163,9 @@ def teachers(u, tether: dict, K: int, kid_sets: list) -> torch.Tensor:
         rm = S.fit(u.Xp[m], G, W0, b0, Cw=cw, Cb=cb)
         if not rm["finite_p"].all():
             raise SystemExit(f"疑似ラベルのモデルの作り直し（{m}）が有限でない")
+        conv = [max(conv[0], float(rm["grad_max"])), conv[1] + int(rm["stalled"])]
         L = L + torch.log_softmax(S.logits(u.Xp[m], rm["W"], rm["b"]), -1)
-    return torch.softmax(L, -1)
+    return torch.softmax(L, -1), conv
 
 
 def tables(u, tether: dict, K: int, Q: torch.Tensor) -> dict:
@@ -162,7 +174,7 @@ def tables(u, tether: dict, K: int, Q: torch.Tensor) -> dict:
     yk = u.ypool[kpos]
     fold = kfold_of(yk)
     sets = [kpos] + [kpos[fold != j] for j in range(NF)]
-    Qs = teachers(u, tether, K, sets)
+    Qs, conv = teachers(u, tether, K, sets)
     dev = float((Qs[0] - Q).abs().max())
     if dev > CHECK_TEACHER:
         raise SystemExit(f"K 本を全部使って作り直した疑似ラベルが保存の積と {dev:.2e} 違う")
@@ -172,14 +184,17 @@ def tables(u, tether: dict, K: int, Q: torch.Tensor) -> dict:
         qcf[held] = Qs[1 + j][torch.as_tensor(kpos[held], device=S.DEV)].cpu().numpy()
     Qn = Q.cpu().numpy()
     nk = np.setdiff1d(np.arange(u.n), kpos)
+    acc_folds = [float(S.uar(u.ypool[nk], Qs[1 + j][torch.as_tensor(nk, device=S.DEV)].argmax(1).cpu().numpy())) for j in range(NF)]
     return dict(cf=table_from(qcf, yk), naive=table_from(Qn[kpos], yk), oracle=table_from(Qn[nk], u.ypool[nk]),
-                qcf=qcf.astype(np.float32), teacher_dev=dev)
+                qcf=qcf.astype(np.float32), teacher_dev=dev, teacher_grad=conv[0], teacher_stalled=conv[1],
+                uar_teacher_full=float(S.uar(u.ypool[nk], Qn[nk].argmax(1))), uar_teacher_folds=acc_folds)
 
 
 # ------------------------------------------------------------------ 1 単位
 
 def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
-    """sv：dai3.Saved．戻り：(行，保存する配列)．"""
+    """sv：dai3.Saved．戻り：(行，保存する配列)．版：I（補正なしを解き直したもの），0.0・0.5・1.0（交差の推定の表の縮小），
+    naive（K 本の上でそのまま数えた表．交差の推定を外した除去実験），oracle（候補の全ラベルで数えた表．参照）．"""
     u = sv.u
     TK = dai1.build_tk(u, sv.p1, sv.p2, sv.teth)
     rows, arr = [], {}
@@ -187,14 +202,26 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
     for K in KS:
         Q = dai1.product(TK[K], (1, 1, 1), 0)
         tb = tables(u, sv.teth, K, Q)
+        w = (1.0 / Q.sum(0).clamp(min=1e-12)).cpu().numpy()             # soft_rows の balance と同じ列の倍率
         for nm in ("cf", "naive", "oracle"):
             arr[f"C_{nm}_K{K}"] = tb[nm]
+        arr[f"w_K{K}"] = w
         arr[f"qcf_K{K}"] = tb["qcf"]
         arr[f"ykpos_K{K}"] = u.ypool[u.kpos[K]].astype(np.int8)
+        dbar = float(np.mean(np.diag(tb["cf"])))
+        skip = dbar <= D_MIN
+        opts = [("I", np.eye(4))]
+        for lam in LAMBDAS:
+            opts.append((f"{lam}", np.eye(4) if skip else weight_table(shrink(tb["cf"], lam), w)))
+        opts.append(("naive", weight_table(tb["naive"], w)))
+        opts.append(("oracle", weight_table(tb["oracle"], w)))
+        for nm, Cm in opts:
+            arr[f"Cw_K{K}_{nm}"] = Cm
+        rows.append(dict(K=K, option="_table", dbar_cf=dbar, skip=skip, teacher_dev=tb["teacher_dev"], teacher_grad=tb["teacher_grad"],
+                         teacher_stalled=tb["teacher_stalled"], uar_teacher_full=100 * tb["uar_teacher_full"],
+                         **{f"uar_teacher_fold{j}": 100 * v for j, v in enumerate(tb["uar_teacher_folds"])},
+                         **{f"sv_{nm}_{i}": float(x) for nm in ("cf", "naive", "oracle") for i, x in enumerate(np.linalg.svd(tb[nm], compute_uv=False))}))
         gk = u.gK(K)
-        opts = [("I", np.eye(4))] + [(f"{lam}", shrink(tb["cf"], lam)) for lam in LAMBDAS]
-        if which == "eval":
-            opts.append(("oracle", tb["oracle"]))
         for s in STU:
             j = fzT["select"][f"{s}|{K}|joint|one"]
             rho, a = float(j["rho"]), float(j["a"])
@@ -206,26 +233,32 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
             res = fit_glc(u.Xp[s], GK, GQ, Cm, W0, b0, cw, cb)
             if not res["finite_p"].all():
                 raise SystemExit(f"{sv.base.name}：補正の解が有限でない（{s}, K={K}）")
-            Z = S.logits(u.Xt[s], res["W"], res["b"])
-            pred = Z.argmax(2).cpu().numpy()
+            Zt = S.logits(u.Xt[s], res["W"], res["b"])
+            pred = Zt.argmax(2).cpu().numpy()
+            prob = torch.softmax(Zt, 2).cpu().numpy().astype(np.float32)
             Wp, bp = sv.prop(s, K)
             Wn, bn = sv.none(s, K)
             Wk, bk = sv.partner(s, K)
-            refs = {"prop": S.logits(u.Xt[s], Wp, bp).argmax(1).cpu().numpy(),
-                    "none": S.logits(u.Xt[s], Wn, bn).argmax(1).cpu().numpy(),
-                    "partner": S.logits(u.Xt[s], Wk, bk).argmax(1).cpu().numpy()}
-            frac = float((pred[0] != refs["prop"]).mean())                # 同じ凸の問を別に解くので，境目の発話の判定が入れ替わりうる
-            if frac > CHECK_PROP:
-                raise SystemExit(f"{sv.base.name}：C = 単位行列の補正版と保存の提案のテストの判定が {100 * frac:.2f}% 違う（{s}, K={K}）")
-            rows.append(dict(K=K, student=s, option="_I_vs_prop_frac", value=frac))
-            for (nm, _), pr, gp, stl in zip(opts, pred, res["grad_p"], res["stalled_p"]):
+            kj = fzT["select"][f"{s}|{K}|kd|one"]
+            Wk1, bk1 = sv.p3_wb(s, K, sv.p3_index(s, K, method="kd", teacher="one", temp=kj["temp"], rho=kj["rho"]))
+            refs = {"prop": (Wp, bp), "none": (Wn, bn), "partner": (Wk, bk), "kd_one": (Wk1, bk1)}
+            thp = torch.cat([S.t(Wp).flatten(), S.t(bp)])
+            thI = torch.cat([res["W"][0].flatten(), res["b"][0]])
+            wdiff = float((thI - thp).norm() / thp.norm().clamp(min=1e-12))
+            if wdiff > CHECK_W:
+                raise SystemExit(f"{sv.base.name}：C = 単位行列の補正版と保存の提案の重みの相対の差が {wdiff:.2e}（{s}, K={K}）")
+            for (nm, _), pr, pb, gp, stl, fv in zip(opts, pred, prob, res["grad_p"], res["stalled_p"], res["f_p"]):
                 arr[f"pred_K{K}_{s}_{nm}"] = pr.astype(np.int8)
-                rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr), grad=float(gp), stalled=bool(stl),
+                arr[f"prob_K{K}_{s}_{nm}"] = pb
+                rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr), grad=float(gp), stalled=bool(stl), fval=float(fv),
                                  rho=rho, a=a, Cw=cw, Cb=cb))
-            for nm, pr in refs.items():
+            for nm, (Wr, br) in refs.items():
+                Zr = S.logits(u.Xt[s], Wr, br)
+                pr = Zr.argmax(1).cpu().numpy()
                 arr[f"pred_K{K}_{s}_{nm}"] = pr.astype(np.int8)
+                arr[f"prob_K{K}_{s}_{nm}"] = torch.softmax(Zr, 1).cpu().numpy().astype(np.float32)
                 rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr)))
-            rows.append(dict(K=K, student=s, option="_teacher_dev", value=tb["teacher_dev"]))
+            rows.append(dict(K=K, student=s, option="_I_vs_prop", value=wdiff, n_flip=int((pred[0] != arr[f"pred_K{K}_{s}_prop"]).sum())))
     arr["y"] = yt.astype(np.int8)
     arr["cl"] = sv.cl
     arr["sid"] = sv.sid
@@ -263,12 +296,15 @@ def stage_units(out: Path, which: str, targets: list, folds=None, seeds=None) ->
                                            dai1_commits=",".join(sorted(sv.commits)))
             np.savez_compressed(udir / f"{name}.npz", **arr)
             df.to_csv(udir / f"{name}.csv", index=False)
-            m = df[(df.option == "I")]
             print(f"{name}：{time.time() - t0:.0f} 秒．行 {len(df)}．勾配の最大 {df.grad.max():.1e}．止まり {int(df.stalled.fillna(False).sum())}", flush=True)
             del sv
         dai1.Corpus.cache.pop(T, None)
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+
+def frozen_path(out: Path) -> Path:
+    return FROZEN if out.resolve() == OUT_PROD.resolve() else out / "frozen.json"
 
 
 def stage_select(out: Path) -> None:
@@ -292,23 +328,26 @@ def stage_select(out: Path) -> None:
                 best = o
         sel[f"{T}|{s}|{K}"] = dict(option=best, **{f"pseudo_uar_{o}": float(x[o]) for o in ("off", "0.0", "0.5", "1.0")})
     frozen = dict(select=sel, pseudo_commit=RUN["commit"], n_rows=len(rows), made=time.strftime("%Y-%m-%d %H:%M:%S"))
-    FROZEN.parent.mkdir(parents=True, exist_ok=True)
-    json.dump(frozen, open(FROZEN, "w"), ensure_ascii=False, indent=1)
+    fp = frozen_path(out)
+    fp.parent.mkdir(parents=True, exist_ok=True)
+    json.dump(frozen, open(fp, "w"), ensure_ascii=False, indent=1)
     mean.reset_index().to_csv(out / "select_means.csv", index=False)
-    print(json.dumps({k: v["option"] for k, v in sel.items()}, ensure_ascii=False))
+    r.groupby(["T", "c", "student", "K", "option"]).uar.mean().reset_index().to_csv(out / "select_means_by_c.csv", index=False)
+    print(f"固定のファイル {fp.name}：{len(sel)} セル．値は表示しない（評価の段の後まで開かない．設計 8 節）")
 
 
-VERS = {"sel": None, "lam0": "0.0", "lam05": "0.5", "sym": "1.0", "oracle": "oracle", "prop": "prop", "none": "none", "kd": "partner"}
-CONTRASTS = [("sel", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "sym"), ("oracle", "prop"), ("lam0", "prop"), ("lam05", "prop"),
-             ("sym", "prop"), ("prop", "none")]
+VERS = {"sel": None, "I": "I", "lam0": "0.0", "lam05": "0.5", "sym": "1.0", "naive": "naive", "oracle": "oracle", "prop": "prop",
+        "none": "none", "kd": "partner", "kd_one": "kd_one"}
+CONTRASTS = [("sel", "prop"), ("sel", "I"), ("I", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "kd_one"), ("lam0", "sym"),
+             ("oracle", "I"), ("oracle", "prop"), ("lam0", "I"), ("lam05", "I"), ("sym", "I"), ("naive", "lam0"), ("prop", "none")]
 
 
 def stage_summary(out: Path) -> None:
-    fz = json.load(open(FROZEN))
+    fz = json.load(open(frozen_path(out)))
     sdir = out / "summary"
     sdir.mkdir(parents=True, exist_ok=True)
     fz1, _ = dai3.load_fz1(OUT1)
-    res = []
+    res, percls = [], []
     for T in DD.CORPORA:
         files = sorted((out / "eval" / "units").glob(f"{T}_{T}_f*_r*.npz"))
         need = DD.N_FOLDS * int(fz1[T]["n_seeds_eval"])
@@ -326,7 +365,7 @@ def stage_summary(out: Path) -> None:
         for K in KS:
             for s in STU:
                 opt = fz["select"][f"{T}|{s}|{K}"]["option"]
-                key = {**VERS, "sel": ("I" if opt == "off" else opt)}
+                key = {**VERS, "sel": ("prop" if opt == "off" else opt)}             # 補正しないなら提案そのもの
 
                 def cell(v):
                     return {k: dai14.counts(a["y"], a[f"pred_K{K}_{s}_{key[v]}"], a["cl"]) for k, a in U.items()}
@@ -337,6 +376,11 @@ def stage_summary(out: Path) -> None:
                 for v in VERS:
                     e = dai14.combo_stats([cell(v)], [1], g_eff, rng)
                     res.append(dict(T=T, K=K, student=s, contrast=f"{v}", selected=opt) | e | dict(verdict=""))
+                    yy = np.concatenate([a["y"] for a in U.values()]).astype(int)
+                    pp = np.concatenate([a[f"pred_K{K}_{s}_{key[v]}"] for a in U.values()]).astype(int)
+                    for c in range(4):
+                        percls.append(dict(T=T, K=K, student=s, version=v, emotion=c, recall=float((pp[yy == c] == c).mean()),
+                                           pred_share=float((pp == c).mean()), true_share=float((yy == c).mean())))
     R = pd.DataFrame(res).assign(commit=RUN["commit"], dirty=RUN["dirty"])
     R.to_csv(sdir / "effects.csv", index=False)
     crit = []
@@ -344,6 +388,7 @@ def stage_summary(out: Path) -> None:
         crit.append(dict(K=K, student=s, contrast=con, n_above=int((x.verdict == "上回る").sum()), n_below=int((x.verdict == "下回る").sum()),
                          above=",".join(sorted(x[x.verdict == "上回る"]["T"])), below=",".join(sorted(x[x.verdict == "下回る"]["T"]))))
     pd.DataFrame(crit).assign(commit=RUN["commit"]).to_csv(sdir / "criteria.csv", index=False)
+    pd.DataFrame(percls).assign(commit=RUN["commit"]).to_csv(sdir / "per_emotion.csv", index=False)
     print(len(R), "rows")
 
 
@@ -389,11 +434,29 @@ def selftest() -> None:
     pr = S.logits(torch.as_tensor(Xv), rr["W"], rr["b"]).argmax(2).cpu().numpy()
     u0, u1 = S.uar(yv, pr[0]), S.uar(yv, pr[1])
     assert u1 > u0 + 0.05, (u0, u1)
+    # 6. 感情の割合が偏り（Neutral 57%），疑似ラベルの項を感情ごとの総量でそろえる場合（本番の経路）：
+    #    重みに合わせた表 C′ の補正は，表 C をそのまま掛けた補正より Neutral を潰さず，UAR も下回らない
+    n = 6000
+    yv = rng.choice(4, size=n, p=[0.57, 0.15, 0.14, 0.14])
+    Xv = np.eye(4)[yv] * 2.0 + rng.normal(size=(n, 4)) * 0.8
+    qy = np.array([rng.choice(4, p=Ct[i]) for i in yv])
+    Qv = torch.as_tensor(np.eye(4)[qy] * 0.9 + 0.025)
+    GQv = S.soft_rows(Qv, float(n))
+    wv = (1.0 / Qv.sum(0)).cpu().numpy()
+    Chat = table_from(Qv.cpu().numpy(), yv)
+    Cms = torch.stack([torch.eye(4, dtype=S.DT), torch.as_tensor(Chat), torch.as_tensor(weight_table(Chat, wv))])
+    zero3 = torch.zeros(3, n, 4, dtype=S.DT, device=S.DEV)
+    rr = fit_glc(torch.as_tensor(Xv), zero3, GQv[None].expand(3, -1, -1), Cms, torch.zeros(4, 4), torch.zeros(4), 100.0, 100.0)
+    pr = S.logits(torch.as_tensor(Xv), rr["W"], rr["b"]).argmax(2).cpu().numpy()
+    uI, uC, uW = (S.uar(yv, x) for x in pr)
+    recN = [float((x[yv == 0] == 0).mean()) for x in pr]
+    assert recN[2] > recN[1] and uW >= uC - 1e-9, (uI, uC, uW, recN)
+    assert np.allclose(weight_table(np.eye(4), wv), np.eye(4))
     # 5. table_from
     P = np.eye(4)[np.array([0, 1, 1, 2, 3])].astype(float)
     T5 = table_from(P, np.array([0, 0, 1, 2, 3]))
     assert np.allclose(T5[0], [0.5, 0.5, 0, 0])
-    print(f"selftest：5 項目すべて通った（補正なし {100 * u0:.1f} → 補正 {100 * u1:.1f}）")
+    print(f"selftest：6 項目すべて通った（補正なし {100 * u0:.1f} → 補正 {100 * u1:.1f}．偏りあり：I {100 * uI:.1f}，C {100 * uC:.1f}，C′ {100 * uW:.1f}，Neutral の再現率 {recN[1]:.2f} → {recN[2]:.2f}）")
 
 
 # ------------------------------------------------------------------ main
@@ -420,6 +483,8 @@ def main() -> None:
         sys.exit("設計の文書がコミットされていない")
     if prod and (args.folds is not None or args.seeds is not None or set(args.targets) != set(DD.CORPORA)):
         sys.exit("本番の置き場では対象を絞らない")
+    if args.stage == "summary" and not frozen_path(out).exists():
+        sys.exit("固定のファイルが無い")
     if args.stage in ("eval", "summary") and prod and not dai1.committed_clean(FROZEN):
         sys.exit("固定のファイルがコミットされていない（select の後にコミットしてから eval）")
     dai1.ENC["enc"] = DD.ENC1
@@ -428,7 +493,8 @@ def main() -> None:
                 gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__,
                 scripts={n: sha(HERE / n) for n in SCRIPTS}, design_sha256=sha(DESIGN),
                 frozen_sha256=(sha(FROZEN) if FROZEN.exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
-                KS=KS, LAMBDAS=LAMBDAS, NF=NF, TOL=TOL)
+                python=platform.python_version(), pandas=pd.__version__, KS=KS, LAMBDAS=LAMBDAS, NF=NF, TOL=TOL, MAX_ITER=MAX_ITER,
+                SEL_OPTS=SEL_OPTS, D_MIN=D_MIN, CHECK_TEACHER=CHECK_TEACHER, CHECK_W=CHECK_W, tie="厳密な最大．同点は off", rng_seed=20261113)
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     if args.stage in ("pseudo", "eval"):
