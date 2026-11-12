@@ -1,5 +1,5 @@
 """実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
-（設計 `DAI/docs/実験15_設計.md` 第 5 版）．
+（設計 `DAI/docs/実験15_設計.md` 第 6 版）．
 
 提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
 疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
@@ -418,6 +418,12 @@ def lpi_pred(a: dict, K: int, s_: str, opt: str) -> np.ndarray | None:
     return (np.log(np.clip(a[f"prob_K{K}_{s_}_{opt}"], 1e-12, None)) - np.log(pi)[None]).argmax(1)
 
 
+def row_rng(T: str, K: int, s_: str, label: str) -> np.random.Generator:
+    """区間の引き直しの乱数を行ごとに作る（ほかの行が作られたかどうかで変わらない．第 6 版）．"""
+    h = int(hashlib.sha256(f"{s_}|{label}".encode()).hexdigest()[:8], 16)
+    return np.random.default_rng([20261113, DD.CORPUS_ID[T], K, h])
+
+
 def stage_summary(out: Path) -> None:
     fz = json.load(open(frozen_path(out)))
     sdir = out / "summary"
@@ -439,7 +445,6 @@ def stage_summary(out: Path) -> None:
             f, r = (int(x[1:]) for x in p.stem.split("_")[2:4])
             U[(f, r)] = dict(np.load(p, allow_pickle=False))
         g_eff, _ = ST.g_eff_of(T)
-        rng = np.random.default_rng([20261113, DD.CORPUS_ID[T]])
         for K in KS:
             for s in STU:
                 if f"{T}|{s}|{K}" not in fz["select"]:
@@ -453,34 +458,41 @@ def stage_summary(out: Path) -> None:
                 def cell(v):
                     return {k: dai14.counts(a["y"], a[f"pred_K{K}_{s}_{key[v]}"], a["cl"]) for k, a in U.items()}
                 for A_, B_ in CONTRASTS:
-                    e = dai14.combo_stats([cell(A_), cell(B_)], [1, -1], g_eff, rng)
+                    e = dai14.combo_stats([cell(A_), cell(B_)], [1, -1], g_eff, row_rng(T, K, s, f"{A_}-{B_}"))
                     res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt) | e |
                                dict(verdict=dai14.verdict(e["lo"], e["hi"])))
                 for A_, B_ in LPI_CONTRASTS:                                     # 記録の版（予言に使わない）
                     o = LPI[A_] if LPI[A_] is not None else (None if opt == "off" else opt)
-                    cA_, cB_ = {}, {}
+                    rawA = "prop" if o is None else o                                # 同じ単位の上の生の版（sel なら選んだ版，λ0 なら 0.0）
+                    cA_, cB_, cR_ = {}, {}, {}
                     for k, a in U.items():
                         pr_ = a[f"pred_K{K}_{s}_prop"] if o is None else lpi_pred(a, K, s, o)
                         if pr_ is None:
                             continue
                         cA_[k] = dai14.counts(a["y"], pr_, a["cl"])
                         cB_[k] = dai14.counts(a["y"], a[f"pred_K{K}_{s}_{key[B_]}"], a["cl"])
+                        cR_[k] = dai14.counts(a["y"], a[f"pred_K{K}_{s}_{rawA}"], a["cl"])
                     n_used = len(cA_)
-                    row = dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt, n_units_used=n_used, n_units_all=len(U))
-                    if n_used < LPI_MIN_SHARE * len(U) or len({f for f, _ in cA_}) < 2:
+                    folds_used = sorted({f for f, _ in cA_})
+                    min_seeds = min((sum(1 for f2, _ in cA_ if f2 == f) for f in folds_used), default=0)
+                    row = dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt, n_units_used=n_used, n_units_all=len(U),
+                               n_folds_used=len(folds_used), min_seeds_per_fold=min_seeds)
+                    if n_used < LPI_MIN_SHARE * len(U) or len(folds_used) < 2:          # 使える単位が半分未満か，分割が 2 つ未満なら作らない
                         res.append(row | dict(verdict="作らない"))
                         continue
-                    e = dai14.combo_stats([cA_, cB_], [1, -1], g_eff, rng)
-                    res.append(row | e | dict(verdict=dai14.verdict(e["lo"], e["hi"])))
+                    e = dai14.combo_stats([cA_, cB_], [1, -1], g_eff, row_rng(T, K, s, f"{A_}-{B_}"))
+                    er = dai14.combo_stats([cR_, cB_], [1, -1], g_eff, row_rng(T, K, s, f"{A_}-{B_}|raw_same_units"))
+                    res.append(row | e | dict(verdict=dai14.verdict(e["lo"], e["hi"]), raw_effect=er["effect"], raw_lo=er["lo"],
+                                              raw_hi=er["hi"], raw_verdict=dai14.verdict(er["lo"], er["hi"])))
                 if s == "AVT":
                     for A_, B_ in TEACHER_CONTRASTS:
                         cA = {k: dai14.counts(a["y"], a[f"pred_K{K}_{A_}"], a["cl"]) for k, a in U.items()}
                         cB = {k: dai14.counts(a["y"], a[f"pred_K{K}_{B_}"], a["cl"]) for k, a in U.items()}
-                        e = dai14.combo_stats([cA, cB], [1, -1], g_eff, rng)
-                        res.append(dict(T=T, K=K, student="teacher", contrast=f"{A_}-{B_}", selected="") | e |
+                        e = dai14.combo_stats([cA, cB], [1, -1], g_eff, row_rng(T, K, "teacher", f"{A_}-{B_}"))
+                        res.append(dict(T=T, K=K, student="teacher", contrast=f"{A_}-{B_}", selected=opt) | e |
                                    dict(verdict=dai14.verdict(e["lo"], e["hi"])))
                 for v in VERS:
-                    e = dai14.combo_stats([cell(v)], [1], g_eff, rng)
+                    e = dai14.combo_stats([cell(v)], [1], g_eff, row_rng(T, K, s, f"level|{v}"))
                     res.append(dict(T=T, K=K, student=s, contrast=f"{v}", selected=opt) | e | dict(verdict=""))
                     yy = np.concatenate([a["y"] for a in U.values()]).astype(int)
                     pp = np.concatenate([a[f"pred_K{K}_{s}_{key[v]}"] for a in U.values()]).astype(int)
@@ -515,7 +527,9 @@ def stage_summary(out: Path) -> None:
         hyp.append(dict(K=K, hypothesis="H2", n=len(a2), need=2, hit=len(a2) >= 2, corpora=",".join(a2), off=offc(K, "AVT"),
                         raw_only=",".join(T for T in Ts if up(T, K, "AVT", "sel-prop") and not up(T, K, "AVT", "sel_adj-prop")),
                         adj_only=",".join(T for T in Ts if up(T, K, "AVT", "sel_adj-prop") and not up(T, K, "AVT", "sel-prop")),
-                        rejudge=",".join(T for T in Ts if up(T, K, "teacher", "teacher_rj0-teacher_w"))))
+                        rejudge=",".join(T for T in Ts if up(T, K, "teacher", "teacher_rj0-teacher_w")
+                                         and fz["select"].get(f"{T}|AVT|{K}", {}).get("option") == "0.0"),       # 融合で λ = 0 が選ばれたコーパスだけ
+                        rejudge_any=",".join(T for T in Ts if up(T, K, "teacher", "teacher_rj0-teacher_w"))))
         if "MOSEI" in Ts:
             d1, d2, d3 = (V.get(("MOSEI", K, "A", c), "") for c in ("oracle_adj-lam0_adj", "lam0_adj-I_adj", "oracle_adj-I_adj"))
             h3 = d1 == "上回る" and d3 == "上回る" and d2 != "上回る"
