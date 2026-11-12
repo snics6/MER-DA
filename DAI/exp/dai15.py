@@ -1,0 +1,446 @@
+"""実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
+（設計 `DAI/docs/実験15_設計.md`）．
+
+提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
+疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
+生徒の確率 p を C で混ぜた p̃ = Cᵀp（p̃_j = Σ_i p_i C_ij）を，疑似ラベルの項の目標 q に合わせる（Hendrycks ほか 2018）．
+C は K 本で推す．K 本は疑似ラベルのモデルの学習にも入るので，K 本を感情ごとに 5 組に分け，組を抜いて疑似ラベルのモデルを
+作り直し（K 本だけの融合の分類器 → 声・顔・言葉の学び直し → 積），抜いた組の上で数える（交差の推定．Dao ほか 2021 の型）．
+縮小：C_λ = (1 − λ)Ĉ + λ S(Ĉ)．S(Ĉ) は対角の平均を保った対称の表．λ = 1 は「取り違えの向きの情報を持たない」対照．
+生徒の K 本の項・疑似ラベルの総重み・出発点・引き戻しは，提案の選んだ設定と同じ（補正だけを変える）．
+
+段：
+  selftest  合成の数で，補正の式・C = 単位行列で提案と一致・縮小・組の分け方を確かめる
+  pseudo    仮のターゲットの回（実験 1 の保存，120 単位）で，補正の版のテストの UAR を測る
+  select    (評価のターゲット T, 生徒, K) ごとに，仮のターゲットの平均の UAR で「補正しない／λ = 0／λ = 0.5」から選び固定する
+  eval      評価の回（200 単位）で，全部の版のテストの判定を保存する（固定のファイルがコミット済みであることを確かめる）
+  summary   区間と予言の判定
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import platform
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import torch
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import dai1  # noqa: E402
+import dai1_stats as ST  # noqa: E402
+import dai3  # noqa: E402
+import dai14  # noqa: E402
+import dai_data as DD  # noqa: E402
+import dai_solver as S  # noqa: E402
+
+ROOT = DD.ROOT
+OUT1 = ROOT / "results" / "dai1"
+OUT_PROD = ROOT / "results" / "dai15"
+DESIGN = ROOT / "DAI" / "docs" / "実験15_設計.md"
+FROZEN = ROOT / "DAI" / "frozen" / "dai15_frozen.json"
+KS = (5, 25)
+K_MAIN = 5
+STU = DD.STUDENTS                       # ("A", "V", "T", "AVT")
+LAMBDAS = (0.0, 0.5, 1.0)               # 1.0 は対称の対照
+SEL_OPTS = ("off", "0.0", "0.5")        # 選ぶ候補（off は提案そのもの）
+NF = 5                                  # K 本を感情ごとに分ける組の数
+TOL = 1e-6
+MAX_ITER = 20000
+CHECK_TEACHER = 1e-4                    # K 本を全部使って作り直した疑似ラベルと保存の積の差の許し
+CHECK_PROP = 1e-3                       # C = 単位行列の補正版と保存の提案のテストの UAR の差の許し（点）
+SCRIPTS = ("dai15.py", "dai14.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
+RUN = {"commit": "", "dirty": True}
+
+
+def sha(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for blk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(blk)
+    return h.hexdigest()
+
+
+# ------------------------------------------------------------------ 表と補正
+
+def kfold_of(y_k: np.ndarray, nf: int = NF) -> np.ndarray:
+    """K 本の発話（u.kpos[K] の並び）を，感情ごとに並びの順で 0, 1, …, nf−1 の組に配る．"""
+    out = np.empty(len(y_k), int)
+    for c in np.unique(y_k):
+        ii = np.flatnonzero(y_k == c)
+        out[ii] = np.arange(len(ii)) % nf
+    return out
+
+
+def table_from(P: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """C_ij = (本当の感情 i の発話の上の P の j 列の平均)．無い感情の行は単位行列の行．"""
+    C = np.eye(4)
+    for i in range(4):
+        m = y == i
+        if m.any():
+            C[i] = P[m].mean(0)
+    return C
+
+
+def shrink(C: np.ndarray, lam: float) -> np.ndarray:
+    d = float(np.mean(np.diag(C)))
+    Sm = np.full((4, 4), (1 - d) / 3.0)
+    np.fill_diagonal(Sm, d)
+    return (1 - lam) * C + lam * Sm
+
+
+def fit_glc(X: torch.Tensor, GK: torch.Tensor, GQ: torch.Tensor, Cm: torch.Tensor, W0, b0, Cw: float, Cb: float) -> dict:
+    """問 p の目的関数（S_p は GK と GQ の重みの和）：
+        [ Σ_i Σ_k GK[p,i,k](−log p_ik) + Σ_i Σ_j GQ[p,i,j](−log (p_i Cm_p)_j) + ‖W − W0‖²/(2Cw) + ‖b − b0‖²/(2Cb) ] / S_p
+    p_i = softmax(x_i Wᵀ + b)．Cm = 単位行列なら `dai_solver.fit` の G = GK + GQ と同じ問になる．"""
+    X = S.t(X); GK = S.t(GK); GQ = S.t(GQ); Cm = S.t(Cm)
+    P, n, k = GK.shape
+    d = X.shape[1]
+    W0 = S.t(W0).expand(P, k, d).contiguous() if S.t(W0).dim() == 2 else S.t(W0)
+    b0 = S.t(b0).expand(P, k).contiguous() if S.t(b0).dim() == 1 else S.t(b0)
+    Ssum = (GK.sum((1, 2)) + GQ.sum((1, 2))).clamp(min=1e-12)
+    lw, lb = 1.0 / (2 * Cw), 1.0 / (2 * Cb)
+    kd = k * d
+
+    def f_and_g(th, ix=None):
+        sel = (lambda v: v) if ix is None else (lambda v: v[ix])
+        th = th.detach().requires_grad_(True)
+        B = th.shape[0]
+        W = th[:, :kd].view(B, k, d)
+        b = th[:, kd:]
+        Z = torch.einsum("nd,pkd->pnk", X, W) + b[:, None, :]
+        lp = torch.log_softmax(Z, 2)
+        pt = torch.bmm(lp.exp(), sel(Cm)).clamp(min=1e-12)
+        nll = -(sel(GK) * lp).sum((1, 2)) - (sel(GQ) * pt.log()).sum((1, 2))
+        reg = lw * ((W - sel(W0)) ** 2).sum((1, 2)) + lb * ((b - sel(b0)) ** 2).sum(1)
+        f = (nll + reg) / sel(Ssum)
+        (g,) = torch.autograd.grad(f.sum(), th)
+        return f.detach(), g
+
+    theta = torch.cat([W0.reshape(P, kd), b0], 1).clone()
+    theta, f, grad, n_iter, stalled = S.lbfgs_batch(theta, f_and_g, TOL, MAX_ITER)
+    gp = grad.abs().amax(1)
+    finite = torch.isfinite(gp) & torch.isfinite(theta).all(1) & torch.isfinite(f)
+    return {"W": theta[:, :kd].view(P, k, d).clone(), "b": theta[:, kd:].clone(), "grad_p": gp.cpu().numpy(),
+            "stalled_p": stalled.cpu().numpy(), "finite_p": finite.cpu().numpy()}
+
+
+# ------------------------------------------------------------------ 疑似ラベルのモデルの作り直し（交差の推定）
+
+def teachers(u, tether: dict, K: int, kid_sets: list) -> torch.Tensor:
+    """K 本の部分集合ごと（kid_sets：候補の中の位置の配列のリスト）に，実験 1 の段 1・2 と同じ手順で疑似ラベルのモデルを作る：
+    K 本だけの融合の分類器（出発点から，(AVT, K) の引き戻し）→ その確率 F を疑似ラベルに声・顔・言葉を学び直す（G = K 本 + F の
+    総量 n，(m, K) の引き戻し）→ 3 つの確率の積（指数 1, 1, 1）．戻り：(部分集合の数, n, 4)．"""
+    n = u.n
+    G0 = torch.stack([S.balanced_onehot(u.ypool, ks, n) for ks in kid_sets])
+    W0, b0 = u.start["AVT"]
+    cw, cb = tether[("AVT", K)]
+    r = S.fit(u.Xp["AVT"], G0, W0, b0, Cw=cw, Cb=cb)
+    if not r["finite_p"].all():
+        raise SystemExit("疑似ラベルのモデルの作り直し（融合）が有限でない")
+    F = torch.softmax(S.logits(u.Xp["AVT"], r["W"], r["b"]), -1)
+    L = 0
+    for m in "AVT":
+        G = G0 + torch.stack([S.soft_rows(F[j], float(n)) for j in range(len(kid_sets))])
+        W0, b0 = u.start[m]
+        cw, cb = tether[(m, K)]
+        rm = S.fit(u.Xp[m], G, W0, b0, Cw=cw, Cb=cb)
+        if not rm["finite_p"].all():
+            raise SystemExit(f"疑似ラベルのモデルの作り直し（{m}）が有限でない")
+        L = L + torch.log_softmax(S.logits(u.Xp[m], rm["W"], rm["b"]), -1)
+    return torch.softmax(L, -1)
+
+
+def tables(u, tether: dict, K: int, Q: torch.Tensor) -> dict:
+    """交差の推定 Ĉ，K 本の上でそのまま数えた表（K 本の二重使用あり．記録），候補の全ラベルで数えた表（上限の参照）．"""
+    kpos = u.kpos[K]
+    yk = u.ypool[kpos]
+    fold = kfold_of(yk)
+    sets = [kpos] + [kpos[fold != j] for j in range(NF)]
+    Qs = teachers(u, tether, K, sets)
+    dev = float((Qs[0] - Q).abs().max())
+    if dev > CHECK_TEACHER:
+        raise SystemExit(f"K 本を全部使って作り直した疑似ラベルが保存の積と {dev:.2e} 違う")
+    qcf = np.empty((len(kpos), 4))
+    for j in range(NF):
+        held = np.flatnonzero(fold == j)
+        qcf[held] = Qs[1 + j][torch.as_tensor(kpos[held], device=S.DEV)].cpu().numpy()
+    Qn = Q.cpu().numpy()
+    nk = np.setdiff1d(np.arange(u.n), kpos)
+    return dict(cf=table_from(qcf, yk), naive=table_from(Qn[kpos], yk), oracle=table_from(Qn[nk], u.ypool[nk]),
+                qcf=qcf.astype(np.float32), teacher_dev=dev)
+
+
+# ------------------------------------------------------------------ 1 単位
+
+def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
+    """sv：dai3.Saved．戻り：(行，保存する配列)．"""
+    u = sv.u
+    TK = dai1.build_tk(u, sv.p1, sv.p2, sv.teth)
+    rows, arr = [], {}
+    yt = u.ytest
+    for K in KS:
+        Q = dai1.product(TK[K], (1, 1, 1), 0)
+        tb = tables(u, sv.teth, K, Q)
+        for nm in ("cf", "naive", "oracle"):
+            arr[f"C_{nm}_K{K}"] = tb[nm]
+        arr[f"qcf_K{K}"] = tb["qcf"]
+        arr[f"ykpos_K{K}"] = u.ypool[u.kpos[K]].astype(np.int8)
+        gk = u.gK(K)
+        opts = [("I", np.eye(4))] + [(f"{lam}", shrink(tb["cf"], lam)) for lam in LAMBDAS]
+        if which == "eval":
+            opts.append(("oracle", tb["oracle"]))
+        for s in STU:
+            j = fzT["select"][f"{s}|{K}|joint|one"]
+            rho, a = float(j["rho"]), float(j["a"])
+            GK = (a * gk)[None].expand(len(opts), -1, -1)
+            GQ = S.soft_rows(Q, dai1.mval(rho, u.n))[None].expand(len(opts), -1, -1)
+            Cm = torch.stack([S.t(c) for _, c in opts])
+            W0, b0 = u.start[s]
+            cw, cb = sv.teth[(s, K)]
+            res = fit_glc(u.Xp[s], GK, GQ, Cm, W0, b0, cw, cb)
+            if not res["finite_p"].all():
+                raise SystemExit(f"{sv.base.name}：補正の解が有限でない（{s}, K={K}）")
+            Z = S.logits(u.Xt[s], res["W"], res["b"])
+            pred = Z.argmax(2).cpu().numpy()
+            Wp, bp = sv.prop(s, K)
+            Wn, bn = sv.none(s, K)
+            Wk, bk = sv.partner(s, K)
+            refs = {"prop": S.logits(u.Xt[s], Wp, bp).argmax(1).cpu().numpy(),
+                    "none": S.logits(u.Xt[s], Wn, bn).argmax(1).cpu().numpy(),
+                    "partner": S.logits(u.Xt[s], Wk, bk).argmax(1).cpu().numpy()}
+            uI = 100 * S.uar(yt, pred[0])
+            uP = 100 * S.uar(yt, refs["prop"])
+            if abs(uI - uP) > CHECK_PROP:
+                raise SystemExit(f"{sv.base.name}：C = 単位行列の補正版（{uI:.4f}）が保存の提案（{uP:.4f}）と違う（{s}, K={K}）")
+            for (nm, _), pr, gp, stl in zip(opts, pred, res["grad_p"], res["stalled_p"]):
+                arr[f"pred_K{K}_{s}_{nm}"] = pr.astype(np.int8)
+                rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr), grad=float(gp), stalled=bool(stl),
+                                 rho=rho, a=a, Cw=cw, Cb=cb))
+            for nm, pr in refs.items():
+                arr[f"pred_K{K}_{s}_{nm}"] = pr.astype(np.int8)
+                rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr)))
+            rows.append(dict(K=K, student=s, option="_teacher_dev", value=tb["teacher_dev"]))
+    arr["y"] = yt.astype(np.int8)
+    arr["cl"] = sv.cl
+    arr["sid"] = sv.sid
+    return rows, arr
+
+
+# ------------------------------------------------------------------ 段
+
+def stage_units(out: Path, which: str, targets: list, folds=None, seeds=None) -> None:
+    fz1, _ = dai3.load_fz1(OUT1)
+    udir = out / which / "units"
+    udir.mkdir(parents=True, exist_ok=True)
+    for T in targets:
+        fzT = fz1[T]
+        if which == "pseudo":
+            todo = dai3.pseudo_units(OUT1, T)
+        else:
+            todo = [(T, f, r) for f in range(DD.N_FOLDS) for r in range(int(fzT["n_seeds_eval"]))]
+        if folds is not None:
+            todo = [x for x in todo if x[1] in folds]
+        if seeds is not None:
+            todo = [x for x in todo if x[2] in seeds]
+        for c, f, r in todo:
+            name = f"{T}_{c}_f{f}_r{r}"
+            if (udir / f"{name}.csv").exists():
+                old = pd.read_csv(udir / f"{name}.csv")
+                if (old.commit == RUN["commit"]).all():
+                    print(f"{name}：済み（飛ばす）", flush=True)
+                    continue
+                raise SystemExit(f"{name} が別のコミットで既にある")
+            t0 = time.time()
+            sv = dai3.Saved(OUT1, which, T, c, f, r, fzT)
+            rows, arr = run_unit(sv, fzT, which)
+            df = pd.DataFrame(rows).assign(T=T, c=c, fold=f, seed=r, commit=RUN["commit"], dirty=RUN["dirty"], sec=time.time() - t0,
+                                           dai1_commits=",".join(sorted(sv.commits)))
+            np.savez_compressed(udir / f"{name}.npz", **arr)
+            df.to_csv(udir / f"{name}.csv", index=False)
+            m = df[(df.option == "I")]
+            print(f"{name}：{time.time() - t0:.0f} 秒．行 {len(df)}．勾配の最大 {df.grad.max():.1e}．止まり {int(df.stalled.fillna(False).sum())}", flush=True)
+            del sv
+        dai1.Corpus.cache.pop(T, None)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+def stage_select(out: Path) -> None:
+    rows = pd.concat([pd.read_csv(p) for p in sorted((out / "pseudo" / "units").glob("*.csv"))])
+    if rows.commit.nunique() != 1 or rows.dirty.astype(str).ne("False").any():
+        raise SystemExit("仮のターゲットの単位のコミットが 1 つでないか，汚れた作業木の単位がある")
+    fz1, _ = dai3.load_fz1(OUT1)
+    for T in DD.CORPORA:
+        need = {(c, f, r) for c, f, r in dai3.pseudo_units(OUT1, T)}
+        got = {(c, f, r) for c, f, r in rows[rows["T"] == T][["c", "fold", "seed"]].drop_duplicates().itertuples(index=False)}
+        if need != got:
+            raise SystemExit(f"{T}：仮のターゲットの単位がそろっていない（{len(got)} / {len(need)}）")
+    r = rows[rows.option.isin(["I", "0.0", "0.5", "1.0"])].copy()
+    r["option"] = r.option.replace({"I": "off"})
+    mean = r.groupby(["T", "student", "K", "option"]).uar.mean().unstack("option")
+    sel = {}
+    for (T, s, K), x in mean.iterrows():
+        best = "off"
+        for o in ("0.0", "0.5"):                                         # 同点は off（補正しない）を残す
+            if x[o] > x[best] + 1e-9:
+                best = o
+        sel[f"{T}|{s}|{K}"] = dict(option=best, **{f"pseudo_uar_{o}": float(x[o]) for o in ("off", "0.0", "0.5", "1.0")})
+    frozen = dict(select=sel, pseudo_commit=RUN["commit"], n_rows=len(rows), made=time.strftime("%Y-%m-%d %H:%M:%S"))
+    FROZEN.parent.mkdir(parents=True, exist_ok=True)
+    json.dump(frozen, open(FROZEN, "w"), ensure_ascii=False, indent=1)
+    mean.reset_index().to_csv(out / "select_means.csv", index=False)
+    print(json.dumps({k: v["option"] for k, v in sel.items()}, ensure_ascii=False))
+
+
+VERS = {"sel": None, "lam0": "0.0", "lam05": "0.5", "sym": "1.0", "oracle": "oracle", "prop": "prop", "none": "none", "kd": "partner"}
+CONTRASTS = [("sel", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "sym"), ("oracle", "prop"), ("lam0", "prop"), ("lam05", "prop"),
+             ("sym", "prop"), ("prop", "none")]
+
+
+def stage_summary(out: Path) -> None:
+    fz = json.load(open(FROZEN))
+    sdir = out / "summary"
+    sdir.mkdir(parents=True, exist_ok=True)
+    fz1, _ = dai3.load_fz1(OUT1)
+    res = []
+    for T in DD.CORPORA:
+        files = sorted((out / "eval" / "units").glob(f"{T}_{T}_f*_r*.npz"))
+        need = DD.N_FOLDS * int(fz1[T]["n_seeds_eval"])
+        if len(files) != need:
+            raise SystemExit(f"{T}：評価の単位が {len(files)} / {need}")
+        csvs = pd.concat([pd.read_csv(str(p).replace(".npz", ".csv")) for p in files])
+        if csvs.commit.nunique() != 1 or csvs.dirty.astype(str).ne("False").any():
+            raise SystemExit(f"{T}：評価の単位のコミットが 1 つでないか，汚れた作業木の単位がある")
+        U = {}
+        for p in files:
+            f, r = (int(x[1:]) for x in p.stem.split("_")[2:4])
+            U[(f, r)] = dict(np.load(p, allow_pickle=False))
+        g_eff, _ = ST.g_eff_of(T)
+        rng = np.random.default_rng([20261113, DD.CORPUS_ID[T]])
+        for K in KS:
+            for s in STU:
+                opt = fz["select"][f"{T}|{s}|{K}"]["option"]
+                key = {**VERS, "sel": ("I" if opt == "off" else opt)}
+
+                def cell(v):
+                    return {k: dai14.counts(a["y"], a[f"pred_K{K}_{s}_{key[v]}"], a["cl"]) for k, a in U.items()}
+                for A_, B_ in CONTRASTS:
+                    e = dai14.combo_stats([cell(A_), cell(B_)], [1, -1], g_eff, rng)
+                    res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt) | e |
+                               dict(verdict=dai14.verdict(e["lo"], e["hi"])))
+                for v in VERS:
+                    e = dai14.combo_stats([cell(v)], [1], g_eff, rng)
+                    res.append(dict(T=T, K=K, student=s, contrast=f"{v}", selected=opt) | e | dict(verdict=""))
+    R = pd.DataFrame(res).assign(commit=RUN["commit"], dirty=RUN["dirty"])
+    R.to_csv(sdir / "effects.csv", index=False)
+    crit = []
+    for (K, s, con), x in R[R.contrast.str.contains("-")].groupby(["K", "student", "contrast"]):
+        crit.append(dict(K=K, student=s, contrast=con, n_above=int((x.verdict == "上回る").sum()), n_below=int((x.verdict == "下回る").sum()),
+                         above=",".join(sorted(x[x.verdict == "上回る"]["T"])), below=",".join(sorted(x[x.verdict == "下回る"]["T"]))))
+    pd.DataFrame(crit).assign(commit=RUN["commit"]).to_csv(sdir / "criteria.csv", index=False)
+    print(len(R), "rows")
+
+
+# ------------------------------------------------------------------ selftest
+
+def selftest() -> None:
+    rng = np.random.default_rng(0)
+    # 1. 組の分け方：感情ごとに均等
+    y = np.repeat(np.arange(4), 5)
+    rng.shuffle(y)
+    fo = kfold_of(y)
+    for c in range(4):
+        assert np.bincount(fo[y == c], minlength=NF).tolist() == [1] * NF
+    # 2. 縮小：行の和 1，λ = 1 で対角の平均が保たれ非対角が等しい
+    C = rng.dirichlet(np.ones(4) * 2, size=4)
+    for lam in LAMBDAS:
+        Cl = shrink(C, lam)
+        assert np.allclose(Cl.sum(1), 1)
+    S1 = shrink(C, 1.0)
+    assert abs(np.mean(np.diag(S1)) - np.mean(np.diag(C))) < 1e-12 and np.allclose(S1[~np.eye(4, dtype=bool)], S1[0, 1])
+    # 3. C = 単位行列なら dai_solver.fit と同じ解
+    n, d = 400, 12
+    X = torch.as_tensor(rng.normal(size=(n, d)))
+    yy = rng.integers(0, 4, n)
+    Q = torch.softmax(torch.as_tensor(rng.normal(size=(n, 4))) * 2, -1)
+    gk = S.balanced_onehot(yy, np.arange(20), n)
+    GQ = S.soft_rows(Q, float(n))
+    W0 = torch.as_tensor(rng.normal(size=(4, d)) * 0.1); b0 = torch.zeros(4)
+    r1 = fit_glc(X, gk[None], GQ[None], torch.eye(4)[None], W0, b0, 0.5, 1.0)
+    r2 = S.fit(X, (gk + GQ)[None], W0, b0, Cw=0.5, Cb=1.0)
+    assert float((r1["W"] - r2["W"]).abs().max()) < 1e-5, float((r1["W"] - r2["W"]).abs().max())
+    # 4. 前向き補正で取り違えが戻る：本当の感情 y，疑似ラベル = 取り違えの表で混ぜた硬いラベル．補正した生徒は補正しない生徒より当たる
+    n = 4000
+    yv = rng.integers(0, 4, n)
+    Xv = np.eye(4)[yv] * 2.0 + rng.normal(size=(n, 4)) * 0.8
+    Ct = np.array([[0.55, 0.40, 0.03, 0.02], [0.05, 0.9, 0.03, 0.02], [0.02, 0.03, 0.9, 0.05], [0.02, 0.03, 0.05, 0.9]])
+    qy = np.array([rng.choice(4, p=Ct[i]) for i in yv])
+    Qv = torch.as_tensor(np.eye(4)[qy])
+    GQv = S.soft_rows(Qv, float(n), balance=False)
+    zero = torch.zeros(1, n, 4, dtype=S.DT, device=S.DEV)
+    rr = fit_glc(torch.as_tensor(Xv), zero.expand(2, -1, -1), GQv[None].expand(2, -1, -1), torch.stack([torch.eye(4), torch.as_tensor(Ct)]),
+                 torch.zeros(4, 4), torch.zeros(4), 100.0, 100.0)
+    pr = S.logits(torch.as_tensor(Xv), rr["W"], rr["b"]).argmax(2).cpu().numpy()
+    u0, u1 = S.uar(yv, pr[0]), S.uar(yv, pr[1])
+    assert u1 > u0 + 0.05, (u0, u1)
+    # 5. table_from
+    P = np.eye(4)[np.array([0, 1, 1, 2, 3])].astype(float)
+    T5 = table_from(P, np.array([0, 0, 1, 2, 3]))
+    assert np.allclose(T5[0], [0.5, 0.5, 0, 0])
+    print(f"selftest：5 項目すべて通った（補正なし {100 * u0:.1f} → 補正 {100 * u1:.1f}）")
+
+
+# ------------------------------------------------------------------ main
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--stage", required=True, choices=("selftest", "pseudo", "select", "eval", "summary"))
+    ap.add_argument("--out-dir", default=str(OUT_PROD))
+    ap.add_argument("--targets", nargs="*", default=list(DD.CORPORA))
+    ap.add_argument("--folds", nargs="*", type=int, default=None)
+    ap.add_argument("--seeds", nargs="*", type=int, default=None)
+    ap.add_argument("--allow-dirty", action="store_true")
+    args = ap.parse_args()
+    if args.stage == "selftest":
+        selftest()
+        return
+    out = Path(args.out_dir).resolve()
+    prod = out == OUT_PROD.resolve()
+    commit, dirty = dai1.git_commit()
+    RUN["commit"], RUN["dirty"] = commit, dirty
+    if dirty and (prod or not args.allow_dirty):
+        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+    if prod and not dai1.committed_clean(DESIGN):
+        sys.exit("設計の文書がコミットされていない")
+    if prod and (args.folds is not None or args.seeds is not None or set(args.targets) != set(DD.CORPORA)):
+        sys.exit("本番の置き場では対象を絞らない")
+    if args.stage in ("eval", "summary") and prod and not dai1.committed_clean(FROZEN):
+        sys.exit("固定のファイルがコミットされていない（select の後にコミットしてから eval）")
+    dai1.ENC["enc"] = DD.ENC1
+    out.mkdir(parents=True, exist_ok=True)
+    prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"), host=platform.node(),
+                gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__,
+                scripts={n: sha(HERE / n) for n in SCRIPTS}, design_sha256=sha(DESIGN),
+                frozen_sha256=(sha(FROZEN) if FROZEN.exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
+                KS=KS, LAMBDAS=LAMBDAS, NF=NF, TOL=TOL)
+    with open(out / "provenance_log.jsonl", "a") as fh:
+        fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
+    if args.stage in ("pseudo", "eval"):
+        stage_units(out, args.stage, args.targets, args.folds, args.seeds)
+        if prod:
+            (out / f"{args.stage}.done").write_text(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+    elif args.stage == "select":
+        stage_select(out)
+    else:
+        stage_summary(out)
+        json.dump(prov, open(out / "provenance.json", "w"), ensure_ascii=False, indent=1)
+
+
+if __name__ == "__main__":
+    main()
