@@ -1,5 +1,5 @@
 """実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
-（設計 `DAI/docs/実験15_設計.md` 第 3 版）．
+（設計 `DAI/docs/実験15_設計.md` 第 4 版）．
 
 提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
 疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
@@ -52,6 +52,7 @@ KS = (5, 25)
 K_MAIN = 5
 STU = DD.STUDENTS                       # ("A", "V", "T", "AVT")
 LAMBDAS = (0.0, 0.5, 1.0)               # 1.0 は対称の対照
+ADJ_ITERS = 3000                        # 割合をそろえる切片の反復の回数
 ADJ_TOL = 1e-4                          # 割合をそろえる切片の残りの許し（確率の平均の差の最大）
 D_MIN = 0.25                            # 交差の推定の表の対角の平均がこれ以下なら補正しない（でたらめと同じ当たり）
 SEL_OPTS = ("off", "0.0", "0.5")        # 選ぶ候補（off は提案そのもの）
@@ -100,7 +101,7 @@ def shrink(C: np.ndarray, lam: float) -> np.ndarray:
     return (1 - lam) * C + lam * Sm
 
 
-def match_prior(Zp: torch.Tensor, target: torch.Tensor, iters: int = 3000) -> tuple[torch.Tensor, float]:
+def match_prior(Zp: torch.Tensor, target: torch.Tensor, iters: int = ADJ_ITERS) -> tuple[torch.Tensor, float]:
     """候補の上の softmax(Zp + δ) の平均が target（4 つの感情の確率の平均）になる切片のずれ δ を不動点の反復で求める．ラベルを使わない．"""
     delta = torch.zeros(Zp.shape[-1], device=Zp.device, dtype=Zp.dtype)
     for _ in range(iters):
@@ -236,13 +237,18 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
                          **{f"uar_teacher_fold{j}": 100 * v for j, v in enumerate(tb["uar_teacher_folds"])},
                          **{f"sv_{nm}_{i}": float(x) for nm in ("cf", "naive", "oracle") for i, x in enumerate(np.linalg.svd(tb[nm], compute_uv=False))}))
         Qt = dai1.product(TK[K], (1, 1, 1), 1)                             # 疑似ラベルのモデルのテストの確率
-        arr[f"pred_K{K}_teacher"] = Qt.argmax(1).cpu().numpy().astype(np.int8)
-        Cl0 = shrink(tb["cf"], 0.0)
+        Qtn = Qt.cpu().numpy()
+        arr[f"prob_K{K}_teacher"] = Qtn.astype(np.float32)
+        arr[f"pred_K{K}_teacher"] = Qtn.argmax(1).astype(np.int8)
+        wq = Qtn * w[None, :]                                              # 生徒の目標と同じ列の倍率をかけた教師
+        arr[f"pred_K{K}_teacher_w"] = wq.argmax(1).astype(np.int8)
+        Cw0 = np.eye(4) if dbar <= D_MIN else weight_table(shrink(tb["cf"], 0.0), w)
         try:
-            rj = np.linalg.solve(Cl0.T, Qt.cpu().numpy().T).T                 # 表の逆を掛けて判定し直す（記録．負の値もそのまま）
-            arr[f"pred_K{K}_teacher_rejudge"] = rj.argmax(1).astype(np.int8)
+            rj = np.linalg.solve(Cw0.T, wq.T).T                                # C′ の逆を掛けて判定し直す（記録．負の値もそのまま）
+            arr[f"pred_K{K}_teacher_rj0"] = rj.argmax(1).astype(np.int8)
+            rows.append(dict(K=K, option="_teacher_rj0", neg_share=float((rj < 0).any(1).mean())))
         except np.linalg.LinAlgError:
-            arr[f"pred_K{K}_teacher_rejudge"] = arr[f"pred_K{K}_teacher"]
+            arr[f"pred_K{K}_teacher_rj0"] = arr[f"pred_K{K}_teacher_w"]
         arr[f"candcount"] = np.bincount(u.ypool, minlength=4)
         gk = u.gK(K)
         for s in STU:
@@ -390,8 +396,18 @@ VERS = {"sel": None, "sel_adj": None, "I": "I", "lam0": "0.0", "lam05": "0.5", "
 CONTRASTS = [("sel", "prop"), ("sel_adj", "prop"), ("sel", "I"), ("I", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "kd_one"),
              ("lam0", "sym"), ("lam0_adj", "sym_adj"), ("lam0_adj", "I_adj"), ("oracle", "I"), ("oracle", "prop"), ("oracle", "lam0"),
              ("oracle_adj", "lam0_adj"), ("oracle_adj", "I_adj"), ("lam0", "I"), ("lam05", "I"), ("sym", "I"), ("naive", "lam0"),
-             ("naive_adj", "lam0_adj"), ("prop", "none")]
-TEACHER_CONTRASTS = [("teacher_rejudge", "teacher")]
+             ("naive_adj", "lam0_adj"), ("prop", "none"), ("sel", "sel_adj"), ("lam05_adj", "I_adj")]
+TEACHER_CONTRASTS = [("teacher_rj0", "teacher_w")]
+LPI = {"sel_lpi": None, "lam0_lpi": "0.0"}                              # 記録の版：生徒が学ぶ問の割合 π′ の対数を引いて判定（予言に使わない）
+LPI_CONTRASTS = [("sel_lpi", "prop"), ("lam0_lpi", "I")]
+
+
+def lpi_pred(a: dict, K: int, s_: str, opt: str) -> tuple[np.ndarray, bool]:
+    """保存した確率と重みに合わせた表から，log π′ を引いた判定．π′ が 0 以下の成分は 1e-6 に切って正規化（旗を返す）．"""
+    pi = np.linalg.solve(a[f"Cw_K{K}_{opt}"].T, np.full(4, 0.25))
+    ok = bool(np.all(pi > 0))
+    pi = np.clip(pi, 1e-6, None); pi = pi / pi.sum()
+    return (np.log(np.clip(a[f"prob_K{K}_{s_}_{opt}"], 1e-12, None)) - np.log(pi)[None]).argmax(1), ok
 
 
 def stage_summary(out: Path) -> None:
@@ -432,6 +448,24 @@ def stage_summary(out: Path) -> None:
                     e = dai14.combo_stats([cell(A_), cell(B_)], [1, -1], g_eff, rng)
                     res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt) | e |
                                dict(verdict=dai14.verdict(e["lo"], e["hi"])))
+                lpi_bad = 0
+
+                def lcell(v):
+                    nonlocal lpi_bad
+                    o = LPI[v] if LPI[v] is not None else (None if opt == "off" else opt)
+                    out_ = {}
+                    for k, a in U.items():
+                        if o is None:
+                            pr_ = a[f"pred_K{K}_{s}_prop"]
+                        else:
+                            pr_, ok_ = lpi_pred(a, K, s, o)
+                            lpi_bad += int(not ok_)
+                        out_[k] = dai14.counts(a["y"], pr_, a["cl"])
+                    return out_
+                for A_, B_ in LPI_CONTRASTS:
+                    e = dai14.combo_stats([lcell(A_), cell(B_)], [1, -1], g_eff, rng)
+                    res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt, n_pi_nonpos=lpi_bad) | e |
+                               dict(verdict=dai14.verdict(e["lo"], e["hi"])))
                 if s == "AVT":
                     for A_, B_ in TEACHER_CONTRASTS:
                         cA = {k: dai14.counts(a["y"], a[f"pred_K{K}_{A_}"], a["cl"]) for k, a in U.items()}
@@ -458,21 +492,32 @@ def stage_summary(out: Path) -> None:
     # 予言の判定（設計 5 節の規則そのまま）
     V = {(r.T, r.K, r.student, r.contrast): r.verdict for r in R.itertuples()}
     up = lambda T, K, s_, c: V.get((T, K, s_, c)) == "上回る"
+    skipn = {}
+    for p in sorted((out / "eval" / "units").glob("*.csv")):
+        x = pd.read_csv(p)
+        for r in x[x.option == "_table"].itertuples():
+            skipn[(r.T, int(r.K))] = skipn.get((r.T, int(r.K)), 0) + int(bool(r.skip))
+    offc = lambda K, s_: ",".join(sorted(T for T in DD.CORPORA if fz["select"].get(f"{T}|{s_}|{K}", {}).get("option") == "off"))
     hyp = []
     for K in KS:
         Ts = sorted({t for (t, k, _, _) in V if k == K})
         both = lambda s_: [T for T in Ts if up(T, K, s_, "sel-prop") and up(T, K, s_, "sel_adj-prop")]
         a1, a2 = both("A"), both("AVT")
-        hyp.append(dict(K=K, hypothesis="H1", n=len(a1), need=3, hit=len(a1) >= 3, corpora=",".join(a1),
-                        raw_only=",".join(T for T in Ts if up(T, K, "A", "sel-prop") and not up(T, K, "A", "sel_adj-prop"))))
-        hyp.append(dict(K=K, hypothesis="H2", n=len(a2), need=2, hit=len(a2) >= 2, corpora=",".join(a2),
-                        raw_only=",".join(T for T in Ts if up(T, K, "AVT", "sel-prop") and not up(T, K, "AVT", "sel_adj-prop"))))
+        hyp.append(dict(K=K, hypothesis="H1", n=len(a1), need=3, hit=len(a1) >= 3, corpora=",".join(a1), off=offc(K, "A"),
+                        raw_only=",".join(T for T in Ts if up(T, K, "A", "sel-prop") and not up(T, K, "A", "sel_adj-prop")),
+                        adj_only=",".join(T for T in Ts if up(T, K, "A", "sel_adj-prop") and not up(T, K, "A", "sel-prop"))))
+        hyp.append(dict(K=K, hypothesis="H2", n=len(a2), need=2, hit=len(a2) >= 2, corpora=",".join(a2), off=offc(K, "AVT"),
+                        raw_only=",".join(T for T in Ts if up(T, K, "AVT", "sel-prop") and not up(T, K, "AVT", "sel_adj-prop")),
+                        adj_only=",".join(T for T in Ts if up(T, K, "AVT", "sel_adj-prop") and not up(T, K, "AVT", "sel-prop")),
+                        rejudge=",".join(T for T in Ts if up(T, K, "teacher", "teacher_rj0-teacher_w"))))
         if "MOSEI" in Ts:
-            h3 = up("MOSEI", K, "A", "oracle_adj-lam0_adj") and not up("MOSEI", K, "A", "lam0_adj-I_adj")
-            hyp.append(dict(K=K, hypothesis="H3", n=int(h3), need=1, hit=h3, corpora="MOSEI" if h3 else ""))
+            d1, d2, d3 = (V.get(("MOSEI", K, "A", c), "") for c in ("oracle_adj-lam0_adj", "lam0_adj-I_adj", "oracle_adj-I_adj"))
+            h3 = d1 == "上回る" and d3 == "上回る" and d2 != "上回る"
+            hyp.append(dict(K=K, hypothesis="H3", n=int(h3), need=1, hit=h3, corpora="MOSEI" if h3 else "", oracle_adj_lam0_adj=d1,
+                            lam0_adj_I_adj=d2, oracle_adj_I_adj=d3, n_skip_units=skipn.get(("MOSEI", K), 0)))
         base = [T for T in Ts if up(T, K, "A", "lam0_adj-I_adj")]
         c1 = [T for T in base if up(T, K, "A", "lam0_adj-sym_adj")]
-        hyp.append(dict(K=K, hypothesis="C1", n=len(c1), need=3, hit=len(c1) >= 3, corpora=",".join(c1), raw_only=",".join(base)))
+        hyp.append(dict(K=K, hypothesis="C1", n=len(c1), need=3, hit=len(c1) >= 3, corpora=",".join(c1), base=",".join(base)))
     pd.DataFrame(hyp).assign(commit=RUN["commit"]).to_csv(sdir / "hypotheses.csv", index=False)
     print(len(R), "rows")
 
@@ -586,7 +631,8 @@ def main() -> None:
                 scripts={n: sha(HERE / n) for n in SCRIPTS}, design_sha256=sha(DESIGN),
                 frozen_sha256=(sha(frozen_path(out)) if frozen_path(out).exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 python=platform.python_version(), pandas=pd.__version__, KS=KS, LAMBDAS=LAMBDAS, NF=NF, TOL=TOL, MAX_ITER=MAX_ITER,
-                SEL_OPTS=SEL_OPTS, D_MIN=D_MIN, CHECK_TEACHER=CHECK_TEACHER, CHECK_W=CHECK_W, tie="厳密な最大．同点は off", rng_seed=20261113)
+                SEL_OPTS=SEL_OPTS, D_MIN=D_MIN, CHECK_TEACHER=CHECK_TEACHER, CHECK_W=CHECK_W, ADJ_TOL=ADJ_TOL, ADJ_ITERS=ADJ_ITERS,
+                tie="厳密な最大．同点は off", rng_seed=20261113)
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     if args.stage in ("pseudo", "eval"):
