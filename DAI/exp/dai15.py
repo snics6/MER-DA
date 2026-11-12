@@ -1,5 +1,5 @@
 """実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
-（設計 `DAI/docs/実験15_設計.md` 第 2 版）．
+（設計 `DAI/docs/実験15_設計.md` 第 3 版）．
 
 提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
 疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
@@ -9,7 +9,9 @@ C は K 本で推す．K 本は疑似ラベルのモデルの学習にも入る�
 縮小：C_λ = (1 − λ)Ĉ + λ S(Ĉ)．S(Ĉ) は対角の平均を保った対称の表．λ = 1 は「表の非対称な形の情報を持たない」対照．
 提案は疑似ラベルの項を感情ごとの総量でそろえる（列 j に w_j = 1 / Σ_n q_nj を掛ける）ので，その目標に合う表は
 C′ = 行の正規化(C_λ · diag(w)) である（第 2 版．関門の指摘）．補正にはこの C′ を使う．
-生徒の K 本の項・疑似ラベルの総重み・出発点・引き戻しは，提案の選んだ設定と同じ（補正だけを変える）．
+生徒の K 本の項・疑似ラベルの総重み・出発点・引き戻しは，提案の選んだ設定と同じ．ただし C′ で補正すると，生徒が学ぶ問の
+本当の感情の割合も変わる（第 3 版．査読想定の役の指摘）．そこで各版について，ラベルを使わずに切片だけをずらして候補の上の
+予測の確率の平均を提案と同じにした版（_adj）も作る．
 
 段：
   selftest  合成の数で，補正の式・C = 単位行列で提案と一致・縮小・組の分け方を確かめる
@@ -50,6 +52,7 @@ KS = (5, 25)
 K_MAIN = 5
 STU = DD.STUDENTS                       # ("A", "V", "T", "AVT")
 LAMBDAS = (0.0, 0.5, 1.0)               # 1.0 は対称の対照
+ADJ_TOL = 1e-4                          # 割合をそろえる切片の残りの許し（確率の平均の差の最大）
 D_MIN = 0.25                            # 交差の推定の表の対角の平均がこれ以下なら補正しない（でたらめと同じ当たり）
 SEL_OPTS = ("off", "0.0", "0.5")        # 選ぶ候補（off は提案そのもの）
 NF = 5                                  # K 本を感情ごとに分ける組の数
@@ -95,6 +98,17 @@ def shrink(C: np.ndarray, lam: float) -> np.ndarray:
     Sm = np.full((4, 4), (1 - d) / 3.0)
     np.fill_diagonal(Sm, d)
     return (1 - lam) * C + lam * Sm
+
+
+def match_prior(Zp: torch.Tensor, target: torch.Tensor, iters: int = 3000) -> tuple[torch.Tensor, float]:
+    """候補の上の softmax(Zp + δ) の平均が target（4 つの感情の確率の平均）になる切片のずれ δ を不動点の反復で求める．ラベルを使わない．"""
+    delta = torch.zeros(Zp.shape[-1], device=Zp.device, dtype=Zp.dtype)
+    for _ in range(iters):
+        m = torch.softmax(Zp + delta, -1).mean(0)
+        delta = delta + (target.clamp(min=1e-12).log() - m.clamp(min=1e-12).log())
+        delta = delta - delta.mean()
+    resid = float((torch.softmax(Zp + delta, -1).mean(0) - target).abs().max())
+    return delta, resid
 
 
 def weight_table(C: np.ndarray, w: np.ndarray) -> np.ndarray:
@@ -221,6 +235,15 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
                          teacher_stalled=tb["teacher_stalled"], uar_teacher_full=100 * tb["uar_teacher_full"],
                          **{f"uar_teacher_fold{j}": 100 * v for j, v in enumerate(tb["uar_teacher_folds"])},
                          **{f"sv_{nm}_{i}": float(x) for nm in ("cf", "naive", "oracle") for i, x in enumerate(np.linalg.svd(tb[nm], compute_uv=False))}))
+        Qt = dai1.product(TK[K], (1, 1, 1), 1)                             # 疑似ラベルのモデルのテストの確率
+        arr[f"pred_K{K}_teacher"] = Qt.argmax(1).cpu().numpy().astype(np.int8)
+        Cl0 = shrink(tb["cf"], 0.0)
+        try:
+            rj = np.linalg.solve(Cl0.T, Qt.cpu().numpy().T).T                 # 表の逆を掛けて判定し直す（記録．負の値もそのまま）
+            arr[f"pred_K{K}_teacher_rejudge"] = rj.argmax(1).astype(np.int8)
+        except np.linalg.LinAlgError:
+            arr[f"pred_K{K}_teacher_rejudge"] = arr[f"pred_K{K}_teacher"]
+        arr[f"candcount"] = np.bincount(u.ypool, minlength=4)
         gk = u.gK(K)
         for s in STU:
             j = fzT["select"][f"{s}|{K}|joint|one"]
@@ -234,17 +257,40 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
             if not res["finite_p"].all():
                 raise SystemExit(f"{sv.base.name}：補正の解が有限でない（{s}, K={K}）")
             Zt = S.logits(u.Xt[s], res["W"], res["b"])
+            Zp = S.logits(u.Xp[s], res["W"], res["b"])
             pred = Zt.argmax(2).cpu().numpy()
             prob = torch.softmax(Zt, 2).cpu().numpy().astype(np.float32)
             Wp, bp = sv.prop(s, K)
+            target = torch.softmax(S.logits(u.Xp[s], Wp, bp), -1).mean(0)            # 提案の候補の上の予測の確率の平均
+            for (nm, Cx), Zpo, Zto, Wo, bo in zip(opts, Zp, Zt, res["W"], res["b"]):
+                dl, rs = match_prior(Zpo, target)
+                Za = Zto + dl
+                arr[f"pred_K{K}_{s}_{nm}_adj"] = Za.argmax(1).cpu().numpy().astype(np.int8)
+                arr[f"prob_K{K}_{s}_{nm}_adj"] = torch.softmax(Za, 1).cpu().numpy().astype(np.float32)
+                arr[f"delta_K{K}_{s}_{nm}"] = dl.cpu().numpy()
+                arr[f"W_K{K}_{s}_{nm}"] = Wo.cpu().numpy().astype(np.float32)
+                arr[f"b_K{K}_{s}_{nm}"] = bo.cpu().numpy().astype(np.float32)
+                arr[f"candmean_K{K}_{s}_{nm}"] = torch.softmax(Zpo, -1).mean(0).cpu().numpy()
+                try:
+                    pip = np.linalg.solve(np.asarray(Cx).T, np.full(4, 0.25))                # 生徒が学ぶ問の本当の割合（記録．範囲の外は旗）
+                except np.linalg.LinAlgError:
+                    pip = np.full(4, np.nan)
+                rows.append(dict(K=K, student=s, option=f"_adj_{nm}", resid=rs, delta_max=float(dl.abs().max()),
+                                 pi_ok=bool(np.all(np.isfinite(pip)) and np.all(pip >= 0) and np.all(pip <= 1)),
+                                 **{f"pi_{i}": float(x) for i, x in enumerate(pip)}))
+                if rs > ADJ_TOL:
+                    raise SystemExit(f"{sv.base.name}：割合をそろえる切片が収束しない（{nm}，{s}，K={K}，{rs:.1e}）")
             Wn, bn = sv.none(s, K)
             Wk, bk = sv.partner(s, K)
             kj = fzT["select"][f"{s}|{K}|kd|one"]
             Wk1, bk1 = sv.p3_wb(s, K, sv.p3_index(s, K, method="kd", teacher="one", temp=kj["temp"], rho=kj["rho"]))
             refs = {"prop": (Wp, bp), "none": (Wn, bn), "partner": (Wk, bk), "kd_one": (Wk1, bk1)}
+            arr[f"candmean_K{K}_{s}_prop"] = target.cpu().numpy()
             thp = torch.cat([S.t(Wp).flatten(), S.t(bp)])
             thI = torch.cat([res["W"][0].flatten(), res["b"][0]])
+            th0 = torch.cat([S.t(W0).flatten(), S.t(b0)])
             wdiff = float((thI - thp).norm() / thp.norm().clamp(min=1e-12))
+            wdiff_moved = float((thI - thp).norm() / (thp - th0).norm().clamp(min=1e-12))
             if wdiff > CHECK_W:
                 raise SystemExit(f"{sv.base.name}：C = 単位行列の補正版と保存の提案の重みの相対の差が {wdiff:.2e}（{s}, K={K}）")
             for (nm, _), pr, pb, gp, stl, fv in zip(opts, pred, prob, res["grad_p"], res["stalled_p"], res["f_p"]):
@@ -258,7 +304,8 @@ def run_unit(sv, fzT: dict, which: str) -> tuple[list, dict]:
                 arr[f"pred_K{K}_{s}_{nm}"] = pr.astype(np.int8)
                 arr[f"prob_K{K}_{s}_{nm}"] = torch.softmax(Zr, 1).cpu().numpy().astype(np.float32)
                 rows.append(dict(K=K, student=s, option=nm, uar=100 * S.uar(yt, pr)))
-            rows.append(dict(K=K, student=s, option="_I_vs_prop", value=wdiff, n_flip=int((pred[0] != arr[f"pred_K{K}_{s}_prop"]).sum())))
+            rows.append(dict(K=K, student=s, option="_I_vs_prop", value=wdiff, value_moved=wdiff_moved,
+                             n_flip=int((pred[0] != arr[f"pred_K{K}_{s}_prop"]).sum())))
     arr["y"] = yt.astype(np.int8)
     arr["cl"] = sv.cl
     arr["sid"] = sv.sid
@@ -337,10 +384,14 @@ def stage_select(out: Path) -> None:
     print(f"固定のファイル {fp.name}：{len(sel)} セル．値は表示しない（評価の段の後まで開かない．設計 8 節）")
 
 
-VERS = {"sel": None, "I": "I", "lam0": "0.0", "lam05": "0.5", "sym": "1.0", "naive": "naive", "oracle": "oracle", "prop": "prop",
-        "none": "none", "kd": "partner", "kd_one": "kd_one"}
-CONTRASTS = [("sel", "prop"), ("sel", "I"), ("I", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "kd_one"), ("lam0", "sym"),
-             ("oracle", "I"), ("oracle", "prop"), ("lam0", "I"), ("lam05", "I"), ("sym", "I"), ("naive", "lam0"), ("prop", "none")]
+VERS = {"sel": None, "sel_adj": None, "I": "I", "lam0": "0.0", "lam05": "0.5", "sym": "1.0", "naive": "naive", "oracle": "oracle",
+        "I_adj": "I_adj", "lam0_adj": "0.0_adj", "lam05_adj": "0.5_adj", "sym_adj": "1.0_adj", "naive_adj": "naive_adj",
+        "oracle_adj": "oracle_adj", "prop": "prop", "none": "none", "kd": "partner", "kd_one": "kd_one"}
+CONTRASTS = [("sel", "prop"), ("sel_adj", "prop"), ("sel", "I"), ("I", "prop"), ("sel", "none"), ("sel", "kd"), ("sel", "kd_one"),
+             ("lam0", "sym"), ("lam0_adj", "sym_adj"), ("lam0_adj", "I_adj"), ("oracle", "I"), ("oracle", "prop"), ("oracle", "lam0"),
+             ("oracle_adj", "lam0_adj"), ("oracle_adj", "I_adj"), ("lam0", "I"), ("lam05", "I"), ("sym", "I"), ("naive", "lam0"),
+             ("naive_adj", "lam0_adj"), ("prop", "none")]
+TEACHER_CONTRASTS = [("teacher_rejudge", "teacher")]
 
 
 def stage_summary(out: Path) -> None:
@@ -367,8 +418,13 @@ def stage_summary(out: Path) -> None:
         rng = np.random.default_rng([20261113, DD.CORPUS_ID[T]])
         for K in KS:
             for s in STU:
+                if f"{T}|{s}|{K}" not in fz["select"]:
+                    if RUN["partial"]:
+                        continue
+                    raise SystemExit(f"固定のファイルに {T}|{s}|{K} が無い")
                 opt = fz["select"][f"{T}|{s}|{K}"]["option"]
-                key = {**VERS, "sel": ("prop" if opt == "off" else opt)}             # 補正しないなら提案そのもの
+                key = {**VERS, "sel": ("prop" if opt == "off" else opt),             # 補正しないなら提案そのもの
+                       "sel_adj": ("prop" if opt == "off" else f"{opt}_adj")}
 
                 def cell(v):
                     return {k: dai14.counts(a["y"], a[f"pred_K{K}_{s}_{key[v]}"], a["cl"]) for k, a in U.items()}
@@ -376,6 +432,13 @@ def stage_summary(out: Path) -> None:
                     e = dai14.combo_stats([cell(A_), cell(B_)], [1, -1], g_eff, rng)
                     res.append(dict(T=T, K=K, student=s, contrast=f"{A_}-{B_}", selected=opt) | e |
                                dict(verdict=dai14.verdict(e["lo"], e["hi"])))
+                if s == "AVT":
+                    for A_, B_ in TEACHER_CONTRASTS:
+                        cA = {k: dai14.counts(a["y"], a[f"pred_K{K}_{A_}"], a["cl"]) for k, a in U.items()}
+                        cB = {k: dai14.counts(a["y"], a[f"pred_K{K}_{B_}"], a["cl"]) for k, a in U.items()}
+                        e = dai14.combo_stats([cA, cB], [1, -1], g_eff, rng)
+                        res.append(dict(T=T, K=K, student="teacher", contrast=f"{A_}-{B_}", selected="") | e |
+                                   dict(verdict=dai14.verdict(e["lo"], e["hi"])))
                 for v in VERS:
                     e = dai14.combo_stats([cell(v)], [1], g_eff, rng)
                     res.append(dict(T=T, K=K, student=s, contrast=f"{v}", selected=opt) | e | dict(verdict=""))
@@ -455,11 +518,16 @@ def selftest() -> None:
     recN = [float((x[yv == 0] == 0).mean()) for x in pr]
     assert recN[2] > recN[1] and uW >= uC - 1e-9, (uI, uC, uW, recN)
     assert np.allclose(weight_table(np.eye(4), wv), np.eye(4))
+    # 7. 割合をそろえる切片：候補の上の確率の平均が目標に一致する
+    Zr = torch.as_tensor(rng.normal(size=(3000, 4)) * 2, dtype=S.DT)
+    tg = torch.as_tensor([0.4, 0.3, 0.2, 0.1], dtype=S.DT)
+    dl, rs = match_prior(Zr, tg)
+    assert rs < ADJ_TOL, rs
     # 5. table_from
     P = np.eye(4)[np.array([0, 1, 1, 2, 3])].astype(float)
     T5 = table_from(P, np.array([0, 0, 1, 2, 3]))
     assert np.allclose(T5[0], [0.5, 0.5, 0, 0])
-    print(f"selftest：6 項目すべて通った（補正なし {100 * u0:.1f} → 補正 {100 * u1:.1f}．偏りあり：I {100 * uI:.1f}，C {100 * uC:.1f}，C′ {100 * uW:.1f}，Neutral の再現率 {recN[1]:.2f} → {recN[2]:.2f}）")
+    print(f"selftest：7 項目すべて通った（補正なし {100 * u0:.1f} → 補正 {100 * u1:.1f}．偏りあり：I {100 * uI:.1f}，C {100 * uC:.1f}，C′ {100 * uW:.1f}，Neutral の再現率 {recN[1]:.2f} → {recN[2]:.2f}）")
 
 
 # ------------------------------------------------------------------ main
@@ -497,7 +565,7 @@ def main() -> None:
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"), host=platform.node(),
                 gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__,
                 scripts={n: sha(HERE / n) for n in SCRIPTS}, design_sha256=sha(DESIGN),
-                frozen_sha256=(sha(FROZEN) if FROZEN.exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
+                frozen_sha256=(sha(frozen_path(out)) if frozen_path(out).exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 python=platform.python_version(), pandas=pd.__version__, KS=KS, LAMBDAS=LAMBDAS, NF=NF, TOL=TOL, MAX_ITER=MAX_ITER,
                 SEL_OPTS=SEL_OPTS, D_MIN=D_MIN, CHECK_TEACHER=CHECK_TEACHER, CHECK_W=CHECK_W, tie="厳密な最大．同点は off", rng_seed=20261113)
     with open(out / "provenance_log.jsonl", "a") as fh:
