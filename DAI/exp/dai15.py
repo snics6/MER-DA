@@ -455,6 +455,25 @@ def stage_summary(out: Path) -> None:
                          above=",".join(sorted(x[x.verdict == "上回る"]["T"])), below=",".join(sorted(x[x.verdict == "下回る"]["T"]))))
     pd.DataFrame(crit).assign(commit=RUN["commit"]).to_csv(sdir / "criteria.csv", index=False)
     pd.DataFrame(percls).assign(commit=RUN["commit"]).to_csv(sdir / "per_emotion.csv", index=False)
+    # 予言の判定（設計 5 節の規則そのまま）
+    V = {(r.T, r.K, r.student, r.contrast): r.verdict for r in R.itertuples()}
+    up = lambda T, K, s_, c: V.get((T, K, s_, c)) == "上回る"
+    hyp = []
+    for K in KS:
+        Ts = sorted({t for (t, k, _, _) in V if k == K})
+        both = lambda s_: [T for T in Ts if up(T, K, s_, "sel-prop") and up(T, K, s_, "sel_adj-prop")]
+        a1, a2 = both("A"), both("AVT")
+        hyp.append(dict(K=K, hypothesis="H1", n=len(a1), need=3, hit=len(a1) >= 3, corpora=",".join(a1),
+                        raw_only=",".join(T for T in Ts if up(T, K, "A", "sel-prop") and not up(T, K, "A", "sel_adj-prop"))))
+        hyp.append(dict(K=K, hypothesis="H2", n=len(a2), need=2, hit=len(a2) >= 2, corpora=",".join(a2),
+                        raw_only=",".join(T for T in Ts if up(T, K, "AVT", "sel-prop") and not up(T, K, "AVT", "sel_adj-prop"))))
+        if "MOSEI" in Ts:
+            h3 = up("MOSEI", K, "A", "oracle_adj-lam0_adj") and not up("MOSEI", K, "A", "lam0_adj-I_adj")
+            hyp.append(dict(K=K, hypothesis="H3", n=int(h3), need=1, hit=h3, corpora="MOSEI" if h3 else ""))
+        base = [T for T in Ts if up(T, K, "A", "lam0_adj-I_adj")]
+        c1 = [T for T in base if up(T, K, "A", "lam0_adj-sym_adj")]
+        hyp.append(dict(K=K, hypothesis="C1", n=len(c1), need=3, hit=len(c1) >= 3, corpora=",".join(c1), raw_only=",".join(base)))
+    pd.DataFrame(hyp).assign(commit=RUN["commit"]).to_csv(sdir / "hypotheses.csv", index=False)
     print(len(R), "rows")
 
 
