@@ -91,12 +91,13 @@ def run(out: Path) -> None:
     pdir = out / "posthoc"
     pdir.mkdir(exist_ok=True)
     act = actor_of_sid()
+    afew_sids = set(pd.read_csv(ROOT / "data/metadata/afew_utterance_manifest.csv", low_memory=False).sample_id.astype(str))
     in_db = {"AFEW": set(), "MELD": set()}
     for q in sorted((out / "srcdb").glob("*_A.npz")):
         d_ = np.load(q, allow_pickle=False)
         for x in d_["sid"].astype(str):
             if x in act:
-                in_db["AFEW" if x.startswith("AFEW") else "MELD"].add(x)
+                in_db["AFEW" if x in afew_sids else "MELD"].add(x)
     n_in = {k: len(v) for k, v in in_db.items()}
     if n_in != N_ACTOR_DESIGN:
         raise SystemExit(f"表に入る俳優の発話の数 {n_in} が設計の数 {N_ACTOR_DESIGN} と違う")
