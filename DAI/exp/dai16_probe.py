@@ -961,19 +961,44 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
     am = chk.groupby(["c", "K"])[acols].agg(["mean", "std"])
     am.columns = [f"{a}_{b}" for a, b in am.columns]
     am.reset_index().to_csv(sdir / "assumptions.csv", index=False)
+    rx = {}                                                               # R0 と並べる量（保存した信頼度の表から）：成分の大きさと，感情ごとに最も信頼度の高い分類器の一致
+    re_rows = {}
+    for p in files:
+        T, c, f, r = p.stem.rsplit("_", 3)
+        z = np.load(p, allow_pickle=False)
+        for j_, m in enumerate(MODS):                                         # 感情ごとの残り方（モダリティごと．出せなかった感情は数えない）
+            for i in range(4):
+                re_rows.setdefault((c, m, i), []).append(float(z["SR_ret_emo"][j_, i]))
+        for K in KS:
+            for fam in ("M", "S"):
+                orc = z[f"D_{fam}_orc_K{K}"]
+                top_o = orc.argmax(0)
+                for src_ in ("home", "ext", "away", "K"):
+                    Ds = z[f"D_{fam}_K_K{K}"] if src_ == "K" else z[f"SR_{fam}_{src_}"]
+                    rx.setdefault((c, K, fam, src_), []).append((float(np.abs(dcenter(Ds)).mean()), float(np.abs(dcenter(orc)).mean()),
+                                                                 float((Ds.argmax(0) == top_o).mean()), float((Ds.mean(1).argmax() == top_o).mean())))
+    pd.DataFrame([dict(c=c, modality=m, emotion=i, n_units=len(v), n_finite=int(np.isfinite(v).sum()),
+                       ret_mean=(float(np.nanmean(v)) if np.isfinite(v).any() else np.nan), ret_sd=(float(np.nanstd(v)) if np.isfinite(v).sum() > 1 else np.nan))
+                  for (c, m, i), v in sorted(re_rows.items())]).to_csv(sdir / "ret_emo.csv", index=False)
     r0 = []                                                               # R0：分類器 × 感情の成分の相関と，感情の並びを入れ替えたときにそれ以上になる割合
     for (c, K), gq in chk.groupby(["c", "K"]):
         for fam in ("M", "S"):
             for r in ("home", "ext", "away", "K"):
                 ic, ip = float(gq[f"intcorr_{fam}_{r}"].mean()), float(gq[f"intperm_{fam}_{r}"].mean())
+                xs = np.array(rx[(c, K, fam, r)]).mean(0)                 # 成分の大きさ（出どころ，全ラベル），感情ごとの一致，水準だけの一致
                 r0.append(dict(c=c, K=K, fam=fam, source=r, n_units=len(gq), intcorr=ic, intperm=ip, hit=bool(ic >= 0.3 and ip <= 0.2),
+                               resid_src=float(xs[0]), resid_orc=float(xs[1]), emo_agree=float(xs[2]), level_agree=float(xs[3]), agree_gain=float(xs[2] - xs[3]),
+                               hit_rank=bool(ic >= 0.3 and ip <= 0.2 and xs[2] - xs[3] >= 0.1),
                                profcorr=float(gq[f"profcorr_{fam}_{r}"].mean()), emocorr=float(gq[f"emocorr_{fam}_{r}"].mean()),
                                levelcorr=float(gq[f"levelcorr_{fam}_{r}"].mean()), topok=float(gq[f"topok_{fam}_{r}"].mean())))
     r0 = pd.DataFrame(r0)
     r0.to_csv(sdir / "r0.csv", index=False)
     r0.groupby(["K", "fam", "source"]).apply(lambda q: pd.Series(dict(n_corpora=len(q), n_hit=int(q.hit.sum()), n_hit_noAFEW=int(q[q.c != "AFEW"].hit.sum()),
                                                                        hit3=bool(q.hit.sum() >= 3), hit2_noAFEW=bool(q[q.c != "AFEW"].hit.sum() >= 2),
-                                                                       corpora=",".join(q[q.hit].c))), include_groups=False).reset_index().to_csv(sdir / "r0_count.csv", index=False)
+                                                                       n_hit_rank=int(q.hit_rank.sum()), n_hit_rank_noAFEW=int(q[q.c != "AFEW"].hit_rank.sum()),
+                                                                       hit3_rank=bool(q.hit_rank.sum() >= 3), hit2_rank_noAFEW=bool(q[q.c != "AFEW"].hit_rank.sum() >= 2),
+                                                                       corpora=",".join(q[q.hit].c), corpora_rank=",".join(q[q.hit_rank].c))),
+                                             include_groups=False).reset_index().to_csv(sdir / "r0_count.csv", index=False)
     json.dump(dict(n_units=len(files), teacher_dev_max=float(chk.teacher_dev.max()), grad_max=float(chk.grad.max()), stalled=int(chk.stalled.sum()),
                    adj_resid_max=float(chk.adj_resid.max()), sec_total=float(csvs.groupby(["T", "c", "fold", "seed"]).sec.first().sum())),
               open(sdir / "convergence.json", "w"), ensure_ascii=False, indent=1)
