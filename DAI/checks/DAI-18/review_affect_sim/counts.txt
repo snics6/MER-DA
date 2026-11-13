@@ -1,0 +1,38 @@
+CREMA-D A (4900, 1024)
+CREMA-D V (4899, 512)
+CREMA-D n 4899 speakers 91 speaker==group True
+test per fold x emotion
+ label_4    0    1    2    3
+fold                       
+0        216  252  252  252
+1        215  252  252  252
+2        215  252  251  252
+3        226  264  264  264
+4        215  251  251  251
+speakers per fold {0: 18, 1: 18, 2: 18, 3: 19, 4: 18}
+min pool per class 861
+intensity  HI  LO  MD    XX
+label_4                    
+0           0   0   0  1087
+1          91  91  91   998
+2          91  91  91   997
+3          91  91  91   998
+share IEO by class {0: 0.084, 1: 0.215, 2: 0.215, 3: 0.215}
+RAVDESS A (672, 1024)
+RAVDESS n 672 speakers 24 speaker==group True
+test per fold x emotion
+ label_4   0   1   2   3
+fold                   
+0        20  40  40  40
+1        20  40  40  40
+2        20  40  40  40
+3        20  40  40  40
+4        16  32  32  32
+speakers per fold {0: 5, 1: 5, 2: 5, 3: 5, 4: 4}
+min pool per class 76
+intensity  normal  strong
+label_4                  
+0              96       0
+1              96      96
+2              96      96
+3              96      96
