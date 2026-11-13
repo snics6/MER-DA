@@ -95,12 +95,12 @@ def run(out: Path) -> None:
     tt = sc[sc.student == "_teacher"][["T", "c", "fold", "seed", "K", "teacher", "uar_pool", "maxp"]].rename(columns={"uar_pool": "uar_pool_teacher"})
     nn_ = sc[sc.teacher == "_check"][["T", "c", "fold", "seed", "K", "student", "uar_none", "uar_pool_none"]]
     st = sc[(sc.student != "_teacher") & (sc.teacher != "_check")][["T", "c", "fold", "seed", "K", "student", "teacher", "grid", "uar", "uar_pool", "mimic"]].copy()
-    st = st.merge(sel[["c", "K", "student", "teacher", "grid"]].rename(columns={"c": "T", "grid": "grid_sel"}), on=["T", "K", "student", "teacher"])
-    st = st[st.grid == st.grid_sel]                                      # 単位の評価のターゲット T について選んだ点（コーパス T の判定に使う点）
+    st = st.merge(sel[["c", "K", "student", "teacher", "grid"]].rename(columns={"grid": "grid_sel"}), on=["c", "K", "student", "teacher"])
+    st = st[st.grid == st.grid_sel]                                      # 仮のターゲット c の判定に使う点（c を評価のターゲットにした単位で選んだ点）
     cond = st.merge(tt, on=["T", "c", "fold", "seed", "K", "teacher"]).merge(nn_, on=["T", "c", "fold", "seed", "K", "student"])
     cond["edge"] = cond.uar_pool_teacher - cond.uar_pool_none
     cond["gain_none"] = cond.uar - cond.uar_none
-    cond.groupby(["T", "K", "student", "teacher"])[["edge", "mimic", "gain_none", "maxp"]].mean().reset_index().rename(columns={"T": "c"}).to_csv(
+    cond.groupby(["c", "K", "student", "teacher"])[["edge", "mimic", "gain_none", "maxp"]].mean().reset_index().to_csv(
         pdir / "students_cond_sel.csv", index=False)
     nb_ = pd.read_csv(out / "summary" / "neighbors.csv")
     nb_[nb_.by.isin(["distinct_speakers_top20", "distinct_clusters_top20"])].to_csv(pdir / "speakers_top20.csv", index=False)
