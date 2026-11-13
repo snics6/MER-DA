@@ -1,0 +1,202 @@
+57,58c57,58
+< # 近さを測る空間：both（特徴のコサインと，ソースの分類器の点のコサインの平均．主），feat（特徴だけ），logit（点だけ）
+< # 引く範囲：mod（声・顔・言葉のそれぞれで引く．答えは 3 つ），joint（3 つのモダリティの both の近さの平均で引く．答えは 1 つ）
+---
+> # 近さを測る空間：both（特徴のコサインと，ソースの分類器の点のコサインを，問い合わせごとに標準化して平均したもの．主），feat（特徴だけ），logit（点だけ）
+> # 引く範囲：mod（声・顔・言葉のそれぞれで引く．答えは 3 つ），joint（3 つのモダリティの特徴と点の 6 つのコサインを，同じく標準化して平均したもの．答えは 1 つ）
+74c74,75
+< TEACH = ("prod", "MN_eq_sel", "MN_F2K_sel", "MN_F6K_sel", "MS_eq_sel")   # C：疑似ラベルにする版（prod は提案そのもの）
+---
+> SGRID = [(r, a) for r in dai1.RHO_GRID for a in dai1.A_GRID]        # C：疑似ラベルの重みと K 本の倍率の格子（実験 1 の提案と同じ 12 点）
+> TEACH = ("prod", "MN_eq_sel", "MN_F2K_sel", "MN_F6K_sel", "MS_eq_sel", "MS_eq_tied")   # C：疑似ラベルにする版（prod は提案そのもの．MS_eq_tied は MN_eq_sel と同じ倍率の対照）
+168c169
+<         v = df["speaker_id"].astype(str)
+---
+>         v = df["speaker_id"].astype(str).replace(DD.AFEW_ALIAS)
+204c205
+<         SRCDB[key] = dict(d0, both=cat_norm([d["both"] for d in dbs]), feat=None, logit=None, r_home=nrm["home"], r_away=nrm["away"],
+---
+>         SRCDB[key] = dict(d0, feat=None, logit=None, r_home=nrm["home"], r_away=nrm["away"],
+226c227
+<     SRCDB[key] = dict(feat=F, logit=L, both=cat_norm([F, L]), y=np.concatenate(ys), corp=np.concatenate(corp), bal=np.concatenate(bal),
+---
+>     SRCDB[key] = dict(feat=F, logit=L, y=np.concatenate(ys), corp=np.concatenate(corp), bal=np.concatenate(bal),
+253a255,281
+> def topk_z(parts: list, k: int = KMAX, chunk: int = 2048):
+>     """parts：[(問い合わせ Q (n, d), 表 D (N, d))]（どちらも長さ 1）．部分ごとに，問い合わせ 1 本ごとに表の全発話とのコサインを平均 0・標準偏差 1 にそろえ，
+>     部分の数で平均した値（標準化したコサインの平均）の大きい順に k 本を返す．散らばりの違う近さを同じ重さで合わせるため．
+>     戻り：(番号 (n, k)，合わせた値 (n, k)，選んだ発話の部分ごとのコサイン (n, k, 部分の数))．"""
+>     n = parts[0][0].shape[0]
+>     idx, val, cos = [], [], []
+>     for i in range(0, n, chunk):
+>         tot = None
+>         raws = []
+>         for Q, D in parts:
+>             C = Q[i:i + chunk] @ D.T
+>             raws.append(C)
+>             Z = (C - C.mean(1, keepdim=True)) / C.std(1, keepdim=True).clamp(min=1e-6)
+>             tot = Z if tot is None else tot + Z
+>         tv = torch.topk(tot / len(parts), min(k, tot.shape[1]), dim=1)
+>         idx.append(tv.indices.cpu().numpy()); val.append(tv.values.cpu().numpy())
+>         cos.append(torch.stack([torch.gather(C, 1, tv.indices) for C in raws], -1).cpu().numpy())
+>         del tot, raws
+>     return np.concatenate(idx), np.concatenate(val), np.concatenate(cos)
+> 
+> 
+> def both_parts(emb: dict, srcs: list, slot: str, w: int) -> list:
+>     """両方の近さの部分：枠が A・V・T ならそのモダリティの特徴と点の 2 つ，J なら 3 つのモダリティの 6 つ．w = 0 は候補，1 はテスト．"""
+>     mods = MODS if slot == "J" else slot
+>     return [(emb[(sp, m)][w], source_db(srcs, m)[sp]) for m in mods for sp in ("feat", "logit")]
+> 
+> 
+271,272d298
+<         out[("both", m)] = tuple(cat_norm([out[("feat", m)][w], out[("logit", m)][w]]) for w in (0, 1))
+<     out[("both", "J")] = tuple(cat_norm([out[("both", m)][w] for m in MODS]) for w in (0, 1))
+359c385,390
+<         (ip, sp_), (it, st) = topk_idx(emb[(sp, slot)][0], db[sp], with_sim=True), topk_idx(emb[(sp, slot)][1], db[sp], with_sim=True)
+---
+>         if sp == "both":
+>             ip, sp_, _ = topk_z(both_parts(emb, u.srcs, slot, 0))
+>             it, st, ct = topk_z(both_parts(emb, u.srcs, slot, 1))
+>             arr[f"nncos_test_{sp}_{slot}"] = ct.astype(np.float16)          # 選んだ発話の部分ごとのコサイン（並びは (モダリティ, 特徴・点)）
+>         else:
+>             (ip, sp_), (it, st) = topk_idx(emb[(sp, slot)][0], db[sp], with_sim=True), topk_idx(emb[(sp, slot)][1], db[sp], with_sim=True)
+443a475,476
+>         srcpt = {m: np.mean([P16.centered(src_t[(s, m)]) for s in u.srcs], 0) for m in MODS}        # ソースの分類器の点（モダリティごとの平均）
+>         srcpt["J"] = sum(srcpt[m] for m in MODS)
+446c479,481
+<                 rows.append(dict(K=K, version="_single", modality=slot, name=f"knn_c{ci}", uar_raw=100 * S.uar(yt, knn_t[ci][e_].argmax(1)), sd_pool=sdp(knn_p[ci][e_])))
+---
+>                 Lk = P16.centered(knn_t[ci][e_])
+>                 rows.append(dict(K=K, version="_single", modality=slot, name=f"knn_c{ci}", uar_raw=100 * S.uar(yt, knn_t[ci][e_].argmax(1)), sd_pool=sdp(knn_p[ci][e_]),
+>                                  agree_src=float((Lk.argmax(1) == srcpt[slot].argmax(1)).mean()), corr_src=P16.corr(Lk, srcpt[slot])))   # 近いソースの発話の答えとソースの分類器の重なり
+522c557
+<         ip = topk_idx(emb[("both", m)][0], db["both"])                    # 候補（ラベル無し．テストを含まない）から，主の近さ（both）で引く
+---
+>         ip = topk_z(both_parts(emb, u.srcs, m, 0))[0]                       # 候補（ラベル無し．テストを含まない）から，主の近さ（both）で引く
+682,687c717,727
+<         for s in DD.STUDENTS:
+<             W0, b0 = u.start[s]
+<             cw, cb = sv.teth[(s, K)]
+<             pt = sv.fz["select"][f"{s}|{K}|joint|one"]                     # 提案の主の版の設定（疑似ラベルの重みと K 本の倍率．積の疑似ラベルに合わせて選ばれた値）
+<             G = torch.stack([float(pt["a"]) * gk + S.soft_rows(S.t(teach[t_]), dai1.mval(pt["rho"], u.n)) for t_ in names])
+<             res = S.fit(u.Xp[s], G, W0, b0, Cw=cw, Cb=cb)
+---
+>         nG = len(SGRID)
+>         for s_ in DD.STUDENTS:
+>             W0, b0 = u.start[s_]
+>             cw, cb = sv.teth[(s_, K)]
+>             pt = sv.fz["select"][f"{s_}|{K}|joint|one"]                    # 実験 1 の提案の主の版の設定（積の疑似ラベルに合わせて，同じ単位のテストで選ばれた値）
+>             g0 = [gi for gi, (r_, a_) in enumerate(SGRID) if abs(r_ - float(pt["rho"])) < 1e-12 and int(a_) == int(pt["a"])]
+>             if len(g0) != 1:
+>                 raise SystemExit(f"{sv.base.name}：実験 1 の提案の設定 {pt} が格子に無い")
+>             # 疑似ラベル × 格子の全部の点を解く（問の並び：疑似ラベル × 格子）．引き戻しの強さは実験 1 の固定の値（K 本だけの分類器に合わせて選ばれた値）を共通に使う
+>             G = torch.stack([float(a_) * gk + S.soft_rows(S.t(teach[t_]), dai1.mval(r_, u.n)) for t_ in names for r_, a_ in SGRID])
+>             res = S.fit(u.Xp[s_], G, W0, b0, Cw=cw, Cb=cb)
+689,697c729,737
+<                 raise SystemExit(f"{sv.base.name}：生徒の学び直しが解けていない（{s} K={K}．勾配の最大 {float(res['grad_max']):.1e}）")
+<             Z = S.logits(u.Xt[s], res["W"], res["b"])
+<             Zp = S.logits(u.Xp[s], res["W"], res["b"])
+<             Wp, bp = sv.prop(s, K)                                         # 実験 1 の保存の提案．積の疑似ラベルで学んだ生徒と同じ答えになるはず
+<             agree = float((Z[names.index("prod")].argmax(1) == S.logits(u.Xt[s], Wp, bp).argmax(1)).float().mean())
+<             Wn, bn = sv.none(s, K)
+<             none_t, none_p = S.logits(u.Xt[s], Wn, bn).argmax(1).cpu().numpy(), S.logits(u.Xp[s], Wn, bn).argmax(1).cpu().numpy()
+<             arr[f"pred_K{K}_{s}_none"] = none_t.astype(np.int8)
+<             rows.append(dict(K=K, student=s, teacher="_check", prop_agree=agree, grad=float(res["grad_max"]), stalled=int(res["stalled"]), rho=pt["rho"], a=pt["a"],
+---
+>                 raise SystemExit(f"{sv.base.name}：生徒の学び直しが解けていない（{s_} K={K}．勾配の最大 {float(res['grad_max']):.1e}）")
+>             Z = S.logits(u.Xt[s_], res["W"], res["b"])
+>             Zp = S.logits(u.Xp[s_], res["W"], res["b"])
+>             Wp, bp = sv.prop(s_, K)                                        # 実験 1 の保存の提案．積の疑似ラベルで，実験 1 の設定の点で学んだ生徒と同じ答えになるはず
+>             agree = float((Z[names.index("prod") * nG + g0[0]].argmax(1) == S.logits(u.Xt[s_], Wp, bp).argmax(1)).float().mean())
+>             Wn, bn = sv.none(s_, K)
+>             none_t, none_p = S.logits(u.Xt[s_], Wn, bn).argmax(1).cpu().numpy(), S.logits(u.Xp[s_], Wn, bn).argmax(1).cpu().numpy()
+>             arr[f"pred_K{K}_{s_}_none"] = none_t.astype(np.int8)
+>             rows.append(dict(K=K, student=s_, teacher="_check", prop_agree=agree, grad=float(res["grad_max"]), stalled=int(res["stalled"]), rho=pt["rho"], a=pt["a"], grid_fixed=g0[0],
+701c741
+<                 raise SystemExit(f"{sv.base.name}：積の疑似ラベルで学んだ生徒が，実験 1 の保存の提案と {100 * (1 - agree):.2f}% の発話で違う（{s} K={K}）")
+---
+>                 raise SystemExit(f"{sv.base.name}：積の疑似ラベルで学んだ生徒が，実験 1 の保存の提案と {100 * (1 - agree):.2f}% の発話で違う（{s_} K={K}）")
+703,706c743,751
+<                 pr = Z[j].argmax(1).cpu().numpy()
+<                 arr[f"pred_K{K}_{s}_{t_}"] = pr.astype(np.int8)
+<                 rows.append(dict(K=K, student=s, teacher=t_, uar=100 * S.uar(yt, pr), uar_pool=100 * S.uar(yp[nk], Zp[j].argmax(1).cpu().numpy()[nk]),
+<                                  mimic=float((Zp[j].argmax(1).cpu().numpy()[nk] == teach[t_][nk].argmax(1)).mean())))   # mimic：生徒が疑似ラベルの判定を候補の上で再現した割合
+---
+>                 for gi, (r_, a_) in enumerate(SGRID):
+>                     q = j * nG + gi
+>                     pr = Z[q].argmax(1).cpu().numpy()
+>                     pp = Zp[q].argmax(1).cpu().numpy()
+>                     arr[f"pred_K{K}_{s_}_{t_}_g{gi}"] = pr.astype(np.int8)
+>                     rows.append(dict(K=K, student=s_, teacher=t_, grid=gi, rho=r_, a=a_, fixed=(gi == g0[0]), uar=100 * S.uar(yt, pr), uar_pool=100 * S.uar(yp[nk], pp[nk]),
+>                                      mimic=float((pp[nk] == teach[t_][nk].argmax(1)).mean())))   # mimic：生徒が疑似ラベルの判定を候補の上で再現した割合
+>                 arr[f"pred_K{K}_{s_}_{t_}"] = arr[f"pred_K{K}_{s_}_{t_}_g{g0[0]}"]                      # 実験 1 の設定の点
+>                 arr[f"prob_K{K}_{s_}_{t_}"] = torch.softmax(Z[j * nG + g0[0]], -1).cpu().numpy().astype(np.float16)
+729a775,776
+>             if torch.cuda.is_available():
+>                 torch.cuda.reset_peak_memory_stats()
+869a917
+>                     n_down_noAFEW=len([x for x in dn if x != "AFEW"]),
+1056c1104,1118
+<         cells = {}
+---
+>         gs = sc[sc.grid.notna() & (sc.grid >= 0)].groupby(["T", "K", "student", "teacher", "grid"]).uar.mean()
+>         sch, srows = {}, []
+>         for c in DD.CORPORA:                                              # 格子の点の選択：c を評価のターゲット T にした単位（c を含まない）のテストの UAR の平均が最大の点
+>             for K in KS:
+>                 for s_ in DD.STUDENTS:
+>                     for t_ in TEACH:
+>                         vals = [gs.get((c, K, s_, t_, gi), np.nan) for gi in range(len(SGRID))]
+>                         if not np.isfinite(vals).any():
+>                             continue
+>                         gi = int(np.nanargmax(vals))                     # 同点は並びで先（疑似ラベルの重みが小さい側）
+>                         sch[(c, K, s_, t_)] = gi
+>                         srows.append(dict(c=c, K=K, student=s_, teacher=t_, grid=gi, rho=SGRID[gi][0], a=SGRID[gi][1], mean_uar=float(np.nanmax(vals)),
+>                                           n_tied=int(np.sum(np.asarray(vals) >= np.nanmax(vals) - 1e-9))))
+>         pd.DataFrame(srows).to_csv(sdir / "students_sel.csv", index=False)
+>         cells, emo = {}, {}
+1064,1065c1126,1127
+<                     for t_ in TEACH + ("none",):
+<                         kk = f"pred_K{K}_{s}_{t_}"
+---
+>                     for t_, kk in [(t_, f"pred_K{K}_{s}_{t_}") for t_ in TEACH + ("none",)] + \
+>                                    [(f"{t_}_sel", f"pred_K{K}_{s}_{t_}_g{sch[(c, K, s, t_)]}") for t_ in TEACH if (c, K, s, t_) in sch]:
+1067c1129,1132
+<                             P12._add(cells.setdefault((c, K, s, t_), {}), (f, r), ST.counts(yt, z[kk].astype(int), z["cl_test"]), f"{p.stem} {kk}")
+---
+>                             cnt = ST.counts(yt, z[kk].astype(int), z["cl_test"])
+>                             P12._add(cells.setdefault((c, K, s, t_), {}), (f, r), cnt, f"{p.stem} {kk}")
+>                             e_ = emo.setdefault((c, K, s, t_), [np.zeros(4), np.zeros(4), 0])
+>                             e_[0] += cnt[1].sum(0); e_[1] += cnt[2].sum(0); e_[2] += 1
+1069a1135,1136
+>         pd.DataFrame([dict(c=c, K=K, student=s, teacher=t_, emotion=i, recall=100 * e_[0][i] / max(e_[1][i], 1), n_units=e_[2])
+>                       for (c, K, s, t_), e_ in sorted(emo.items()) for i in range(4)]).to_csv(sdir / "students_per_emotion.csv", index=False)
+1071c1138,1139
+<         pairs = [(t_, "prod") for t_ in TEACH[1:]] + [("MN_eq_sel", "MS_eq_sel"), ("prod", "none")] + [(t_, "none") for t_ in TEACH[1:]]
+---
+>         pairs = ([(f"{t_}_sel", "prod_sel") for t_ in TEACH[1:]] + [("MN_eq_sel_sel", "MS_eq_sel_sel"), ("MN_eq_sel_sel", "MS_eq_tied_sel"), ("prod_sel", "prod"), ("prod_sel", "none")]
+>                  + [(t_, "prod") for t_ in TEACH[1:]] + [("MN_eq_sel", "MS_eq_sel"), ("MN_eq_sel", "MS_eq_tied"), ("prod", "none")])   # 主は格子の点を選び直した版（_sel）．実験 1 の設定のままの版は副
+1086c1154
+<             main = bool(K == K_MAIN and a.startswith("MN_") and b == "prod")
+---
+>             main = bool(K == K_MAIN and a in ("MN_eq_sel_sel", "MN_F2K_sel_sel", "MN_F6K_sel_sel") and b == "prod_sel")
+1091c1159
+<         st = sc[(sc.teacher != "_check") & (sc.student != "_teacher")][["T", "c", "fold", "seed", "K", "student", "teacher", "uar", "uar_pool", "mimic"]]
+---
+>         st = sc[(sc.teacher != "_check") & (sc.student != "_teacher") & (sc.fixed == True)][["T", "c", "fold", "seed", "K", "student", "teacher", "uar", "uar_pool", "mimic"]]  # noqa: E712  実験 1 の設定の点
+1170c1238,1246
+<     assert all(t_ == "prod" or t_ in SELDEF for t_ in TEACH)
+---
+>     assert all(t_ == "prod" or t_ in SELDEF or t_ in TIED for t_ in TEACH)
+>     # 10. 標準化したコサインの平均：部分が 1 つなら，ふつうのコサインの順位と同じ．2 つの部分の片方を何倍にしても順位は変わらない
+>     Q = unit_norm(rng.normal(size=(30, 16))); D1_ = unit_norm(rng.normal(size=(300, 16)))
+>     Q2 = unit_norm(rng.normal(size=(30, 8))); D2_ = unit_norm(rng.normal(size=(300, 8)))
+>     i1, _, c1 = topk_z([(Q, D1_)], k=10)
+>     assert (i1 == topk_idx(Q, D1_, k=10)).all() and np.allclose(c1[..., 0], (Q @ D1_.T).cpu().numpy()[np.arange(30)[:, None], i1], atol=1e-5)
+>     ia = topk_z([(Q, D1_), (Q2, D2_)], k=10)[0]
+>     ib = topk_z([(Q, D1_), (Q2 * 0.1, D2_)], k=10)[0]
+>     assert (ia == ib).all()
+1209c1285
+<                 TETH=TETH, HUB_C=HUB_C, FLOOR=FLOOR, BASE_TOL=BASE_TOL, NONE_AGREE=NONE_AGREE, D_MIN_PT=D_MIN_PT, TAU=P16.TAU, GRAD_TOL=P16.GRAD_TOL,
+---
+>                 TETH=TETH, SGRID=SGRID, HUB_C=HUB_C, FLOOR=FLOOR, BASE_TOL=BASE_TOL, NONE_AGREE=NONE_AGREE, D_MIN_PT=D_MIN_PT, TAU=P16.TAU, GRAD_TOL=P16.GRAD_TOL,

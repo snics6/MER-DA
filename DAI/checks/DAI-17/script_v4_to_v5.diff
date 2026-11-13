@@ -1,0 +1,10 @@
+747a748
+>                     arr[f"prob_K{K}_{s_}_{t_}_g{gi}"] = torch.softmax(Z[q], -1).cpu().numpy().astype(np.float16)   # 格子の全点の確率（主の比べは集計の段で選び直す点）
+751d751
+<                 arr[f"prob_K{K}_{s_}_{t_}"] = torch.softmax(Z[j * nG + g0[0]], -1).cpu().numpy().astype(np.float16)
+806a807,808
+>             if torch.cuda.is_available():
+>                 torch.cuda.reset_peak_memory_stats()
+838a841,842
+>         if torch.cuda.is_available():
+>             torch.cuda.reset_peak_memory_stats()
