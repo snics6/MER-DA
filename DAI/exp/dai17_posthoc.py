@@ -73,7 +73,7 @@ def dependency_table(out: Path, pdir: Path) -> None:
             if cp == c:
                 continue
             sub = v[(v["T"] == cp) & (v.c != c)]
-            for K in P.KS:
+            for K in tuple(json.load(open(out / "provenance.json"))["KS"]):
                 new, orig = {}, {}
                 for name in ("MN_eq_sel", "MN_F2K_sel", "MN_F6K_sel", "MS_eq_sel"):
                     new[name], orig[name] = select(sub, cp, K, name), fz[f"{cp}|{K}|{name}"]

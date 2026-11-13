@@ -53,6 +53,7 @@ import dai_solver as S  # noqa: E402
 ROOT = DD.ROOT
 OUT1 = ROOT / "results" / "dai1"
 OUT_PROD = ROOT / "results" / "dai16_probe"
+ADDENDUM = ROOT / "DAI" / "docs" / "実験16・17_下調べ_K10_追補.md"
 DESIGN = ROOT / "DAI" / "docs" / "実験16_下調べ_設計.md"
 KS = (5, 25)
 K_MAIN = 5
@@ -1120,14 +1121,25 @@ def main() -> None:
     ap.add_argument("--targets", nargs="*", default=list(DD.CORPORA))
     ap.add_argument("--folds", nargs="*", type=int, default=None)
     ap.add_argument("--seeds", nargs="*", type=int, default=None)
+    ap.add_argument("--ks", nargs="*", type=int, default=None, help="流す K（既定は KS）．渡すと出力は <OUT_PROD>_k<K...> の置き場だけ（追補の設計）")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--allow-partial", action="store_true", help="試しの置き場だけ：単位のそろいの確かめを省く")
     args = ap.parse_args()
     if args.stage == "selftest":
         selftest()
         return
+    global KS, K_MAIN
     out = Path(args.out_dir).resolve()
     prod = out == OUT_PROD.resolve()
+    if args.ks:
+        KS = tuple(sorted(set(args.ks)))
+        K_MAIN = K_MAIN if K_MAIN in KS else KS[0]                          # 追補の回では，その K を規則の主の K として数える
+        out_k = Path(f"{OUT_PROD}_k{'_'.join(map(str, KS))}").resolve()
+        if prod:
+            sys.exit("--ks を渡すときは，既定の置き場ではなく別の置き場に書く")
+        prod = out == out_k
+        if prod and not dai1.committed_clean(ADDENDUM):
+            sys.exit("追補の設計の文書がコミットされていない")
     commit, dirty = dai1.git_commit()
     RUN["commit"], RUN["dirty"] = commit, dirty
     if dirty and (prod or not args.allow_dirty):
