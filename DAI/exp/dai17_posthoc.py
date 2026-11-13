@@ -94,7 +94,7 @@ def run(out: Path) -> None:
     sel = pd.read_csv(out / "summary" / "students_sel.csv")
     tt = sc[sc.student == "_teacher"][["T", "c", "fold", "seed", "K", "teacher", "uar_pool", "maxp"]].rename(columns={"uar_pool": "uar_pool_teacher"})
     nn_ = sc[sc.teacher == "_check"][["T", "c", "fold", "seed", "K", "student", "uar_none", "uar_pool_none"]]
-    st = sc[(sc.student != "_teacher") & (sc.teacher != "_check")].copy()
+    st = sc[(sc.student != "_teacher") & (sc.teacher != "_check")][["T", "c", "fold", "seed", "K", "student", "teacher", "grid", "uar", "uar_pool", "mimic"]].copy()
     st = st.merge(sel[["c", "K", "student", "teacher", "grid"]].rename(columns={"c": "T", "grid": "grid_sel"}), on=["T", "K", "student", "teacher"])
     st = st[st.grid == st.grid_sel]                                      # 単位の評価のターゲット T について選んだ点（コーパス T の判定に使う点）
     cond = st.merge(tt, on=["T", "c", "fold", "seed", "K", "teacher"]).merge(nn_, on=["T", "c", "fold", "seed", "K", "student"])
