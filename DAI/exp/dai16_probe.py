@@ -83,18 +83,24 @@ FORMS = ("F2", "F3", "F4", "F5", "F6")
 RSRC = ("home", "ext", "away", "K", "orc")
 TABLE_SPECS = {"orc_D": ("orc", "D", 0.0, False), "orc_F": ("orc", "F", 0.0, False), "orc_Dc": ("orc", "D", 0.0, True), "orc_Fc": ("orc", "F", 0.0, True),
                "cf_D_l05": ("cf", "D", 0.5, False), "cf_D_l05c": ("cf", "D", 0.5, True)}
-V_M = tuple(f"M_{f}_{r}" for f in FORMS for r in RSRC) + tuple(f"M_{f}_mix{i}" for f in ("F3", "F6") for i in range(len(GRID)))
+V_M = (tuple(f"M_{f}_{r}" for f in FORMS for r in RSRC) + tuple(f"M_{f}_mix{i}" for f in ("F3", "F6") for i in range(len(GRID)))
+       + tuple(f"M_{f}n_{r}" for f in ("F6", "F3") for r in RSRC) + tuple(f"M_{f}n_mix{i}" for f in ("F6", "F3") for i in range(len(GRID))))
+# F6n・F3n：重みから「モダリティ × 感情」の成分を消した対照（分類器ごとの水準と，どの分類器にも共通の感情ごとの倍率だけを残す）
 V_S = ("S_eq",) + tuple(f"S_{f}_{r}" for f in FORMS for r in RSRC) + tuple(f"S_{f}_mix{i}" for f in ("F3", "F6") for i in range(len(GRID)))
 V_MS = tuple(f"MS_{x}_l{j}" for j in range(len(LAMS)) for x in ("eq", "F6_K", "F6_orc") + tuple(f"F6_mix{i}" for i in range(len(GRID))))
-V_OTHER = ("orc_bias", "M_F8", "S_F8") + tuple(TABLE_SPECS)
+V_OTHER = ("M_F8", "S_F8") + tuple(TABLE_SPECS)
 BASE = ("prod",) + V_M + V_S + V_MS + V_OTHER                          # 単位の段で作る版（層：raw・adj・kb）
-EST = ("k_bias", "cf_D_l05", "M_F6_K", "M_F3_K", "M_F6_ext")           # K 本での見積もりを出す版
-SELV = tuple(f"sel_{v}" for v in EST) + ("sel_best",)                  # 見込みで選ぶ版（層は adj だけ）
+EST_SEL = ("k_bias", "cf_D_l05", "M_F6_K", "M_F3_K", "M_F6_ext")       # 見込みで選ぶ版を単位の段で作る版
+EST_NEST = EST_SEL[1:] + tuple(f"M_{f}_mix{i}" for f in ("F6", "F3") for i in range(len(GRID)))   # 入れ子で量を決め直す版
+EST = ("k_bias",) + EST_NEST                                           # K 本での見積もりを出す版（格子の全部の点を含む）
+SELV = tuple(f"sel_{v}" for v in EST_SEL) + ("sel_best",)              # 見込みで選ぶ版（層は adj だけ）
+SEL_MIX = ("M_F6_mixsel", "M_F3_mixsel")                               # summary で，選んだ格子の点の見込みで選ぶ版を作る
 MIXSEL = {"M_F6_mixsel": [f"M_F6_mix{i}" for i in range(len(GRID))], "M_F3_mixsel": [f"M_F3_mix{i}" for i in range(len(GRID))],
           "S_F6_mixsel": [f"S_F6_mix{i}" for i in range(len(GRID))], "S_F3_mixsel": [f"S_F3_mix{i}" for i in range(len(GRID))],
           "MS_F6_mixsel": [f"MS_F6_mix{i}_l{j}" for j in range(len(LAMS)) for i in range(len(GRID))]}   # メタ学習で格子の点を選ぶ版（summary で作る）
-REFS = ("none_AVT", "joint_AVT", "ret_A", "ret_V", "ret_T", "prod_sel")
-PER_EMO = ("prod", "orc_bias", "M_F6_orc", "M_F6_K", "M_F6_ext", "M_F3_K", "M_F6_mixsel", "M_F3_mixsel", "cf_D_l05", "none_AVT")
+REFS = ("none_AVT", "joint_AVT", "ret_A", "ret_V", "ret_T", "prod_sel", "prod_ob")
+TIED = {"M_F6n_mixsel": ("M_F6_mixsel", "M_F6_", "M_F6n_"), "M_F3n_mixsel": ("M_F3_mixsel", "M_F3_", "M_F3n_")}   # 選んだ格子の点を，別の版から借りる版
+PER_EMO = ("prod", "prod_ob", "M_F6_orc", "M_F6_K", "M_F6_ext", "M_F3_K", "M_F6_mixsel", "M_F3_mixsel", "cf_D_l05", "none_AVT")
 RUN = {"commit": "", "dirty": True}
 
 
@@ -150,14 +156,17 @@ def dprime(P: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     感情の割合にも切片にも依らない．発話が無い感情は AUC 0.5（d′ 0）．戻り：(d′ (4,), AUC (4,))．"""
     Lc = centered(P)
     a = np.full(4, 0.5)
+    A = np.full((4, 4), np.nan)                                            # A[c, j]：感情 c の点での，本当が c の発話と本当が j の発話の AUC
     for c in range(4):
         pos = Lc[y == c, c]
         if len(pos):
-            aucs = [auc_pair(pos, Lc[y == j, c]) for j in range(4) if j != c and (y == j).any()]
-            if aucs:
-                a[c] = float(np.mean(aucs))
+            for j in range(4):
+                if j != c and (y == j).any():
+                    A[c, j] = auc_pair(pos, Lc[y == j, c])
+            if np.isfinite(A[c]).any():
+                a[c] = float(np.nanmean(A[c]))
     d = np.maximum(0.0, math.sqrt(2.0) * norm.ppf(np.clip(a, *AUC_CLIP)))
-    return d, a
+    return d, a, A
 
 
 def mix_rel(DK: np.ndarray, Dext: np.ndarray, n: int, n0: float, beta: float, prior: str) -> np.ndarray:
@@ -171,6 +180,30 @@ def mix_rel(DK: np.ndarray, Dext: np.ndarray, n: int, n0: float, beta: float, pr
     return np.maximum(0.0, L[:, None] + beta * prof)
 
 
+def noint(W: np.ndarray) -> np.ndarray:
+    """重み (分類器, 4) から「分類器 × 感情」の成分を消す：行の平均 ＋ 列の平均 − 全体の平均（負は 0）．
+    残るのは，分類器ごとの水準と，どの分類器にも共通の感情ごとの倍率だけである．"""
+    return np.maximum(0.0, W.mean(1, keepdims=True) + W.mean(0, keepdims=True) - W.mean())
+
+
+def dcenter(X: np.ndarray) -> np.ndarray:
+    """行（分類器）と列（感情）の両方の平均を引く：分類器 × 感情の成分だけを残す．"""
+    return X - X.mean(1, keepdims=True) - X.mean(0, keepdims=True) + X.mean()
+
+
+def corr(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.corrcoef(a.ravel(), b.ravel())[0, 1]) if a.std() > 1e-12 and b.std() > 1e-12 else float("nan")
+
+
+def perm_share(A: np.ndarray, B: np.ndarray) -> float:
+    """A の感情の並びを 24 通りに入れ替えたとき，dcenter の相関が元の並びの値以上になる割合（元の並びを含む．偶然の水準の目安）．"""
+    obs = corr(dcenter(A), dcenter(B))
+    if not np.isfinite(obs):
+        return float("nan")
+    vals = [corr(dcenter(A[:, list(p)]), dcenter(B)) for p in itertools.permutations(range(4))]
+    return float(np.mean([v >= obs - 1e-12 for v in vals]))
+
+
 def to_w(D: np.ndarray, ref: float | None = None) -> np.ndarray:
     """信頼度 → 重み（平均が 1 になるように割る．ref を渡すとその値で割る）．平均が 0 なら全部 1．"""
     m = float(D.mean()) if ref is None else ref
@@ -180,6 +213,7 @@ def to_w(D: np.ndarray, ref: float | None = None) -> np.ndarray:
 # ------------------------------------------------------------------ ソースで測る信頼度（home・away．コーパスごとに 1 回）
 
 HOME: dict = {}
+HOMEF: dict = {}
 AWAY: dict = {}
 SRCP: dict = {}
 
@@ -203,6 +237,7 @@ def home_rel(c: str, m: str) -> np.ndarray:
             P = torch.softmax(S.logits(Xs[te], r["W"][0], r["b"][0]), -1).cpu().numpy().astype(np.float64)
             ds.append(dprime(P, y[te])[0])
         HOME[(c, m)] = np.mean(ds, 0)
+        HOMEF[(c, m)] = np.stack(ds)                                          # 分割ごとの値 (5, 4)（記録）
     return HOME[(c, m)]
 
 
@@ -252,6 +287,11 @@ def fit_wb(Ls: np.ndarray, y: np.ndarray, w0: np.ndarray, tau: float, fit_w: boo
     th0 = np.concatenate(([w0] if fit_w else []) + ([np.zeros(4)] if fit_b else []))
     bounds = [(0.0, W_MAX)] * nw + [(None, None)] * (4 if fit_b else 0)
     r = minimize(fun, th0, jac=True, method="L-BFGS-B", bounds=bounds, options=dict(maxiter=2000, ftol=1e-12, gtol=1e-8))
+    g = fun(r.x)[1]
+    lo = np.array([b[0] if b[0] is not None else -np.inf for b in bounds]); hi = np.array([b[1] if b[1] is not None else np.inf for b in bounds])
+    free = ~(((r.x <= lo + 1e-9) & (g > 0)) | ((r.x >= hi - 1e-9) & (g < 0)))    # 範囲の端で外向きの勾配は数えない
+    if free.any() and float(np.abs(g[free]).max()) > 1e-3:
+        raise SystemExit(f"fit_wb：勾配の最大が {float(np.abs(g[free]).max()):.1e}")
     return unpack(r.x)
 
 
@@ -268,7 +308,10 @@ def source_stats(srcs: list) -> dict:
     away = {(s, m): np.mean([away_rel(s, t, m) for t in srcs if t != s], 0) for s in srcs for m in MODS}
     ret = {m: float(np.clip(sum(away_rel(s, t, m).sum() for s, t in pairs) / max(sum(home[(s, m)].sum() for s, t in pairs), 1e-12), 0.0, 1.5)) for m in MODS}
     out = {"ret": np.array([ret[m] for m in MODS])}
+    out["ret_emo"] = np.stack([np.array([sum(away_rel(s, t, m)[i] for s, t in pairs) / max(sum(home[(s, m)][i] for s, t in pairs), 1e-12) for i in range(4)])
+                               for m in MODS])                                # 感情ごとの残り方（記録．ext は残り方が感情で共通と置く）
     out["S_home"] = np.stack([home[(s, m)] for s in srcs for m in MODS])
+    out["S_homefolds"] = np.stack([HOMEF[(s, m)] for s in srcs for m in MODS])
     out["S_ext"] = np.stack([home[(s, m)] * ret[m] for s in srcs for m in MODS])
     out["S_away"] = np.stack([away[(s, m)] for s in srcs for m in MODS])
     for nm in ("home", "ext", "away"):
@@ -367,19 +410,21 @@ class View:
 
 
 def score(view: View, spec: tuple) -> np.ndarray:
-    """spec：("w", 組, 形, W) か ("tab", 表の辞書) か ("bias", 切片)．戻り：正規化した対数確率 (n, 4)．"""
+    """spec：("w", 組, 形, W) か ("tab", 表の辞書)．戻り：正規化した対数確率 (n, 4)．"""
     if spec[0] == "w":
-        return combine(spec[2], view.L(spec[1]), spec[3], view.q1)
-    if spec[0] == "tab":
-        return norm_log(sum(lg(reread(view.ret[m], spec[1][m])) for m in MODS))
-    return norm_log(view.prod + spec[1])
+        out = combine(spec[2], view.L(spec[1]), spec[3], view.q1)
+    else:
+        out = norm_log(sum(lg(reread(view.ret[m], spec[1][m])) for m in MODS))
+    if not np.isfinite(out).all():
+        raise SystemExit("score：まとめた点が有限でない")
+    return out
 
 
 def rel_K(view: View, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return (np.stack([dprime(view.ret[m], y)[0] for m in MODS]), np.stack([dprime(view.src[(s, m)], y)[0] for s in view.srcs for m in MODS]))
 
 
-def build_specs(D: dict, nsrc: int, C_cf: dict, C_orc: dict | None, F8: np.ndarray | None, b_orc: np.ndarray | None, only: tuple | None = None) -> dict:
+def build_specs(D: dict, nsrc: int, C_cf: dict, C_orc: dict | None, F8: np.ndarray | None, only: tuple | None = None) -> dict:
     """版の名前 → spec．D：{"M": {出どころ: (3, 4)}, "S": {出どころ: (3·ソースの数, 4)}}．only を渡すとその版だけ作る．"""
     sp = {}
     for fam in ("M", "S"):
@@ -387,6 +432,9 @@ def build_specs(D: dict, nsrc: int, C_cf: dict, C_orc: dict | None, F8: np.ndarr
             W = to_w(D[fam][r])
             for f in (("F3", "F6") if r.startswith("mix") else FORMS):
                 sp[f"{fam}_{f}_{r}"] = ("w", fam, f, W)
+            if fam == "M":
+                sp[f"M_F6n_{r}"] = ("w", "M", "F6", noint(W))
+                sp[f"M_F3n_{r}"] = ("w", "M", "F3", noint(W))
     sp["prod"] = ("w", "M", "F2", np.ones((3, 4)))
     sp["S_eq"] = ("w", "S", "F2", np.ones((3 * nsrc, 4)))
     for j, lam in enumerate(LAMS):
@@ -403,8 +451,6 @@ def build_specs(D: dict, nsrc: int, C_cf: dict, C_orc: dict | None, F8: np.ndarr
         C = C_cf if src == "cf" else C_orc
         if C is not None:
             sp[v] = ("tab", table_set(C, shp, lam, common)[0])
-    if b_orc is not None:
-        sp["orc_bias"] = ("bias", b_orc)
     return sp if only is None else {k: v for k, v in sp.items() if k in only}
 
 
@@ -453,7 +499,7 @@ def run_unit(sv) -> tuple[list, dict]:
     arr["srcs"] = np.array(u.srcs)
     arr["grid"] = np.array([f"{n0}|{b}|{p}" for n0, b, p in GRID])
     SR = source_stats(u.srcs)
-    for nm in ("ret", "S_home", "S_ext", "S_away", "M_home", "M_ext", "M_away", "F8"):
+    for nm in ("ret", "ret_emo", "S_home", "S_homefolds", "S_ext", "S_away", "M_home", "M_ext", "M_away", "F8"):
         arr[f"SR_{nm}"] = SR[nm]
     src_p = {(s, m): dai1.probs(u.Xp[m], W, b).cpu().numpy().astype(np.float64) for m in MODS for s, W, b in u.src[m]}
     src_t = {(s, m): dai1.probs(u.Xt[m], W, b).cpu().numpy().astype(np.float64) for m in MODS for s, W, b in u.src[m]}
@@ -497,12 +543,15 @@ def run_unit(sv) -> tuple[list, dict]:
                 D[fam][f"mix{i}"] = mix_rel(D[fam]["K"], D[fam]["ext"], 4 * K, n0, beta, prior)
             for r in ("K", "orc"):
                 arr[f"D_{fam}_{r}_K{K}"] = D[fam][r]
+        arr[f"AUC_M_K_K{K}"] = np.stack([dprime(held.ret[m], yk)[2] for m in MODS])       # 感情の対ごとの AUC (3, 4, 4)（記録）
+        arr[f"AUC_M_orc_K{K}"] = np.stack([dprime(pnk.ret[m], ynk)[2] for m in MODS])
         C_cf = {m: dai15.table_from(held.ret[m], yk) for m in MODS}
         C_orc = {m: dai15.table_from(pnk.ret[m], ynk) for m in MODS}
-        b_orc = fit_wb(pnk.prod[None], ynk, np.ones(1), 0.0, fit_w=False, fit_b=True)[1]
-        specs = build_specs(D, nsrc, C_cf, C_orc, SR["F8"], b_orc)
+        specs = build_specs(D, nsrc, C_cf, C_orc, SR["F8"])
+        unused = {v: table_set(C_cf if src == "cf" else C_orc, shp, lam, common)[1] for v, (src, shp, lam, common) in TABLE_SPECS.items()}
         assert set(specs) == set(BASE), set(specs) ^ set(BASE)
-        # ---- 版ごとの判定：raw（そのまま），adj（候補の上の確率の平均を積に合わせる．ラベルを使わない），kb（adj の上に K 本で決めた切片を足す）
+        # ---- 版ごとの判定：raw（そのまま），adj（候補の上の確率の平均を積に合わせる．ラベルを使わない），kb（adj の上に K 本で決めた切片を足す），
+        #      ob（参照：候補の全ラベルで決めた切片を raw に足す．切片を最良にそろえて，向きの良さだけを比べる層）
         target = pool.q1.mean(0)
         lt_adj, resid_max = {}, 0.0
         for v in BASE:
@@ -510,14 +559,18 @@ def run_unit(sv) -> tuple[list, dict]:
             dl, rs = match_shift(Sp, target)
             resid_max = max(resid_max, rs)
             bk = fit_wb((Sh + dl)[None], yk, np.ones(1), TAU, fit_w=False, fit_b=True)[1]
-            pr, pa, pk, pp = St.argmax(1), (St + dl).argmax(1), (St + dl + bk).argmax(1), (Sp + dl)[nk].argmax(1)
+            bo = fit_wb(Sp[nk][None], ynk, np.ones(1), 0.0, fit_w=False, fit_b=True)[1]
+            pr, pa, pk, pp, po = St.argmax(1), (St + dl).argmax(1), (St + dl + bk).argmax(1), (Sp + dl)[nk].argmax(1), (St + bo).argmax(1)
+            if v == "prod":
+                prod_ob_t, prod_ob_p, b_orc = po, (Sp + bo)[nk].argmax(1), bo
             lt_adj[v] = norm_log(St + dl)
             arr[f"pred_raw_K{K}_{v}"] = pr.astype(np.int8)
             arr[f"pred_adj_K{K}_{v}"] = pa.astype(np.int8)
             arr[f"pred_kb_K{K}_{v}"] = pk.astype(np.int8)
             arr[f"pred_pool_K{K}_{v}"] = pp.astype(np.int8)
-            rows.append(dict(K=K, version=v, uar_raw=100 * S.uar(yt, pr), uar_adj=100 * S.uar(yt, pa), uar_kb=100 * S.uar(yt, pk),
-                             uar_pool=100 * S.uar(ynk, pp), ll_adj=bal_ll(lt_adj[v], yt), adj_resid=rs))
+            arr[f"pred_ob_K{K}_{v}"] = po.astype(np.int8)
+            rows.append(dict(K=K, version=v, uar_raw=100 * S.uar(yt, pr), uar_adj=100 * S.uar(yt, pa), uar_kb=100 * S.uar(yt, pk), uar_ob=100 * S.uar(yt, po),
+                             uar_pool=100 * S.uar(ynk, pp), ll_adj=bal_ll(lt_adj[v], yt), adj_resid=rs, n_unused=unused.get(v, 0)))
         # ---- K 本での見積もり（入れ子）：組 j の発話は，組 j を抜いて作った確率と，組 j のラベルを使わずに決めた量で当てる
         est_lq = {v: np.empty((len(kpos), 4)) for v in ("prod",) + EST}
         for j in range(NF):
@@ -525,20 +578,29 @@ def run_unit(sv) -> tuple[list, dict]:
             trv = View({m: np.stack([Pm[m][pidx[tuple(sorted((int(fold[a]), j)))]][kpos[a]] for a in tr]) for m in MODS},
                        {k: v[kpos[tr]] for k, v in src_p.items()}, u.srcs)
             hv = held.take(te)
-            Dj = {"M": {"K": rel_K(trv, yk[tr])[0], "ext": D["M"]["ext"]}, "S": {"K": rel_K(trv, yk[tr])[1], "ext": D["S"]["ext"]}}
-            sj = build_specs(Dj, nsrc, {m: dai15.table_from(trv.ret[m], yk[tr]) for m in MODS}, None, None, None, only=("cf_D_l05", "M_F6_K", "M_F3_K", "M_F6_ext"))
+            pool_j = View({m: Pm[m][1 + j] for m in MODS}, src_p, u.srcs)   # 組 j を抜いて作った分類器の，候補の上の確率
+            tgt_j = pool_j.q1.mean(0)
+            DKj = rel_K(trv, yk[tr])
+            Dj = {"M": {"K": DKj[0], "ext": D["M"]["ext"]}, "S": {"K": DKj[1], "ext": D["S"]["ext"]}}
+            for i, (n0, beta, prior) in enumerate(GRID):                          # 水準を戻す式のラベルの本数は，組 j を除いた本数
+                Dj["M"][f"mix{i}"] = mix_rel(Dj["M"]["K"], Dj["M"]["ext"], len(tr), n0, beta, prior)
+                Dj["S"][f"mix{i}"] = mix_rel(Dj["S"]["K"], Dj["S"]["ext"], len(tr), n0, beta, prior)
+            sj = build_specs(Dj, nsrc, {m: dai15.table_from(trv.ret[m], yk[tr]) for m in MODS}, None, None, only=EST_NEST)
             est_lq["prod"][te] = hv.prod
             est_lq["k_bias"][te] = norm_log(hv.prod + fit_wb(trv.prod[None], yk[tr], np.ones(1), TAU, fit_w=False, fit_b=True)[1])
-            for v in ("cf_D_l05", "M_F6_K", "M_F3_K", "M_F6_ext"):
-                dl, _ = match_shift(score(pool, sj[v]), target)
+            for v in EST_NEST:
+                dl, _ = match_shift(score(pool_j, sj[v]), tgt_j)
                 est_lq[v][te] = norm_log(score(hv, sj[v]) + dl)
         est = {v: (bal_ll(L, yk), 100 * S.uar(yk, L.argmax(1))) for v, L in est_lq.items()}
         gain = {v: est[v][0] - est["prod"][0] for v in EST}
         tpred = {v: arr[f"pred_adj_K{K}_{v}"] for v in EST if v != "k_bias"}
+        for v in EST:                                                           # 見積もりは格子の全部の点について残す（選んだ点の見込みを後から引くため）
+            rows.append(dict(K=K, version=f"est_{v}", est_ll=est[v][0], est_uar=est[v][1], est_gain=gain[v],
+                             uar_base=100 * S.uar(yt, arr[f"pred_kb_K{K}_prod"] if v == "k_bias" else tpred[v])))
         tpred["k_bias"] = arr[f"pred_kb_K{K}_prod"]
         tpred["prod"] = arr[f"pred_raw_K{K}_prod"]
-        best = max(("prod",) + EST, key=lambda v: (est[v][0], v == "prod"))                # 同点は積
-        for v in EST:
+        best = max(("prod",) + EST_SEL, key=lambda v: (est[v][0], v == "prod"))            # 同点は積
+        for v in EST_SEL:
             use = v if gain[v] > 0 else "prod"
             arr[f"pred_adj_K{K}_sel_{v}"] = tpred[use]
             rows.append(dict(K=K, version=f"sel_{v}", uar_adj=100 * S.uar(yt, tpred[use]), est_ll=est[v][0], est_uar=est[v][1], est_gain=gain[v],
@@ -554,6 +616,7 @@ def run_unit(sv) -> tuple[list, dict]:
                   "prod_sel": sum(w * lg(pnk.ret[m]) for w, m in zip(sv.wsel[K], MODS)).argmax(1)}
         for m in MODS:
             refs_t[f"ret_{m}"], refs_p[f"ret_{m}"] = test.ret[m].argmax(1), pnk.ret[m].argmax(1)
+        refs_t["prod_ob"], refs_p["prod_ob"] = prod_ob_t, prod_ob_p               # 積に，候補の全ラベルで決めた切片を足したもの（切片だけの対照）
         for v in REFS:
             arr[f"pred_raw_K{K}_{v}"] = refs_t[v].astype(np.int8)
             arr[f"pred_pool_K{K}_{v}"] = refs_p[v].astype(np.int8)
@@ -562,17 +625,20 @@ def run_unit(sv) -> tuple[list, dict]:
         for m in MODS:
             arr[f"C_cf_{m}_K{K}"], arr[f"C_orc_{m}_K{K}"] = C_cf[m], C_orc[m]
             arr[f"pcf_{m}_K{K}"] = held.ret[m].astype(np.float32)
+            arr[f"pcf2_{m}_K{K}"] = np.stack([Pm[m][pidx[pq]][kpos] for pq in pairs]).astype(np.float32)   # 2 組を抜いて作った分類器の，K 本の上の確率 (10, 4K, 4)
         arr[f"b_orc_K{K}"] = b_orc
         arr[f"kpos_K{K}"] = kpos.astype(np.int32)
         arr[f"kfold_K{K}"] = fold.astype(np.int8)
         # ---- 仮定の表
         Dt_M = np.stack([dprime(test.ret[m], yt)[0] for m in MODS])
         prof = lambda X: X - X.mean(1, keepdims=True)  # noqa: E731
-        corr = lambda a, b: float(np.corrcoef(a.ravel(), b.ravel())[0, 1]) if a.std() > 0 and b.std() > 0 else np.nan  # noqa: E731
         ass = {}
         for fam in ("M", "S"):
             for r in ("home", "ext", "away", "K"):
-                ass[f"profcorr_{fam}_{r}"] = corr(prof(D[fam][r]), prof(D[fam]["orc"]))
+                ass[f"intcorr_{fam}_{r}"] = corr(dcenter(D[fam][r]), dcenter(D[fam]["orc"]))          # 分類器 × 感情の成分だけの相関（R0 の主の量）
+                ass[f"intperm_{fam}_{r}"] = perm_share(D[fam][r], D[fam]["orc"])
+                ass[f"profcorr_{fam}_{r}"] = corr(prof(D[fam][r]), prof(D[fam]["orc"]))                # 共通の感情の難しさを含む相性の相関（記録）
+                ass[f"emocorr_{fam}_{r}"] = corr(D[fam][r].mean(0), D[fam]["orc"].mean(0))             # どの分類器にも共通の感情ごとの成分の相関（記録）
                 ass[f"levelcorr_{fam}_{r}"] = corr(D[fam][r].mean(1), D[fam]["orc"].mean(1))
                 ass[f"topok_{fam}_{r}"] = float(D[fam][r].mean(1).argmax() == D[fam]["orc"].mean(1).argmax())
         ex = {}
@@ -582,6 +648,8 @@ def run_unit(sv) -> tuple[list, dict]:
             ex[f"excess_{a}{b}"] = float(np.mean([(ya[ynk == i] == yb[ynk == i]).mean() - float(Ha[i] @ Hb[i]) for i in range(4) if (ynk == i).any()]))
         rows.append(dict(K=K, version="_check", teacher_dev=dev, **dev_m, grad=conv[0], stalled=conv[1], adj_resid=resid_max, **ass, **ex,
                          drift_M=float(np.abs(Dt_M - D["M"]["orc"]).mean()),
+                         sdratio_M=float(pool.LM.std(axis=(1, 2)).max() / max(pool.LM.std(axis=(1, 2)).min(), 1e-12)),
+                         retsd=float(np.mean(SR["ret_emo"].std(1))),
                          **{f"ret_{m}": float(SR["ret"][i]) for i, m in enumerate(MODS)},
                          **{f"share_pool_{i}": float((ynk == i).mean()) for i in range(4)},
                          **{f"level_M_{r}_{m}": float(D["M"][r][i].mean()) for r in ("home", "ext", "away", "K", "orc") for i, m in enumerate(MODS)}))
@@ -638,19 +706,21 @@ def row_rng(*key) -> np.random.Generator:
 
 def contrasts() -> list:
     """(a, b, 層の並び)．層：adj・kb・raw はテスト，pool は候補（K 本を除く．adj の判定）．"""
-    full, two = ("adj", "kb", "raw", "pool"), ("adj", "kb")
-    main_M = ("M_F6_mixsel", "M_F3_mixsel", "M_F6_ext", "M_F6_K", "M_F6_orc", "M_F3_orc", "M_F2_orc", "M_F8", "cf_D_l05", "orc_F", "orc_D", "orc_bias")
-    con = [(v, "prod", full if v in main_M else two) for v in V_M + ("M_F6_mixsel", "M_F3_mixsel", "M_F8") + tuple(TABLE_SPECS) + ("orc_bias",)]
+    full, two = ("adj", "kb", "raw", "pool", "ob"), ("adj", "kb")
+    main_M = ("M_F6_mixsel", "M_F3_mixsel", "M_F6_ext", "M_F6_K", "M_F6_orc", "M_F3_orc", "M_F2_orc", "M_F6n_orc", "M_F6n_mixsel", "M_F8", "cf_D_l05", "orc_F", "orc_D")
+    con = [(v, "prod", full if v in main_M else two) for v in V_M + ("M_F6_mixsel", "M_F3_mixsel", "M_F6n_mixsel", "M_F3n_mixsel", "M_F8") + tuple(TABLE_SPECS)]
+    con += [("prod_ob", "prod", ("adj",))]
     con += [(v, "S_eq", two) for v in V_S[1:] + ("S_F6_mixsel", "S_F3_mixsel", "S_F8")] + [(v, "prod", two) for v in ("S_eq", "S_F6_orc", "S_F6_mixsel", "S_F8")]
     con += [(v, "prod", full if v == "MS_F6_mixsel" else two) for v in V_MS + ("MS_F6_mixsel",)]
     con += [(f"MS_F6_{r}_l{j}", f"MS_eq_l{j}", two) for j in range(len(LAMS)) for r in ("K", "orc")]
     for r in ("home", "ext", "K", "orc"):                                # 使い方の比べ（出どころをそろえる）
         con += [(f"M_F6_{r}", f"M_F3_{r}", two), (f"M_F3_{r}", f"M_F4_{r}", two), (f"M_F5_{r}", f"M_F3_{r}", two), (f"M_F6_{r}", f"M_F2_{r}", two)]
+    con += [(f"M_{f}_{r}", f"M_{f}n_{r}", two + ("ob",)) for f in ("F6", "F3") for r in ("home", "ext", "K", "orc", "mixsel")]
+    con += [("cf_D_l05", "orc_D", two)]
     con += [("M_F6_mixsel", "M_F3_mixsel", two), ("M_F6_mixsel", "M_F6_K", two), ("M_F6_mixsel", "M_F6_ext", two), ("M_F6_ext", "M_F6_home", two),
             ("M_F6_ext", "M_F6_away", two), ("M_F6_K", "M_F6_orc", two), ("M_F6_mixsel", "M_F6_orc", two), ("M_F3_mixsel", "M_F3_K", two),
-            ("orc_F", "orc_Fc", two), ("orc_D", "orc_Dc", two), ("cf_D_l05", "cf_D_l05c", two), ("orc_F", "orc_bias", two), ("orc_D", "orc_bias", two),
-            ("M_F6_orc", "orc_bias", two), ("M_F6_orc", "orc_F", two), ("M_F8", "M_F6_ext", two)]
-    con += [(f"sel_{v}", "prod", ("adj",)) for v in EST] + [("sel_best", "prod", ("adj",))]
+            ("orc_F", "orc_Fc", two), ("orc_D", "orc_Dc", two), ("cf_D_l05", "cf_D_l05c", two), ("M_F6_orc", "orc_F", two), ("M_F8", "M_F6_ext", two)]
+    con += [(f"sel_{v}", "prod", ("adj",)) for v in EST_SEL + SEL_MIX] + [("sel_best", "prod", ("adj",))]
     con += [(v, ref, ("adj",)) for v in ("prod", "M_F6_mixsel", "M_F3_mixsel", "M_F6_orc", "MS_F6_mixsel") for ref in ("none_AVT", "joint_AVT")]
     con += [("prod_sel", "prod", ("raw",)), ("joint_AVT", "none_AVT", ("raw",))]
     merged: dict = {}
@@ -660,15 +730,21 @@ def contrasts() -> list:
 
 
 CRITERIA = [("R1", "本体の形・全ラベル", "M_F6_orc", "prod"), ("R1", "研究者の形・全ラベル", "M_F3_orc", "prod"), ("R1", "水準だけ・全ラベル", "M_F2_orc", "prod"),
-            ("R1", "表の読み替え・全ラベル", "orc_F", "prod"), ("R1", "切片だけ・全ラベル", "orc_bias", "prod"), ("R1", "本体の形 − 切片だけ", "M_F6_orc", "orc_bias"),
+            ("R1", "表の読み替え・全ラベル", "orc_F", "prod"), ("R1", "切片だけ・全ラベル", "prod_ob", "prod"),
+            ("R1", "本体の形・全ラベル（切片を全ラベルで決めた層）", "M_F6_orc", "prod", "ob"), ("R1", "研究者の形・全ラベル（切片を全ラベルで決めた層）", "M_F3_orc", "prod", "ob"),
             ("R1", "ソースの分類器・全ラベル", "S_F6_orc", "S_eq"), ("R1", "両方・全ラベル", "MS_F6_orc_l1", "prod"),
             ("R2", "本体の形・水準 K＋相性ソース", "M_F6_mixsel", "prod"), ("R2", "研究者の形・水準 K＋相性ソース", "M_F3_mixsel", "prod"),
             ("R2", "本体の形・ソースだけ", "M_F6_ext", "prod"), ("R2", "本体の形・K 本だけ", "M_F6_K", "prod"), ("R2", "表の読み替え・K 本", "cf_D_l05", "prod"),
             ("R2", "まとめ方を学ぶ", "M_F8", "prod"), ("R2", "ソースの分類器", "S_F6_mixsel", "S_eq"), ("R2", "両方", "MS_F6_mixsel", "prod"),
             ("比べ", "本体 − 研究者（水準 K＋相性ソース）", "M_F6_mixsel", "M_F3_mixsel"), ("比べ", "本体 − 研究者（全ラベル）", "M_F6_orc", "M_F3_orc"),
             ("比べ", "柔らかい − 硬い（K 本）", "M_F3_K", "M_F4_K"), ("比べ", "繰り返す − 柔らかい（K 本）", "M_F5_K", "M_F3_K"),
-            ("比べ", "感情ごと − 共通（全ラベル）", "M_F6_orc", "M_F2_orc"), ("比べ", "混ぜる − K 本だけ", "M_F6_mixsel", "M_F6_K"),
+            ("比べ", "感情ごと − 共通（全ラベル）", "M_F6_orc", "M_F2_orc"),
+            ("比べ", "モダリティ × 感情の分（全ラベル）", "M_F6_orc", "M_F6n_orc"), ("比べ", "モダリティ × 感情の分（水準 K＋相性ソース）", "M_F6_mixsel", "M_F6n_mixsel"),
+            ("比べ", "モダリティ × 感情の分（ソースだけ）", "M_F6_ext", "M_F6n_ext"),
+            ("比べ", "モダリティ × 感情の分・研究者の形（全ラベル）", "M_F3_orc", "M_F3n_orc"),
+            ("比べ", "モダリティ × 感情の分・研究者の形（水準 K＋相性ソース）", "M_F3_mixsel", "M_F3n_mixsel"), ("比べ", "混ぜる − K 本だけ", "M_F6_mixsel", "M_F6_K"),
             ("比べ", "混ぜる − ソースだけ", "M_F6_mixsel", "M_F6_ext"), ("比べ", "外で測り直す − 中だけ", "M_F6_ext", "M_F6_home"),
+            ("R3", "見込みで選ぶ：本体の形・水準 K＋相性ソース", "sel_M_F6_mixsel", "prod"), ("R3", "見込みで選ぶ：研究者の形・水準 K＋相性ソース", "sel_M_F3_mixsel", "prod"),
             ("R3", "見込みで選ぶ：本体の形・K 本", "sel_M_F6_K", "prod"), ("R3", "見込みで選ぶ：研究者の形・K 本", "sel_M_F3_K", "prod"),
             ("R3", "見込みで選ぶ：本体の形・ソースだけ", "sel_M_F6_ext", "prod"), ("R3", "見込みで選ぶ：表の読み替え", "sel_cf_D_l05", "prod"),
             ("R3", "見込みで選ぶ：切片", "sel_k_bias", "prod"), ("R3", "見込みで選ぶ：最良", "sel_best", "prod")]
@@ -700,7 +776,8 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                                    mean_uar_adj_prod=float(csvs[(csvs["T"] == c) & (csvs.K == K) & (csvs.version == "prod")].uar_adj.mean())))
     pd.DataFrame(chrows).to_csv(sdir / "mixsel.csv", index=False)
     # ---- 塊ごとの数
-    layers = {"adj": "pred_adj", "kb": "pred_kb", "raw": "pred_raw", "pool": "pred_pool"}
+    layers = {"adj": "pred_adj", "kb": "pred_kb", "raw": "pred_raw", "pool": "pred_pool", "ob": "pred_ob"}
+    eg = {(a.T, a.c, a.fold, a.seed, a.K, a.version[4:]): a.est_gain for a in csvs[csvs.version.astype(str).str.startswith("est_")].itertuples()}
     cells = {w: {} for w in layers}
     emo, urows = {}, []
     for p in files:
@@ -714,10 +791,11 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
             ypk, clp = z["y_pool"].astype(int)[nkm], z["cl_pool"][nkm]
             names = {v: v for v in BASE + REFS + SELV}
             names.update({name: choice[(c, K, name)] for name in MIXSEL if (c, K, name) in choice})
+            names.update({name: choice[(c, K, src)].replace(a_, b_) for name, (src, a_, b_) in TIED.items() if (c, K, src) in choice})
             for v, src in names.items():
                 for w, key in layers.items():
                     kk = f"{key}_K{K}_{src}"
-                    if v in REFS and w in ("adj", "kb"):
+                    if v in REFS and w in ("adj", "kb", "ob"):
                         kk = f"pred_raw_K{K}_{src}"                       # 参照は層を持たない
                     if kk not in z.files:
                         continue
@@ -728,7 +806,11 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                         e = emo.setdefault((c, K, v), [np.zeros(4), np.zeros(4), np.zeros(4), 0])
                         e[0] += cnt[1].sum(0); e[1] += cnt[2].sum(0); e[2] += np.bincount(pred, minlength=4); e[3] += 1
                     if w == "adj" and v in MIXSEL:
-                        urows.append(dict(T=T, c=c, fold=f, seed=r, K=K, version=v, uar_adj=100 * S.uar(yt, pred)))
+                        urows.append(dict(T=T, c=c, fold=f, seed=r, K=K, version=v, chosen=src, uar_adj=100 * S.uar(yt, pred),
+                                          est_gain=eg.get((T, c, f, r, K, src), np.nan)))
+                    if w == "adj" and v in SEL_MIX:                               # 選んだ格子の点の見込みが正の単位でその点を，そうでない単位で積を使う
+                        use = pred if eg.get((T, c, f, r, K, src), -1.0) > 0 else z[f"pred_raw_K{K}_prod"].astype(int)
+                        P12._add(cells["adj"].setdefault((c, K, f"sel_{v}"), {}), (f, r), ST.counts(yt, use, z["cl_test"]), f"{p.stem} sel {v}")
     for w in cells:
         P12._finish(cells[w])
     geff = {c: ST.g_eff_of(c)[0] for c in DD.CORPORA}
@@ -757,26 +839,39 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
     eff = pd.DataFrame(eff)
     eff.to_csv(sdir / "effects.csv", index=False)
     crit = []
-    for rule, axis, a, b in CRITERIA:
+    for rule, axis, a, b, *ml in CRITERIA:
+        mainw = ml[0] if ml else "adj"
         for K in KS:
-            for w in ("adj", "kb", "raw", "pool"):
+            for w in ("adj", "kb", "raw", "pool", "ob"):
                 d = eff[(eff.a == a) & (eff.b == b) & (eff["where"] == w) & (eff.K == K)]
                 if len(d) == 0:
                     continue
                 up, dn = d[d.verdict == "上回る"].c.tolist(), d[d.verdict == "下回る"].c.tolist()
-                crit.append(dict(rule=rule, axis=axis, a=a, b=b, K=K, where=w, main=(K == K_MAIN and w == "adj"), n_corpora=len(d), n_up=len(up), n_down=len(dn),
+                crit.append(dict(rule=rule, axis=axis, a=a, b=b, K=K, where=w, main=(K == K_MAIN and w == mainw),
+                                 proceed=(rule in ("R2", "R3") and b == "prod" and K == K_MAIN and w == "adj"), n_corpora=len(d), n_up=len(up), n_down=len(dn),
                                  n_up_noAFEW=len([x for x in up if x != "AFEW"]), n_down_noAFEW=len([x for x in dn if x != "AFEW"]),
-                                 hit=len(up) >= 2, down2=len(dn) >= 2, up=",".join(up), down=",".join(dn)))
+                                 hit=len(up) >= 2, down2=len(dn) >= 2, hit_noAFEW=len([x for x in up if x != "AFEW"]) >= 2, up=",".join(up), down=",".join(dn)))
     pd.DataFrame(crit).to_csv(sdir / "criteria.csv", index=False)
-    # ---- 見積もりの当たり方
+    # ---- 見積もりの当たり方（単位ごとの見込みと，単位ごとのテストの差）
     idx = ["T", "c", "fold", "seed", "K"]
     pr = csvs[csvs.version == "prod"].set_index(idx)[["uar_raw"]].rename(columns={"uar_raw": "uar_prod"})
     ep = csvs[csvs.version == "_est_prod"].set_index(idx)[["est_uar"]].rename(columns={"est_uar": "est_uar_prod"})
+    E = csvs[csvs.version.astype(str).str.startswith("est_")].copy()
+    E["version"] = E.version.str[4:]
+    U = pd.DataFrame(urows)
+    extra = []
+    if len(U):
+        for v in SEL_MIX:                                                       # 選んだ格子の点の行を，選んだ版の名前で写す
+            m = U[U.version == v][idx + ["chosen"]].merge(E, left_on=idx + ["chosen"], right_on=idx + ["version"], how="left")
+            extra.append(m.assign(version=v))
+    E = pd.concat([E] + extra, ignore_index=True)
     er = []
-    for v in EST:
-        j = csvs[csvs.version == f"sel_{v}"].set_index(idx).join(pr).join(ep)
-        j["act"] = j.uar_base - j.uar_prod
-        for (c, K), gq in j.groupby(["c", "K"]):
+    for v in EST_SEL + SEL_MIX:
+        jv = E[E.version == v].set_index(idx).join(pr).join(ep)
+        if len(jv) == 0:
+            continue
+        jv["act"] = jv.uar_base - jv.uar_prod
+        for (c, K), gq in jv.groupby(["c", "K"]):
             nz = gq[gq.act != 0]
             er.append(dict(c=c, K=K, version=v, n_units=len(gq), est_gain_ll=float(gq.est_gain.mean()), est_gain_uar=float((gq.est_uar - gq.est_uar_prod).mean()),
                            act_gain_uar=float(gq.act.mean()), share_used=float((gq.est_gain > 0).mean()), n_nonzero=len(nz),
@@ -784,7 +879,7 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                            spearman=float(gq[["est_gain", "act"]].corr(method="spearman").iloc[0, 1]) if len(gq) > 2 else np.nan))
     pd.DataFrame(er).to_csv(sdir / "estimate.csv", index=False)
     csvs[csvs.version == "sel_best"].groupby(["c", "K"]).used.value_counts().rename("n").reset_index().to_csv(sdir / "sel_best_used.csv", index=False)
-    pd.DataFrame(urows).to_csv(sdir / "mixsel_units.csv", index=False)
+    U.to_csv(sdir / "mixsel_units.csv", index=False)
     # ---- 感情ごとの再現率と判定の割合（テスト．adj の層．区間は無い）
     pe = [dict(c=c, K=K, version=v, **{f"recall_{i}": 100 * e[0][i] / e[1][i] if e[1][i] > 0 else np.nan for i in range(4)},
                **{f"pred_share_{i}": float(e[2][i] / e[2].sum()) for i in range(4)}, **{f"n_per_unit_{i}": float(e[1][i] / e[3]) for i in range(4)})
@@ -807,12 +902,32 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
         for i, m in enumerate(MODS):
             tr.append(dict(c=c, K=K, source=nm, modality=m, n_units=len(L), **{f"d_{j}": float(M[i, j]) for j in range(4)}, **{f"sd_{j}": float(sd[i, j]) for j in range(4)}))
     pd.DataFrame(tr).to_csv(sdir / "reliability.csv", index=False)
+    sr = {}                                                               # ソースごとの home と，向き (s → t) ごとの away（仮のターゲットの回はソースが 2 つなので向きは 1 つ）
+    for p in files:
+        z = np.load(p, allow_pickle=False)
+        srcs = [str(x) for x in z["srcs"]]
+        for i, s_ in enumerate(srcs):
+            for j, m in enumerate(MODS):
+                sr[(s_, "home", m)] = z["SR_S_home"][i * 3 + j]
+                if len(srcs) == 2:
+                    sr[(s_, f"away→{srcs[1 - i]}", m)] = z["SR_S_away"][i * 3 + j]
+    pd.DataFrame([dict(source=k[0], where=k[1], modality=k[2], **{f"d_{j}": float(v[j]) for j in range(4)}) for k, v in sorted(sr.items())]
+                 ).to_csv(sdir / "reliability_src.csv", index=False)
     chk = csvs[csvs.version == "_check"]
-    acols = [x for x in chk.columns if x.startswith(("profcorr_", "levelcorr_", "topok_", "excess_", "drift_", "ret_", "share_pool_", "level_M_"))]
-    am = chk.groupby(["c", "K"])[acols].mean().reset_index()
-    for x in [a for a in acols if a.startswith(("excess_", "drift_"))]:
-        am[f"flag_{x}"] = am[x].abs() > ASSUME_FLAG
-    am.to_csv(sdir / "assumptions.csv", index=False)
+    acols = [x for x in chk.columns if x.startswith(("intcorr_", "intperm_", "profcorr_", "emocorr_", "levelcorr_", "topok_", "excess_", "drift_", "sdratio_", "retsd",
+                                                      "ret_", "share_pool_", "level_M_"))]
+    am = chk.groupby(["c", "K"])[acols].agg(["mean", "std"])
+    am.columns = [f"{a}_{b}" for a, b in am.columns]
+    am.reset_index().to_csv(sdir / "assumptions.csv", index=False)
+    r0 = []                                                               # R0：分類器 × 感情の成分の相関と，感情の並びを入れ替えたときにそれ以上になる割合
+    for (c, K), gq in chk.groupby(["c", "K"]):
+        for fam in ("M", "S"):
+            for r in ("home", "ext", "away", "K"):
+                ic, ip = float(gq[f"intcorr_{fam}_{r}"].mean()), float(gq[f"intperm_{fam}_{r}"].mean())
+                r0.append(dict(c=c, K=K, fam=fam, source=r, n_units=len(gq), intcorr=ic, intperm=ip, hit=bool(ic >= 0.3 and ip <= 0.2),
+                               profcorr=float(gq[f"profcorr_{fam}_{r}"].mean()), emocorr=float(gq[f"emocorr_{fam}_{r}"].mean()),
+                               levelcorr=float(gq[f"levelcorr_{fam}_{r}"].mean()), topok=float(gq[f"topok_{fam}_{r}"].mean())))
+    pd.DataFrame(r0).to_csv(sdir / "r0.csv", index=False)
     json.dump(dict(n_units=len(files), teacher_dev_max=float(chk.teacher_dev.max()), grad_max=float(chk.grad.max()), stalled=int(chk.stalled.sum()),
                    adj_resid_max=float(chk.adj_resid.max()), sec_total=float(csvs.groupby(["T", "c", "fold", "seed"]).sec.first().sum())),
               open(sdir / "convergence.json", "w"), ensure_ascii=False, indent=1)
@@ -828,14 +943,15 @@ def selftest() -> None:
     y = rng.integers(0, 4, n)
     Z = rng.normal(size=(n, 4)); Z[np.arange(n), y] += np.array([2.0, 1.0, 0.5, 0.0])[y]
     P = softmax(Z)
-    d, a = dprime(P, y)
+    d, a, A44 = dprime(P, y)
     assert d[0] > d[1] > d[2], (d, a)
-    dn, an = dprime(softmax(rng.normal(size=(n, 4))), y)                 # 感情と関係の無い点なら AUC は 0.5 の近く
+    assert np.isnan(np.diag(A44)).all() and np.allclose(np.nanmean(A44, 1), a)
+    dn, an, _ = dprime(softmax(rng.normal(size=(n, 4))), y)                 # 感情と関係の無い点なら AUC は 0.5 の近く
     assert np.abs(an - 0.5).max() < 0.03, an
-    d2, _ = dprime(softmax(Z + np.array([3.0, -1.0, 0.5, 0.0])), y)
+    d2 = dprime(softmax(Z + np.array([3.0, -1.0, 0.5, 0.0])), y)[0]
     assert np.abs(d - d2).max() < 1e-9
     keep = (y != 0) | (rng.uniform(size=n) < 0.2)
-    d3, _ = dprime(P[keep], y[keep])
+    d3 = dprime(P[keep], y[keep])[0]
     assert np.abs(d - d3).max() < 0.25
     assert abs(auc_pair(np.array([3.0, 2.0]), np.array([1.0, 0.0])) - 1.0) < 1e-12 and abs(auc_pair(np.array([1.0, 1.0]), np.array([1.0, 1.0])) - 0.5) < 1e-12
     # 2. 重みが全部 1 なら，どの形も等しい重みの積と同じ判定
@@ -869,6 +985,12 @@ def selftest() -> None:
     assert np.allclose(m, m[0, 0])
     assert np.allclose(mix_rel(DK, DE, 20, 20.0, 0.0, "eq").mean(1), 0.5 * DK.mean(1) + 0.5 * DK.mean())
     assert np.allclose(to_w(np.zeros((3, 4))), 1.0) and abs(to_w(DK).mean() - 1.0) < 1e-12
+    Wn = noint(to_w(DK))
+    assert np.abs(dcenter(Wn)).max() < 1e-9 or (Wn == 0).any()                   # 加法の版は分類器 × 感情の成分が 0
+    add = np.array([0.5, 1.0, 1.5])[:, None] + np.array([0.0, 0.2, -0.1, 0.3])[None, :]
+    assert np.allclose(noint(add), add) and np.abs(dcenter(add)).max() < 1e-12
+    A0 = rng.normal(size=(3, 4))
+    assert abs(corr(dcenter(A0), dcenter(A0 + add)) - 1.0) < 1e-9 and perm_share(A0, A0) <= 1 / 24 + 1e-9
     # 5. 割合をそろえる切片
     Lp = norm_log(rng.normal(size=(500, 4)) * 2 + np.array([1.0, 0.0, -1.0, 0.5]))
     tgt = np.array([0.3, 0.2, 0.25, 0.25])
@@ -888,13 +1010,22 @@ def selftest() -> None:
     emp = np.stack([np.bincount(y0[v0 == j], minlength=4) / max((v0 == j).sum(), 1) for j in range(4)])
     assert np.abs(posterior_matrix(Ca) - emp).max() < 0.01 and np.abs(posterior_matrix(Ca.T) - emp).max() > 0.1
     # 8. 版の名前
-    names = BASE + SELV + tuple(MIXSEL) + REFS
+    names = BASE + SELV + tuple(MIXSEL) + tuple(TIED) + REFS + tuple(f"sel_{v}" for v in SEL_MIX)
     assert len(set(names)) == len(names)
     known = set(names)
     for a_, b_, _ in contrasts():
         assert a_ in known and b_ in known, (a_, b_)
-    for _, _, a_, b_ in CRITERIA:
+    for _, _, a_, b_, *_ml in CRITERIA:
         assert a_ in known and b_ in known, (a_, b_)
+    # 9. fit_wb の勾配（差分との比べ）と，単位行列の表の読み替え
+    Lg, yg = np.stack([centered(rng.dirichlet(np.ones(4), size=60)) for _ in range(3)]), rng.integers(0, 4, 60)
+    fobj = lambda th: -bal_ll(norm_log(np.tensordot(th[:3], Lg, axes=1) + th[3:]), yg) + 0.5 * 0.2 * (((th[:3] - 1) ** 2).sum() + (th[3:] ** 2).sum())  # noqa: E731
+    wg, bg = fit_wb(Lg, yg, np.ones(3), 0.2, fit_w=True, fit_b=True)
+    th = np.concatenate([wg, bg])
+    num = np.array([(fobj(th + e) - fobj(th - e)) / 2e-5 for e in np.eye(7) * 1e-5])
+    assert np.all((np.abs(num) < 1e-3) | (th < 1e-6)), num
+    Pi = rng.dirichlet(np.ones(4), size=40)
+    assert np.abs(reread(Pi, np.eye(4)) - Pi).max() < 1e-6
     assert verdict(0.1, 2.0, 1.2) == "上回る" and verdict(0.1, 1.0, 0.5) == "言えない" and verdict(-3, -0.1, -1.5) == "下回る"
     print(f"selftest：通った（版 {len(BASE)}，差の定義 {len(contrasts())}）")
 
@@ -928,6 +1059,8 @@ def main() -> None:
                 gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__,
                 scipy=scipy.__version__, python=platform.python_version(), pandas=pd.__version__,
                 scripts={n: dai15.sha(HERE / n) for n in SCRIPTS}, design_sha256=dai15.sha(DESIGN), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
+                inputs_sha256={**{f"source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))}},
                 KS=KS, NF=NF, D_MIN=D_MIN, EPS=EPS, AUC_CLIP=AUC_CLIP, TAU=TAU, TAU_F8=TAU_F8, W_MAX=W_MAX, N_ITER=N_ITER, GRID=[list(map(str, g)) for g in GRID],
                 LAMS=LAMS, ADJ_TOL=ADJ_TOL, CHECK_TEACHER=CHECK_TEACHER, GRAD_TOL=GRAD_TOL, FLOOR=FLOOR, ASSUME_FLAG=ASSUME_FLAG, n_versions=len(BASE),
                 EST=EST, MIXSEL={k: len(v) for k, v in MIXSEL.items()}, rng_seed=SEED)
