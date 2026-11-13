@@ -35,6 +35,7 @@ import dai_data as DD  # noqa: E402
 import dai_solver as S  # noqa: E402
 
 MODS = "AVT"
+KS_RUN: tuple = P16.KS
 SRC = ("home", "ext", "away", "K", "orc")
 
 
@@ -48,6 +49,8 @@ def tables(z, K: int) -> dict:
 
 
 def run(out: Path, limit: int | None) -> None:
+    global KS_RUN
+    KS_RUN = tuple(json.load(open(out / "provenance.json"))["KS"])            # 単位の段で流した K（追補の K = 10 の回では (10,)）
     files = sorted((out / "units").glob("*.npz"))
     if limit:
         files = files[:limit]
@@ -61,7 +64,7 @@ def run(out: Path, limit: int | None) -> None:
         z = np.load(p, allow_pickle=False)
         yt = z["y_test"].astype(int)
         grid = [g.split("|") for g in z["grid"]]
-        for K in P16.KS:
+        for K in KS_RUN:
             D = tables(z, K)
             if (c, K) in choice:
                 gi = int(choice[(c, K)].split("mix")[1])
@@ -108,7 +111,7 @@ def run(out: Path, limit: int | None) -> None:
     pd.DataFrame([dict(c=c, K=K, version=v, uar_adj=level(d), n_fr=len(d)) for (c, K, v), d in sorted(cells.items())]).to_csv(pdir / "additive_levels.csv", index=False)
     eff = []
     for c in DD.CORPORA:
-        for K in P16.KS:
+        for K in KS_RUN:
             for s in ("orc", "ext", "K", "mixsel"):
                 for a, b in ((f"M_F6_{s}", f"M_F6add_{s}"), (f"M_F6_{s}", f"M_F6n_{s}"), (f"M_F6n_{s}", f"M_F6add_{s}"), (f"M_F6add_{s}", "prod")):
                     A, B = cells.get((c, K, a)), cells.get((c, K, b))
