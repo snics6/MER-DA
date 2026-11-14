@@ -1,4 +1,4 @@
-% 実験 16 の案（第 3 版の案．まだ設計の文書にしていない．計算していない）の図解（2026-11-13）
+% 実験 16 の案の図解（2026-11-13．1〜12 節は計算の前に書いた）に，実験 16・17 の結果と実験 17 の案を足した（2026-11-14）
 % 作り方：cd DAI/docs && lualatex 説明_実験16の案_図解_2026-11-13.tex （2 回）
 \documentclass[a4paper,11pt]{ltjsarticle}
 \usepackage[margin=20mm]{geometry}
@@ -24,11 +24,21 @@
 \definecolor{cClf}{HTML}{59A14F} % 分類器
 \definecolor{cRel}{HTML}{EDC948} % 信頼度の表
 \definecolor{cMeta}{HTML}{9467BD}% メタ学習で決める数
+\definecolor{cE16}{HTML}{1F5F8B}  % 実験 16 の印
+\definecolor{cE17}{HTML}{8B3A62}  % 実験 17 の印
+\definecolor{cE18}{HTML}{5A6B2F}  % 実験 18 の印
+\definecolor{cBar1}{HTML}{4C78A8}
+\definecolor{cBar2}{HTML}{F28E2B}
+\definecolor{cBar3}{HTML}{9D9D9D}
 
-\newtcolorbox{waku}[1]{colback=black!3,colframe=black!55,boxrule=0.6pt,arc=1mm,title=#1,fonttitle=\bfseries}
+\newtcolorbox{waku}[1]{colback=black!3,colframe=black!55,boxrule=0.6pt,arc=1mm,title={#1},fonttitle=\bfseries}
 \newtcolorbox{chui}{colback=cTest!6,colframe=cTest!70,boxrule=0.6pt,arc=1mm}
 \newcommand{\chip}[2]{\tikz[baseline=-0.6ex]\node[fill=#1,text=white,rounded corners=1.5pt,inner sep=2.2pt,font=\scriptsize\bfseries]{#2};}
 \newcommand{\chipk}[2]{\tikz[baseline=-0.6ex]\node[fill=#1,text=black,rounded corners=1.5pt,inner sep=2.2pt,font=\scriptsize\bfseries]{#2};}
+% 節の頭に置く「どの実験か」の印
+\newcommand{\ex}[2]{\par\noindent\tikz[baseline=-0.6ex]\node[fill=#1,text=white,rounded corners=1.5pt,inner sep=2.6pt,font=\small\bfseries]{#2};\par\smallskip}
+% 区間つきの棒（x，値，下端，上端，色，幅）．縦は 1 点 = 0.42 cm
+\newcommand{\ebar}[6]{\fill[#5] (#1-#6/2,0) rectangle (#1+#6/2,#2*0.42); \draw[thick] (#1,#3*0.42) -- (#1,#4*0.42); \draw[thick] (#1-0.06,#3*0.42) -- (#1+0.06,#3*0.42); \draw[thick] (#1-0.06,#4*0.42) -- (#1+0.06,#4*0.42);}
 \newcommand{\cell}[2]{\node[fill=cRel!#1,minimum width=11mm,minimum height=6.5mm,inner sep=0pt,font=\small]}
 
 \tikzset{
@@ -38,21 +48,34 @@
   corp/.style={draw,rounded corners=3pt,minimum width=30mm,minimum height=12mm,align=center,font=\small},
 }
 
-\title{実験 16 の案の図解\\[4pt]
-\large ソースで測った「感情ごとの信頼度」を使って，新しいコーパスで声・顔・言葉の分類器の答えをまとめる}
+\title{実験 16・17 の図解と結果\\[4pt]
+\large 実験 16：ソースで測った「感情ごとの信頼度」で，声・顔・言葉の分類器の答えをまとめる\\
+\large 実験 17：ターゲットの発話ごとに，近いソースの発話を引いて答えに足す}
 \author{MER-DA（DAI の作業場）}
-\date{2026 年 11 月 13 日（設計の案．計算はまだしていない）}
+\date{2026 年 11 月 13 日（1〜12 節．実験 16 の計算の前に書いた）\\2026 年 11 月 14 日（13〜17 節．結果と実験 17 の案を足した）}
 
 \begin{document}
 \maketitle
 
-\begin{waku}{この資料で分かること}
-\begin{itemize}
-  \item 何を解きたいか（1 節），使う部品（2 節），「信頼度」とは何か（3 節）．
-  \item 全体の流れ（4 節）：\textbf{学習時}にすること，\textbf{メタ学習}ですること，\textbf{ターゲットでの適応}ですること，\textbf{テスト時}にすること．
-  \item 何を比べるか（9 節），前半の解析の道具をどこで使うか（10 節），\textbf{何を仮に評価するか}（11 節），見込みと限界（12 節）．
-\end{itemize}
-この資料の数のうち，「例」と書いたものは説明用に作った数である．「記録」と書いたものは過去の実験の値である．
+\begin{waku}{この資料で分かること，どの節がどの実験か}
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright}p{2.8cm}>{\raggedright}p{7.4cm}p{3.6cm}}
+\toprule
+印 & 中身 & 節 \\
+\midrule
+\chip{black!60}{共通} & 何を解きたいか，使う部品，信頼度とは何か & 1〜3 節 \\
+\chip{cE16}{実験 16} & 信頼度の表で答えをまとめる．案（計算の前に書いた） & 4〜12 節 \\
+\chip{cE16}{実験 16} & 結果（K = 5・10・25） & 13 節 \\
+\chip{cE17}{実験 17} & 近いソースの発話を引いて答えに足す．案 & 14 節 \\
+\chip{cE17}{実験 17} & 結果（K = 5・10・25） & 15 節 \\
+\chip{black!60}{実験 16・17} & K = 10 で流し直した追補の読み方 & 16 節 \\
+\chip{cE18}{実験 18} & 6 コーパスで流し直す（計算中） & 17 節 \\
+\bottomrule
+\end{tabular}
+\end{center}
+どちらの実験も「下調べ」である．評価に使うコーパスのテストは開かず，ソースの 1 つを仮のターゲットにして測った（11 節）．
+この資料の数のうち，「例」と書いたものは説明用に作った数である．「記録」と書いたものは過去の実験の値である．13 節より後の数は，照合を通した結果の文と結果ファイルから写した．
 \end{waku}
 
 \noindent 色の意味：
@@ -66,10 +89,11 @@
 
 %======================================================================
 \section{何を解きたいか}
+\ex{black!60}{実験 16・17 で共通}
 
 人が話している短い動画（発話）から，話し手の感情（Neutral，Happy，Sad，Angry の 4 つ）を当てる．
 感情の正解（ラベル）が全部付いたデータの集まり（コーパス）が 3 つある．これを\textbf{ソース}と呼ぶ．
-新しいコーパス（\textbf{ターゲット}）には，感情ごとに K 本（5 本か 25 本）しかラベルが無い．
+新しいコーパス（\textbf{ターゲット}）には，感情ごとに K 本（5 本，10 本か 25 本）しかラベルが無い．
 
 \begin{figure}[H]
 \centering
@@ -100,6 +124,7 @@
 
 %======================================================================
 \section{使う部品}
+\ex{black!60}{実験 16・17 で共通}
 
 発話からは声・顔・言葉の 3 種類の情報（\textbf{モダリティ}）が取れる．それぞれを学習済みのネットワーク（エンコーダ．中身は変えない）で数の並びに変え，その上に線形の\textbf{分類器}を置く．
 
@@ -129,6 +154,7 @@
 
 %======================================================================
 \section{信頼度とは何か}
+\ex{black!60}{実験 16・17 で共通}
 
 \textbf{信頼度}は，分類器ごと・感情ごとに 1 つずつ持つ数で，「本当がその感情のとき，その分類器をどれだけ頼ってよいか」を表す．
 
@@ -175,6 +201,7 @@
 
 %======================================================================
 \section{全体の流れ}
+\ex{cE16}{実験 16}
 
 \begin{figure}[H]
 \centering
@@ -208,6 +235,7 @@
 
 %======================================================================
 \section{① 学習時：ソースで信頼度を測る（2 段）}
+\ex{cE16}{実験 16}
 
 研究者の案のとおり，まずソースの\textbf{中}で大本の信頼度を測り，次に\textbf{別のソース}に当てて測り直す．
 
@@ -255,6 +283,7 @@
 
 %======================================================================
 \section{② メタ学習：「決め方の数」をソースだけで決める}
+\ex{cE16}{実験 16（実験 17 も同じ選び方を使う）}
 
 ターゲットで使う手順には，前もって決めておく数が 3 つある．この 3 つを，\textbf{ソースの 1 つをターゲットに見立てた模擬}で決める．
 
@@ -308,6 +337,7 @@
 
 %======================================================================
 \section{③ ターゲットで適応：K 本で水準と切片を測り直す}
+\ex{cE16}{実験 16（K 本で水準を測る形は実験 17 も使う）}
 
 \begin{figure}[H]
 \centering
@@ -350,6 +380,7 @@
 
 %======================================================================
 \section{④ テスト：発話ごとに答えをまとめる}
+\ex{cE16}{実験 16}
 
 2 つの分類器（顔と声）と 2 つの感情（Happy と Sad）の小さい例で，計算の仕方を示す．実際は確率の対数で計算するが，例では重みを掛けて足す形で示す．
 
@@ -393,26 +424,27 @@
 
 %======================================================================
 \section{何を比べるか}
+\ex{cE16}{実験 16}
 
 \begin{table}[H]
 \centering
 \small
 \caption{信頼度の使い方の 8 通り．\checkmark は「当てはまる」．}
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{clccc}
+\begin{tabular}{clcccl}
 \toprule
- & 使い方 & \shortstack{感情ごとの\\信頼度を使う} & \shortstack{先に疑似ラベル\\が要る} & 重みの決め方 \\
+ & 使い方 & \shortstack{感情ごとの\\信頼度を使う} & \shortstack{先に疑似ラベル\\が要る} & 重みの決め方 & \shortstack{結果の表\\での名前} \\
 \midrule
-① & 等しい重み（基準．今の方法） & — & — & 決めない \\
-② & 感情で共通の重み（水準だけ） & — & — & 測る \\
+① & 等しい重み（基準．今の方法） & — & — & 決めない & \texttt{prod} \\
+② & 感情で共通の重み（水準だけ） & — & — & 測る & \texttt{F2} \\
 \midrule
-③ & 先に疑似ラベル・柔らかい版（研究者の案） & \checkmark & \checkmark & 測る \\
-④ & 先に疑似ラベル・硬い版 & \checkmark & \checkmark & 測る \\
-⑤ & 先に疑似ラベル・繰り返す版 & \checkmark & \checkmark & 測る \\
+③ & 先に疑似ラベル・柔らかい版（研究者の案） & \checkmark & \checkmark & 測る & \texttt{F3} \\
+④ & 先に疑似ラベル・硬い版 & \checkmark & \checkmark & 測る & \texttt{F4} \\
+⑤ & 先に疑似ラベル・繰り返す版 & \checkmark & \checkmark & 測る & \texttt{F5} \\
 \midrule
-⑥ & 感情を順に仮定して比べる（本体の案） & \checkmark & — & 測る \\
-⑦ & 答えを表で読み替えて掛ける & \checkmark & — & 測る \\
-⑧ & まとめ方の重みを学ぶ & \checkmark & — & 学ぶ（メタ学習） \\
+⑥ & 感情を順に仮定して比べる（本体の案） & \checkmark & — & 測る & \texttt{F6} \\
+⑦ & 答えを表で読み替えて掛ける & \checkmark & — & 測る & \texttt{orc\_F}，\texttt{cf\_D} \\
+⑧ & まとめ方の重みを学ぶ & \checkmark & — & 学ぶ（メタ学習） & \texttt{F8} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -427,13 +459,14 @@
   \node[sb,fill=cRel!45] at (9.3,0) {\textbf{水準は K 本，}\\\textbf{相性はソース}\\（7 節の組み立て）};
   \node[sb,fill=cTest!10,draw=cTest] at (12.4,0) {\textbf{ターゲットの全ラベル}\\実際には使えない\\（比べるための参照）};
 \end{tikzpicture}
-\caption{信頼度の出どころ．使い方と出どころを組み合わせて，どの組が基準（①）より当たるかを比べる．}
+\caption{信頼度の出どころ．使い方と出どころを組み合わせて，どの組が基準（①）より当たるかを比べる．結果の表での名前は左から \texttt{home}，\texttt{ext}，\texttt{K}，\texttt{mixsel}，\texttt{orc}（例：⑥ × 全ラベル ＝ \texttt{M\_F6\_orc}）．}
 \end{figure}
 
-分類器の組は 2 つで測る：微調整した声・顔・言葉の 3 つを使う組と，ソースごとの分類器を使う組．
+分類器の組は 2 つで測る：微調整した声・顔・言葉の 3 つを使う組（名前の頭が \texttt{M\_}）と，ソースごとの分類器を使う組（\texttt{S\_}）．両方を足した組は \texttt{MS\_} である．
 
 %======================================================================
 \section{前半の解析の道具を使う場所}
+\ex{cE16}{実験 16}
 
 \begin{figure}[H]
 \centering
@@ -456,8 +489,9 @@
 
 %======================================================================
 \section{何を仮に評価するか}
+\ex{cE16}{実験 16（実験 17 も同じ 2 段）}
 
-この案は 2 段で確かめる．今回計算するのは 1 段目（下調べ）だけである．
+この案は 2 段で確かめる．計算したのは 1 段目（下調べ）だけである．1 段目の結果は 13 節にある．1 段目で本番に進む目安を満たさなかったので，2 段目（本番）には進んでいない．
 
 \begin{figure}[H]
 \centering
@@ -491,6 +525,7 @@
 
 %======================================================================
 \section{過去の記録からの見込みと限界}
+\ex{cE16}{実験 16（計算の前に書いた）}
 
 \begin{itemize}
   \item \textbf{近い実験が 2026 年 10 月にある}（同じモダリティの中で，ソースの分類器の癖をソースどうしで測ってまとめた）．癖を使わない多数決だけで +1.9〜+4.2 点，まとめ方を学ぶ版で +3.3〜+4.8 点だった（相手は全ソースを混ぜた 1 つの分類器．検査を通していない探索の値）．良い出発点と比べると，差は声で +0.6 点，顔で \textminus{}0.2 点だった．
@@ -499,6 +534,265 @@
   \item \textbf{扱えない違い}：感情ラベルの決め方はコーパスで違う（IEMOCAP の Happy は興奮を含む．MOSEI の Neutral は 6 つの感情がどれも弱い発話）．この違いは取り除けない．
   \item \textbf{新しい手法ではない}：分類器の答えを信頼度の表でまとめる方法は 1979 年からある．この実験の価値は，クロスコーパスで少数ラベルの設定で，何が持ち越せて何が持ち越せないかを測る点にある．
 \end{itemize}
+
+%======================================================================
+\section{実験 16 の結果}
+\ex{cE16}{実験 16（結果）}
+
+4 つのコーパスを順に仮のターゲットにして，11 節の 1 段目を計算した．K = 5 が主で，K = 10・25 でも同じ計算をした．
+差は「その版の UAR − 今の方法（① 等しい重み）の UAR」で，点（\%）で書く．括弧は 95\% 区間である．
+区間の下端が 0 より上で差が 1.0 点以上なら「上回る」，区間の上端が 0 より下で差が \textminus{}1.0 点以下なら「下回る」と呼ぶ．
+4 コーパスのうち 2 つ以上で上回れば「当たり」と数えると，計算の前に決めていた．
+
+\begin{waku}{実験 16 で分かったこと（K = 5）}
+\begin{enumerate}
+  \item \textbf{仮のターゲットの全ラベルで信頼度を測ると，4 コーパスすべてで今の方法を上回った}（AFEW +4.75，IEMOCAP +1.25，MOSEI +1.59，MELD +1.11）．これは実際には使えない参照で，「まとめ方を変える余地がある」ことを示す．
+  \item \textbf{その得の大半は，感情ごとの信頼度を使わなくても出る．}「分類器ごとの水準」と「どの分類器にも共通の感情ごとの重み」だけを残した版で，得の 61〜83\% が出た．
+  \item \textbf{実際に使える版（水準は K 本，相性はソース）で上回ったのは AFEW だけだった}（+2.70）．ソースで測った値だけで決める版は，IEMOCAP（\textminus{}1.45）と MELD（\textminus{}1.95）で下回った．
+  \item そのため，本番（2 段目）に進む目安は満たさなかった．
+\end{enumerate}
+\end{waku}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  % 軸
+  \draw[->] (-0.6,-3.6*0.42) -- (-0.6,7.6*0.42);
+  \node[font=\scriptsize,anchor=south,align=center] at (-0.6,7.6*0.42) {今の方法との差（点）};
+  \foreach \v in {-3,-2,-1,0,1,2,3,4,5,6,7}{ \draw (-0.68,\v*0.42) -- (-0.6,\v*0.42); \node[font=\tiny,anchor=east] at (-0.7,\v*0.42) {\v}; }
+  \draw (-0.6,0) -- (12.6,0);
+  \draw[cTest,dashed] (-0.6,1*0.42) -- (12.6,1*0.42);
+  \node[font=\tiny,cTest,anchor=west] at (12.62,1*0.42) {+1.0 点};
+  % 棒（全ラベルの参照・実際に使える版・ソースだけ）
+  \foreach \c/\x/\a/\al/\ah/\b/\bl/\bh/\d/\dl/\dh in {
+      AFEW/1.5/4.75/2.6/6.9/2.70/1.6/3.8/0.33/-1.0/1.7,
+      IEMOCAP/4.7/1.25/0.1/2.4/0.55/-0.1/1.2/-1.45/-2.5/-0.4,
+      MOSEI/7.9/1.59/1.0/2.2/0.32/-0.4/1.0/0.42/0.1/0.8,
+      MELD/11.1/1.11/0.1/2.1/0.01/-0.7/0.7/-1.95/-3.2/-0.7}{
+    \ebar{\x-0.7}{\a}{\al}{\ah}{cBar1}{0.6}
+    \ebar{\x}{\b}{\bl}{\bh}{cBar2}{0.6}
+    \ebar{\x+0.7}{\d}{\dl}{\dh}{cBar3}{0.6}
+    \node[font=\small] at (\x,-3.95*0.42) {\c};
+  }
+  % 凡例
+  \fill[cBar1] (0.2,-5.9*0.42) rectangle (0.5,-5.6*0.42); \node[font=\scriptsize,anchor=west] at (0.55,-5.75*0.42) {全ラベルで測った信頼度（参照．実際には使えない）};
+  \fill[cBar2] (0.2,-6.8*0.42) rectangle (0.5,-6.5*0.42); \node[font=\scriptsize,anchor=west] at (0.55,-6.65*0.42) {実際に使える版：水準は K 本，相性はソース（7 節の組み立て）};
+  \fill[cBar3] (0.2,-7.7*0.42) rectangle (0.5,-7.4*0.42); \node[font=\scriptsize,anchor=west] at (0.55,-7.55*0.42) {ソースで測った値だけで決める版（大本 × 残り方．5 節）};
+\end{tikzpicture}
+\caption{実験 16 の主な 3 つの版（K = 5．⑥ 感情を順に仮定して比べる形）．棒は今の方法との差，縦の線は 95\% 区間．今の方法の UAR は AFEW 68.6，IEMOCAP 71.2，MOSEI 40.7，MELD 50.3 点である．}
+\end{figure}
+
+\subsection*{判定の規則の結果（K = 5・10・25）}
+
+\begin{table}[H]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{>{\raggedright}p{6.0cm}>{\raggedright}p{2.9cm}>{\raggedright}p{2.9cm}p{2.9cm}}
+\toprule
+版（今の方法との差） & K = 5 & K = 10 & K = 25 \\
+\midrule
+\multicolumn{4}{l}{\textbf{参照（全ラベルで測った信頼度．実際には使えない）}} \\
+⑥ 感情を順に仮定して比べる & 当たり：4 つとも & 当たり：AFEW，MOSEI & 当たり：AFEW，IEMOCAP，MELD \\
+⑦ 答えを表で読み替える & 当たり：AFEW，MOSEI & 当たり：AFEW，MOSEI & 当たり：AFEW，MOSEI，MELD \\
+③ 研究者の形（柔らかい版） & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 当たり：AFEW，MELD \\
+② 水準だけ & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 外れ（AFEW だけ） \\
+\midrule
+\multicolumn{4}{l}{\textbf{実際に使える版}} \\
+⑥ × 水準は K 本，相性はソース & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 当たり：AFEW，MELD \\
+③ × 水準は K 本，相性はソース & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 外れ（AFEW だけ） \\
+⑥ × K 本だけで測る & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 外れ（AFEW だけ） \\
+⑥ × ソースで測った値だけ & \textbf{下回った}：IEMOCAP，MELD & \textbf{下回った}：IEMOCAP，MELD & \textbf{下回った}：IEMOCAP，MELD \\
+⑦ × K 本で読み替える & 外れ（AFEW 上，MOSEI 下） & 外れ（AFEW 上，MOSEI 下） & 外れ（AFEW だけ） \\
+⑧ まとめ方を学ぶ & 外れ（MELD 下） & 外れ & 外れ（MELD 下） \\
+⑥ × 水準 K・相性ソース ＋ ソースの分類器 & 外れ（AFEW だけ） & 当たり：AFEW，MELD & 外れ（AFEW だけ） \\
+\midrule
+K 本での見込みで版を選ぶ（8 通り） & どれも 2 コーパス以上では上回らない & 同じ & 同じ \\
+\bottomrule
+\end{tabular}
+\caption{実験 16 の規則ごとの判定．「AFEW だけ」は AFEW だけで上回ったことを表す．K = 10 の 40 本は K = 5 の 20 本を含み，テストも同じなので，K の間の違いを差の証拠として読まない（16 節）．差と区間の全部は \texttt{DAI/docs/実験16・17\_下調べ\_結果の表\_K5・10・25\_2026-11-14.md} にある．}
+\end{table}
+
+\subsection*{なぜ全ラベルでは上がるのに，実際に使える版では上がらないか}
+
+\begin{itemize}
+  \item \textbf{得の多くは水準と共通の感情の重みから来る．}全ラベルで測った版の得のうち，感情ごとの相性（分類器 × 感情の成分）を消した版との差は +0.19〜+0.69 点で，どのコーパスでも上回らなかった．
+  \item \textbf{相性の形は持ち越せたが，「どの感情でどのモダリティが強いか」は持ち越せなかった．}ソースで測った成分と仮のターゲットの全ラベルで測った成分の相関は 0.49〜0.77 だった．ただし，感情ごとに最も強いモダリティの並びが合ったのは MOSEI だけだった．
+  \item \textbf{ソースで測ったモダリティの水準の並びは，ターゲットの並びと合わなかった}（水準の相関 \textminus{}0.95〜+0.37）．水準は K 本で測るしかないが，K = 5 の 20 本では揺れが大きい（12 節の見込みのとおり）．
+  \item \textbf{見込みとの比べ}：計算の前は AFEW・IEMOCAP で +1〜+3 点，MELD・MOSEI で 0 前後と見込んだ（12 節）．実際に使える版の値は AFEW +2.70，IEMOCAP +0.55，MOSEI +0.32，MELD +0.01 で，IEMOCAP だけが見込みより低かった．
+\end{itemize}
+
+%======================================================================
+\section{実験 17 の案：近いソースの発話を引く}
+\ex{cE17}{実験 17（案）}
+
+実験 16 は分類器ごと・感情ごとの信頼度を使った．実験 17 は，研究者の指示（ターゲットの発話に対して役に立つソースの発話は何か）を受けて，\textbf{ソースの発話 1 本ごと}を単位にする．
+ターゲットの発話ごとに，近いソースの発話を引き，そのラベルの票を「もう 1 つの分類器の答え」として足す．
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \node[box,fill=cTest!10,minimum width=26mm,minimum height=14mm] (q) at (0,0) {ターゲットの\\発話 1 本};
+  \node[box,fill=cSrc!15,minimum width=34mm,minimum height=14mm] (tab) at (0,-2.6) {ソースの発話の表\\（2 コーパスの全発話．\\特徴とラベル）};
+  \node[box,fill=black!5,minimum width=46mm,align=left] (near) at (4.9,-1.3) {\textbf{近さ}（2 つを合わせる）\\・特徴の近さ（エンコーダの特徴）\\・分類器の答えの近さ（ソースの\\\ \ 分類器が出す点の並び）};
+  \draw[arr] (q.east) -- (near.west |- q.east) -- (near.north west);
+  \draw[arr] (tab.east) -- (near.south west);
+  % 近い k 本
+  \node[font=\small\bfseries] at (10.2,0.6) {近い k 本（例は 5 本）};
+  \foreach \l/\r/\y/\c in {Happy/1.2/0/cV,Happy/0.8/-0.6/cV,Sad/1.0/-1.2/cA,Happy/1.0/-1.8/cV,Neutral/0.5/-2.4/cU}{
+    \node[draw,fill=\c!15,rounded corners=1.5pt,minimum width=20mm,font=\scriptsize] at (9.6,\y) {ラベル \l};
+    \node[draw,fill=cRel!50,rounded corners=1.5pt,font=\scriptsize] at (11.4,\y) {信頼度 \r};
+  }
+  \draw[arr] (near.east) -- (8.4,-1.2);
+\end{tikzpicture}
+\caption{近いソースの発話の引き方．近さは，研究者の指示（特徴が近く，分類器の答えも近い）で 2 つを合わせる．ターゲットの側にはラベルが無いので，2 つ目の近さはラベルではなくソースの分類器の答えで測る．k は 20 か 100 で，仮のターゲットで選ぶ（6 節と同じ選び方）．}
+\end{figure}
+
+\noindent\textbf{票の数え方（例）}：引いた発話のラベルごとに，信頼度を足す．信頼度は，そのソースの発話のラベルを「別のソースで学んだ分類器」がどれだけ当てたか（1 が平均）である．例では感情の釣り合いの重みを省く．
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & Neutral & Happy & Sad & Angry \\
+\midrule
+票（信頼度の和） & 0.5 & 1.2 + 0.8 + 1.0 = 3.0 & 1.0 & 0 \\
+確率（票 + 0.5）÷（4.5 + 2） & 0.15 & 0.54 & 0.23 & 0.08 \\
+\bottomrule
+\end{tabular}
+\end{center}
+この確率を「近いソースの発話の答え」と呼び，微調整した声・顔・言葉の 3 つの分類器の答えと，実験 16 と同じ形でまとめる．
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \foreach \m/\y/\c in {声/0.9/cA,顔/0/cV,言葉/-0.9/cT}{ \node[clf,fill=cK!25,draw=cK!70!black,minimum width=30mm] at (0,\y) {微調整した\textcolor{\c}{\m}の分類器}; }
+  \node[clf,fill=cSrc!20,draw=cSrc!80!black,minimum width=30mm] at (0,-1.9) {近いソースの発話の答え};
+  \node[font=\small] at (2.3,-1.9) {× λ};
+  \node[box,fill=cRel!30,minimum width=52mm,align=left] (v) at (6.6,0) {重みの付け方（3 通り）\\・等しい重み\\・水準は K 本（分類器ごとの強さを K 本で測る）\\・感情ごとの信頼度は K 本};
+  \node[box,fill=cTest!8,minimum width=26mm] (o) at (11.6,0) {まとめた答え};
+  \draw[arr] (1.6,0) -- (v.west); \draw[arr] (2.7,-1.9) -- (v.south west); \draw[arr] (v) -- (o);
+\end{tikzpicture}
+\caption{まとめ方（A．推定時にまとめた答え）．λ は近いソースの発話の答えの重さで，0.0625・0.25・1 から仮のターゲットで選ぶ．}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\caption{実験 17 で作るもの．A が主で，B と C は研究者の「後者もやって」と「精度の向上を見込む」を受けて足した．}
+\begin{tabular}{>{\raggedright}p{1.0cm}>{\raggedright}p{8.0cm}p{6.2cm}}
+\toprule
+ & 中身 & 比べる相手 \\
+\midrule
+A & 推定時に，近いソースの発話の答えを足してまとめる（上の図） & 今の方法（① 等しい重み）．対照として，同じソースのデータで作ったソースの分類器を足す版 \\
+B & ターゲットのラベル無しの発話からよく引かれるソースの発話と，信頼度の高いソースの発話を重くして，ソースの分類器を学び直す & 重みを付けずに学んだソースの分類器 \\
+C & A のまとめた答えを疑似ラベルにして，声・顔・言葉・融合の分類器を学び直す（今の提案と同じ手順） & 今の提案（① の積の疑似ラベルで学び直した分類器） \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{chui}
+\textbf{使う情報が今の方法より多い．}A のすべての版と C の疑似ラベルは，推定時や学習時にソースの発話（特徴とラベル）を使う．今の方法はソースの分類器しか使わない．そのため差は「使う情報が違う相手との差」である．テストの正解はどこにも入らない（4 節と同じ）．
+\end{chui}
+
+%======================================================================
+\section{実験 17 の結果}
+\ex{cE17}{実験 17（結果）}
+
+\begin{waku}{実験 17 で分かったこと（K = 5）}
+\begin{enumerate}
+  \item \textbf{近いソースの発話のラベルは，ターゲットの発話の感情と結びついていた．}近い 100 本のラベルが本当の感情と合う割合（感情ごとの平均）は，でたらめの 25\% より，声で +3.9〜+11.1，顔で +4.9〜+12.8，言葉で +3.7〜+7.9，3 つを合わせて引くと +7.7〜+17.8 点高かった（4 コーパスすべて）．
+  \item \textbf{C：融合の分類器を「水準は K 本」の疑似ラベルで学び直すと，今の提案より AFEW +1.46，MELD +1.21 点上がった}（12 の規則のうち当たりはこの 1 つ）．声・顔・言葉の分類器は，どの疑似ラベルでも上回るとは言えなかった．
+  \item \textbf{A：推定時にまとめた答えは，今の方法を上回るとは言えなかった}（上回ったのは AFEW だけ）．同じソースのデータで作ったソースの分類器を足す版と比べても，良いとは言えなかった．
+  \item B：ソースの発話に重みを付けて学び直しても，上回るとは言えなかった．
+\end{enumerate}
+\end{waku}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \draw[->] (-0.6,-1.0*0.42*2) -- (-0.6,3.2*0.42*2);
+  \node[font=\scriptsize,anchor=south,align=center] at (-0.6,3.2*0.84) {提案の融合の分類器との差（点）};
+  \foreach \v in {-1,0,1,2,3}{ \draw (-0.68,\v*0.84) -- (-0.6,\v*0.84); \node[font=\tiny,anchor=east] at (-0.7,\v*0.84) {\v}; }
+  \draw (-0.6,0) -- (12.6,0);
+  \draw[cTest,dashed] (-0.6,0.84) -- (12.6,0.84);
+  \node[font=\tiny,cTest,anchor=west] at (12.62,0.84) {+1.0 点};
+  \begin{scope}[yscale=2]
+  \foreach \c/\x/\a/\al/\ah/\b/\bl/\bh/\d/\dl/\dh in {
+      AFEW/1.5/1.46/0.2/2.8/1.07/0.5/1.7/0.72/-0.1/1.5,
+      IEMOCAP/4.7/0.12/-0.6/0.9/0.20/-0.3/0.7/0.31/-0.3/1.0,
+      MOSEI/7.9/0.12/-0.2/0.4/-0.00/-0.4/0.4/-0.10/-0.6/0.4,
+      MELD/11.1/1.21/0.3/2.1/1.34/0.6/2.0/1.12/0.5/1.8}{
+    \ebar{\x-0.7}{\a}{\al}{\ah}{cBar1}{0.6}
+    \ebar{\x}{\b}{\bl}{\bh}{cBar2}{0.6}
+    \ebar{\x+0.7}{\d}{\dl}{\dh}{cBar3}{0.6}
+  }
+  \end{scope}
+  \foreach \c/\x in {AFEW/1.5,IEMOCAP/4.7,MOSEI/7.9,MELD/11.1}{ \node[font=\small] at (\x,-1.3*0.84) {\c}; }
+  \fill[cBar1] (1.0,-2.0*0.84) rectangle (1.3,-1.8*0.84); \node[font=\scriptsize,anchor=west] at (1.35,-1.9*0.84) {K = 5};
+  \fill[cBar2] (3.0,-2.0*0.84) rectangle (3.3,-1.8*0.84); \node[font=\scriptsize,anchor=west] at (3.35,-1.9*0.84) {K = 10};
+  \fill[cBar3] (5.0,-2.0*0.84) rectangle (5.3,-1.8*0.84); \node[font=\scriptsize,anchor=west] at (5.35,-1.9*0.84) {K = 25};
+\end{tikzpicture}
+\caption{C：融合の分類器を「水準は K 本」の疑似ラベルで学び直したときの，今の提案（積の疑似ラベル）で学び直した融合の分類器との差．どちらも設定を選び直した点．提案の融合の分類器の UAR（K = 5）は AFEW 70.0，IEMOCAP 71.8，MOSEI 40.9，MELD 49.8 点である．}
+\end{figure}
+
+\noindent この当たりには，次の断りが付く．
+\begin{itemize}
+  \item \textbf{対照が無い}：この疑似ラベルには「同じ重みの付け方でソースの分類器を足しただけ」の対照が無い．得がソースの発話を引いた分なのか，ソースの分類器を足した分なのかを区別していない．
+  \item \textbf{選び方を通した依存}：生徒の設定の選び方には，評価するコーパスのテストが間接に入る経路がある（AFEW で 2 つ，MELD で 3 つの選択が変わりうる）．この経路を通らない比べ（実験 1 の設定のまま）では，K = 5 で上回ったのは AFEW（+1.10）だけだった．
+  \item \textbf{AFEW を除くと 1 コーパス}：上回るのは MELD だけで，規則の水準（2 つ以上）に届かない．判定の機会が 24 あるので，どれかが偶然当たる見込みは約 0.09 ある．
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{>{\raggedright}p{6.0cm}>{\raggedright}p{2.9cm}>{\raggedright}p{2.9cm}p{2.9cm}}
+\toprule
+版 & K = 5 & K = 10 & K = 25 \\
+\midrule
+\multicolumn{4}{l}{\textbf{A：推定時にまとめた答え（今の方法との差）}} \\
+全ラベルの信頼度（参照．実際には使えない） & 当たり：4 つとも & 当たり：AFEW，MOSEI，MELD & 当たり：AFEW，IEMOCAP，MELD \\
+等しい重み & 外れ & 外れ & 外れ \\
+水準は K 本 & 外れ（AFEW だけ） & 当たり：AFEW，MELD & 外れ（AFEW だけ） \\
+感情ごとの信頼度は K 本 & 外れ（AFEW だけ） & 当たり：AFEW，MELD & 当たり：AFEW，IEMOCAP \\
+\midrule
+\multicolumn{4}{l}{\textbf{C：学び直した分類器（今の提案との差）}} \\
+融合 × 水準は K 本 & 当たり：AFEW，MELD & 当たり：AFEW，MELD & 外れ（MELD だけ） \\
+融合 × 感情ごとの信頼度は K 本 & 外れ（AFEW だけ） & 外れ & 外れ \\
+融合 × 等しい重み & 外れ & 外れ & 外れ \\
+声・顔 × 3 通り & どれも外れ & どれも外れ & どれも外れ \\
+言葉 × 3 通り & どれも外れ & 外れ（等しい重みが MELD だけ） & 外れ（3 通りとも IEMOCAP だけ） \\
+\midrule
+\multicolumn{4}{l}{\textbf{B：ソースの発話に重みを付けて学び直す（9 通り）}} \\
+声・顔・言葉 × 3 通りの重み & どれも外れ & どれも外れ & どれも外れ \\
+\bottomrule
+\end{tabular}
+\caption{実験 17 の規則ごとの判定．K = 10 の A の 2 つの当たりも，AFEW を除くと 1 コーパスである．差と区間の全部は \texttt{DAI/docs/実験16・17\_下調べ\_結果の表\_K5・10・25\_2026-11-14.md} にある．}
+\end{table}
+
+%======================================================================
+\section{K = 10 の追補の読み方}
+\ex{black!60}{実験 16・17（K = 10 の追補）}
+
+K = 5・25 の結果を見た後に，研究者の指示で K = 10 を足した（版・規則・選び方は元のまま）．読むときは次の 3 点に気を付ける．
+\begin{itemize}
+  \item \textbf{独立な確かめではない．}K 本は入れ子で取っている．K = 10 の 40 本は K = 5 の 20 本をすべて含み，テストの発話・分割・ソースの分類器も同じである．K = 5 と同じ判定が出ても「再現した」とは言わない．
+  \item \textbf{K で増えた・減ったとは言わない．}K どうしの差の区間を作っていないので，表の判定の違い（例：実験 16 の「⑥ × 水準 K・相性ソース ＋ ソースの分類器」が K = 10 だけ当たり）は差の証拠にならない．
+  \item K = 10 で当たりになった 3 つ（実験 16 のソースの分類器を足す版，実験 17 の A の 2 つの版）は，どれも AFEW と MELD で上回り，AFEW を除くと 1 コーパスである．
+\end{itemize}
+
+%======================================================================
+\section{実験 18：6 コーパスで流し直す（計算中）}
+\ex{cE18}{実験 18（計算中．結果はまだ無い）}
+
+研究者の指示（「K=5,10,25 で CREMA-D ともう一個使ってたコーパスも追加して．モダリティは今の四つよりも限定されてもいい」）で，実験 16・17 の主な版を 6 つのコーパスで流し直している．
+\begin{itemize}
+  \item 足すコーパス：CREMA-D（声と顔．4,899 本，91 人）と RAVDESS（声だけ．672 本，24 人）．どちらも演技で決まった文を読む．言葉は使わない．
+  \item 各コーパスにあるモダリティだけを使う．実験 16 の版は，モダリティが 2 つ以上のコーパスだけで流す．
+  \item 実験 1 の土台（K 本だけの分類器，引き戻しの強さ）から作り直す．研究室の PC だけで計算する（2026-11-14 13:00 に始めた．見込みは 23 時から翌 1 時ごろに終わる）．
+  \item 結果は，計算の後の点検と照合を通してから，この節に書く．
+\end{itemize}
+
 
 \appendix
 \section{用語}
@@ -509,7 +803,7 @@
 用語 & 意味 \\
 \midrule
 ソース／ターゲット & ラベルが全部ある既存のコーパス／ラベルが少ない新しいコーパス \\
-K 本 & ターゲットで感情ごとに付いているラベルの本数（5 か 25） \\
+K 本 & ターゲットで感情ごとに付いているラベルの本数（5，10 か 25） \\
 分類器 & 発話の特徴から 4 つの感情の確率を出す線形の式 \\
 微調整 & ソースの分類器の平均から始めて，K 本で学び直すこと \\
 信頼度 & 分類器ごと・感情ごとの数．本当がその感情のとき，その分類器をどれだけ頼ってよいか \\
@@ -520,6 +814,31 @@ K 本 & ターゲットで感情ごとに付いているラベルの本数（5 �
 メタ学習 & 仮のターゲットでの模擬を使って，手順の中の数を決めること \\
 疑似ラベル & 人ではなく分類器が付けた仮の正解 \\
 UAR & 感情ごとの正解率の平均．でたらめなら 25 点 \\
+近いソースの発話 & ターゲットの発話 1 本ごとに，特徴と分類器の答えが近いソースの発話（実験 17） \\
+生徒の学び直し & まとめた答えを疑似ラベルにして，声・顔・言葉・融合の分類器を学び直すこと（実験 17 の C） \\
+当たり／外れ／下回った & 4 コーパスのうち 2 つ以上で上回る／どちらでもない／2 つ以上で下回る \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{結果の表の名前との対応}
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright}p{4.2cm}p{11.2cm}}
+\toprule
+名前 & 意味 \\
+\midrule
+\texttt{prod} & 今の方法．微調整した声・顔・言葉の確率を同じ強さで掛ける（① 等しい重み） \\
+\texttt{M\_}，\texttt{S\_}，\texttt{MS\_} & 微調整した分類器の組／ソースの分類器の組／両方を足した組（実験 16） \\
+\texttt{F2}〜\texttt{F8} & 9 節の表の使い方②〜⑧ \\
+\texttt{home}，\texttt{ext}，\texttt{K}，\texttt{mixsel}，\texttt{orc} & 信頼度の出どころ：ソースの中／大本 × 残り方／K 本だけ／水準は K 本・相性はソース／全ラベル（参照） \\
+\texttt{MN\_eq}，\texttt{MN\_F2K}，\texttt{MN\_F6K} & 実験 17 の A：近いソースの発話の答えを足す．等しい重み／水準は K 本／感情ごとの信頼度は K 本 \\
+\texttt{MN\_F6orc} & 実験 17 の A の参照：全ラベルで測った信頼度 \\
+\texttt{MS\_eq}，\texttt{MS\_eq\_tied} & 実験 17 の対照：ソースの分類器を足す／λ を \texttt{MN\_eq} とそろえて足す \\
+\texttt{N\_eq}，\texttt{S\_eq} & 近いソースの発話の答えだけ／ソースの分類器だけ \\
+\texttt{hub}，\texttt{rel}，\texttt{hubrel} & 実験 17 の B：よく引かれる発話を重く／信頼度で重く／両方 \\
+\texttt{\_sel} & 仮のターゲットで格子の点を選んだ版 \\
+\texttt{adj} & ラベルを使わずに切片をずらした答え（主の層） \\
 \bottomrule
 \end{tabular}
 \end{center}
