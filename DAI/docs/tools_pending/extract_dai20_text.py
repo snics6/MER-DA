@@ -4,9 +4,10 @@
 読むもの：results/dai20_eval/summary/*.csv・convergence.json，provenance.json，provenance_log.jsonl，units/*.csv・*.npz（作り直しの照合），
           posthoc/intercept_direction.csv・intercept_levels.csv・intercept_provenance.json（`dai20_posthoc_intercept.py` が書いた），
           logs/dai20_eval.log・dai20_eval.done・dai20_selftest.log，DAI/frozen/dai20_frozen.json，
-          設計 DAI/docs/実験20_設計.md・点検の報告 DAI/checks/DAI-20/*.md・台帳 docs/seen-data.md（引いた文がそこにあることを確かめるだけ），
+          設計 DAI/docs/実験20_設計.md・点検の報告 DAI/checks/DAI-20/*.md・台帳 docs/seen-data.md・DAI/docs/論文のセッションへの伝言_2026-11-14.md
+          （引いた文がそこにあることを確かめるだけ．code_post_tools_v3.md は，あれば判定を引く），
           表の文書 DAI/docs/実験20_結果の表_2026-11-15.md と書き出しの台本 md_tables_dai20.py（版の呼び名をそろえる．表の文書が今の集計と合うことを確かめる），
-          git の記録（コミットの時刻と差分）．
+          git の記録（コミットの時刻と差分．表の文書の前の版．実験 21 の設計・台本・固定のファイルは，最後のコミットの時刻だけを見る）．
 結果ファイルは読むだけで，書き換えない（results/dai20_eval/ には何も書かない．足した出力のファイルも無い）．GPU は使わない．
 DAI/exp の台本は import しない（dai20_eval.py を文字として読み，監視対象の一覧があることを確かめるだけ）．
 
@@ -218,9 +219,9 @@ def pget(v: str, quantity: str, layer: str, seeds: str = "all"):
     return lambda c, K: pq(v, quantity, layer, c, K, seeds)
 
 
-def groups(get) -> dict:
+def groups(get, pairs=None) -> dict:
     g = {k: [] for k in ("pp", "p", "z", "n", "nn", "same")}
-    for c, K in ALL12:
+    for c, K in (ALL12 if pairs is None else pairs):
         g[klass(get(c, K))].append((c, K))
     return g
 
@@ -249,21 +250,27 @@ def vals(pairs, get) -> str:
     return "，".join(out)
 
 
-def read3(get) -> str:
-    """12 条件の差を，3 つの読み（区間が 0 を含まず 1.0 点以上，区間が 0 を含まず 1.0 点未満，区間が 0 を含む）に分け，符号ごとに値つきで並べる．"""
-    g = groups(get)
+def read_short(get, pairs=None) -> str:
+    """差の読み．区間が 0 を含まない条件（符号と 1.0 点の境目で分ける）と，区間が 0 を含み点推定が負の条件は，名前と値を書く．
+    区間が 0 を含み点推定が正の条件は名前だけを書く（値は表にある）．"""
+    g = groups(get, pairs)
     s = []
     if g["pp"]:
-        s.append("区間が 0 を含まず差が +1.0 点以上：" + vals(g["pp"], get))
+        s.append("区間が 0 を含まず +1.0 点以上：" + vals(g["pp"], get))
     if g["nn"]:
-        s.append("区間が 0 を含まず差が −1.0 点以下：" + vals(g["nn"], get))
+        s.append("区間が 0 を含まず −1.0 点以下：" + vals(g["nn"], get))
     if g["p"]:
-        s.append("区間が 0 を含まず差が 0〜+1.0 点：" + vals(g["p"], get))
+        s.append("区間が 0 を含まず 0〜+1.0 点：" + vals(g["p"], get))
     if g["n"]:
-        s.append("区間が 0 を含まず差が −1.0〜0 点：" + vals(g["n"], get))
+        s.append("区間が 0 を含まず −1.0〜0 点：" + vals(g["n"], get))
     if not (g["pp"] or g["nn"] or g["p"] or g["n"]):
         s.append("区間が 0 を含まない条件は無い")
-    s.append(("区間が 0 を含む：" + vals(g["z"], get)) if g["z"] else "区間が 0 を含む条件は無い")
+    zneg = [x for x in g["z"] if get(*x).est < 0]
+    zpos = [x for x in g["z"] if get(*x).est >= 0]
+    if zneg:
+        s.append("区間が 0 を含み点推定が負：" + vals(zneg, get))
+    if zpos:
+        s.append("区間が 0 を含み点推定が正：" + by_corpus(zpos))
     if g["same"]:
         s.append("2 つの版の正解の数が全部の単位で同じ（差は 0）：" + by_corpus(g["same"]))
     return "．".join(s) + "．"
@@ -352,8 +359,9 @@ must(all(len(x["corpora_in_units"]) == 3 and x["T"] not in x["corpora_in_units"]
 LROWS = ledger.split("\n")
 row20 = [x for x in LROWS if x.startswith("| DAI-20（実験 16 の提案の手法の評価の回")]
 rowph = [x for x in LROWS if x.startswith("| DAI-20 の計算の後の解析")]
-must(len(row20) == 1 and len(rowph) == 1, "台帳の DAI-20 の行")
-ROW20, ROWPH = row20[0], rowph[0]
+row21 = [x for x in LROWS if x.startswith("| DAI-21（")]
+must(len(row20) == 1 and len(rowph) == 1 and len(row21) == 1, "台帳の DAI-20・DAI-21 の行")
+ROW20, ROWPH, ROW21 = row20[0], rowph[0], row21[0]
 
 # ---- 点検の報告と検査の報告
 must("## 判定\n\n通す．200 単位と集計の 12 ファイルが設計の格子どおりにそろい，欠けと重複は 0 件だった．" in code_post, "点検の報告の判定")
@@ -387,15 +395,34 @@ must("## 判定\n\n通す．" in tools_v2 and "## 判定\n\n直してから進�
 N_TOOL_REC = tools_v2.count("### [記録 ")
 must(N_TOOL_REC == 5, "code_post_tools_v2.md の記録の数")
 TB_COMMITS = [x.split(" ", 1) for x in git("log", "--format=%h %ad", "--date=format:%Y-%m-%d %H:%M:%S", "--", "DAI/docs/tools_pending/md_tables_dai20.py").strip().split("\n")]
-must(sha(TABLES_PY) == hashlib.sha256(git("show", f"{TB_COMMITS[0][0]}:DAI/docs/tools_pending/md_tables_dai20.py").encode()).hexdigest(), "表の台本が，最後のコミットと違う")
-must(f"`md_tables_dai20.py`：{sha(TABLES_PY)}" not in tools_v2, "今の表の台本の sha256 が検査の報告にある（文を直す）")
+TB_SHAS = {h_: hashlib.sha256(git("show", f"{h_}:DAI/docs/tools_pending/md_tables_dai20.py").encode()).hexdigest() for h_, _ in TB_COMMITS}
+must(sha(TABLES_PY) == TB_SHAS[TB_COMMITS[0][0]], "表の台本が，最後のコミットと違う")
+TB_CHECKED = [h_ for h_ in TB_SHAS if f"`md_tables_dai20.py`：{TB_SHAS[h_]}" in tools_v2]
+must(len(TB_CHECKED) == 1, "code_post_tools_v2.md が検査した表の台本の版")
+TB_AFTER = [h_ for h_, _ in TB_COMMITS[:[h_ for h_, _ in TB_COMMITS].index(TB_CHECKED[0])]][::-1]      # 検査の後のコミット（古い順）
+must(len(TB_AFTER) >= 1, "表の台本が，検査した版から変わっていない（文を直す）")
 N_TOOL_REC_PH = tools_v2.count("該当箇所：`dai20_posthoc_intercept.py")
 must(N_TOOL_REC_PH == 4 and tools_v2.count("該当箇所：`md_tables_dai20.py`") == 1, "code_post_tools_v2.md の記録の内訳")
 must("five recorded notes applied" in git("log", "-1", "--format=%s", PH_LAST), "最後のコミットの題")
-PH_ROW_TIME = "2026-11-15 03:21 に実験 20 の単位に流した"                  # 台帳の文．出力の記録の時刻と合わないあいだだけ，食い違いとして書く（台帳を直したら，この段は書かれない）
-LEDGER_TIME_BAD = PH_ROW_TIME in ROWPH and not phprov["time"].startswith("2026-11-15 03:21")
-PH_ROW_CHECK = "検査は `code_post_tools_v2.md` で「通す」（台本の sha256 156ec36a…．コミット 7b0de5e）"
-LEDGER_CHECK_BAD = PH_ROW_CHECK in ROWPH and phprov["script_sha256"].startswith("156ec36a")
+LQ_PHRUN = quote(ROWPH, "検査 `code_post_tools_v2.md` が「通す」とした版は sha256 7efb23c1…（コミット 1f5b65e）である．その報告の記録 5 件を入れた版（sha256 156ec36a…．コミット 7b0de5e）を，"
+                        "2026-11-15 03:21 に実験 20 の単位に起動し，03:37 に出力を書いた", "台帳の計算の後の解析の行")
+PHRE = "記録 5 件の直しの差分は，流した後に gate-code に再検査を頼んだ（報告は `DAI/checks/DAI-20/code_post_tools_v3.md`）"
+LQ_PHRE = quote(ROWPH, PHRE, "台帳の計算の後の解析の行") if PHRE in ROWPH else None      # 再検査の結果を台帳に書き足すと文が変わるので，今の文があるときだけ引く
+must("code_post_tools_v3.md" in ROWPH, "台帳の計算の後の解析の行に，再検査の報告の名前が無い")
+must(PH_SHAS[PH_CHECKED[0]].startswith("7efb23c1") and PH_CHECKED[0] == "1f5b65e" and phprov["script_sha256"].startswith("156ec36a") and PH_LAST == "7b0de5e"
+     and phprov["time"].startswith("2026-11-15 03:37"), "台帳の計算の後の解析の行が，検査の報告と出力の記録に合わない")
+V3 = CK / "code_post_tools_v3.md"                                        # 記録 5 件の直しの差分の再検査（頼んである．報告ができていれば判定を引く）
+if V3.exists():
+    v3_text = V3.read_text()
+    m_ = re.search(r"## 判定\s*\n+\s*(.+?)．", v3_text)
+    must(m_ is not None, "code_post_tools_v3.md の判定が読めない")
+    V3_VERDICT = quote(v3_text, m_.group(1), "code_post_tools_v3.md")
+    V3_COVERS = [n_ for n_, h_ in (("流した台本", phprov["script_sha256"]), ("今の表の台本", sha(TABLES_PY))) if h_ in v3_text]
+    V3_TEXT = (f"再検査の報告 `code_post_tools_v3.md` の判定は「{V3_VERDICT}」である"
+               + (f"（報告が対象に挙げる sha256 は，{'と'.join(V3_COVERS)}の sha256 と同じである）" if V3_COVERS else "（報告に，流した台本の sha256 の全体は書かれていない）"))
+else:
+    V3_VERDICT, V3_COVERS = None, []
+    V3_TEXT = "再検査の報告 `code_post_tools_v3.md` は，この文書を書き出した時点ではまだ無い（gate-code に頼んである）"
 
 # ---- 表の印を，設計 5 節の文（下端 > 0 かつ差 ≥ 1.0 点に ↑，上端 < 0 かつ差 ≤ −1.0 点に ↓）から作り直して，結果ファイルの印と比べる
 must("区間の下端 > 0 かつ差 ≥ 1.0 点に ↑，上端 < 0 かつ差 ≤ −1.0 点に ↓ を付ける" in design, "設計 5 節の印の文")
@@ -565,6 +592,9 @@ for v in PH_VERS:
                 PH_DEV_TOT = max(PH_DEV_TOT, abs(e_.est - t_.est), abs(e_.lo - t_.lo), abs(e_.hi - t_.hi))
                 n_tot += 1
 must(PH_DEV_ADD < 1e-9 and PH_DEV_TOT < 1e-6 and n_tot == phprov["total_vs_summary"]["n"] == 432, f"計算の後の解析と集計の照合：{PH_DEV_ADD:.2e}，{PH_DEV_TOT:.2e}，{n_tot}")
+RAW_EST_DEV = max(abs(pq("prop", "total", "raw", c, K).est - q("prop@raw", "prod@raw", c, K).est) for c, K in ALL12)
+RAW_END_DEV = {c: max(max(abs(pq("prop", "total", "raw", c, K).lo - q("prop@raw", "prod@raw", c, K).lo), abs(pq("prop", "total", "raw", c, K).hi - q("prop@raw", "prod@raw", c, K).hi)) for K in KS) for c in C4}
+must(RAW_EST_DEV < 1e-9 and all(RAW_END_DEV[c] < 1e-6 for c in C4 if c != "MOSEI") and RAW_END_DEV["MOSEI"] < 0.01, f"切片をずらす前どうしの全体：{RAW_EST_DEV:.2e}，{RAW_END_DEV}")
 for c, K in ALL12:                                                         # 水準：切片をずらした答えと，ずらす前の UAR が集計と合う
     for v, lay, sv in (("prop", "adj", "prop"), ("prop", "raw", "prop@raw"), ("prod", "adj", "prod"), ("prod", "raw", "prod@raw")):
         must(abs(PHL[(v, lay, c, K, "all")].uar - level(sv, c, K).uar) < 1e-9, f"intercept_levels.csv の水準 {v} {lay} {c} K={K}")
@@ -575,31 +605,47 @@ with tempfile.TemporaryDirectory() as td_:
     subprocess.run([sys.executable, str(TABLES_PY), "--out", str(tmp_)], capture_output=True, text=True, check=True,
                    env={**os.environ, "CUDA_VISIBLE_DEVICES": "", "PYTHONDONTWRITEBYTECODE": "1"})
     must(tmp_.read_text() == table_doc, "表の文書が，今の集計から書き出した表と違う")
-# 表の文書で，区間の端が +0.0・-0.0 と表示されて符号が読めない欄
-ZERO_END = re.compile(r"[+-]\d+\.\d+ \[(?:[+-]0\.0, [+-]\d+\.\d|[+-]\d+\.\d, [+-]0\.0)\]")
-DOC_ZERO = ZERO_END.findall(table_doc)
-SUPP = []                                                                 # (差の名前, K, コーパス, 引き方, 表の文書の表示, 桁を足した値)
-SEED_JP = {"all": "0〜9", "0-1": "0・1", "2-9": "2〜9"}
-NOT_IN_DOC = {("prop_loto", "prod"), ("oracle_grid", "prod")}             # 集計にあるが，表の文書の表に出ない差（表の台本の一覧に無い）
-TWICE = {("prop", "prod"), ("prop@raw", "prod@raw")}                      # 表の文書の 1 節と 2 節の両方に出る差
-N_DOC_EXPECT = 0
-for r in ef.itertuples():
-    if r.same_counts or (r.seeds != "all" and (r.a, r.b) != ("prop", "prod")) or (r.a, r.b) in NOT_IN_DOC:
-        continue
-    s_ = f"{r.est:+.2f} [{r.lo:+.1f}, {r.hi:+.1f}]"
-    if ZERO_END.fullmatch(s_) and s_ in table_doc:
-        SUPP.append((f"{nm(r.a)}{'（切片をずらす前）' if r.a.endswith('@raw') else ''} − {nm(r.b)}{'（切片をずらす前）' if r.b.endswith('@raw') else ''}", f"`{r.a} − {r.b}`",
-                     int(r.K), r.c, SEED_JP[r.seeds], s_, ci(r)))
-        N_DOC_EXPECT += 2 if ((r.a, r.b) in TWICE and r.seeds == "all") else 1
-for r in ot[ot.group == "C"].itertuples():
-    s_ = f"{r.exp1prop_minus_method:+.2f} [{r.exp1prop_minus_method_lo:+.1f}, {r.exp1prop_minus_method_hi:+.1f}]"
-    if ZERO_END.fullmatch(s_) and s_ in table_doc:
-        SUPP.append((f"今の提案 − {MT.C_LAB.get(r.method, r.method)}（実験 2 が出した差）", f"`{r.method}`", int(r.K), r.c, "0〜2" if int(r.n_units) == 15 else "0〜9", s_,
-                     f"{fest(r.exp1prop_minus_method)} [{fend(r.exp1prop_minus_method_lo)}, {fend(r.exp1prop_minus_method_hi)}]"))
-        N_DOC_EXPECT += 1
-must(set(DOC_ZERO) <= {x[5] for x in SUPP}, f"表の文書の符号の読めない端のうち，補いの表に無い欄がある：{sorted(set(DOC_ZERO) - {x[5] for x in SUPP})[:5]}")
-must(N_DOC_EXPECT == len(DOC_ZERO), f"補いの表の行から見込む数（{N_DOC_EXPECT}）が，表の文書の符号の読めない端の数（{len(DOC_ZERO)}）と違う")
-must(not any(f"{nm(a)} − 積" in table_doc for a, _ in NOT_IN_DOC), "表の文書に出ないはずの差が出ている")
+# 表の文書：桁を足す前の版（最初にコミットした版）と比べ，変わった値が，符号の読めなかった区間の端と，±1.00 に丸まっていた差だけであること
+ZERO_END = re.compile(r"\[[+-]0\.0, |, [+-]0\.0\]")
+must(not ZERO_END.search(table_doc), "表の文書に符号の読めない区間の端が残っている")
+TD_COMMITS = git("log", "--format=%h", "--", "DAI/docs/実験20_結果の表_2026-11-15.md").strip().split("\n")
+must(len(TD_COMMITS) >= 2 and TD_COMMITS[-1] == "a618df8", f"表の文書のコミット：{TD_COMMITS}")
+OLD_TBL = git("show", f"{TD_COMMITS[-1]}:DAI/docs/実験20_結果の表_2026-11-15.md")
+must(git("status", "--porcelain", "--", "DAI/docs/実験20_結果の表_2026-11-15.md").strip() == "", "表の文書に，コミットしていない変更がある")
+NUMRE = re.compile(r"[+-]\d+\.\d+")
+o_rows = [x.split("|") for x in OLD_TBL.split("\n") if x.startswith("|")]
+n_rows = [x.split("|") for x in table_doc.split("\n") if x.startswith("|")]
+must(len(o_rows) == len(n_rows), "表の文書の表の行の数が変わった")
+TBL_ENDS, TBL_EST = 0, 0
+for ro_, rn_ in zip(o_rows, n_rows):
+    must(len(ro_) == len(rn_), "表の文書の列の数が変わった")
+    for a_, b_ in zip(ro_, rn_):
+        if a_ == b_:
+            continue
+        na_, nb_ = NUMRE.findall(a_), NUMRE.findall(b_)
+        must(len(na_) == 3 and len(nb_) == 3 and a_.strip()[-1] == b_.strip()[-1] and NUMRE.sub("#", a_) == NUMRE.sub("#", b_), f"表の文書の欄が，数の桁のほかで変わった：{a_} → {b_}")
+        if na_[0] != nb_[0]:
+            must(abs(float(na_[0])) == 1.0 and f"{float(nb_[0]):+.2f}" == na_[0], f"表の文書の差が変わった：{a_} → {b_}")
+            TBL_EST += 1
+        for x_, y_ in zip(na_[1:], nb_[1:]):
+            if x_ != y_:
+                must(x_ in ("+0.0", "-0.0") and abs(float(y_)) <= 0.05 and y_[0] == x_[0], f"表の文書の区間の端が変わった：{a_} → {b_}")   # 0.05 より 0 に近い値を 2 桁以上で書いた欄（丸めて 0.05 になる欄を含む）
+                TBL_ENDS += 1
+o_text = [x for x in OLD_TBL.split("\n") if not x.startswith("|")]
+n_text = [x for x in table_doc.split("\n") if not x.startswith("|")]
+TBL_NEW_LINES = [x for x in n_text if x not in o_text]
+must(all(x in n_text for x in o_text) and len(TBL_NEW_LINES) == 1 and TBL_NEW_LINES[0].startswith("- 数の桁："), f"表の文書の文の行が，桁の注のほかで変わった：{TBL_NEW_LINES}")
+must(TBL_ENDS > 0, "表の文書に，桁を足した区間の端が無い（文を直す）")
+
+# ---- 実験 21 の設計・台本・固定のファイル・起動の台本が，実験 20 の結果を開いた後に変わっていないこと（git の記録だけを見る．結果の置き場は開かない）
+D21 = ["DAI/docs/実験21_設計.md", "DAI/exp/dai21_eval5.py", "DAI/frozen/dai21_frozen.json", "DAI/run/dai21_eval5.sh"]
+D21_LAST = {f_: git("log", "-1", "--format=%h %ad", "--date=format:%Y-%m-%d %H:%M:%S", "--", f_).strip().split(" ", 1) for f_ in D21}
+must(all(len(v_) == 2 and v_[1] < "2026-11-15 03:21:00" for v_ in D21_LAST.values()) and git("status", "--porcelain", "--", *D21).strip() == "",
+     f"実験 21 の設計・台本・固定のファイルが，実験 20 の結果を開いた後に変わっている（文を直す）：{D21_LAST}")
+# 格子の点 12（n0 = ∞，β = 0）は積と同じ判定になる（設計 3 節）：単位の csv の UAR で確かめる
+must(GRID[12] == (float("inf"), 0.0, "eq") and GRID[14] == (float("inf"), 1.0, "eq"), "格子の点 12・14")
+P12_DEV = max(abs(float(UG[k_].at["M_F6_mix12", "uar_adj"]) - float(UG[k_].at["prod", "uar_adj"])) for k_ in UG)
+must(P12_DEV < 1e-9, f"格子の点 12 の UAR が積と違う：{P12_DEV:.2e}")
 
 # ================================================================== 文
 
@@ -626,11 +672,12 @@ def kjoin(xs) -> str:
 
 
 # ---- 冒頭
-w("# 実験 20（DAI-20．提案の手法の評価の回．4 コーパス）：結果の文の下書き（2026-11-15．第 1 版．照合の前）")
+w("# 実験 20（DAI-20．提案の手法の評価の回．4 コーパス）：結果の文の下書き（2026-11-15．第 1 版．照合の前．台帳と表の文書の直しを反映した）")
 w("")
 w("この文書は，台本 `DAI/docs/tools_pending/extract_dai20_text.py` が `results/dai20_eval/` の結果ファイルから数値を取り出して書き出した．"
   "結果ファイルから取る数値と表は，すべて台本が埋めた（手で写していない）．設計・点検の報告・台帳から引いた文は，引いた文が元の文書にあることを台本が確かめた．"
-  "文が言う数えと大小は，台本が結果ファイルと照らしてから書き出している．集計の点推定は，台本が単位の保存から別の書き方で作り直した値と照らした（0 節）．文を直すときは，台本の中の文を直して流し直す．")
+  "文が言う数えと大小は，台本が結果ファイルと照らしてから書き出している．集計の点推定は，台本が単位の保存から別の書き方で作り直した値と照らした（0 節）．文を直すときは，台本の中の文を直して流し直す．"
+  "最初に書き出した後に，本体が台帳（計算の後の解析の行）と表の文書（区間の端と差の桁）を直した．この版は，その直しを反映して書き出し直した第 1 版である（6 節）．")
 w("")
 w("値は UAR（4 感情の再現率の平均．%．でたらめに答えると 25%）で，差はすべて UAR の点の差である．角かっこは 95% 区間で，補正していない．")
 w("")
@@ -708,40 +755,49 @@ w(f"- **この台本の照合**（どれも読むだけ．CPU）：(a) 集計の
   "(c) 選び方の 3 通りの点（固定の点，ほかの 3 コーパスで選んだ点，自分のテストで最良の点）を単位の csv から選び直し，`grid_levels.csv` の印と同じ点になった．"
   "(d) 表の印（↑・↓）を設計 5 節の文から作り直し，`effects.csv` と計算の後の解析の出力の全行で印の列と一致した．"
   f"(e) 計算の後の解析の「全体」（切片をずらした答えどうし）{n_tot} 行は，集計の「版 − 積」の点推定と区間の両端に一致した（ずれの最大 {sci(PH_DEV_TOT)}）．"
-  "(f) 表の文書は，今の集計から書き出し直した表と 1 字も違わない．区間（両端と標準誤差）は，この台本では作り直していない（点検の報告が水準 8 個と差 11 個を作り直して一致を報告している）．")
+  "(f) 表の文書は，今の集計から書き出し直した表と 1 字も違わない．桁を足す前の版から変わった値は，区間の端と差の桁だけである（2.1 節）．区間（両端と標準誤差）は，この台本では作り直していない（点検の報告が水準 8 個と差 11 個を作り直して一致を報告している）．")
 LQ_OPEN = quote(ROW20, "本体が結果を開いたのは点検の後の 2026-11-15 03:21", "台帳の DAI-20 の行")
 LQ_TBL = quote(ROW20, "`DAI/docs/tools_pending/md_tables_dai20.py` で `DAI/docs/実験20_結果の表_2026-11-15.md` を書き出して読んだ", "台帳の DAI-20 の行")
-MT_OK = mtime(CK / "code_post.md") < mtime(TABLE_DOC) and mtime(TABLE_DOC).startswith("2026-11-15 03:21")   # ファイルの更新時刻は，後で書き出し直すと変わるので，合うときだけ書く
-w(f"- **結果を開いた時刻**：台帳の DAI-20 の行は「{LQ_OPEN}（{LQ_TBL}）」と書いている．"
-  + (f"点検の報告の最後の書き込みは {mtime(CK / 'code_post.md')[11:]}，表の文書の書き込みは {mtime(TABLE_DOC)[11:]} である（ファイルの更新時刻）．" if MT_OK else ""))
-w(f"- **照合の前に値を使った先**：照合（関門 2）の前に，この結果の値は次の場所で使われている．(1) 表の文書 `DAI/docs/実験20_結果の表_2026-11-15.md`（sha256 {sha(TABLE_DOC)[:8]}…．書き出しの台本 `md_tables_dai20.py`）．"
-  f"(2) 計算の後の解析（下の項．{phprov['time'][11:]}）．集計の `levels.csv`・`effects.csv`・`grid_levels.csv` を照合と点の対応に読む．"
-  "台帳の DAI-20 の行に書いてある使い先は (1) だけである．本体のセッションが研究者に口頭で伝えた値など，ファイルに残らない使い先は，この台本からは確かめられない（照合の前に本体が書き足す）．")
+w(f"- **結果を開いた時刻**：台帳の DAI-20 の行は「{LQ_OPEN}（{LQ_TBL}）」と書いている．")
+LQ21 = quote(ROW21, "実験 20 の結果を開いたのは起動の後の 03:21 である．", "台帳の DAI-21 の行")
+w(f"- **照合の前に値を使った先**：照合（関門 2）の前に，この結果の値は次の場所で使われている．"
+  f"(1) 表の文書 `DAI/docs/実験20_結果の表_2026-11-15.md`（sha256 {sha(TABLE_DOC)[:8]}…．書き出しの台本 `md_tables_dai20.py`．03:21 に書き出し，その後に桁を足して書き出し直した．2.1 節）．"
+  "(2) 計算の後の解析（下の項）．集計の `levels.csv`・`effects.csv`・`grid_levels.csv` を照合と点の対応に読む．"
+  "(3) 2026-11-15 03:25 ごろ，本体が研究者へ会話で主な値を報告した（提案の手法 − 積，別のまとめ方との比べ，部品ごとの寄与，学び直した分類器との比べ）．"
+  "(4) 03:40 ごろ，本体が研究者へ会話で切片の分と向きの分の値を報告した．"
+  "(5) 本体の作業の覚え書き（memory の `dai20-eval-run-2026-11-14.md`）に要点の値を書いた．"
+  "(3)〜(5) は本体のセッションの申告で，この台本からは確かめられない．"
+  "実験 21（DAI-21）の設計・台本・固定のファイル・起動の台本は，実験 20 の結果を開いた後に変わっていない．最後のコミットは，"
+  + "，".join(f"`{f_.rsplit('/', 1)[1]}` が {v_[0]}（{v_[1][5:16]}）" for f_, v_ in D21_LAST.items())
+  + f" で，どれも 2026-11-15 03:21 より前であり，作業ツリーにも変更が無い（この台本が git の記録で確かめた）．台帳の DAI-21 の行は「{LQ21}」と書いている．")
 LQ_PHDEF = quote(ROWPH, "定義（向きの分 ＝ 候補の全ラベルに合わせた切片を両方に足した答えどうしの差．切片の分 ＝ 全体 − 向きの分）と版の対応は，実験 20 の結果を開く前に台本として決めた", "台帳の計算の後の解析の行")
-LQ_PHWHY = quote(ROWPH, "研究者の決定（論文の 10 節に，前半の解析の道具を使った解析を入れる）による．結果は探索の解析として扱う．", "台帳の計算の後の解析の行")
-QUOTED.extend([PH_ROW_TIME, PH_ROW_CHECK])
-LEDGER_NOTES = []
-if LEDGER_TIME_BAD:
-    LEDGER_NOTES.append(f"台帳の行は「{PH_ROW_TIME}」と書くが，出力の記録の時刻は {phprov['time'][11:]} である．この文書は出力の記録の時刻を採る")
-if LEDGER_CHECK_BAD:
-    LEDGER_NOTES.append(f"台帳の行は「{PH_ROW_CHECK}」と書くが，`code_post_tools_v2.md` が検査した台本の sha256 は {PH_SHAS[PH_CHECKED[0]][:8]}…（コミット {PH_CHECKED[0]}）である")
+NOTE_PAPER = (ROOT / "DAI" / "docs" / "論文のセッションへの伝言_2026-11-14.md").read_text()
+must("## 1. 研究者が決めたこと（今日）" in NOTE_PAPER, "論文のセッションへの伝言の 1 節")
+NQ1 = quote(NOTE_PAPER, "10 節に，前半の解析の道具を使った解析を入れる．", "論文のセッションへの伝言の 1 節の 3")
+NQ2 = quote(NOTE_PAPER, "(a) 提案の gain を「切片の分」と「向きの分」に分ける．", "論文のセッションへの伝言の 1 節の 3")
+must(f"3. **{NQ1}**{NQ2}" in NOTE_PAPER, "論文のセッションへの伝言の 1 節の 3 の文")
+TB_NOTE = ("1 回目は検査の記録の直し，2 回目は区間の端と差に桁を足す直しである．" if TB_AFTER == ["7b0de5e", "73fd3aa"] else "")
 w(f"- **計算の後の解析（切片の分と向きの分）**：設計の文書に無い解析で，**探索の解析として扱う**．台本は `DAI/docs/tools_pending/dai20_posthoc_intercept.py`（冒頭に定義），出力は `results/dai20_eval/posthoc/`．"
-  f"台帳の行は「{LQ_PHDEF}」「{LQ_PHWHY}」と書いている．台本の 3 つのコミット（{'，'.join(f'{h_} {t_[5:16]}' for h_, t_ in reversed(PH_COMMITS))}）は，どれも計算の終わり（{done[5:16]}）より前である．"
-  f"出力の記録（`intercept_provenance.json`）では，流した時刻は {phprov['time']}，HEAD は {phprov['commit'][:7]}，dirty は偽，台本の sha256 は {phprov['script_sha256'][:8]}…（今の台本と同じで，コミット {PH_LAST} の台本と同じ）である．"
-  "結果を開いた時刻（03:21）より後に流している．"
-  f"**検査**：`code_post_tools.md`（コミット {PH_FIRST} の版．判定は「直してから進む」）の指摘を直した版（コミット {PH_CHECKED[0]}．sha256 {PH_SHAS[PH_CHECKED[0]][:8]}…）を `code_post_tools_v2.md` が検査し，判定は「通す」（記録 {N_TOOL_REC} 件）だった．"
-  f"**流した台本（コミット {PH_LAST}．sha256 {phprov['script_sha256'][:8]}…）は，その検査の記録（{N_TOOL_REC} 件．うち {N_TOOL_REC_PH} 件がこの台本，1 件が表の台本）の直しを入れた後の版で，直しを入れた後の版は gate-code の再検査を受けていない**．"
-  "表の文書を書き出した `md_tables_dai20.py` も同じで，今の版は `code_post_tools_v2.md` が検査した版に記録の直しを入れた後の版である．"
-  + (f"**台帳との食い違いが {len(LEDGER_NOTES)} つある**（台帳の直しが要る）．" + "".join(f"({'i' * (j_ + 1)}) {x_}．" for j_, x_ in enumerate(LEDGER_NOTES)) if LEDGER_NOTES else "")
-  + f"台本の中の照合（出力の記録）：足し合わせ「全体 ＝ 切片の分 ＋ 向きの分」のずれの最大 {sci(phprov['additivity_dev_max'])}，集計の水準 {phprov['levels_vs_summary']['n']} 行とのずれの最大 {sci(phprov['levels_vs_summary']['dev_max'])}，"
+  f"この解析を入れることは研究者が決めた．研究者が 2026-11-14 の夜に決めたことの記録（`DAI/docs/論文のセッションへの伝言_2026-11-14.md` の 1 節の 3）に「{NQ1}{NQ2}」とある．"
+  f"台帳の行は「{LQ_PHDEF}」と書いている．台本の 3 つのコミット（{'，'.join(f'{h_} {t_[5:16]}' for h_, t_ in reversed(PH_COMMITS))}）は，どれも計算の終わり（{done[5:16]}）より前である．"
+  f"**検査と起動**：`code_post_tools.md`（コミット {PH_FIRST} の版．判定は「直してから進む」）の指摘を直した版（コミット {PH_CHECKED[0]}．sha256 {PH_SHAS[PH_CHECKED[0]][:8]}…）を `code_post_tools_v2.md` が検査し，"
+  f"判定は「通す」（記録 {N_TOOL_REC} 件．うち {N_TOOL_REC_PH} 件がこの台本，1 件が表の台本）だった．"
+  f"**流した台本は，その記録の直しを入れた後の版（コミット {PH_LAST}．sha256 {phprov['script_sha256'][:8]}…．今の台本と同じ）である**．台帳の行は「{LQ_PHRUN}」{f'「{LQ_PHRE}」' if LQ_PHRE else ''}と書いている．"
+  f"出力の記録（`intercept_provenance.json`）では，書いた時刻は {phprov['time']}，HEAD は {phprov['commit'][:7]}，dirty は偽である．台帳の起動の時刻（03:21）は，結果を開いた時刻（03:21）と同じ分である．"
+  f"**{V3_TEXT}**．"
+  f"表の文書を書き出した `md_tables_dai20.py`（今の sha256 {sha(TABLES_PY)[:8]}…．コミット {TB_COMMITS[0][0]}）は，`code_post_tools_v2.md` が検査した版（コミット {TB_CHECKED[0]}）の後に {len(TB_AFTER)} 回直してある"
+  f"（コミット {'・'.join(TB_AFTER)}）．{TB_NOTE}"
+  + ("今の版は，再検査の報告が対象に挙げた版である．" if "今の表の台本" in V3_COVERS else "")
+  + "この台本は，表の文書が今の集計から書き出し直した表と同じことと，桁を足す前の版から変わった値が区間の端と差の桁だけであることを確かめた（2.1 節）．"
+  f"台本の中の照合（出力の記録）：足し合わせ「全体 ＝ 切片の分 ＋ 向きの分」のずれの最大 {sci(phprov['additivity_dev_max'])}，集計の水準 {phprov['levels_vs_summary']['n']} 行とのずれの最大 {sci(phprov['levels_vs_summary']['dev_max'])}，"
   f"集計の差 {phprov['total_vs_summary']['n']} 行との点推定のずれの最大 {sci(phprov['total_vs_summary']['est_dev_max'])}・区間の端のずれの最大 {sci(phprov['total_vs_summary']['ci_dev_max'])}．")
 w("")
 w("**申告**（設計 0・3・4・5・9・10 節が求めるもの．冒頭の 4 項に加えて）：")
 w("")
 DQ_BODY = quote(design, "比べる相手 A の中身（4 節の表の 2〜9 行目），提案の部品を外した版（5 節），K = 10 も流すこと，実験 1 の 5 つの比較手法との対の差を出すこと", "設計 0 節")
 DQ_BODY0 = quote(design, "研究者の明示の確認を経ていない．検査の指摘で足したものを含む", "設計 0 節")
-w(f"- **本体が決めたこと**（{DQ_BODY0}）：{DQ_BODY}（設計 0 節）．計算の後の解析（切片の分と向きの分）の定義と版の対応も本体が決めた"
-  "（台帳の行は，この解析が研究者の決定「論文の 10 節に，前半の解析の道具を使った解析を入れる」によると書いている）．")
+w(f"- **本体が決めたこと**（{DQ_BODY0}）：{DQ_BODY}（設計 0 節）．計算の後の解析（切片の分と向きの分）は，研究者が入れると決めた解析で，"
+  "定義（向きの分を測るのに，候補の全ラベルに合わせた切片の判定を使うこと）と版の対応は，本体が台本として決めた．")
 must(quote(dai_rules, "手法は評価に使ったのと同じ 4 コーパスの上で作った", "DAI/CLAUDE.md") != "", "")
 DQ_SEL1 = quote(design, "下調べの全体（約 200 の版を，この実験と同じテストの発話の上で比べた）", "設計 4 節")
 DQ_SEL2 = quote(design, "T を含まない下調べの 30 単位のテスト", "設計 4 節")
@@ -814,6 +870,9 @@ w("")
 # ---- 1 節
 w("## 1. 要点")
 w("")
+w("この節は，区間が 0 を含まない条件と，点推定が負の条件を，名前と値で書く．区間が 0 を含み点推定が正の条件は，名前だけを書く．12 条件の全部の値は，表の文書と 2 節の表にある．"
+  "条件の名前は「コーパスの K」で書く．条件の数を数えて主張にはしない．")
+w("")
 w("### 提案の手法と積の UAR（切片をずらした答え．50 単位）")
 w("")
 w("| コーパス | K | 提案の手法 | 積 | 提案の手法 − 積 |")
@@ -828,16 +887,18 @@ must(G1["pp"] == [("AFEW", K) for K in KS] and not G1["n"] and not G1["nn"] and 
 REST9 = [k_ for k_ in ALL12 if k_[0] != "AFEW"]
 E9 = [q("prop", "prod", c, K).est for c, K in REST9]
 must(all(abs(x) < FLOOR for x in E9), "AFEW 以外の差が 1.0 点以上")
+Z1NEG = [k_ for k_ in G1["z"] if q("prop", "prod", *k_).est < 0]
 w(f"1. **提案の手法 − 積（どちらも切片をずらした答え）は，AFEW では 3 つの K とも区間が 0 を含まず 1.0 点以上で（{vals(G1['pp'], eget('prop', 'prod'))}），"
   f"IEMOCAP・MOSEI・MELD の 9 条件では点推定が {fest(min(E9))}〜{fest(max(E9))} 点で 1.0 点に届かなかった**．"
-  f"9 条件のうち，区間が 0 を含まない条件は {by_corpus(G1['p'])}（{vals(G1['p'], eget('prop', 'prod'))}）で，"
-  f"区間が 0 を含む条件は {by_corpus(G1['z'])}（{vals(G1['z'], eget('prop', 'prod'))}）である．")
-w(f"   - **切片をずらす前どうし**（`prop@raw − prod@raw`）：{read3(eget('prop@raw', 'prod@raw'))}")
-w(f"   - **提案の手法の中の，切片をずらした答え − ずらす前**（`prop − prop@raw`）：{read3(eget('prop', 'prop@raw'))}")
+  f"9 条件のうち，区間が 0 を含まない条件は {vals(G1['p'], eget('prop', 'prod'))} である．"
+  f"区間が 0 を含む条件は {by_corpus(G1['z'])} で，"
+  + (f"このうち点推定が負の条件は {vals(Z1NEG, eget('prop', 'prod'))} である．" if Z1NEG else "点推定はどれも正である．"))
+w(f"   - **切片をずらす前どうし**（`prop@raw − prod@raw`）：{read_short(eget('prop@raw', 'prod@raw'))}")
+w(f"   - **提案の手法の中の，切片をずらした答え − ずらす前**（`prop − prop@raw`）：{read_short(eget('prop', 'prop@raw'))}")
 w(f"   - **K 本の引き方で分けた値**（どちらも切片をずらした答え）：引き方 0・1 は下調べと同じ K 本（コーパスごとに {NFR['0-1'][0]} 単位），引き方 2〜9 は下調べと違う K 本（{NFR['2-9'][0]} 単位）である．"
   "テストの発話は，どちらも下調べと同じ発話である．2 つは同じテストの上の値で，独立な 2 回の測定ではない．MOSEI の引き方 0・1 の区間は狭めに出る（0 節）．")
-w(f"      - 引き方 0・1：{read3(eget('prop', 'prod', '0-1'))}")
-w(f"      - 引き方 2〜9：{read3(eget('prop', 'prod', '2-9'))}")
+w(f"      - 引き方 0・1：{read_short(eget('prop', 'prod', '0-1'))}")
+w(f"      - 引き方 2〜9：{read_short(eget('prop', 'prod', '2-9'))}")
 EXPECT = {"AFEW": (2.0, 3.0), "IEMOCAP": (0.0, 1.0), "MOSEI": (0.0, 1.0), "MELD": (0.0, 1.0)}
 IN_ = [k_ for k_ in ALL12 if EXPECT[k_[0]][0] <= q("prop", "prod", *k_).est <= EXPECT[k_[0]][1]]
 ABOVE = [k_ for k_ in ALL12 if q("prop", "prod", *k_).est > EXPECT[k_[0]][1]]
@@ -870,7 +931,6 @@ w("")
 NEG_ADJ = [(v, c, K) for v in A_OPP for c, K in ALL12 if klass(q("prop", v, c, K)) in ("n", "nn")]
 must(NEG_ADJ == [("tcal", "AFEW", 5)], f"切片をずらした答えどうしで，区間が 0 を含まずに提案の手法が低い条件：{NEG_ADJ}")
 ZNEG1 = [(v, c, K) for v in A_OPP for c, K in ALL12 if klass(q("prop", v, c, K)) == "z" and q("prop", v, c, K).est <= -FLOOR]
-ZPOS1 = [(v, c, K) for v in A_OPP for c, K in ALL12 if klass(q("prop", v, c, K)) == "z" and q("prop", v, c, K).est >= FLOOR]
 must(ZNEG1 and all(c == "AFEW" for _, c, _ in ZNEG1), f"区間が 0 を含み点推定が −1.0 点以下の条件：{ZNEG1}")
 
 
@@ -883,11 +943,10 @@ def opp_vals(triples, a_of=lambda v: "prop", b_of=lambda v: v) -> str:
     return "；".join(out)
 
 
-w(f"2. **提案の手法 − 別のまとめ方（比べる相手 A のうち積を除く 12 個．どちらも切片をずらした答え）は，相手とコーパスで符号と区間の読みが違う**．"
+w(f"2. **提案の手法 − 別のまとめ方（比べる相手 A のうち積を除く 12 個．どちらも切片をずらした答え）は，相手とコーパスで符号と区間の読みが違う**．差は「提案の手法 − 相手」で，負の値は提案の手法の UAR が低いことを表す．"
   f"**区間が 0 を含まずに提案の手法が低かった条件は 1 つで，{opp_vals(NEG_ADJ)} である**．"
   f"区間が 0 を含み，点推定が −1.0 点以下の条件は，どれも AFEW にある（{opp_vals(ZNEG1)}）．"
-  f"区間が 0 を含み，点推定が +1.0 点以上の条件は，{opp_vals(ZPOS1)} である．"
-  "相手ごとの 12 条件の値を下に並べる．読みの一覧は 2.2 節，UAR は表の文書の 2 節にある．相手のうち 3 つとの差は提案の手法に有利な向きに偏る（0 節）．")
+  "相手ごとの読みを下に並べる．12 条件の値と UAR は表の文書の 2 節，読みの一覧は 2.2 節にある．相手のうち 3 つとの差は提案の手法に有利な向きに偏る（0 節）．")
 for K in KS:
     must(abs(q("prop", "psel", "AFEW", K).est - q("prop", "prod", "AFEW", K).est) < 1e-12 and level("psel", "AFEW", K).same_as == "prod", f"AFEW の psel と積 K={K}")
     must(all(level("psel", c, K).same_as != "prod" for c in C4[1:]), f"AFEW 以外の psel と積 K={K}")
@@ -909,7 +968,7 @@ NOTE_A = {
     "conf": f"確信度で重みづける後段の融合の型で，{DQ_CONF}（設計 4 節）．",
 }
 for v in A_OPP:
-    w(f"   - **{nmc(v)}**：{read3(eget('prop', v))}" + (NOTE_A[v] if v in NOTE_A else ""))
+    w(f"   - **{nmc(v)}**：{read_short(eget('prop', v))}" + (NOTE_A[v] if v in NOTE_A else ""))
 NEG_RAW = [(v, c, K) for v in A_OPP for c, K in ALL12 if klass(q("prop@raw", f"{v}@raw", c, K)) in ("n", "nn")]
 NEG_MIX = [(v, c, K) for v in A_OPP for c, K in ALL12 if klass(q("prop", f"{v}@raw", c, K)) in ("n", "nn")]
 must(len(NEG_RAW) == 4 and len(NEG_MIX) == 1, f"切片をずらす前の相手との差で，区間が 0 を含まずに提案の手法が低い条件：{NEG_RAW}，{NEG_MIX}")
@@ -920,83 +979,100 @@ w(f"   - **提案の手法（切片をずらした答え）− 相手（切片�
   f"{opp_vals(NEG_MIX, lambda v: 'prop', lambda v: v + '@raw')} である．")
 w("   - **相手 − 積**（切片をずらした答えどうし）の読みの一覧は 2.3 節にある．")
 
-# 部品を 1 つ外した版
+# 部品を 1 つ外した版（設計 5 節の表の名前で，差ごとに書く）
 for c, K in ALL12:
     for sn in ("all", "0-1", "2-9"):
         t_ = q("prop", "prod", c, K, sn).est
         must(abs(t_ - q("prop", "prop_noprof", c, K, sn).est - q("prop_noprof", "prod", c, K, sn).est) < 1e-9, f"先に相性を外す順序の足し算 {c} K={K} {sn}")
         must(abs(t_ - q("prop", "prop_levelfree", c, K, sn).est - q("prop_levelfree", "prod", c, K, sn).est) < 1e-9, f"先に水準を外す順序の足し算 {c} K={K} {sn}")
-        must(abs(q("prop", "prop_noprof", c, K, sn).est - q("prop", "prop_noint", c, K, sn).est - q("prop_noint", "prop_noprof", c, K, sn).est) < 1e-9, f"行の中の差を使った分の足し算 {c} K={K} {sn}")
+        must(abs(q("prop", "prop_noprof", c, K, sn).est - q("prop", "prop_noint", c, K, sn).est - q("prop_noint", "prop_noprof", c, K, sn).est) < 1e-9, f"提案の手法 − 相性を外すの足し算 {c} K={K} {sn}")
 AF = [("AFEW", K) for K in KS]
 MO = [("MOSEI", K) for K in KS]
-must(all(klass(q("prop_noprof", "prod", *k_)) == "pp" and klass(q("prop", "prop_levelfree", *k_)) == "pp" for k_ in AF), "AFEW の水準に関わる項")
-AF_PROF = [q("prop", "prop_noprof", *k_).est for k_ in AF] + [q("prop_levelfree", "prod", *k_).est for k_ in AF]
-must(all(0 < x <= 0.6 for x in AF_PROF), "AFEW の相性に関わる項")
-must(all(q("prop_noprof", "prod", *k_).est < 0 and q("prop", "prop_levelfree", *k_).est < 0 for k_ in MO), "MOSEI の水準に関わる項の符号")
-must(all(klass(q("prop", "prop_noprof", *k_)) == "p" and klass(q("prop_levelfree", "prod", *k_)) == "p" for k_ in MO), "MOSEI の相性に関わる項")
-EN = [q("prop", "prop_noprof", *k_).est for k_ in ALL12]
-must(all(0 < x < FLOOR for x in EN), "行の中の差を使った分の符号と大きさ")
+P_NP, NP_PD, P_LF, LF_PD = eget("prop", "prop_noprof"), eget("prop_noprof", "prod"), eget("prop", "prop_levelfree"), eget("prop_levelfree", "prod")
+must(all(klass(NP_PD(*k_)) == "pp" and klass(P_LF(*k_)) == "pp" for k_ in AF), "AFEW の「相性を外す − 積」と「提案の手法 − 水準の違いを外す」")
+AF_SMALL = [P_NP(*k_).est for k_ in AF] + [LF_PD(*k_).est for k_ in AF]
+must(all(0 < x <= 0.6 for x in AF_SMALL), "AFEW の「提案の手法 − 相性を外す」と「水準の違いを外す − 積」")
+must(all(NP_PD(*k_).est < 0 and P_LF(*k_).est < 0 for k_ in MO), "MOSEI の「相性を外す − 積」と「提案の手法 − 水準の違いを外す」の符号")
+must(all(klass(P_NP(*k_)) == "p" and klass(LF_PD(*k_)) == "p" for k_ in MO), "MOSEI の「提案の手法 − 相性を外す」と「水準の違いを外す − 積」")
+EN = [P_NP(*k_).est for k_ in ALL12]
+must(all(0 < x < FLOOR for x in EN), "提案の手法 − 相性を外すの符号と大きさ")
+N20_EQ = [k_ for k_ in N0_20 if FZ[k_]["prior"] == "eq"]
+must(sorted(N20_EQ + PRIOR_EXT) == sorted(N0_20) and N20_EQ and PRIOR_EXT, "n0 = 20 の条件の戻し先")
 DQ_ORDER = quote(design, "重みは max(0, 水準 ＋ 相性) で作るので", "設計 5 節")
-w(f"3. **提案の手法 − 積を，設計 5 節の 2 つの順序で分けた**（2.4 節の表．{DQ_ORDER}，2 つの部品の寄与は足し算にならず，外す順序で値が変わる．単位ごとの足し算は，どちらの順序でも成り立つ）．"
-  f"**AFEW では，どちらの順序でも，水準に関わる項が 3 つの K とも区間が 0 を含まず 1.0 点以上で（水準の分 {kjoin(fest(q('prop_noprof', 'prod', *k_).est) for k_ in AF)}，"
-  f"分類器どうしの水準の違いの分 {kjoin(fest(q('prop', 'prop_levelfree', *k_).est) for k_ in AF)}），相性に関わる項の点推定は {fest(min(AF_PROF))}〜{fest(max(AF_PROF))} 点だった**．"
-  f"**MOSEI では，水準に関わる項の点推定が 3 つの K とも負で（水準の分 {kjoin(fest(q('prop_noprof', 'prod', *k_).est) for k_ in MO)}，"
-  f"分類器どうしの水準の違いの分 {kjoin(fest(q('prop', 'prop_levelfree', *k_).est) for k_ in MO)}），相性に関わる項は 3 つの K とも区間が 0 を含まず正で 1.0 点未満だった**"
-  f"（行の中の差を使った分 {kjoin(fest(q('prop', 'prop_noprof', *k_).est) for k_ in MO)}，水準の違いを外した版 − 積 {kjoin(fest(q('prop_levelfree', 'prod', *k_).est) for k_ in MO)}）．"
-  "ここで「水準に関わる項」は，先に相性を外す順序の「水準の分」と，先に水準を外す順序の「分類器どうしの水準の違いの分」を指す．"
-  "「相性に関わる項」は，先に相性を外す順序の「行の中の差を使った分」と，先に水準を外す順序の「水準の違いを外した版 − 積」を指す．項ごとの 12 条件の値は次のとおりである．")
-w(f"   - **行の中の差を使った分**（提案の手法 − {nmc('prop_noprof')}．β だけが違う．どの分類器にも共通の感情ごとの成分を含む）：12 条件とも点推定は正で 1.0 点未満である（{fest(min(EN))}〜{fest(max(EN))}）．"
-  f"{read3(eget('prop', 'prop_noprof'))}")
-w(f"   - **水準の分**（相性を外す − 積．先に相性を外す順序の後ろの項）：{read3(eget('prop_noprof', 'prod'))}"
-  f"固定の点が n0 = 20 の条件（{by_corpus(N0_20)}）では，K 本で測った水準を戻し先へ寄せた水準が入る．戻し先が ext の条件（{by_corpus(PRIOR_EXT)}）では，ソースで測った水準が重み n0 ÷ (n ＋ n0)（K = 5 で 0.5，K = 10 で 1/3）で入る（設計 5 節）．")
-w(f"   - **分類器 × 感情の成分の分**（提案の手法 − {nmc('prop_noint')}．同じ格子の点で，重みの表からこの成分だけを消した対照との差）：{read3(eget('prop', 'prop_noint'))}")
-w(f"   - **当てはめに残る成分の分**（分類器 × 感情の成分を消す − 相性を外す．どの分類器にも共通の感情ごとの倍率，水準と感情の掛け算の項，重みを 0 に切ったときに生じる水準の違い．設計 5 節）：{read3(eget('prop_noint', 'prop_noprof'))}")
-w(f"   - **分類器どうしの水準の違いの分**（提案の手法 − {nmc('prop_levelfree')}．先に水準を外す順序の前の項．相性を使ったうえでの値）：{read3(eget('prop', 'prop_levelfree'))}"
-  "この対照は格子の点 14（n0 = ∞，β = 1，eq）で，3 つの水準を K 本で測った水準の平均にそろえる．K 本の水準の平均は残るので，この対照も K 本を使う（設計 5 節）．"
-  f"戻し先が ext の条件（{by_corpus(PRIOR_EXT)}）では，提案の手法の水準にソースで測った水準が入るので，この差は，K 本で測った水準の違いだけによる差ではない．")
-w(f"   - **水準の違いを外した版 − 積**（先に水準を外す順序の後ろの項．設計 5 節の読み方では，水準の違いなしでの相性の分）：{read3(eget('prop_levelfree', 'prod'))}")
+DQ_P12 = quote(design, "格子の点 12（n0 = ∞，β = 0）は積と同じ判定になる", "設計 3 節")
+
+
+def k3(get, ks) -> str:
+    return kjoin(fest(get(*k_).est) for k_ in ks)
+
+
+w("3. **提案の手法 − 積を，設計 5 節の 2 つの順序で分けた**（2.4 節の表）．先に相性を外す順序は，提案の手法 − 積 ＝（提案の手法 − 相性を外す）＋（相性を外す − 積）である．"
+  "先に水準を外す順序は，提案の手法 − 積 ＝（提案の手法 − 水準の違いを外す）＋（水準の違いを外す − 積）である．"
+  f"{DQ_ORDER}，2 つの部品の寄与は足し算にならず，外す順序で値が変わる（設計 5 節）．点推定は，どちらの順序でも，2 つの差を足すと提案の手法 − 積になる（台本が確かめた）．"
+  f"**AFEW では，「相性を外す − 積」と「提案の手法 − 水準の違いを外す」が，3 つの K とも区間が 0 を含まず 1.0 点以上だった**（順に {k3(NP_PD, AF)} と {k3(P_LF, AF)}）．"
+  f"AFEW の「提案の手法 − 相性を外す」と「水準の違いを外す − 積」の点推定は {fest(min(AF_SMALL))}〜{fest(max(AF_SMALL))} 点だった．"
+  f"**MOSEI では，「相性を外す − 積」と「提案の手法 − 水準の違いを外す」の点推定が 3 つの K とも負で（順に {k3(NP_PD, MO)} と {k3(P_LF, MO)}），"
+  f"「提案の手法 − 相性を外す」と「水準の違いを外す − 積」は 3 つの K とも区間が 0 を含まず正で 1.0 点未満だった**（順に {k3(P_NP, MO)} と {k3(LF_PD, MO)}）．"
+  "差ごとの読みを下に並べる．かぎかっこの名前は設計 5 節の表の名前である．両側の違いが 1 つの部品だけでない条件には設計の名前を使わず，何が重なっているかを書く．")
+w(f"   - **提案の手法 − {nmc('prop_noprof')}**（設計 5 節の名前は「行の中の差を使った分」．どの分類器にも共通の感情ごとの成分を含む．12 条件とも，両側の違いは β だけである）："
+  f"12 条件とも点推定は正で 1.0 点未満である（{fest(min(EN))}〜{fest(max(EN))}）．{read_short(P_NP)}")
+w(f"   - **相性を外す − 積**（先に相性を外す順序の後ろの差）：固定の点が n0 = 0 の {len(N0_0)} 条件（{by_corpus(N0_0)}）では，相性を外した版は K 本で測った水準だけで重みを決める版（水準だけの重みと同じ判定）で，"
+  f"この差は設計 5 節の「水準の分」である．{read_short(NP_PD, N0_0)}"
+  f"固定の点が n0 = 20 の {len(N0_20)} 条件では，相性を外した版は，K 本で測った水準を戻し先へ寄せた水準を使う．この差には，K 本の水準と戻し先が重なっている．"
+  f"戻し先が 3 つの分類器の平均の条件は {vals(N20_EQ, NP_PD)} である．"
+  f"戻し先がソースで測った水準の条件（ソースの水準の重みは n0 ÷ (n ＋ n0)．K = 5 で 0.5，K = 10 で 1/3．設計 5 節）は {vals(PRIOR_EXT, NP_PD)} である．")
+w(f"   - **提案の手法 − {nmc('prop_noint')}**（設計 5 節の名前は「分類器 × 感情の成分の分」．12 条件とも同じ格子の点で，重みの表からこの成分だけを消した対照との差）：{read_short(eget('prop', 'prop_noint'))}")
+w(f"   - **分類器 × 感情の成分を消す − 相性を外す**（設計 5 節の名前は「当てはめに残る成分の分」．中身は，どの分類器にも共通の感情ごとの倍率，水準と感情の掛け算の項，重みを 0 に切ったときに生じる水準の違いである）："
+  f"{read_short(eget('prop_noint', 'prop_noprof'))}")
+w(f"   - **提案の手法 − {nmc('prop_levelfree')}**（先に水準を外す順序の前の差）：対照は格子の点 14（n0 = ∞，β = 1，eq）で，3 つの水準を K 本で測った水準の平均にそろえ，相性はソースから取る．"
+  "K 本の水準の平均は残るので，この対照も K 本を使う（設計 5 節）．"
+  f"固定の点が n0 = 0 の {len(N0_0)} 条件では，両側の違いは，分類器ごとの水準を K 本の値のまま使うか，平均にそろえるかだけで，この差は設計 5 節の「相性を使ったうえでの，分類器どうしの水準の違いの分」である．{read_short(P_LF, N0_0)}"
+  f"固定の点が n0 = 20 の {len(N0_20)} 条件では，提案の手法の水準が戻し先へ寄せてある．戻し先が 3 つの分類器の平均の条件は，水準の違いをラベル 20 本ぶんの強さで平均へ寄せた版と，平均にそろえた版の差で，{vals(N20_EQ, P_LF)} である．"
+  f"戻し先がソースで測った水準の条件は，K 本の水準の違いとソースの水準の違いが重なった差で，{vals(PRIOR_EXT, P_LF)} である．")
+w(f"   - **水準の違いを外す − 積**（先に水準を外す順序の後ろの差．設計 5 節の名前は「水準の違いなしでの相性の分」）：12 条件とも，両側は格子の点 14 と，積と同じ判定になる点 12 で（設計 3 節：「{DQ_P12}」），違いは β だけである．"
+  f"{read_short(LF_PD)}")
 must(sorted(NPSEL_DIFF) == sorted([("AFEW", 25), ("MELD", 10), ("MELD", 25)]), f"相性を外す点を選び直すと違う点になる条件：{NPSEL_DIFF}")
 w(f"   - **提案の手法 − {nmc('prop_noprof_sel')}**（相性を使わない 8 点から，提案の手法と同じ規則で下調べが選んだ点との差）：選び直した点が，同じ n0・戻し先で β = 0 の点と違う条件は {by_corpus(NPSEL_DIFF)} である．"
-  f"この 3 条件の差には，β の違いと n0・戻し先の違いが重なっているので，行の中の差を使った分とは読まない．値は {vals(NPSEL_DIFF, eget('prop', 'prop_noprof_sel'))} である．残る 9 条件は上の「行の中の差を使った分」と同じ点である．")
-N0Z = [q("prop", "prop_n0zero", *k_) for k_ in N0_20]
-must(all(x.est < 0 for x in N0Z) and all(klass(q("prop", "prop_n0zero", *k_)) == "same" for k_ in N0_0), "水準を戻さない版との差")
+  f"この 3 条件の差には，β の違いと n0・戻し先の違いが重なっている．値は {vals(NPSEL_DIFF, eget('prop', 'prop_noprof_sel'))} である．残る 9 条件は「提案の手法 − 相性を外す」と同じ点である．")
+must(all(q("prop", "prop_n0zero", *k_).est < 0 for k_ in N0_20) and all(klass(q("prop", "prop_n0zero", *k_)) == "same" for k_ in N0_0), "水準を戻さない版との差")
 w(f"   - **提案の手法 − {nmc('prop_n0zero')}**（同じ β・戻し先で n0 = 0 の点との差）：固定の点が n0 = 20 の 4 条件だけで差が出る．4 条件とも点推定は負である（{vals(N0_20, eget('prop', 'prop_n0zero'))}）．"
   f"残る {len(N0_0)} 条件は同じ点である．")
-w(f"   - **提案の手法 − {nmc('prop_home')}**（相性を，残り方を掛けないソースの中の値から取る版との差）：{read3(eget('prop', 'prop_home'))}")
+w(f"   - **提案の手法 − {nmc('prop_home')}**（設計 5 節の名前は「残り方で相性を縮めた分」．相性を，残り方を掛けないソースの中の値から取る版との差．12 条件とも同じ格子の点）：{read_short(eget('prop', 'prop_home'))}")
 w("")
 w("### 問い 3（設計の Q3．記述）：学び直した 1 つの分類器と並べた UAR の高さ")
 w("")
 NEG_B = [(v, c, K) for v in B_OPP for c, K in ALL12 if klass(q("prop", v, c, K)) in ("n", "nn")]
 must(not NEG_B, f"B との差で，区間が 0 を含まずに提案の手法が低い条件：{NEG_B}")
-ZNEG_B = [(v, c, K) for v in B_OPP for c, K in ALL12 if klass(q("prop", v, c, K)) == "z" and q("prop", v, c, K).est < 0]
 GJ = groups(eget("prop", "joint_AVT"))
-w(f"4. **提案の手法（推定時の答え．切片をずらした答え）− 今の提案（`joint_AVT`．学び直した融合の分類器）は，区間が 0 を含まない条件が {by_corpus(GJ['pp'] + GJ['p'])} で"
-  f"（{vals(GJ['pp'] + GJ['p'], eget('prop', 'joint_AVT'))}），残る {len(GJ['z'])} 条件は区間が 0 を含んだ**（{vals(GJ['z'], eget('prop', 'joint_AVT'))}）．"
-  "比べる相手 B の 7 つとの差で，区間が 0 を含まずに提案の手法が低かった条件は無い．"
-  f"区間が 0 を含み，点推定が負の条件は，{opp_vals(ZNEG_B)} である．"
-  "B の判定は切片をずらしていない．提案の手法は学び直す前の答えで，推定時に 3 つの分類器を動かす（0 節）．相手ごとの 12 条件の値は次のとおりである（UAR は表の文書の 4 節）．")
+w(f"4. **提案の手法（推定時の答え．切片をずらした答え）− 今の提案（`joint_AVT`．学び直した融合の分類器）は，区間が 0 を含まない条件が {vals(GJ['pp'] + GJ['p'], eget('prop', 'joint_AVT'))} で，"
+  f"残る {len(GJ['z'])} 条件は区間が 0 を含んだ**．比べる相手 B の 7 つとの差で，区間が 0 を含まずに提案の手法が低かった条件は無い．"
+  "B の判定は切片をずらしていない．提案の手法は学び直す前の答えで，推定時に 3 つの分類器を動かす（0 節）．相手ごとの読みは次のとおりである（12 条件の値と UAR は表の文書の 4 節）．")
 for v in B_OPP:
-    w(f"   - **{nmc(v)}**：{read3(eget('prop', v))}")
+    w(f"   - **{nmc(v)}**：{read_short(eget('prop', v))}")
 OC = ot[ot.group == "C"]
 must(set(OC.n_units.astype(int)) == {50, 15} and sorted(set(OC[OC.n_units == 15].method)) == ["dann", "mapctl", "mme"] and len(OC) == 156, "標準の手法の行")
 M50 = [m for m in MT.C_LAB if ((OC.method == m) & (OC.n_units == 50)).any()]
 M15 = [m for m in MT.C_LAB if ((OC.method == m) & (OC.n_units == 15)).any()]
 must(len(M50) == 10 and len(M15) == 3, "標準の手法の数")
+C_HI, C_NONE = [], []
+for c, K in ALL12:
+    p50, p15 = level("prop", c, K).uar, level("prop", c, K, "0-2").uar
+    x50 = OC[(OC.K == K) & (OC.c == c) & (OC.n_units == 50)].set_index("method").uar
+    x15 = OC[(OC.K == K) & (OC.c == c) & (OC.n_units == 15)].set_index("method").uar
+    must(len(x50) == 10 and len(x15) == 3, f"標準の手法の行 {c} K={K}")
+    must(all(x15[m] < p15 for m in M15), f"15 単位の上で，UAR の値が提案の手法以上の手法がある {c} K={K}（文を直す）")
+    hi_ = [m for m in M50 if x50[m] > p50]
+    must(all(x50[m] < p50 for m in M50 if m not in hi_), f"50 単位の上で，UAR の値が提案の手法と同じ手法がある {c} K={K}（文を直す）")
+    if hi_:
+        C_HI.append(f"{c} の K = {K}（提案の手法 {p50:.2f}）：" + "，".join(nv(MT.C_LAB[m], x50[m]) for m in hi_))
+    else:
+        C_NONE.append((c, K))
 w(f"5. **標準の手法（比べる相手 C．実験 2 の評価の回の集計から写した UAR）は，UAR を並べるだけである**．提案の手法との対の差は作っていない．C の UAR には区間が無い．UAR の高低は差の検定ではない（0 節）．"
   f"50 単位（K 本の引き方 0〜9）で測った手法は {len(M50)} 個（{'，'.join(MT.C_LAB[m] for m in M50)}），15 単位（引き方 0〜2）で測った勾配法の手法は {len(M15)} 個（{'，'.join(MT.C_LAB[m] for m in M15)}）である．"
   "15 単位の手法は，提案の手法の同じ 15 単位の上の UAR と並べる．xMUDA 型には融合の分類器が無いので，並べる値が無い．手法ごとの値は表の文書の 5 節にある．")
-for K in KS:
-    for c in C4:
-        p50, p15 = level("prop", c, K).uar, level("prop", c, K, "0-2").uar
-        x50 = OC[(OC.K == K) & (OC.c == c) & (OC.n_units == 50)].set_index("method").uar
-        x15 = OC[(OC.K == K) & (OC.c == c) & (OC.n_units == 15)].set_index("method").uar
-        must(len(x50) == 10 and len(x15) == 3, f"標準の手法の行 {c} K={K}")
-        hi_ = [m for m in M50 if x50[m] > p50]
-        lo_ = [x50[m] for m in M50 if x50[m] <= p50]
-        s_ = f"   - K = {K}，{c}：50 単位の上で，提案の手法 {p50:.2f}．{len(M50)} 個の手法のうち UAR の値が提案の手法より高いもの："
-        s_ += ("，".join(nv(MT.C_LAB[m], x50[m]) for m in hi_) + f"．残る {len(lo_)} 個は {min(lo_):.2f}〜{max(lo_):.2f}．" if hi_ else f"無し．{len(lo_)} 個は {min(lo_):.2f}〜{max(lo_):.2f}．")
-        s_ += f"15 単位の上で，提案の手法 {p15:.2f}，" + "，".join(nv(MT.C_LAB[m], x15[m]) for m in M15) + "．"
-        w(s_)
+w(f"   - **50 単位の上**：UAR の値が提案の手法より高い手法がある条件と，その手法は次のとおりである．{'；'.join(C_HI)}．"
+  f"残る条件（{by_corpus(C_NONE)}）では，{len(M50)} 個の手法の UAR の値は，どれも提案の手法の値より低い．")
+w(f"   - **15 単位の上**：12 条件とも，勾配法の {len(M15)} 個の手法の UAR の値は，提案の手法の同じ 15 単位の上の UAR の値より低い．")
 w("")
 w("### 参照と参考，設定の点")
 w("")
@@ -1006,22 +1082,21 @@ EO = [q("M_F6_orc", "prod", *k_).est for k_ in ALL12]
 OP = [level("M_F6_orc", *k_).uar - level("prop", *k_).uar for k_ in ALL12]
 must(all(x > 0 for x in OP), "参照の UAR が提案の手法の UAR 以下の条件がある")
 w(f"6. **参照の版（全ラベルで測った表．`M_F6_orc`．評価するコーパスの候補のうち K 本を除いた発話の全ラベルで信頼度を測る．実際には使えない）− 積は，12 条件とも区間が 0 を含まず正だった**（{fest(min(EO))}〜{fest(max(EO))}）．"
-  f"{read3(eget('M_F6_orc', 'prod'))}提案の手法 − 参照の対の差は集計に無い．UAR の点の値の引き算（参照 − 提案の手法．区間は無い）は，12 条件とも正で {fest(min(OP))}〜{fest(max(OP))} 点である．")
-w(f"   - **参考の版：ソースだけで測った表（`M_F6_ext`．ソースのラベルだけで作る表．K 本を使わない）− 積**：{read3(eget('M_F6_ext', 'prod'))}")
-w(f"   - **提案の手法 − ソースだけで測った表**（`prop − M_F6_ext`）：{read3(eget('prop', 'M_F6_ext'))}")
-w(f"   - **参考の版：ソースどうしで学んだ重み（`M_F8`．ソースのラベルだけで作る重み．K 本を使わない）− 積**：{read3(eget('M_F8', 'prod'))}")
-w(f"   - **提案の手法 − ソースどうしで学んだ重み**（`prop − M_F8`）：{read3(eget('prop', 'M_F8'))}")
+  f"{read_short(eget('M_F6_orc', 'prod'))}提案の手法 − 参照の対の差は集計に無い．UAR の点の値の引き算（参照 − 提案の手法．区間は無い）は，12 条件とも正で {fest(min(OP))}〜{fest(max(OP))} 点である．")
+w(f"   - **参考の版：ソースだけで測った表（`M_F6_ext`．ソースのラベルだけで作る表．K 本を使わない）− 積**：{read_short(eget('M_F6_ext', 'prod'))}")
+w(f"   - **提案の手法 − ソースだけで測った表**（`prop − M_F6_ext`）：{read_short(eget('prop', 'M_F6_ext'))}")
+w(f"   - **参考の版：ソースどうしで学んだ重み（`M_F8`．ソースのラベルだけで作る重み．K 本を使わない）− 積**：{read_short(eget('M_F8', 'prod'))}")
+w(f"   - **提案の手法 − ソースどうしで学んだ重み**（`prop − M_F8`）：{read_short(eget('prop', 'M_F8'))}")
 LOTO_DIFF = [k_ for k_ in ALL12 if MY_PICK[k_]["loto"] != FZ[k_]["grid"]]
 ORA_DIFF = [k_ for k_ in ALL12 if MY_PICK[k_]["oracle"] != FZ[k_]["grid"]]
 must(all(MY_PICK[k_]["loto"] == 2 for k_ in LOTO_DIFF) and set(LOTO_DIFF) <= set(N0_20), "ほかの 3 コーパスで選んだ点")
 must(all(klass(q("prop_loto", "prop", *k_)) == "same" for k_ in ALL12 if k_ not in LOTO_DIFF) and all(klass(q("oracle_grid", "prop", *k_)) == "same" for k_ in ALL12 if k_ not in ORA_DIFF), "同じ点の条件の差")
 must(all(q("oracle_grid", "prop", *k_).est >= -1e-12 for k_ in ALL12), "自分のテストで最良の点 − 固定の点が負")
-w(f"7. **設定の点**（格子 16 点．表の文書の 6 節に点と UAR）：ほかの 3 コーパスの評価の回で選んだ点（`prop_loto`）が固定の点と違う条件は {by_corpus(LOTO_DIFF)} の {len(LOTO_DIFF)} つで，"
+w(f"7. **設定の点**（格子 16 点．表の文書の 6 節に点と UAR）：ほかの 3 コーパスの評価の回で選んだ点（`prop_loto`）が固定の点と違う条件は {by_corpus(LOTO_DIFF)} で，"
   f"どれも固定の点が n0 = 20 の条件で，選ばれた点は{gdesc(2)}である．差（ほかの 3 コーパスで選んだ点 − 固定の点）は {vals(LOTO_DIFF, eget('prop_loto', 'prop'))} である．残る {12 - len(LOTO_DIFF)} 条件は同じ点である．"
   f"自分のテストで最良の点（`oracle_grid`．実際には使えない．差は作りの上で 0 以上）が固定の点と違う条件は {by_corpus(ORA_DIFF)} で，"
-  + "，".join(f"{c} の K = {K} が{gdesc(MY_PICK[(c, K)]['oracle'])}" for c, K in ORA_DIFF)
-  + f"である．差（最良の点 − 固定の点）は {vals(ORA_DIFF, eget('oracle_grid', 'prop'))} である．"
-  f"固定の点が n0 = 20 の 4 条件（{by_corpus(N0_20)}）では，n0 = 0 の点の UAR の点推定が固定の点より高い（要点 3 の「水準を戻さない」）．選び方 (b) は参考である（0 節）．")
+  f"差（最良の点 − 固定の点）は {vals(ORA_DIFF, eget('oracle_grid', 'prop'))} である．選ばれた点は表の文書の 6 節にある．"
+  f"固定の点が n0 = 20 の 4 条件（{by_corpus(N0_20)}）では，n0 = 0 の点の UAR の点推定が固定の点より高い（要点 3 の「提案の手法 − 水準を戻さない」）．選び方 (b) は参考である（0 節）．")
 w("")
 w("### 計算の後の解析（探索）：提案の手法 − 積を，切片の分と向きの分に分ける")
 w("")
@@ -1035,9 +1110,9 @@ w("8. **この解析は設計に無く，計算の後に足した探索の解析
   "合わせるのは候補の発話の対数尤度で，テストの UAR が最大になる切片ではない．候補の全ラベルを使うので，実際には使えない参照である．"
   "定義は，向きの分 ＝ 提案の手法（この層）− 積（この層），切片の分 ＝ 全体 − 向きの分 である（全体は，切片をずらした答えどうしの提案の手法 − 積）．"
   "台本の定義では，2 つの版の切片を同じ規則で合わせるので，この層の差を，重みの向きの違いによる差として読む．切片の分は，全体から向きの分を引いた残りである．")
-w(f"   - **切片の分**（切片をずらした答えどうしの全体から）：12 条件とも区間が 0 を含んだ．点推定は {fest(min(EI))}〜{fest(max(EI))} 点である（{vals(ALL12, pget('prop', 'intercept', 'adj'))}）．")
-w(f"   - **向きの分**：{read3(pget('prop', 'direction', 'ob'))}")
-w(f"   - **切片をずらす前どうしの全体から分けた切片の分**：{read3(pget('prop', 'intercept', 'raw'))}")
+w(f"   - **切片の分**（切片をずらした答えどうしの全体から）：12 条件とも区間が 0 を含んだ．点推定は {fest(min(EI))}〜{fest(max(EI))} 点である（値は 2.5 節）．")
+w(f"   - **向きの分**：{read_short(pget('prop', 'direction', 'ob'))}")
+w(f"   - **切片をずらす前どうしの全体から分けた切片の分**：{read_short(pget('prop', 'intercept', 'raw'))}")
 w("   - ほかの版（部品を外した版，比べる相手 A の 3 つ，参照，参考）の向きの分と切片の分は 2.5 節にある．残り方を掛けない版（`prop_home`）は，この層の判定の保存が無いので分けられない．"
   "比べる相手 A のうち，確率の平均，確信度で重みづける平均，別のコーパスで選んだ指数の積，温度の較正，K 本で合わせた重み，重みの表を探す版も，この層の判定の保存が無い．")
 w("")
@@ -1045,19 +1120,15 @@ w("")
 # ---- 2 節
 w("## 2. 表")
 w("")
-w("### 2.1 表の文書（既にある表）と，符号の読めない区間の端の補い")
+w("### 2.1 表の文書（既にある表）")
 w("")
 w(f"UAR と差の表は `DAI/docs/実験20_結果の表_2026-11-15.md`（sha256 {sha(TABLE_DOC)[:8]}…．書き出しの台本 `DAI/docs/tools_pending/md_tables_dai20.py`）にあり，ここには写さない．"
   "その文書の 1 節が提案の手法と積（K 本の引き方で分けた値を含む），2 節が比べる相手 A（UAR，提案の手法 − 相手の 3 通りの組，相手 − 積），3 節が部品を 1 つ外した版，4 節が比べる相手 B と単独の分類器，"
   "5 節が比べる相手 C，6 節が参照・参考・設定の点である．この台本は，表の文書が今の集計から書き出し直した表と同じであることを確かめた（0 節）．")
 w("")
-w(f"表の文書は区間の端を小数 1 桁で書くので，端が 0.05 より 0 に近い欄は「+0.0」「-0.0」と表示され，区間が 0 を含むかどうかが読めない．その欄は表の文書の中に {len(DOC_ZERO)} か所ある（提案の手法 − 積は 2 つの表に出るので 2 回数えている．差としては {len(SUPP)} 個）．桁を足した値を下に並べる"
-  "（この文書の本文の値は，はじめから桁を足して書いてある．表の文書は負の符号を「-」，この文書は「−」と書く）．")
-w("")
-w("| 差 | 台本の名前 | K | コーパス | K 本の引き方 | 表の文書の表示 | 桁を足した値 |")
-w("|---|---|---|---|---|---|---|")
-for x in SUPP:
-    w("| " + " | ".join(str(y) for y in x) + " |")
+w(f"表の文書は，本体が 2026-11-15 に書き出し直した（コミット {TD_COMMITS[0]}）．区間の端が 0.05 より 0 に近い欄と，差が丸めると ±1.00 になる欄に，符号と 1.0 点の境目が読めるように桁を足してある．"
+  f"書き出し直す前の版（コミット {TD_COMMITS[-1]}）と欄ごとに比べると，変わった値は，区間の端 {TBL_ENDS} か所と差 {TBL_EST} か所だけである．ほかの値，印，行の数は変わっていない．文の行は，桁の決まりの 1 行が増えただけである．"
+  "表の文書に，符号の読めない区間の端は残っていない．表の文書は負の符号を「-」，この文書は「−」と書く．この文書は，差が丸めると 0.00 になるときにも桁を足す（表の文書は足さない）．")
 w("")
 w("### 2.2 提案の手法 − 相手の読みの一覧")
 w("")
@@ -1086,16 +1157,18 @@ w("")
 w("### 2.4 提案の手法 − 積の分け方（設計 5 節の 2 つの順序．どちらも切片をずらした答え）")
 w("")
 w("先に相性を外す順序：提案の手法 − 積 ＝（提案の手法 − 相性を外す）＋（相性を外す − 積）．先に水準を外す順序：提案の手法 − 積 ＝（提案の手法 − 水準の違いを外す）＋（水準の違いを外す − 積）．"
-  "点推定は，どちらの順序でも足すと全体になる（台本が確かめた）．区間の端は足し算にならない．")
+  "点推定は，どちらの順序でも足すと提案の手法 − 積になる（台本が確かめた）．区間の端は足し算にならない．"
+  "設計 5 節の名前（「行の中の差を使った分」「水準の分」「相性を使ったうえでの，分類器どうしの水準の違いの分」「水準の違いなしでの相性の分」）が当てはまる条件と，別の量が重なる条件は，要点 3 に書いた．"
+  "固定の点が n0 = 20 の条件では，「相性を外す − 積」と「提案の手法 − 水準の違いを外す」に，戻し先（3 つの平均，またはソースで測った水準）が重なる．")
 w("")
-w("| コーパス | K | 提案の手法 − 積 | 行の中の差を使った分（提案の手法 − 相性を外す） | 水準の分（相性を外す − 積） | 分類器どうしの水準の違いの分（提案の手法 − 水準の違いを外す） | 水準の違いを外す − 積 |")
-w("|---|---|---|---|---|---|---|")
+w("| コーパス | K | 固定の点 | 提案の手法 − 積 | 提案の手法 − 相性を外す | 相性を外す − 積 | 提案の手法 − 水準の違いを外す | 水準の違いを外す − 積 |")
+w("|---|---|---|---|---|---|---|---|")
 for c, K in ALL12:
-    w(f"| {c} | {K} | " + " | ".join(ci(q(a, b, c, K), mark=True) for a, b in (("prop", "prod"), ("prop", "prop_noprof"), ("prop_noprof", "prod"), ("prop", "prop_levelfree"), ("prop_levelfree", "prod"))) + " |")
+    w(f"| {c} | {K} | {gdesc(FZ[(c, K)]['grid'])} | " + " | ".join(ci(q(a, b, c, K), mark=True) for a, b in (("prop", "prod"), ("prop", "prop_noprof"), ("prop_noprof", "prod"), ("prop", "prop_levelfree"), ("prop_levelfree", "prod"))) + " |")
 w("")
-w("行の中の差を使った分は，さらに 2 つに分かれる（設計 5 節）：分類器 × 感情の成分の分（提案の手法 − 分類器 × 感情の成分を消す）と，当てはめに残る成分の分（分類器 × 感情の成分を消す − 相性を外す）．")
+w("「提案の手法 − 相性を外す」は，さらに 2 つの差に分かれる（設計 5 節）：提案の手法 − 分類器 × 感情の成分を消す（「分類器 × 感情の成分の分」）と，分類器 × 感情の成分を消す − 相性を外す（「当てはめに残る成分の分」）．")
 w("")
-w("| コーパス | K | 分類器 × 感情の成分の分 | 当てはめに残る成分の分 |")
+w("| コーパス | K | 提案の手法 − 分類器 × 感情の成分を消す | 分類器 × 感情の成分を消す − 相性を外す |")
 w("|---|---|---|---|")
 for c, K in ALL12:
     w(f"| {c} | {K} | {ci(q('prop', 'prop_noint', c, K), mark=True)} | {ci(q('prop_noint', 'prop_noprof', c, K), mark=True)} |")
@@ -1104,7 +1177,9 @@ w("### 2.5 切片の分と向きの分（計算の後の解析．探索）")
 w("")
 w("`results/dai20_eval/posthoc/intercept_direction.csv` の値（K 本の引き方 0〜9）．版 − 積（どちらも切片をずらした答え）＝ 切片の分 ＋ 向きの分．"
   "向きの分は，版と積のそれぞれに，候補の発話（K 本以外）の全ラベルで対数尤度が最大になるように合わせた切片を足した答えどうしの差である（要点 8）．"
-  "区間は，集計の「版 − 積」と同じ乱数の鍵で作ってある（台本の冒頭の説明）．印は読みやすさのための印で，判定ではない．")
+  "区間は，集計の「版 − 積」と同じ乱数の鍵で作ってある（台本の冒頭の説明）．印は読みやすさのための印で，判定ではない．"
+  f"切片をずらす前どうしの「全体」は，この出力と集計（`prop@raw − prod@raw`）とで点推定が同じで，区間の端は，塊の重みを引き直す MOSEI でだけ違う（K 本の引き方 0〜9 の値で最大 {RAW_END_DEV['MOSEI']:.4f} 点．乱数の鍵が違うため）．"
+  "この文書は，切片をずらす前どうしの提案の手法 − 積を集計から引いている（要点 1）．")
 w("")
 PH_LAB = {"prop": "**提案の手法**", "prop_loto": "ほかの 3 コーパスで選んだ点", "oracle_grid": "自分のテストで最良の点"}
 for title, quantity, layer in (("向きの分", "direction", "ob"), ("切片の分（切片をずらした答えどうしの全体から）", "intercept", "adj")):
@@ -1272,11 +1347,14 @@ w("### 限界（設計 9 節と 0 節の申告）")
 w("")
 w("- この評価の回の値は，手法を選んだときに見たテストと同じテストの上の値で，探索の結果として扱う（冒頭の 4 項）．テストの発話が下調べと重ならないコーパスでの値は，この実験には無い．")
 w("- 手法は評価に使ったのと同じ 4 コーパスの上で作った．設定はソースが 2 つの下調べで選んだ点である．固定の点が n0 = 20 の 4 条件では，n0 = 0 の点の UAR の点推定が固定の点より高かった（要点 3・7）．")
+w("- 設計 5 節の部品の名前（「水準の分」など）は，固定の点が n0 = 20 の 4 条件では，戻し先が重なった差に当たる（要点 3）．")
 w("- 比べる相手 A のうち 3 つ（水準だけの重み，K 本だけで測った表，取り違えの表で読み替えて掛ける）との差は，提案の手法に有利な向きに偏る．")
 w("- 区間は補正していない．区間はソースの取り方，学習に使う発話，手法と設定の選び方の揺れを含まない．IEMOCAP は自由度 3 で区間が広い．K どうしの差の区間は無い．")
 w("- 比べる相手 B・C は学び直した 1 つの分類器で，提案の手法は学び直す前の 3 つの分類器の答えの組み合わせである．C は UAR を並べただけで，対の差も区間も無い．")
 w("- 1 組のエンコーダ，凍結した特徴の上の線形の分類器，4 コーパス，IEMOCAP は即興だけである．話者と内容の分離とコーパスごとの事情は 0 節に書いた．")
-w("- 計算の後の解析（切片の分と向きの分）は設計に無い探索で，流した台本の最後の直しは gate-code の再検査を受けていない．向きの分を測る層は候補の全ラベルを使う参照である．")
+w("- 計算の後の解析（切片の分と向きの分）は設計に無い探索である．流した台本は，検査（`code_post_tools_v2.md`）が通した版に記録の直しを入れた後の版で，"
+  + ("直しの差分の再検査は gate-code に頼んであり，報告はまだ無い．" if V3_VERDICT is None else f"直しの差分の再検査（`code_post_tools_v3.md`）の判定は「{V3_VERDICT}」である．")
+  + "向きの分を測る層は候補の全ラベルを使う参照である．")
 w("- 計算の前の検査のうち，比較の公平さ・漏れ・査読想定の 2 役は，比べる相手を足した第 4・5 版を再検査していない（0 節）．")
 w("")
 w("### まだ出していない量")
@@ -1300,14 +1378,23 @@ w("")
 w("## 5. 数値の桁の決まり")
 w("")
 w("- UAR は小数 2 桁，UAR の区間の端は小数 1 桁．差は符号つきの小数 2 桁，差の区間の端は符号つきの小数 1 桁で，「差 [下端, 上端]」の形で書く．負の符号は「−」．")
-w("- 差の区間の端が 0.05 より 0 に近いときは，区間が 0 を含むかどうかが読めるように桁を足す（例：+0.01）．差が丸めると ±1.00 か 0.00 になるときも，1.0 点の境目と符号が読めるように桁を足す．")
+w("- 差の区間の端が 0.05 より 0 に近いときは，区間が 0 を含むかどうかが読めるように桁を足す（例：+0.01）．差が丸めると ±1.00 か 0.00 になるときも，1.0 点の境目と符号が読めるように桁を足す．"
+  "表の文書も同じ決まりで桁を足している（差が 0.00 になるときを除く）．")
 w("- 読みの 3 つの分け方は，丸める前の値で決めている：区間の下端 > 0（または上端 < 0）で「区間が 0 を含まない」，差の絶対値 ≥ 1.0 で「1.0 点以上」．")
 w("- 正解の数が全部の単位で同じ 2 つの版の差は「0（同じ数）」と書く．正解の数で比べているので，判定そのものが同じとは限らない．")
 w("- 相関と割合は小数 2〜3 桁，検算の量は 2 桁の指数の形で書く．")
 w("")
 w("## 6. 変更の記録")
 w("")
-w("- 第 1 版（2026-11-15）：照合（gate-claim）の前の版．")
+w("- 第 1 版（2026-11-15）：照合（gate-claim）の前の版．最初に書き出した後（コミット 73fd3aa）に，本体が台帳と表の文書を直したので，同じ第 1 版のまま次の直しを入れて書き出し直した．")
+w("   1. 0 節の計算の後の解析の段を，直した台帳（検査が通した版，流した版，起動と出力の時刻，差分の再検査を頼んだこと）に合わせた．台帳との食い違いの記述は，台帳が直ったので消した．"
+  "再検査の報告（`code_post_tools_v3.md`）は，ファイルがあれば判定を引き，無ければ「まだ無い」と書く作りにした．")
+w("   2. 0 節の「照合の前に値を使った先」に，本体の申告（研究者への会話での報告 2 回，作業の覚え書き）と，実験 21 の設計・台本・固定のファイルが結果を開いた後に変わっていないこと（git の記録）を足した．")
+w("   3. 計算の後の解析を入れると決めた出どころを，`DAI/docs/論文のセッションへの伝言_2026-11-14.md` の 1 節の 3 にした．")
+w("   4. 2.1 節の「桁を足した値の表」を外した．表の文書が桁を足して書き出し直されたためである．代わりに，書き出し直す前の版から変わった値が区間の端と差の桁だけであることを台本が確かめる．")
+w("   5. 要点（1 節）を縮めた．相手ごとに 12 条件の値を文で並べるのをやめ，区間が 0 を含まない条件と点推定が負の条件を名前と値で書き，残りは名前だけを書いて表を指す．標準の手法は，UAR の値が提案の手法より高い手法がある条件だけを挙げる．")
+w("   6. 部品を外した版の差を，設計 5 節の表の名前で差ごとに書いた．最初の書き出しで付けていたまとめの呼び名（差を水準と相性の 2 つにまとめる呼び名）をやめた．"
+  "両側の違いが 1 つの部品だけでない条件（固定の点が n0 = 20 の条件）には設計の名前を使わず，重なっている量を書いた．2.4 節の表の見出しも差の名前にした．")
 w("")
 
 ap = argparse.ArgumentParser()
@@ -1322,7 +1409,8 @@ body = body.replace("再現率", "")                                          # 
 for bad in ("セル", "当たり", "外れ", "有意", "勝", "負け", "差が無い", "差がない", "差は無い", "差はない", "K で増え", "K で減", "K が大きいほど", "K とともに", "切片を最良", "最良にそろえ",
             "再現", "確認", "効い", "効く", "効か", "効き", "上回", "下回", "生徒", "教師", "先生", "出発点", "明らか", "顕著", "劇的"):
     must(bad not in body, f"使わないと決めた語がある：{bad}")
-rest = "\n".join(x for x in text.split("\n") if not any(f"| {y[5]} |" in x for y in SUPP))      # 補いの表の「表の文書の表示」の欄を除く
-must(not re.search(r"\[[+−-]0\.0, |, [+−-]0\.0\]", rest), "符号の読めない区間の端がある")
+must(not re.search(r"\[[+−-]0\.0, |, [+−-]0\.0\]", text), "符号の読めない区間の端がある")
+for bad in ("水準に関わる項", "相性に関わる項"):
+    must(bad not in body, f"やめた呼び名がある：{bad}")
 Path(args.out).write_text(text)
 print(f"書いた：{args.out}（{len(L)} 行）")
