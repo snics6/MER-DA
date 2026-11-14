@@ -1,0 +1,29 @@
+levels: 行 1176，鍵の重複 0，無限大 0，全部 NaN の列 []
+effects: 行 2772，鍵の重複 0，無限大 0，全部 NaN の列 []
+per_emotion: 行 2352，鍵の重複 0，無限大 0，全部 NaN の列 []
+grid_levels: 行 192，鍵の重複 0，無限大 48，全部 NaN の列 []
+est_grid: 行 192，鍵の重複 0，無限大 0，全部 NaN の列 []
+weights: 行 144，鍵の重複 0，無限大 0，全部 NaN の列 []
+confusion: 行 384，鍵の重複 0，無限大 0，全部 NaN の列 []
+competitor_fit: 行 84，鍵の重複 0，無限大 0，全部 NaN の列 []
+assumptions: 行 12，鍵の重複 0，無限大 0，全部 NaN の列 []
+source_tables: 行 12，鍵の重複 0，無限大 0，全部 NaN の列 []
+others: 行 240，鍵の重複 0，無限大 0，全部 NaN の列 []
+levels：(c,K) ごとの版の数 [49] seeds {'all': 588, '0-2': 588}
+levels：NaN のある列 {'df': 294, 'same_as': 958}
+levels：n_fr の値（seeds=all） {50: 588} （0-2） {15: 588}
+levels：role {'A': 624, 'B': 168, 'ablation': 144, 'single': 72, 'reference': 48, 'oracle': 48, 'proposal': 48, 'selection': 24}
+levels の prop の grid が固定のファイルと違う (c,K) []
+levels の uar が 0〜100 の外 0 lo<=uar<=hi でない 0
+effects：対の数 77 対ごとの行の数 {36: 77} seeds {'all': 924, '0-1': 924, '2-9': 924}
+effects：NaN のある列 {'a_same_as': 1410, 'b_same_as': 1731, 'df': 693, 'folds_dropped': 1386, 'mark': 2072}
+effects：method {'jk+seed': 2079, 'boot_cl+seed': 693} mark (数は出さない)
+effects：lo<=est<=hi でない 0 v_seed_all < v_seed 0
+effects：台本の対の一覧 77 表の対と同じ集合 True
+設計 5 節の差で表に無いもの []
+per_emotion：(c,K) ごとの版の数 [49] NaN の recall 0 n_fr=0 0
+others：B 84 uar_here の NaN 0 |uar-uar_here| 最大 0.0 B の (c,K,method) の数 [7]
+others：C 156 手法 ['coral', 'dann', 'entmin', 'im', 'lp', 'mapctl', 'mme', 'own', 'saerens', 'self', 'st', 't3a', 't3a_b'] (c,K) ごとの行 [13] n_units {50: 120, 15: 36}
+others：C の gradient=True の手法 ['dann', 'mapctl', 'mme'] seeds {'0-9': 120, '0-2': 36}
+grid_levels：作り直しとのずれの最大 2.1316282072803006e-14 印（frozen・loto・oracle）の食い違い []
+est_grid：frozen の印が (c,K) ごとに 1 つ [1]

@@ -1,0 +1,7 @@
+1. 判定から数え直した UAR と csv の比べ：276600 組，ずれの最大 7.11e-15．csv が NaN で npz に判定がある組 0
+2. テストの発話の並びが実験 1 の p1 と違う単位：[]（200 単位を照合）
+3. 水準 8 個，差 11 個を作り直した．ずれの最大：{'lev_pt': '0.00e+00', 'lev_ci': '4.44e-16', 'eff_pt': '8.33e-17', 'eff_ci': '2.22e-16', 'emo': '7.11e-15', 'conf': '0.00e+00'}
+  AFEW K=10 prop_noprof と M_F2_K：判定が同じ発話の割合 1.0000，levels の same_as の群が同じ True
+  IEMOCAP K=5 prop_n0zero と prop：判定が同じ発話の割合 1.0000，levels の same_as の群が同じ True
+  AFEW K=5 psel と prod：判定が同じ発話の割合 1.0000，levels の same_as の群が同じ True
+  MELD K=5 prop_noprof と M_F2_K：判定が同じ発話の割合 0.9035，levels の same_as の群が同じ False

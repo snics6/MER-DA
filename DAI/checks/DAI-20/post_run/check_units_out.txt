@@ -1,0 +1,43 @@
+/home/snics/MER-DA/DAI/checks/DAI-20/post_run/check_units.py:28: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  d["_file"] = p.stem
+csv 200 npz 200
+csv だけ [] npz だけ []
+期待の 200 との差：欠け [] 余り []
+行の数の分布 {840: 200}
+全部の行 168000
+ファイル名と (T, fold, seed) の食い違い 0 c != T の行 0 tag ['eval']
+重複 (T,c,fold,seed,K,version) 0
+K の値 [5, 10, 25]
+(K, 版) の組の種類の数 1 1 単位あたり 840
+K ごとの版の数 {5: 280, 10: 280, 25: 280} 版の種類 280
+必要な版で無いもの []
+M_F6h_mix の番号 [2, 3, 6, 7, 10, 11, 14, 15]
+commit ['341c62b93b7fa527d4da93a0b555487e557c9b39'] 1
+dirty ['False'] 1
+host ['okadalabws'] 1
+gpu ['NVIDIA RTX A5000'] 1
+dai1_commits ['ba98974583dfee3504d54f31a5d303ff5394562e'] 1
+無限大のある列 {}
+uar_raw NaN の行の版 {'est_M_F6_mix#': 9600, 'est_M_F3_mix#': 9600, 'est_k_bias': 600, 'est_cf_D_l#': 600, 'est_M_F6_K': 600, 'est_M_F3_K': 600, 'est_M_F6_ext': 600, 'sel_k_bias': 600, 'sel_cf_D_l#': 600, 'sel_M_F6_K': 600, 'sel_M_F3_K': 600, 'sel_M_F6_ext': 600, 'sel_best': 600, '_est_prod': 600, '_check': 600, '_check#': 600}
+uar_raw 0〜100 の外 0
+uar_adj NaN の行の版 {'est_M_F6_mix#': 9600, 'est_M_F3_mix#': 9600, 'est_k_bias': 600, 'est_cf_D_l#': 600, 'est_M_F6_K': 600, 'est_M_F3_K': 600, 'est_M_F6_ext': 600, '_est_prod': 600, 'none_AVT': 600, 'joint_AVT': 600, 'ret_A': 600, 'ret_V': 600, 'ret_T': 600, 'prod_sel': 600, 'prod_ob': 600, 'k_bias': 600, '_check': 600, '_check#': 600, 'b_kd': 600, 'b_agree': 600, 'b_mix': 600, 'b_cotrain': 600, 'b_coreg': 600}
+uar_adj 0〜100 の外 0
+uar_pool NaN の行の版 {'est_M_F6_mix#': 9600, 'est_M_F3_mix#': 9600, 'est_k_bias': 600, 'est_cf_D_l#': 600, 'est_M_F6_K': 600, 'est_M_F3_K': 600, 'est_M_F6_ext': 600, 'sel_k_bias': 600, 'sel_cf_D_l#': 600, 'sel_M_F6_K': 600, 'sel_M_F3_K': 600, 'sel_M_F6_ext': 600, 'sel_best': 600, '_est_prod': 600, '_check': 600, '_check#': 600, 'b_kd': 600, 'b_agree': 600, 'b_mix': 600, 'b_cotrain': 600, 'b_coreg': 600}
+uar_pool 0〜100 の外 0
+全部 NaN の列 []
+_check の行 600 _check20 の行 600
+teacher_dev 最大 8.263957518817033e-05 A/V/T 7.152640005930744e-05 3.37939489473138e-05 3.053630365545956e-05
+grad 最大 9.99989445760347e-07 stalled 合計 0.0
+adj_resid 最大 9.999987726772021e-09 版 S_F6_away
+recheck_agree_min 最小 1.0 eq_agree 最小 1.0 psel_agree 最小 1.0
+wf_n_capped 合計 0.0
+tcal/temp/tempb の w_bound の平均 {'tcal': 0.0078, 'temp': 0.0867, 'tempb': 0.085}
+cf_D_l05 n_unused の合計 19.0
+所要（秒）：単位の合計 19708.304315328598 最大 268.1516320705414
+T ごとの所要の平均 {'AFEW': 27.0, 'IEMOCAP': 49.0, 'MELD': 115.0, 'MOSEI': 204.0}
+npz のキーの集合の種類 4 キーの数 [3452, 3452, 3452, 3452]
+NaN/inf を含む npz の配列（ファイル数, NaN 数, inf 数） {'SR_S_homeauc': [200, 7200, 0], 'SR_S_awayauc': [200, 7200, 0], 'AUC_M_K_K*': [600, 7200, 0], 'AUC_M_orc_K*': [600, 7200, 0]}
+pred_ の配列の数 3294
+5 pred_adj 227 pred_raw 234
+10 pred_adj 227 pred_raw 234
+25 pred_adj 227 pred_raw 234
