@@ -13,6 +13,9 @@
 文を直すときは，この台本の中の文を直して流し直す．
 
 2026-11-15：照合の第 1 回（DAI/checks/DAI-18/claim.md）の直しを入れた（第 2 版）．変更の一覧は書き出す文書の 7 節．
+2026-11-15：照合の第 2 回（claim_v2.md）の直しを入れた（第 3 版）．選び方に関わる数え（選び直した点，選択を通した依存，mix2 と mix3 の判定，
+            融合の生徒の点を選ぶ単位）は，この台本が集計の段の関数を使わずに保存から作り直し，数えの台本の出力と違えば止まる．
+            検査役の報告の中の数は，結果の照合には使わない（報告が自分の検査について書いた文を引くときだけ，その文が報告にあることを確かめる）．
 
 使い方：.venv/bin/python DAI/docs/tools_pending/extract_dai18_text.py
 """
@@ -94,6 +97,7 @@ natr = pd.read_csv(R / "posthoc" / "natural_only_reselect.csv")
 depr = pd.read_csv(R / "posthoc" / "selection_dependency.csv")
 scprov = json.load(open(R / "posthoc" / "provenance_selcounts.json"))
 claim = (ROOT / "DAI" / "checks" / "DAI-18" / "claim.md").read_text()
+claim2 = (ROOT / "DAI" / "checks" / "DAI-18" / "claim_v2.md").read_text()
 TOOLS = ROOT / "DAI" / "docs" / "tools_pending"
 done = open(ROOT / "logs" / "dai18_probe.done").read().strip()
 code_post = CODE_POST.read_text()
@@ -349,6 +353,12 @@ must(PDF_TIME.startswith("2026-11-14") and "six-corpus results added" in PDF_SUB
 must("## 判定\n\n直してから通す．下書きの数値は結果ファイルから独立に取り直した" in claim, "照合の報告の判定")
 N_CLAIM = claim.count("\n### [")
 must(N_CLAIM == 15, "照合の報告の記録の数")
+must("## 判定\n\n直してから通す．第 1 回の 15 件はすべて直っており" in claim2, "照合の第 2 回の報告の判定")
+N_CLAIM2 = claim2.count("\n### [")
+must(N_CLAIM2 == 2, "照合の第 2 回の報告の記録の数")
+for s_ in ["表の文書は差 6 か所，生徒の水準 5 か所，版の水準 4 か所の計 15 か所だけを照らした", "この第 2 回で表の文書の全 522 セル", "食い違いは 0 だった（`claim_run/check_tabledoc.py`）",
+           "第 1 回の報告の「2 組」は，私が一覧から当たりの組を拾うときに IEMOCAP の K = 5 を落とした誤りである", "## 足した 2 つの数えと内訳の照合"]:
+    must(s_ in claim2, f"照合の第 2 回の報告に次の文が無い：{s_}")
 # provenance.json の定数に無い設定（照合の第 1 回の C6）
 SRC18 = (ROOT / "DAI" / "exp" / "dai18_probe.py").read_text()
 PROV_CONST = ["KS", "SEEDS", "TETH", "SGRID", "KNN_K", "RELS", "LAMS", "MODS_OF", "CORP6", "rng_seed"]
@@ -449,46 +459,124 @@ must(set(mixsel[mixsel.chosen == "M_F6_mix2"].n_tied) == {2.0} and set(mixsel[mi
 must(scprov["script_sha256"] == sha(TOOLS / "dai18_posthoc_selcounts.py") and scprov["sel_sha256"] == sha(SM / "sel.csv"), "数えの台本か sel.csv が出力の後に変わった")
 must(scprov["dai18_probe_sha256"] == prov["this_script_sha256"] and scprov["n_unit_files"] == 300 and scprov["n_student_files"] == 300, "数えの台本の入力")
 MX = scprov["mix2_vs_mix3"]
-must(MX["n_arrays"] == 2250 and MX["n_arrays_with_diff"] == 0 and MX["n_utterances_diff"] == 0, "mix2 と mix3 の判定が違う配列がある")
-must("2,250 個の判定の配列で，mix2 と mix3 の判定の違う発話は 0" in claim, "照合の報告の mix2・mix3 の値")
+
+# ---- 保存から作り直す（集計の段の select_points も数えの台本も使わない書き方）
+UFILES = sorted((R / "units").glob("*.csv"))
+must(len(UFILES) == 300, "units の csv の数")
+UN = pd.concat([pd.read_csv(p_, usecols=["K", "version", "uar_adj", "T", "c", "fold", "seed"], low_memory=False) for p_ in UFILES], ignore_index=True)
+UN = UN[UN.uar_adj.notna()]
+UN_G = {k_: g_ for k_, g_ in UN.groupby(["T", "K"])}
+SEL_NAMES = ("M_F6_mixsel", "MN_eq_sel", "MN_F2K_sel", "MN_F6K_sel", "MS_eq_sel", "N_eq_sel")
+
+
+def reselect(c_eval: str, K: int, version: str, drop=()):
+    """c_eval を評価するときの版の点：c_eval を評価のターゲットにした単位のうち候補がすべてそろう単位で，テストの UAR（adj）の平均が最大の候補（同点は並びで先）．
+    drop の仮のターゲットの単位は除く．MS_eq_sel は，モダリティが 2 つ以上の仮のターゲットの単位だけで選ぶ（設計 5 節）．"""
+    cands = P18.seldef_of(c_eval)[version]
+    g_ = UN_G[(c_eval, K)]
+    g_ = g_[g_.version.isin(cands) & ~g_.c.isin(list(drop))]
+    pv_ = g_.pivot(index=["c", "fold", "seed"], columns="version", values="uar_adj").reindex(columns=cands).dropna()
+    if version == "MS_eq_sel":
+        pv_ = pv_[[len(P18.MODS_OF[x_]) >= 2 for x_ in pv_.index.get_level_values("c")]]
+    return cands[int(np.argmax(pv_.mean().to_numpy()))], len(pv_), ",".join(sorted(set(pv_.index.get_level_values("c"))))
+
+
+def role_set(c: str) -> set:
+    return set(P18.MODS_OF[c]) | ({"fusion"} if len(P18.MODS_OF[c]) >= 2 else set())
+
+
+KEYS105 = [(c, K, v) for c in C6 for K in KS for v in SEL_NAMES if v in P18.seldef_of(c)]
+must(len(KEYS105) == 105, "選ぶ版の組の数")
+MY0 = {k_: reselect(*k_) for k_ in KEYS105}                                 # 元の選び方
+for (c, K, v), (ch_, n_, pt_) in MY0.items():
+    q = chosen_of(c, K, v)
+    must((ch_, n_, pt_) == (q.chosen, int(q.n_units), q.pseudo_targets), f"作り直した元の点が sel.csv と違う：{c} K={K} {v}")
+MYN = {k_: reselect(*k_, drop=NEW2) for k_ in KEYS105}                      # 自然な会話のコーパスだけ
+mydep_rows = []                                                           # 選択を通した依存
+for (c2, K, v), (ch_, n_, pt_) in MY0.items():
+    if v == "N_eq_sel":                                                   # 生徒の疑似ラベルに使わない版
+        continue
+    for c in C6:
+        if c == c2 or c not in pt_.split(",") or (v == "M_F6_mixsel" and len(P18.MODS_OF[c]) < 2):
+            continue
+        new_ = reselect(c2, K, v, drop=(c,))[0]
+        mydep_rows.append(dict(c=c, c_prime=c2, K=K, version=v, chosen_orig=ch_, chosen_without_c=new_, changed=bool(new_ != ch_),
+                               roles=",".join(r_ for r_ in ("fusion", "A", "V", "T") if r_ in role_set(c) & role_set(c2))))
+mydep = pd.DataFrame(mydep_rows)
+# mix2 と mix3 の判定の配列
+MY_MX = dict(n_arrays=0, n_utterances_diff=0)
+for p_ in UFILES:
+    if len(P18.MODS_OF[p_.stem.rsplit("_", 3)[1]]) < 2:
+        continue
+    z_ = np.load(p_.with_suffix(".npz"), allow_pickle=False)
+    for K in KS:
+        for w_ in ("adj", "raw", "pool"):
+            MY_MX["n_arrays"] += 1
+            MY_MX["n_utterances_diff"] += int((z_[f"pred_{w_}_K{K}_M_F6_mix2"] != z_[f"pred_{w_}_K{K}_M_F6_mix3"]).sum())
+must(MY_MX["n_utterances_diff"] == 0, "mix2 と mix3 の判定が違う発話がある")
+must(MX["n_arrays"] == MY_MX["n_arrays"] and MX["n_arrays_with_diff"] == 0 and MX["n_utterances_diff"] == 0, "mix2 と mix3 の数えが，数えの台本の出力と違う")
+# 融合の生徒の点を選ぶ単位の内訳（students の csv から）
+SFILES = sorted((R / "students").glob("*.csv"))
+must(len(SFILES) == 300, "students の csv の数")
+SC = pd.concat([pd.read_csv(p_, usecols=["K", "student", "teacher", "grid", "T", "c", "fold", "seed"], low_memory=False) for p_ in SFILES], ignore_index=True)
+SC = SC[SC.student.isin(["AVT", "AV"]) & (SC.grid == 0)]
+MY_FU = {t_: {c: {k_: int(n_) for k_, n_ in SC[(SC.teacher == t_) & (SC["T"] == c) & (SC.K == K)].groupby("student").size().items()} for c in C6[:5]} for t_ in ("prod", "M_F6_mixsel", "MN_F6K_sel") for K in KS[:1]}
+for K in KS[1:]:
+    for t_ in MY_FU:
+        must({c: {k_: int(n_) for k_, n_ in SC[(SC.teacher == t_) & (SC["T"] == c) & (SC.K == K)].groupby("student").size().items()} for c in C6[:5]} == MY_FU[t_], f"融合の生徒の点を選ぶ単位の内訳が K で違う：{t_} K={K}")
 # 自然な会話のコーパスだけで選び直したときの点
 must(len(natr) == 105 and natr.groupby(["c", "K", "version"]).ngroups == 105, "自然な会話のコーパスだけの選び直しの表")
 for r in natr.itertuples():
     must(r.chosen_orig == chosen_of(r.c, r.K, r.version).chosen and int(r.n_units_orig) == int(chosen_of(r.c, r.K, r.version).n_units), f"選び直しの表の元の点 {r.c} {r.K} {r.version}")
     must(int(r.n_units_natural) == {"CREMA-D": 40, "RAVDESS": 40}.get(r.c, 30) and set(r.pseudo_targets_natural.split(",")) <= set(ORIG4), f"選び直しの単位 {r.c}")
-NAT_N = int(natr.changed.sum())
-NAT_BY = {v: (int(g.changed.sum()), len(g)) for v, g in natr.groupby("version")}
+    m_ = MYN[(r.c, int(r.K), r.version)]                                    # 保存から作り直した点・単位の数・仮のターゲットと比べる
+    must((r.chosen_natural, int(r.n_units_natural), r.pseudo_targets_natural) == m_, f"選び直しの表が，保存から作り直した値と違う：{r.c} K={r.K} {r.version}")
+    must(bool(r.changed) == (m_[0] != MY0[(r.c, int(r.K), r.version)][0]), f"選び直しの表の changed：{r.c} K={r.K} {r.version}")
+NAT_N = sum(MYN[k_][0] != MY0[k_][0] for k_ in KEYS105)                     # 数は保存から作り直した値で書く
+NAT_BY = {v: (sum(MYN[k_][0] != MY0[k_][0] for k_ in KEYS105 if k_[2] == v), sum(k_[2] == v for k_ in KEYS105)) for v in SEL_NAMES}
+must(NAT_N == int(natr.changed.sum()) and all(NAT_BY[v] == (int(g.changed.sum()), len(g)) for v, g in natr.groupby("version")), "選び直しの数えが，数えの台本の出力と違う")
 must(not natr[natr.c == "CREMA-D"].changed.any() and bool(natr[natr.c == "CREMA-D"].same_units.all()) and not natr[natr.c != "CREMA-D"].same_units.any(), "CREMA-D の選ぶ単位")
-must(f"105 組のうち {NAT_N} 組で点が変わる" in claim and NAT_BY["M_F6_mixsel"] == (1, 15), "照合の報告の値と合わない（自然な会話のコーパスだけ）")
-must(f"`MN_eq_sel` {NAT_BY['MN_eq_sel'][0]}，`MN_F6K_sel` {NAT_BY['MN_F6K_sel'][0]}，`MN_F2K_sel` {NAT_BY['MN_F2K_sel'][0]}，`MS_eq_sel` {NAT_BY['MS_eq_sel'][0]}，`N_eq_sel` {NAT_BY['N_eq_sel'][0]}" in claim, "照合の報告の版ごとの値")
-NAT_HIT = []                                                              # 当たりの規則で上回ったコーパスのうち，選ばれる点が変わる組
+NAT_HIT = []                                                              # 当たりの規則で上回ったコーパスのうち，選ばれる点が変わる組（保存から作り直した点で数える）
 for r in hitsA.itertuples():
     v_ = {"MN_F6orc_sel": "MN_F6K_sel"}.get(r.a, r.a)                    # 参照 MN_F6orc_sel は MN_F6K_sel と同じ点を使う
     for c in r.up.split(","):
-        q = natr[(natr.c == c) & (natr.K == r.K) & (natr.version == v_)]
-        if len(q) and bool(q.iloc[0].changed):
+        k_ = (c, int(r.K), v_)
+        if k_ in MY0 and MYN[k_][0] != MY0[k_][0]:
             NAT_HIT.append((r.rule, r.a, int(r.K), c))
-must([x for x in NAT_HIT if x[0] == "R2"] == [("R2", "MN_F2K_sel", 25, "MELD"), ("R2", "MN_F6K_sel", 5, "IEMOCAP"), ("R2", "MN_F6K_sel", 10, "AFEW")], f"当たりに関わる組：{NAT_HIT}")
-must([x for x in NAT_HIT if x[0] == "R1"] == [("R1", "MN_F6orc_sel", 5, "IEMOCAP"), ("R1", "MN_F6orc_sel", 5, "MOSEI"), ("R1", "MN_F6orc_sel", 5, "MELD"), ("R1", "MN_F6orc_sel", 10, "AFEW")], f"参照に関わる組：{NAT_HIT}")
-# 選択を通した依存
-dep5 = depr[depr.version != "MS_eq_sel"]
-DEP_BY = {v: (int(g.changed.sum()), len(g)) for v, g in depr.groupby("version")}
-must(all(r.c in chosen_of(r.c_prime, r.K, r.version).pseudo_targets.split(",") and r.chosen_orig == chosen_of(r.c_prime, r.K, r.version).chosen for r in depr.itertuples()), "依存の表の範囲と元の点")
-must(f"285 の (c, c′, K, 版) のうち {int(dep5.changed.sum())} で点が変わる（`M_F6_mixsel` は 60 のうち {DEP_BY['M_F6_mixsel'][0]}）" in claim and len(dep5) == 285, "照合の報告の値と合わない（選択を通した依存）")
+must(len([x for x in NAT_HIT if x[0] == "R2"]) > 0 and len([x for x in NAT_HIT if x[0] == "R1"]) > 0, "当たりに関わる組が無い（文の形を直す）")
+# 選択を通した依存：数えの台本の出力が，保存から作り直した表と同じであること
+KD = ["c", "c_prime", "K", "version"]
+a_ = mydep.sort_values(KD).reset_index(drop=True)
+b_ = depr.sort_values(KD).reset_index(drop=True)
+must(len(a_) == len(b_) and bool((a_[KD] == b_[KD]).all().all()), "依存の表の範囲が，保存から作り直した範囲と違う")
+must(bool((a_.chosen_orig == b_.chosen_orig).all()) and bool((a_.chosen_without_c == b_.chosen_without_c).all()) and bool((a_.changed == b_.changed).all()) and bool((a_.roles == b_.roles_shared).all()),
+     "依存の表が，保存から作り直した値と違う")
+dep5 = mydep[mydep.version != "MS_eq_sel"]                                 # R5 の疑似ラベルの 4 つの版．数は保存から作り直した表で書く
+DEP_BY = {v: (int(g.changed.sum()), len(g)) for v, g in mydep.groupby("version")}
 
 
-def dep_of(c, K, v):
-    q = depr[(depr.c == c) & (depr.K == K) & (depr.version == v)]
-    must(len(q) > 0, f"依存の表に {c} K={K} {v} が無い")
+def dep_role(role: str, d_=None):
+    """その役の生徒の点の選択に入る組（評価するコーパスと仮のターゲットの両方にその役の生徒がある組）だけの数え：(変わる数, 組の数)．"""
+    d_ = dep5 if d_ is None else d_
+    q = d_[d_.roles.map(lambda x: role in x.split(","))]
+    return int(q.changed.sum()), len(q)
+
+
+def dep_of(c, K, v, role):
+    """コーパス c を評価する役 role の生徒の点を選ぶ単位で，疑似ラベルの版 v の点（仮のターゲット c′ ごと）のうち，c の単位を除いて選び直すと変わるもの．"""
+    q = mydep[(mydep.c == c) & (mydep.K == K) & (mydep.version == v) & mydep.roles.map(lambda x: role in x.split(","))]
+    must(len(q) > 0, f"依存の表に {c} K={K} {v} {role} が無い")
+    must("RAVDESS" not in list(q.c_prime) or role == "A", f"{role} の生徒の点の選択に入らない RAVDESS の点を数えている")
     ch = q[q.changed]
-    return len(q), [(r.c_prime, r.chosen_orig, r.chosen_without_c, "fusion" in r.roles_shared.split(",")) for r in ch.itertuples()]
+    return len(q), [(r.c_prime, r.chosen_orig, r.chosen_without_c) for r in ch.itertuples()]
 
 
-must(dep_of("AFEW", 25, "M_F6_mixsel") == (4, [("MELD", "M_F6_mix2", "M_F6_mix6", True)]) and dep_of("MELD", 25, "M_F6_mixsel") == (4, []), "融合 × M_F6_mixsel の K = 25 の依存")
-must([len(dep_of(c, 25, "MN_F6K_sel")[1]) for c in ("AFEW", "MELD")] == [2, 2] and dep_of("AFEW", 25, "MN_F6K_sel")[0] == 5, "融合 × MN_F6K_sel の K = 25 の依存")
-# 融合の生徒の点を選ぶ単位の内訳
+# 融合の生徒の点を選ぶ単位の内訳：数えの台本の出力が，students の csv から数え直した値と同じであること
 FU = scprov["fusion_selection_units"]
-must(all(FU[t][c] == {"AV": 10, "AVT": 30} for t in FU for c in ORIG4) and all(FU[t]["CREMA-D"] == {"AVT": 40} for t in FU), "融合の生徒の点を選ぶ単位の内訳")
+must(FU == MY_FU, "融合の生徒の点を選ぶ単位の内訳が，数えの台本の出力と違う")
+must(all(MY_FU[t][c] == {"AV": 10, "AVT": 30} for t in MY_FU for c in ORIG4) and all(MY_FU[t]["CREMA-D"] == {"AVT": 40} for t in MY_FU), "融合の生徒の点を選ぶ単位の内訳（文の数）")
+for c in ORIG4 + ["CREMA-D"]:                                              # 融合の生徒の点の選択に入る仮のターゲットは 4 つで，RAVDESS は入らない
+    must(dep_of(c, 25, "MN_F6K_sel", "fusion")[0] == 4 and dep_of(c, 25, "M_F6_mixsel", "fusion")[0] == 4, f"融合の生徒の点を選ぶ仮のターゲットの数：{c}")
 # 2 つの版 MN_F2K_sel と MN_eq_sel の選ばれた設定が同じ組
 SAME_F2K_EQ = [(c, K) for c in C6 for K in KS if chosen_of(c, K, "MN_F2K_sel").chosen.split("_", 2)[2] == chosen_of(c, K, "MN_eq_sel").chosen.split("_", 2)[2]]
 must(SAME_F2K_EQ == [("RAVDESS", 5)], f"MN_F2K_sel と MN_eq_sel の設定が同じ組：{SAME_F2K_EQ}")
@@ -520,6 +608,8 @@ for ro_, rn_ in zip(o_rows, n_rows):
     TBL_ROWS += hit_
 must(len(re.findall(r"[+-]0\.0[,\]]", NEW_TBL)) == 0 and TBL_ENDS == len(re.findall(r"[+-]0\.0[,\]]", OLD_TBL)), "表の文書に符号の読めない端が残っている")
 must("相性を消した対照・" not in NEW_TBL and "| 比べ | モダリティ × 感情の分" not in NEW_TBL, "表の文書に前の名前が残っている")
+# 数えの台本：コミット 94a0e57 の台本が出力の記録の sha256 と同じ
+must(hashlib.sha256(git("show", "94a0e57:DAI/docs/tools_pending/dai18_posthoc_selcounts.py").encode()).hexdigest() == scprov["script_sha256"], "94a0e57 の台本が出力の記録と違う")
 # 声の生徒の選び直しの台本：コミット 3dfd8f3 の台本が出力の記録の sha256 と同じ
 must(hashlib.sha256(git("show", "3dfd8f3:DAI/docs/tools_pending/dai18_posthoc_voice40.py").encode()).hexdigest() == phprov["script_sha256"], "3dfd8f3 の台本が出力の記録と違う")
 for c in C6:
@@ -585,9 +675,10 @@ L: list[str] = []
 w = L.append
 PRO, MIX = "prod", "M_F6_mixsel"
 
-w("# 実験 18 の下調べ（DAI-18．6 コーパスで実験 16・17 の主な版を流し直した下調べ）：結果の文の下書き（2026-11-15．第 2 版．照合の第 1 回の直しを入れた）")
+w("# 実験 18 の下調べ（DAI-18．6 コーパスで実験 16・17 の主な版を流し直した下調べ）：結果の文の下書き（2026-11-15．第 3 版．照合の第 2 回の直しを入れた）")
 w("")
-w(f"第 1 版（2026-11-14．コミット 3dfd8f3）への照合の第 1 回（`DAI/checks/DAI-18/claim.md`．判定は「直してから通す」．数値の食い違いは無く，記録 {N_CLAIM} 件は，文と名前の直し，書き添え，欠けていた数え 2 つの指摘）の直しを入れた．変更の一覧は末尾の 7 節．")
+w(f"第 1 版（2026-11-14．コミット 3dfd8f3）への照合の第 1 回（`DAI/checks/DAI-18/claim.md`．判定は「直してから通す」．数値の食い違いは無く，記録 {N_CLAIM} 件は，文と名前の直し，書き添え，欠けていた数え 2 つの指摘）の直しを第 2 版（コミット 94a0e57）に入れた．"
+  f"第 2 版への照合の第 2 回（`DAI/checks/DAI-18/claim_v2.md`．判定は「直してから通す」．第 1 回の {N_CLAIM} 件は直り，数値の食い違いは無い．記録 {N_CLAIM2} 件と，注と台本の照合への意見）の直しをこの第 3 版に入れた．変更の一覧は末尾の 7 節．")
 w("")
 w("この文書は，台本 `DAI/docs/tools_pending/extract_dai18_text.py` が `results/dai18_probe/` の結果ファイルから数値を取り出して書き出した．"
   "結果ファイルから取る数値と表は，すべて台本が埋めた（手で写していない）．設計・点検の報告・台帳から引いた数値（0 節）は文として引き，引いた文が元の文書にあることを台本が確かめた．"
@@ -633,17 +724,20 @@ w(f"- **照合の前に値を使った先**：照合（関門 2）の第 1 回�
   f"(2) 説明の資料（コミット 1bd82b5，{PDF_TIME[11:]}．6 コーパスの結果を入れた）．"
   "(3) 22:01 に，実験 1・2 の評価の回の集計の値と並べた（台帳の DAI-20 の行）．"
   "(4) CREMA-D を評価するコーパスに足す案の承認（20:55）と DAI-21 の設計（22 時台．台帳の DAI-20・DAI-21 の行）．"
-  "照合の第 1 回は，結果の文と表の文書の数値に食い違いを見つけなかった（説明の資料の中の値と，22:01 に並べた値は，照合の対象に入っていない）．"
-  "この第 2 版で直した名前（対照の名前，`MN_F2K_sel − MN_eq_sel` の呼び方）は，説明の資料には入れていない．")
+  "照合の報告によると，第 1 回は結果の文の数値と表の文書の 15 か所を照らし，第 2 回は表の文書の全 522 欄を結果ファイルから取り直して，どちらも食い違いを見つけなかった"
+  "（説明の資料の中の値と，22:01 に並べた値は，照合の対象に入っていない）．"
+  "第 2 版で直した名前（対照の名前，`MN_F2K_sel − MN_eq_sel` の呼び方）は，説明の資料には入れていない．")
 w(f"- **計算の後に足した量**（どれも学び直さず，保存だけを読み，CPU で流した．出したのは結果を開いた後である）："
   f"(1) 声の生徒の選び直し（設計 5 節 R5 が結果の文に並べると決めた感度）．`dai18_posthoc_voice40.py` が `results/dai18_probe/posthoc/voice_student_prod40.csv` に出した（{phprov['time']}．記録は `provenance_voice40.json`）．"
   f"`students/` の保存（格子の全点のテストの判定）を読み，元の選び方の差が `students_effects.csv` の値と合うことを確かめた（違いの最大 {sci(phprov['reproduce_max_abs_diff'])}）．"
   f"台本は，流した時点（HEAD {phprov['head_commit_when_run'][:7]}）では未コミットで，3dfd8f3 でコミットした（コミットした台本の sha256 は出力の記録と同じ）．"
   f"(2) 選び方に関わる数え（照合の第 1 回が求めた量）．`dai18_posthoc_selcounts.py` が `posthoc/natural_only_reselect.csv` と `posthoc/selection_dependency.csv` に出した（{scprov['time']}．記録は `provenance_selcounts.json`）．"
   "自然な会話のコーパスだけで選び直したときの点，選択を通した依存，mix2 と mix3 の判定の一致，融合の生徒の点を選ぶ単位の内訳を数えた．"
-  "元の選び方を作り直して `sel.csv` と同じ点になることを確かめてから数えた．台本は流した時点では未コミットで，sha256 を出力の記録に残した．"
+  f"元の選び方を作り直して `sel.csv` と同じ点になることを確かめてから数えた．台本は，流した時点（HEAD {scprov['head_commit_when_run'][:7]}）では未コミットで，94a0e57 でコミットした（コミットした台本の sha256 は出力の記録と同じ）．"
   "**この 2 本の台本は gate-code の検査を受けていない**．(1) は，照合の第 1 回が選び直しと差を独立に作り直して一致を確かめた．"
-  f"(2) の 2 つの数え（105 組のうち {NAT_N} 組，285 のうち {int(dep5.changed.sum())}）と，mix2・mix3 の判定の配列の数（{MX['n_arrays']:,} 個で違い 0）は，照合の第 1 回の報告の値と一致した．")
+  f"(2) の数えは，この文書の台本が，集計の段の関数を使わない別の書き方で保存から作り直し，出力と違えば止まる形で確かめている"
+  f"（選び直した点 {len(KEYS105)} 組，依存の表 {len(mydep)} 行，判定の配列 {MY_MX['n_arrays']:,} 個，融合の生徒の点を選ぶ単位の内訳）．"
+  "照合の第 2 回も，2 つの数えと内訳を保存から作り直して合うと報告した（`claim_v2.md` の「足した 2 つの数えと内訳の照合」）．")
 w("")
 w("**申告**（設計 0・5・8・9 節が求めるもの）：")
 w("")
@@ -687,7 +781,12 @@ w(f"- **選択を通した依存**（設計 8 節．`posthoc/selection_dependenc
   "その単位の疑似ラベルの版の点は c′ を評価するときの点で，その点を選んだ単位には，c を仮のターゲットにした単位（c のテストのラベルを使う）が入る．"
   f"c を仮のターゲットにした単位を除いて c′ の点を選び直すと，R5 の疑似ラベルの 4 つの版では，{len(dep5)} の（c，c′，K，版）のうち {int(dep5.changed.sum())} で点が変わる（"
   + "，".join(f"`{v}` は {DEP_BY[v][1]} のうち {DEP_BY[v][0]}" for v in ("M_F6_mixsel", "MN_eq_sel", "MN_F2K_sel", "MN_F6K_sel")) + f"）．対照の `MS_eq_sel` は {DEP_BY['MS_eq_sel'][1]} のうち {DEP_BY['MS_eq_sel'][0]} である．"
-  "数える範囲は，c を仮のターゲットにした単位が c′ の点の選択に入っている組である．依存を除いた R5 の値は，生徒の学び直しが要るので出していない（設計 8 節で範囲の外）．当たりの規則に関わる分は要点 4・7 に書く．")
+  "数える範囲は，c を仮のターゲットにした単位が c′ の点の選択に入っている組である．"
+  "この数えは役を分けていない．RAVDESS を仮のターゲットにした単位には声の生徒しか無いので，役を分けない数えは，声の生徒の点の選択に入る組の数えと同じになる．"
+  "役ごとに，その役の生徒の点の選択に入る組（c と c′ の両方にその役の生徒がある組）だけで数えると，"
+  + "，".join(f"{ROLE_JP[ro]}は {dep_role(ro)[1]} のうち {dep_role(ro)[0]}" for ro in ("A", "V", "T", "fusion")) + " である"
+  f"（対照の `MS_eq_sel` は，" + "，".join(f"{ROLE_JP[ro]}が {dep_role(ro, mydep[mydep.version == 'MS_eq_sel'])[1]} のうち {dep_role(ro, mydep[mydep.version == 'MS_eq_sel'])[0]}" for ro in ("A", "V", "T", "fusion")) + "）．"
+  "依存を除いた R5 の値は，生徒の学び直しが要るので出していない（設計 8 節で範囲の外）．当たりの規則に関わる分は，融合の生徒の点の選択に入る組だけで数えて，要点 4・7 に書く．")
 w("- **引き戻しの強さの選び方**（K 本だけの分類器を出発点へ引き戻す強さ）：評価のターゲット T ごとに，T の仮のターゲットの単位のテストの UAR の平均で選ぶ（実験 1 と同じ規則）．"
   "評価するコーパス c 自身のテストが，選ぶ単位の 1/3〜1/5 の重みで入る．積と各版は同じ強さを使うが，UAR の水準と「今の提案 − K 本だけ」の差は甘く出る向きがある．"
   "この選択には，演技のコーパス（CREMA-D・RAVDESS）を仮のターゲットにした単位が入る．")
@@ -798,10 +897,22 @@ w("   - **疑似ラベルの量**（`students_conditions.csv`．融合．提案�
   f"（並べた桁までの値で比べた．一致した割合の残る {N_EQ['mimic']} 組は同じ値）．"
   "生徒の差が上回るとは言えなかったコーパスもこの数えに入るので，この量から当たりと外れを分ける読みは書かない．")
 w("   - **生徒の点を選んだ単位**：AFEW と MELD を評価するときの融合の生徒の点は，3 モダリティの融合の 30 単位と，CREMA-D を仮のターゲットにした声・顔の融合の 10 単位で選んでいる（0 節）．")
-da, dm = dep_of("AFEW", 25, MIX), dep_of("MELD", 25, MIX)
-w(f"   - **選択を通した依存**（0 節）：AFEW を評価するときの生徒の点を選ぶ単位では，疑似ラベルの版の点（仮のターゲット c′ ごと）{da[0]} つのうち {len(da[1])} つ（"
-  + "，".join(f"{x[0]} の点．{mix_desc(x[1])}から {mix_desc(x[2])}" for x in da[1]) + "）が，AFEW を仮のターゲットにした単位を除いて選び直すと変わる．"
-  f"MELD を評価するときは {dm[0]} つのうち {len(dm[1])} である．依存を除いた値は出していない．")
+def dep_phrase(c, K, v, detail=False) -> str:
+    """融合の生徒の点の選択に入る組だけで数えた文．"""
+    n, ch = dep_of(c, K, v, "fusion")
+    if not ch:
+        return f"{c} を評価するときは {n} つのうち 0"
+    names = "，".join(f"{x[0]} の点．{mix_desc(x[1])}から {mix_desc(x[2])}" for x in ch) if detail else jp([x[0] for x in ch])
+    return f"{c} を評価するときは {n} つのうち {len(ch)} つ（{names}）"
+
+
+def dearu(x: str) -> str:
+    return x + (" である" if x[-1].isdigit() else "である")
+
+
+w("   - **選択を通した依存**（0 節）：融合の生徒の点を選ぶ単位の，疑似ラベルの版の点（仮のターゲット c′ ごと．RAVDESS を仮のターゲットにした単位は融合の生徒の選択に入らない）のうち，"
+  "評価するコーパスを仮のターゲットにした単位を除いて選び直すと変わるのは，"
+  + dearu("，".join(dep_phrase(c, 25, MIX, detail=True) for c in ("AFEW", "MELD"))) + "．依存を除いた値は出していない．")
 w(f"   - **選んだ設定**（5.3 節．疑似ラベルの重み ρ・K 本の倍率 a）：K = 25 の融合の生徒は，AFEW では提案の手法の疑似ラベルの側が {st_point('AFEW', 25, 'AVT', MIX)}，積の疑似ラベルの側が {st_point('AFEW', 25, 'AVT', PRO)}，"
   f"MELD では提案の手法の疑似ラベルの側が {st_point('MELD', 25, 'AVT', MIX)}，積の疑似ラベルの側が {st_point('MELD', 25, 'AVT', PRO)} である．")
 w("   - **出どころ**：`M_F6_mixsel` は，4 コーパスの実験 16 の結果を見てから重く見た版である．")
@@ -859,17 +970,10 @@ w(f"   - **R5（生徒）**：36 の機会（役 4 × 疑似ラベル 3 × K 3�
   + "，".join(f"{ROLE_JP[r.student]} × `{r.a}` の K = {int(r.K)}（{r.up} {SQ(r.student, r.a, PRO, r.up, int(r.K))}）" for r in one17.itertuples())
   + "である．このうち顔 × `MN_F6K_sel` の K = 25 は演技のコーパス CREMA-D で上回ったもので，元の 4 コーパスの数えは 0 である．"
   "`MN_F2K_sel`・`MN_F6K_sel` の生徒にも同じ重みの付け方の対照が無いので，ソースの分類器を足した分と区別していない．")
-
-
-def dep_phrase(c, K, v) -> str:
-    n, ch = dep_of(c, K, v)
-    nf = [x[0] for x in ch if not x[3]]
-    return (f"{c} を評価するときは {n} つのうち {len(ch)} つ（{jp([x[0] for x in ch])}" + (f"．{jp(nf)} を仮のターゲットにした単位に融合の生徒は無い" if nf else "") + "）") if ch else f"{c} を評価するときは {n} つのうち 0"
-
-
 w("   - **R5 の当たりの選び方**：融合の生徒 × `MN_F6K_sel` の K = 25 でも，生徒の点は 3 モダリティの融合の 30 単位と CREMA-D の声・顔の融合の 10 単位で選んでいる．"
-  "選択を通した依存（0 節）では，生徒の点を選ぶ単位の疑似ラベルの版の点のうち，評価するコーパスを仮のターゲットにした単位を除いて選び直すと変わるものの数は，"
-  + "，".join(dep_phrase(c, 25, "MN_F6K_sel") for c in ("AFEW", "MELD")) + "である．依存を除いた値は出していない．")
+  "RAVDESS を仮のターゲットにした単位は融合の生徒の選択に入らないので，融合の生徒の点を選ぶ単位の疑似ラベルの版の点は，仮のターゲットごとの 4 つである．"
+  "選択を通した依存（0 節）で，評価するコーパスを仮のターゲットにした単位を除いて選び直すと変わるのは，"
+  + dearu("，".join(dep_phrase(c, 25, "MN_F6K_sel") for c in ("AFEW", "MELD"))) + "．依存を除いた値は出していない．")
 w("")
 
 # ---- 2 節
@@ -989,7 +1093,8 @@ w("")
 w("### 3.7 疑似ラベルの量（融合．提案の手法の疑似ラベル 対 積の疑似ラベル）")
 w("")
 w("`students_conditions.csv` の値．結果を見た後に選んで並べた記述で，規則ではない（要点 4）．融合は，元の 4 コーパスが声・顔・言葉の融合，CREMA-D が声・顔の融合である．"
-  "幅と最大の確率は疑似ラベルの量で，どの役の生徒でも同じ疑似ラベルを使う．一致した割合は融合の生徒の量で，GPU と CPU の計算の違いで小数第 3 位が変わりうる．")
+  "最大の確率は疑似ラベルだけの量で，どの役の生徒でも同じ値である．幅は，疑似ラベルの UAR から K 本だけの融合の分類器の UAR を引いた量で，引く側は役で変わる（この表は融合の値）．"
+  "一致した割合は融合の生徒の量で，GPU と CPU の計算の違いで小数第 3 位が変わりうる．")
 w("")
 w("| 量 | K | " + " | ".join(F5) + " |")
 w("|---|---|" + "---|" * len(F5))
@@ -1101,7 +1206,7 @@ w("")
 # ---- 6 節
 w("## 6. まだ出していない量")
 w("")
-w("設計が結果の文に並べる，または計算の後に保存から出すと決めた量のうち，この第 2 版に無いものを一覧にする．"
+w("設計が結果の文に並べる，または計算の後に保存から出すと決めた量のうち，この版に無いものを一覧にする．"
   "保存から出す量は学び直さずに出せる見込みである（点検の報告 1 節は，単位ごとのソースの一覧 `srcs_*`・`sid_test`・`nn_test_*` が 300 単位すべてに保存されていることを確かめた）．出し方はまだ確かめていない．")
 w("")
 w("- **設計 8 節の 6（CREMA-D と RAVDESS の確認）**：(1) CREMA-D で文「It's eleven o'clock.」を除いたときの UAR，(2) RAVDESS の強さ（普通・強い）ごとの正解率，(3) RAVDESS の水準に天井の効果があるか（水準そのものは 3.3 節と表の文書にある），"
@@ -1140,6 +1245,21 @@ w("14. 0 節に，`provenance.json` の定数に無い設定（16 点の格子�
 w("15. 偶然の見込みは，設計の文（約 0.6）を引いたまま，72 の機会での 2 つの数（偶然の当たりの数の見込みと，どれかが当たる見込み）を補った（S4）．")
 w("")
 w("台本の照合も足した：結果ファイルの `verdict` の列を，設計 5 節の文（下端 > 0 かつ 1.0 点以上，上端 < 0 かつ −1.0 点以下）から作り直した判定と全行で比べる．2 節に規則の語が無いことと，替えた名前が残っていないことを確かめる．")
+w("")
+w(f"第 2 回の照合（`DAI/checks/DAI-18/claim_v2.md`．直してから通す．第 1 回の {N_CLAIM} 件は直り，数値の食い違いは無い．記録 {N_CLAIM2} 件）を受けて，第 3 版で次の直しを入れた．結果ファイルから取った値は変えていない．")
+w("")
+w("1. 要点 7 の「R5 の当たりの選び方」は，融合の生徒の点の選択に入らない RAVDESS の点を分母と分子に数えていた．融合の生徒の点の選択に入る組だけで数え直し，"
+  + "，".join(dep_phrase(c, 25, "MN_F6K_sel") for c in ("AFEW", "MELD")) + "に直した（第 2 版は 5 つのうち 2 つ，5 つのうち 2 つと書いていた）．"
+  "要点 4 の `M_F6_mixsel` の数えは，RAVDESS の点がもともと無いので値は変わらないが，同じ数え方（融合の生徒の点の選択に入る組だけ）にそろえた．"
+  "0 節の選択を通した依存の全体の数えは役を分けていないことを書き，役ごとの数えを足した（A26）．")
+w("2. 0 節の「照合の第 1 回は表の文書の数値に食い違いを見つけなかった」を，第 1 回が照らした表の文書の 15 か所と，第 2 回が照らした全 522 欄に書き分けた（A3）．")
+w("3. 3.7 節の注を直した．最大の確率は疑似ラベルだけの量で，幅は K 本だけの融合の分類器の UAR を引いた量である（引く側は役で変わる）．")
+w("4. 台本の照合のうち，検査役の報告の文に数が現れるかを確かめていたもの（選び直しで変わる組の数，依存の数，mix2 と mix3 の配列の数）をやめた．"
+  "代わりに，この台本が集計の段の関数を使わない別の書き方で保存から作り直し，数えの台本の出力と違えば止まる形にした．文に書く数は，保存から作り直した値である．"
+  "検査役の報告から引く文は，報告が自分の検査について書いたこと（照らした箇所の数，判定）に限り，引いた文が報告にあることだけを確かめる．")
+w("")
+w("第 1 回の報告は，当たりの R2 の規則で上回ったコーパスのうち点が変わる組を 2 組と書いていた．第 2 回の報告は，これを一覧から拾うときの落としと認め，この文書の 3 組（"
+  + "，".join(f"`{a}` の {c} の K = {K}" for _, a, K, c in NAT_HIT if _ == "R2") + "）に読み替えた．")
 w("")
 
 ap = argparse.ArgumentParser()
