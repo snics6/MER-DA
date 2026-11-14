@@ -9,7 +9,9 @@
           logs/dai21_*.log・dai21_eval5.done，DAI/frozen/dai21_frozen.json・dai20_frozen.json，DAI/run/dai21_eval5.sh，
           設計 DAI/docs/実験21_設計.md・検査と点検の報告 DAI/checks/DAI-21/*.md（13 本）・台帳 docs/seen-data.md，
           実験 18・20 の設計，実験 20 の結果の文，DAI/docs/論文のセッションへの伝言_2026-11-14.md，features/build_manifest_extra.py（文の記号の対応の 1 行），
-          本体の作業の覚え書き（memory の dai21-retrain-cremad-2026-11-14.md．句があることだけを見る）
+          本体の作業の覚え書き（memory の dai21-retrain-cremad-2026-11-14.md．句があることだけを見る），
+          照合（関門 2）の第 1 回の報告 DAI/checks/DAI-21/claim.md（判定と指摘の数だけを読む），実験 20 の点検の報告 DAI/checks/DAI-20/code_post.md（引いた文の確かめ），
+          DAI/docs・DAI/paper・DAI/slides・docs・slides・paper の .md と .tex（この結果の値の文字が出てくる文書を探す）
           （どれも，引いた文がそこにあることを確かめるだけ．報告の中の数は照合に使わない．報告の表の行を引いた 3.2・3.3 節は，報告の値として書く），
           表の文書 DAI/docs/実験21_結果の表_2026-11-15.md と書き出しの台本 md_tables_dai21.py（版の呼び名をそろえる．表の文書が今の集計と合うことと，
           最初に書き出した版から変わったのが注 3 個・桁 8 個・文の 2 行だけであることを確かめる），
@@ -429,6 +431,20 @@ GM = {(c, K): int(FZ4[(c, K)]["student_main"]) for c, K in ALL12} | {(CD, K): in
 GI = {(c, K): int(FZ4[(c, K)]["prop_grid"]) for c, K in ALL12} | {(CD, K): int(FZC[K]["prop_grid"]) for K in KS}             # 提案の格子の点
 GS = {(c, K): int(FZ4[(c, K)]["student_prop_sel"]) for c, K in ALL12} | {(CD, K): int(FZC[K]["student_prop_sel"]) for K in KS}
 GPS = {(c, K): int(FZ4[(c, K)]["student_prod_sel"]) for c, K in ALL12}
+# 選んだ学び直しの設定の点が，格子の端（ρ = 0.0625・4，a = 1・16）に当たった数を，疑似ラベルごとに数える（固定のファイルの点と，student_grid.csv の ρ・a）
+must(all(SGRID[int(r.grid)] == (float(r.rho), int(r.a)) for r in sg.itertuples()), "student_grid.csv の ρ・a が，格子の番号と合わない")
+
+
+def edge_counts(points: list) -> dict:
+    return dict(n=len(points), rho_hi=sum(SGRID[g][0] == 4.0 for g in points), rho_lo=sum(SGRID[g][0] == 0.0625 for g in points), a_edge=sum(SGRID[g][1] in (1, 16) for g in points))
+
+
+EDGE_MAIN = edge_counts([GM[k_] for k_ in ALL15])                              # 主の点（15 条件）
+EDGE_PROP = edge_counts([GS[k_] for k_ in ALL15])                              # 提案の手法の疑似ラベルのために選んだ点（15 条件）
+EDGE_PROD4 = edge_counts([GPS[k_] for k_ in ALL12])                            # 積の疑似ラベルのために選んだ点（元の 4 コーパスの 12 条件）
+EDGE_PROD15 = edge_counts([GPS[k_] for k_ in ALL12] + [GM[(CD, K)] for K in KS])   # 同上に，CREMA-D の主の点（積の疑似ラベルのために同じ規則で選んだ点）を足した 15 条件
+must(EDGE_PROP["rho_hi"] + EDGE_PROD15["rho_hi"] + EDGE_PROP["rho_lo"] + EDGE_PROD15["rho_lo"] + sum(SGRID[GM[k_]][0] in (0.0625, 4.0) for k_ in ALL12) == frozen["n_student_points_at_rho_edge"],
+     "ρ が格子の端の点の数が，固定のファイルの記録と合わない")
 # 設計 3.1 節の点の記述と固定のファイル
 DQ_MAIN4 = quote(design, "4 コーパス：実験 1 が仮のターゲットで選んで固定した点（どのコーパス・K でも ρ ＝ 1，a ＝ 1）．", "設計 3.1 節")
 DQ_MAINCD = quote(design, "CREMA-D：実験 18 が，CREMA-D を触らずに残した単位だけで選んだ点（K = 5 は ρ ＝ 1・a ＝ 16，K = 10・25 は ρ ＝ 4・a ＝ 1）．"
@@ -493,6 +509,7 @@ CONF: dict = {}      # 同 → 混同行列（全部の単位の合計）
 TQ: dict = {}        # (コーパス, K, 疑似ラベル) → 疑似ラベルの UAR（候補の上）と，学び直した分類器が疑似ラベルと判定が一致した割合（候補の上．主の点）
 REPRO: dict = {}     # (コーパス, K, 手法) → 積の疑似ラベルで学び直した判定が実験 1 の保存と一致する割合
 N_TEST: dict = {}
+N_CL: dict = {}
 NEST_BAD = 0
 LEV14 = GRID.index((INF, 1.0, "eq"))
 must(LEV14 == 14, "格子の点 14")
@@ -541,6 +558,7 @@ for p_ in F4:
          f"実験 20 の単位のテストと違う：{p_.name}")
     _, inv = np.unique(z["cl_test"], return_inverse=True)
     ncl = int(inv.max()) + 1
+    N_CL.setdefault((c, f), set()).add(ncl)                                  # テストの塊の数（分割ごと．K 本の引き方で変わらないはず）
     N_TEST.setdefault(c, {})[(f, r)] = np.bincount(y, minlength=4)
     ypool = z20["y_pool"].astype(int)
     kp_ = []
@@ -604,6 +622,9 @@ for p_ in FC:
         teacher_check(CD, K, f, r, z, z, ypool, kpos)
     NEST_BAD += int(not (kp_[0] <= kp_[1] <= kp_[2]) or [len(x) for x in kp_] != [4 * K for K in KS])
 must(NEST_BAD == 0, f"K 本が入れ子でない単位がある：{NEST_BAD}")
+must(all(len(x) == 1 for x in N_CL.values()), "テストの塊の数が K 本の引き方で違う")
+MELD_CL = [next(iter(N_CL[("MELD", f)])) for f in range(5)]
+must(MELD_CL[4] == 2 and min(MELD_CL[:4]) > 2, f"MELD の分割ごとの塊の数（文を直す）：{MELD_CL}")
 must(sorted({v for c, K, v in UM if c != CD}) == V4 and sorted({v for c, K, v in UM if c == CD}) == VC and not any(np.isnan(x).any() for x in UM.values()), "作り直した版の一覧")
 
 
@@ -769,22 +790,41 @@ must(TD_ZERO_SAME == sum(klass(q(a, b, c, K)) == "same" for a, b in TD_SHOWN0 fo
 must(not any(re.search(r"^[+-]0\.0+ \[|\[[+-]0\.0+, |, [+-]0\.0+\]", x) and x not in TD_ZERO for x in TD_CELLS), "表の文書に，0 に丸まったままの差か区間の端が残っている")
 # 表の文書：最初に書き出した版と欄ごと・行ごとに比べ，変わったのが，注を足した欄，桁を足した差，文の 2 行だけであること
 OLD_TBL = git("show", f"{TD_FIRST[0]}:DAI/docs/実験21_結果の表_2026-11-15.md")
-o_rows = [x.split("|") for x in OLD_TBL.split("\n") if x.startswith("|")]
-n_rows = [x.split("|") for x in table_doc.split("\n") if x.startswith("|")]
-must(len(o_rows) == len(n_rows), "表の文書の表の行の数が変わった")
-TBL_NOTE, TBL_DIG = 0, 0
+MIX_OLD = "今の提案：この実験で解いた値 − 実験 1 の保存（4 コーパス．再現の確かめ）／− K 本だけの融合（CREMA-D）"     # 最初の版で，再現の検算と性能の差が 1 行に並んでいた行
+SPLIT_A = "今の提案 − K 本だけの融合（元の 4 コーパスの今の提案は実験 1 の保存，CREMA-D はこの実験で解いた値）"
+SPLIT_B = "再現の確かめ：今の提案をこの実験で解いた値 − 実験 1 の保存（元の 4 コーパスだけ．性能の差ではない）"
+
+
+def rows_of(text_: str) -> list:
+    return [[y.strip() for y in x.strip().strip("|").split("|")] for x in text_.split("\n") if x.startswith("|")]
+
+
+def cell_change(a_: str, b_: str) -> str:
+    """最初の版の欄 a_ と今の版の欄 b_ の違い：同じなら空，注が付いたなら note，桁が足されたなら digit．ほかの違いなら止まる．"""
+    if a_ == b_:
+        return ""
+    if a_ == "+0.00 [+0.0, +0.0]" and b_ == a_ + NOTE_CNT:
+        return "note"
+    ma_, mb_ = re.match(r"([+-]0\.00) (\[.*)$", a_), re.match(r"([+-]\d+\.\d+) (\[.*)$", b_)
+    must(ma_ is not None and mb_ is not None and ma_.group(2) == mb_.group(2) and 0.0 < abs(float(mb_.group(1))) <= 0.005 + 1e-12 and mb_.group(1)[0] == ma_.group(1)[0], f"表の文書の欄が，差の桁と注のほかで変わった：{a_} → {b_}")
+    return "digit"
+
+
+o_all, n_all = rows_of(OLD_TBL), rows_of(table_doc)
+o_mix, n_a, n_b = [r for r in o_all if r[0] == MIX_OLD], [r for r in n_all if r[0] == SPLIT_A], [r for r in n_all if r[0] == SPLIT_B]
+n_j = [r for r in n_all if r[0] == "今の提案 − K 本だけの融合" and len(r) == 6]                # 3 節の表の同じ差の行（元の 4 コーパス）
+must(len(o_mix) == 3 and len(n_a) == 3 and len(n_b) == 3 and len(n_j) == 3 and not any(r[0] == MIX_OLD for r in n_all), "表の文書の，分けた行の数")
+o_rows, n_rows = [r for r in o_all if r[0] != MIX_OLD], [r for r in n_all if r[0] not in (SPLIT_A, SPLIT_B)]
+must(len(o_rows) == len(n_rows) and len(n_all) == len(o_all) + 3, "表の文書の表の行の数")
+TBL_CH = []
 for ro_, rn_ in zip(o_rows, n_rows):
     must(len(ro_) == len(rn_), "表の文書の列の数が変わった")
-    for a_, b_ in zip(ro_, rn_):
-        a_, b_ = a_.strip(), b_.strip()
-        if a_ == b_:
-            continue
-        if a_ == "+0.00 [+0.0, +0.0]" and b_ == a_ + NOTE_CNT:
-            TBL_NOTE += 1
-            continue
-        ma_, mb_ = re.match(r"([+-]0\.00) (\[.*)$", a_), re.match(r"([+-]\d+\.\d+) (\[.*)$", b_)
-        must(ma_ is not None and mb_ is not None and ma_.group(2) == mb_.group(2) and 0.0 < abs(float(mb_.group(1))) <= 0.005 + 1e-12 and mb_.group(1)[0] == ma_.group(1)[0], f"表の文書の欄が，差の桁と注のほかで変わった：{a_} → {b_}")
-        TBL_DIG += 1
+    TBL_CH += [cell_change(a_, b_) for a_, b_ in zip(ro_, rn_)]
+for ro_, ra_, rb_, rj_ in zip(o_mix, n_a, n_b, n_j):                        # 分けた 2 行：欄の値は，元の行の欄と，3 節の表の同じ差の行の欄と同じ
+    must(len(ro_) == 7 and len(ra_) == 7 and len(rb_) == 7 and ro_[1] == ra_[1] == rb_[1] == rj_[1], "表の文書の，分けた行の K")
+    must(ra_[6] == ro_[6] and rb_[6] == "—" and ra_[2:6] == rj_[2:6], f"表の文書の，分けた行の欄：{ra_}")
+    TBL_CH += [cell_change(a_, b_) for a_, b_ in zip(ro_[2:6], rb_[2:6])]
+TBL_NOTE, TBL_DIG = TBL_CH.count("note"), TBL_CH.count("digit")
 must(TBL_NOTE == 3 and TBL_DIG == 8, f"表の文書で変わった欄の数：注 {TBL_NOTE}，桁 {TBL_DIG}")
 o_text = [x for x in OLD_TBL.split("\n") if not x.startswith("|")]
 n_text = [x for x in table_doc.split("\n") if not x.startswith("|")]
@@ -792,8 +832,9 @@ TBL_GONE, TBL_NEW = [x for x in o_text if x not in n_text], [x for x in n_text i
 TD_K29_OLD = "引き方 0・1 は下調べと同じ K 本，引き方 2〜9 はこの実験で初めて使う K 本である．テストの発話はどちらも同じである．"
 TD_K29 = "引き方 0・1 は下調べと同じ K 本，引き方 2〜9 は評価の回で初めて使う K 本である（元の 4 コーパスは実験 20 と同じ単位，CREMA-D はこの実験の単位）．"
 TD_DIGIT = ("差がちょうど 0 で区間の両端も 0 の欄は，全部の単位で両側の正解の数が同じ条件である．判定まで同じなら「（同じ判定）」，判定が違えば「（正解の数は同じ．判定は違う）」と書く．")
-must(len(TBL_GONE) == 2 and len(TBL_NEW) == 2 and TBL_GONE[0].startswith("- 数の桁：") and TBL_NEW[0].startswith("- 数の桁：") and TBL_NEW[0].endswith(TD_DIGIT)
-     and "差が 0.00 に丸まるときは" in TBL_NEW[0] and TBL_GONE[1] == TD_K29_OLD and TBL_NEW[1] == TD_K29 + "テストの発話はどちらも同じである．", f"表の文書の文の行が，決まった 2 行のほかで変わった：{TBL_GONE}，{TBL_NEW}")
+TD_EXPL = "この表の値は，手法と設定を選んだときに見たテストと同じテストの発話の上の値で，探索の結果として読む（設計 0 節）．CREMA-D は，元の 4 コーパスと並ぶ独立な確かめとして数えない．"
+must(len(TBL_GONE) == 2 and TBL_GONE[0].startswith("- 数の桁：") and TBL_GONE[1] == TD_K29_OLD and len(TBL_NEW) == 3 and set(TBL_NEW[1:]) == {TD_EXPL, TD_K29 + "テストの発話はどちらも同じである．"}
+     and TBL_NEW[0].startswith("- 数の桁：") and TBL_NEW[0].endswith(TD_DIGIT) and "差が 0.00 に丸まるときは" in TBL_NEW[0], f"表の文書の文の行が，決まった行のほかで変わった：{TBL_GONE}，{TBL_NEW}")
 TD_SHIFT = "ずらす量は，ラベル無しの候補の発話の上で，その版の確率の平均が，積の確率の平均と同じになるように決める"
 must(TD_SHIFT in table_doc and TD_SHIFT in text20, "表の文書と実験 20 の結果の文の，切片のずらしの定義の文")
 TD_DASH = "部品を外した版と，全ラベルで測った表・ソースだけで測った表は，切片をずらした答えだけを集計している．「切片をずらす前」の欄の「—」は，その値を集計していないことを表す．"
@@ -851,6 +892,7 @@ must(all(t_ < "2026-11-15 03:20:35" for t_ in T_TOOLS.values()), f"計算の後�
 RQ_SRC = {
     "S2": ("stats", "CREMA-D の表で印の無い行を「差が言えない行」と読むと，区間が 0 を含まない行を取りこぼす．"),
     "S3": ("stats", "引き直しの分散は塊の数 n について (n − 1)/n 倍に縮むので，SE は約 3% 小さく出る．この 2 つは同じ向きである．"),
+    "S3b": ("stats", "実験 20 の設計 156 行の IEMOCAP・MELD・jackknife の列の読み方も写す"),
     "S5a": ("stats", "補正しない 95% の区間なので，差がすべて 0 でも片側 2.5% の割合で 0 をまたがない行が出うる．"),
     "S5b": ("stats", "3 つの K で同じ向きの区間が並んでも 3 回の独立な一致ではない．"),
     "S5c": ("stats", "`same_as` の立った行と作りの上で 0 になる行は独立な比べとして数えない"),
@@ -868,6 +910,9 @@ RQ_SRC = {
     "C9a": ("compare", "CREMA-D の学び直しの結果を「既にある学び直しの手法との比べ」として書かない"),
     "C9b": ("compare", "4 コーパスの学び直しの表には，実験 20 の `others.csv` の実験 2 の手法の水準（単位の数 50 と 15，対の差ではない）を並べるか，並べないと書く．"),
     "C10": ("compare", "疑似ラベルごとに最大の点を取って並べるとオラクルの比べになる．"),
+    "C16a": ("compare", "実験 18 の規則で選んだ点は，提案の疑似ラベルで ρ の上端 4 が 15 のうち 13，積の疑似ラベルで 15 のうち 8 である"),
+    "C16b": ("compare", "`stud_prop_sel` と CREMA-D の主の点（K = 10・25）は格子の上端にあり，格子が狭いと，ρ を大きく取りたい側（提案の疑似ラベル）が不利になる．"),
+    "C16c": ("compare", "`freeze` の段で，選んだ点が格子の端（ρ = 0.0625・4，a = 1・16）に当たった (コーパス, K, 疑似ラベル) の数を固定のファイルに書き，表の注に写す．"),
     "C11": ("compare", "`stud_* − none_*` の差には，K 本だけの融合のために選んだ引き戻しの強さの上乗せが学び直しに不利な向きに入る．実験 1 と同じ作りで，両方の疑似ラベルに同じに入る．"),
     "C12": ("compare", "同点の規則（実験 18 の学び直しの点は `np.nanargmax` で番号の小さい点．`dai18_probe.py:846`）で点が決まった (コーパス, K) の数は確かめていない"),
     "C14": ("compare", "推定時の答えの除去実験の内訳を，学び直した分類器の差の内訳として読まない"),
@@ -885,6 +930,8 @@ RQ_SRC = {
     "RA4": ("review_affect", "結果の文の段で，実験 18 の設計 8 節の記録と合わせて引き継ぐ．"),
     "RA4b": ("review_affect", "設定が CREMA-D に合わなかった場合の感度は，`student_grid.csv`（学び直しの 12 点）と CREMA-D の単位の保存（提案の格子 16 点の判定）で読める．"),
     "RA5a": ("review_affect", "RAVDESS はこの実験の計算に入らないが，設定を選んだ単位に入るので，利用条件の確認は論文の段に残る．"),
+    "RA5d": ("review_affect", "配布元の README は「made available under the Open Database License」と書く（https://github.com/CheyneyComputerScience/CREMA-D ．今回開いて確かめた）．"),
+    "RA5e": ("review_affect", "実験 18 の設計 9 節の「記憶による．未確認」は，CREMA-D については確かめた状態になった．"),
     "RA5b": ("review_affect", "配布元の README はこの発話を「error picture, no audio, very short」と書く．"),
     "RA5c": ("review_affect", "CREMA-D のラベルが演者に指示した感情であること，顔の特徴の 91.3% が 1 区間の平均であることは，実験 18 の設計 8 節の 1〜6 に記録がある．この設計の 8 節が引くのは文の重なりだけなので，結果の文の段で同じ節から引き継ぐ．"),
     "RM2": ("review_ml", "主の比べで差が 0 以下のとき，その差からは「提案の疑似ラベルが悪い」とは言えない（設定が積の側のために選ばれているため）．選択を含まない材料は 12 点の表（`student_grid.csv` と保存の判定）である．"),
@@ -899,6 +946,7 @@ RQ_SRC = {
 RQ = {k_: quote(REP[n_], s_, f"{n_}.md") for k_, (n_, s_) in RQ_SRC.items()}
 RQ_FILE = {k_: f"`{n_}.md`" for k_, (n_, _) in RQ_SRC.items()}
 design18 = (ROOT / "DAI" / "docs" / "実験18_下調べ_設計.md").read_text()
+design20 = (ROOT / "DAI" / "docs" / "実験20_設計.md").read_text()
 E18_LABEL = quote(design18, "ラベルは演者に指示した感情で，聞き手の判断ではない．", "実験 18 の設計 8 節")
 E18_FACE = quote(design18, "CREMA-D の顔の特徴は 91.3% の発話で 1 区間の平均である．", "実験 18 の設計 8 節")
 E18_LIC = quote(design18, "利用条件（論文の段で申告する．原文で確かめる）：CREMA-D は ODbL，RAVDESS は CC BY-NC-SA 4.0（記憶による．未確認）．", "実験 18 の設計")
@@ -965,17 +1013,31 @@ def n_multi(opps: list, mk, kinds) -> int:
     return sum(klass(q(*mk(v), CD, K)) in kinds for v in opps for K in KS)
 
 
+def brk(qs: list) -> dict:
+    """区間の読みの内訳：hi は区間が 0 を含まず正，lo は 0 を含まず負，z は 0 を含む（zn はそのうち点推定が負），zero は差がちょうど 0．"""
+    k = [klass(x) for x in qs]
+    return dict(n=len(qs), hi=sum(x in ("pp", "p") for x in k), lo=sum(x in ("nn", "n") for x in k), z=sum(x == "z" for x in k),
+                zn=sum(x == "z" and y.est < 0 for x, y in zip(k, qs)), zero=sum(x in ("same", "cnt") for x in k))
+
+
 S_PP = eget("stud_prop", "stud_prod")
 S_J = eget("stud_prop", "joint_AVT")
 
+# ---- 照合（関門 2）の第 1 回の報告：判定と指摘の数だけを読む（報告の中の数は，文の値に使わない）
+claim1 = (CK / "claim.md").read_text()
+must("## 判定\n\n直してから通す．下書きの数値・区間・読みの区分・同じ判定の扱いはすべて結果ファイルと一致し" in claim1 and "第 1 版．820 行．コミット 8994e38" in claim1, "照合の第 1 回の判定と対象")
+N_CLAIM1 = claim1.count("\n### [")
+must(N_CLAIM1 == 10 and claim1.count("- 重さ：記録する") == 10, f"照合の第 1 回の指摘の数：{N_CLAIM1}")
+V1_TEXT = git("show", "8994e38:DAI/docs/実験21_結果の文の下書き_2026-11-15.md")           # 照合の第 1 回が見た第 1 版
+
 # ---- 冒頭
-w("# 実験 21（DAI-21．提案の手法の評価の回の続き：学び直し 5 コーパスと CREMA-D の評価の回）：結果の文の下書き（2026-11-15．第 1 版．照合の前．台帳と表の文書の直しを反映した）")
+w("# 実験 21（DAI-21．提案の手法の評価の回の続き：学び直し 5 コーパスと CREMA-D の評価の回）：結果の文の下書き（2026-11-15．第 2 版．照合の第 1 回の直しを入れた）")
 w("")
 w("この文書は，台本 `DAI/docs/tools_pending/extract_dai21_text.py` が `results/dai21_eval5/` の結果ファイルから数値を取り出して書き出した．"
   "結果ファイルから取る数値と表は，すべて台本が埋めた（手で写していない）．設計・点検の報告・台帳から引いた文は，引いた文が元の文書にあることを台本が確かめた．"
   "文が言う数えと大小は，台本が結果ファイルと照らしてから書き出している．集計の点推定は，台本が単位の保存（判定の配列）から別の書き方で作り直した値と照らした（0 節）．文を直すときは，台本の中の文を直して流し直す．"
-  "照合（関門 2．gate-claim）は，まだ受けていない．"
-  "最初に書き出した後（コミット 4f1cbe0）に，本体が台帳と表の文書を直したので，同じ第 1 版のまま，その直しを反映して書き出し直した（変更の一覧は 6 節）．結果ファイルから取った値は変えていない．")
+  f"第 1 版（コミット 8994e38）への照合の第 1 回（関門 2．`DAI/checks/DAI-21/claim.md`）の判定は「直してから通す」だった．報告は，下書きの数値・区間・読みの区分・同じ判定の扱いがすべて結果ファイルと一致したと書き，指摘は {N_CLAIM1} 件（どれも重さは「記録する」）だった．"
+  f"この文書は，その {N_CLAIM1} 件の直しを入れた第 2 版である．結果ファイルから取った値は変えていない（変更の一覧は 6 節）．照合の第 2 回は，まだ受けていない．")
 w("")
 w("値は UAR（4 感情の再現率の平均．%．でたらめに答えると 25%）で，差はすべて UAR の点の差である．角かっこは 95% 区間で，補正していない．")
 w("")
@@ -1066,7 +1128,7 @@ w(f"- **計算の前の検査**（`DAI/checks/DAI-21/`）：設計 10 節は「{
   f"**起動の台本（`DAI/run/dai21_eval5.sh`）は，DAI-21 の検査の報告の範囲の外で（`code_v3.md`：「{KQ_RUN}」），実験 20 の計算の後に使う台本の検査（`DAI/checks/DAI-20/code_post_tools.md`・`code_post_tools_v2.md`）が，下書きの版（`DAI/docs/tools_pending/dai21_eval5.sh`）を検査した**．"
   f"第 1 回（`code_post_tools.md`．コミット 79fa614 の版．sha256 {RUN_SHA1[:8]}…．3 本の台本の全体への判定は「直してから進む」）は，3 節で，sha256 の照合・実験 20 が済んだことの確かめ・段の順序・本番の守り・失敗の印を「合う」とし，"
   f"起動の台本への指摘を記録の 2 件にした（「{T1_SNAP.lstrip('# ')}」「{T1_FRZ.lstrip('# ')}」）．その直しを入れた版（コミット 1f5b65e．sha256 {RUN_SHA[:8]}…）を第 2 回（`code_post_tools_v2.md`．判定は「通す」）が検査し，"
-  "前回の指摘との対応の表の「起動の台本の記録の指摘」の行に，直しを「入力の置き場が無ければ止まる．照らす入力を足した．freeze を先に済ませる前提を冒頭に書いた．起動のたびに前のログを消す」，結果を「合う」と書いている．**流した起動の台本の sha256 は {RUN_SHA[:8]}… で，第 2 回が検査した版と同じである**（コミット 07c5d67 で `DAI/run/` へ移した．この台本が，git の記録から作り直した sha256 と今のファイルの sha256 を比べて確かめた）．"
+  f"前回の指摘との対応の表の「起動の台本の記録の指摘」の行に，直しを「入力の置き場が無ければ止まる．照らす入力を足した．freeze を先に済ませる前提を冒頭に書いた．起動のたびに前のログを消す」，結果を「合う」と書いている．**流した起動の台本の sha256 は {RUN_SHA[:8]}… で，第 2 回が検査した版と同じである**（コミット 07c5d67 で `DAI/run/` へ移した．この台本が，git の記録から作り直した sha256 と今のファイルの sha256 を比べて確かめた）．"
   "2 つの報告がコミットされたのは，計算の起動（03:20:35）より前である．"
   f"漏れの検査は「{KQ_MOVE}」と求めていた．流した台本の sha256（3 つの段の記録の `this_script_sha256`）は，`code_v3.md` が見た台本（コミット f518545・918ebea の `DAI/docs/tools_pending/dai21_eval5.py`）の sha256 と同じである（この台本が git の記録から作り直して確かめた）．"
   "実験 1 の評価の回の単位の保存 600 個の名前と sha256 をまとめた値は，`provenance_log.jsonl` の学び直しの段の行にだけある（`provenance.json` では空．設計 6 節）．")
@@ -1115,6 +1177,22 @@ w(f"- **実験 20 の結果を開いた時刻との前後**：設計 0 節は「
   + "で，どれも 2026-11-15 03:21 より前であり，作業ツリーにも変更が無い（この台本が git の記録で確かめた）．変えた箇所は無いので，一覧は無い．"
   f"点検の報告も「{CQ_BEFORE}」と書いている．**起動（03:20:35）の後，検算の 3 つの段が流れ，学び直しの段が始まったのは {T_HEAD['students4'][11:]} で，実験 20 の結果を開いた時刻（03:21）より後である**．"
   "起動の台本は，検査を通した台本の sha256 を受け取り，今の台本の sha256 と違えば止まる作りである．設計・台本・固定のファイルの sha256 は，3 つの段の記録で同じである．")
+# 論文のセッションへの伝言：結果を開いた後のコミットで，実験 21 の値を「照合中」の印つきで書いた（照合の前に値を使った先）
+NOTE_P = "DAI/docs/論文のセッションへの伝言_2026-11-14.md"
+NOTE_NOW = (ROOT / NOTE_P).read_text()
+NOTE_AFTER = [x.split(" ", 1) for x in git("log", "--format=%h %ad", "--date=format:%Y-%m-%d %H:%M:%S", "--", NOTE_P).strip().split("\n") if x.split(" ", 1)[1] > "2026-11-15 05:28:00"][::-1]
+must(len(NOTE_AFTER) >= 1 and NOTE_AFTER[0][0] == "c6d5e2e", f"伝言の，結果を開いた後のコミット（文を直す）：{NOTE_AFTER}")
+NOTE_C1 = git("show", f"c6d5e2e:{NOTE_P}")
+NOTE_VALS = [ci(S_PP(c, K)) for c, K in ALL15] + [ci(q("prop", "prod", CD, K)) for K in KS]
+must("照合中" in NOTE_C1 and all(x in NOTE_C1 for x in NOTE_VALS) and all(x in NOTE_NOW for x in NOTE_VALS), "伝言に書いてある実験 21 の値が，この文書の値と違う")
+NOTE_LOW = [fest(q("stud_prop", f"stud_{t}", c, K).est) for t in EXTRA for c, K in ALL15 if klass(q("stud_prop", f"stud_{t}", c, K)) in ("nn", "n")]
+NOTE_LOW_OK = all(x in NOTE_NOW for x in NOTE_LOW)                           # 今の伝言が，低かった条件の全部の点推定を持つか
+must(len(NOTE_LOW) == 6, "区間が 0 を含まずに低かった条件の数")
+# この結果の値の文字が出てくる文書を探す（AFEW の K = 10 の値と区間）
+PROBE = ci(S_PP("AFEW", 10))
+SCAN = sorted({str(x.relative_to(ROOT)) for d_ in ("DAI/docs", "DAI/paper", "DAI/slides", "docs", "slides", "paper") if (ROOT / d_).exists()
+               for x in (ROOT / d_).rglob("*") if x.suffix in (".md", ".tex") and x.is_file() and x.resolve() != OUT.resolve() and PROBE in x.read_text(errors="ignore")})
+must({"DAI/docs/実験21_結果の表_2026-11-15.md", NOTE_P} <= set(SCAN), f"値の文字が出てくる文書：{SCAN}")
 MEMO = Path("/home/snics/.claude/projects/-home-snics-MER-DA/memory/dai21-retrain-cremad-2026-11-14.md")
 MEMO_OK = MEMO.exists() and "2026-11-15 05:40 の追記" in MEMO.read_text()
 w(f"- **照合の前に値を使った先**：照合（関門 2）の前に，この結果の値は次の場所で使われている．(1) 表の文書 `DAI/docs/実験21_結果の表_2026-11-15.md`（書き出しの台本 `md_tables_dai21.py`．最初の書き出しはコミット {TD_FIRST[0]}，{TD_FIRST[1][5:16]}．"
@@ -1124,7 +1202,12 @@ w(f"- **照合の前に値を使った先**：照合（関門 2）の前に，�
   "覚え書きの文のうち，区間の読みがこの文書の値と合わなかった 2 つ（温度つき蒸留に同じ疑似ラベルを渡した差の MOSEI の K = 25 と，学び直した融合 − 推定時の答えの CREMA-D の K = 10 は，区間が 0 を含まない）は，本体が直した．"
   "(2)・(3) は本体のセッションの申告で，この台本からは確かめられない"
   + ("（覚え書きに「2026-11-15 05:40 の追記」の句があることだけを見た）．" if MEMO_OK else "．")
-  + "ほかの文書（`DAI/docs/` の設計・結果の文，論文の原稿）にこの結果の値を写した箇所があるかは，この台本では調べていない．")
+  + f"(4) 論文のセッションへの伝言（`{NOTE_P}`）の 0 節．コミット c6d5e2e（{NOTE_AFTER[0][1][5:16]}）で，実験 21 の値（学び直した融合の「提案の手法の疑似ラベル − 積の疑似ラベル」の 15 個の値と区間，CREMA-D の推定時の答えの「提案の手法 − 積」の 3 個の値と区間）を，「照合中」の印を付けて書いた．"
+  + (f"その後のコミット（{'・'.join(h_ for h_, _ in NOTE_AFTER[1:])}）で，本体が文を直した．" if len(NOTE_AFTER) > 1 else "")
+  + "この台本は，c6d5e2e の版と今の版の伝言にあるこの 18 個の値と区間が，この文書の値と同じ文字であることを確かめた．"
+  + ("今の版の伝言は，区間が 0 を含まずに提案の手法の疑似ラベルが低かった 6 条件（要点 5）の点推定を全部持つ．" if NOTE_LOW_OK else "今の版の伝言には，区間が 0 を含まずに提案の手法の疑似ラベルが低かった 6 条件（要点 5）の点推定のうち，無いものがある．")
+  + f"**ほかの文書**：この台本が，AFEW の K = 10 の値と区間の文字（{PROBE}）を，`DAI/docs`・`DAI/paper`・`DAI/slides`・`docs`・`slides`・`paper` の .md と .tex のファイルから探すと，この文書のほかに見つかるのは "
+  + "，".join(f"`{x}`" for x in SCAN) + " である．値を別の桁や別の形で写した文書は，この探し方では見つからない．検査の報告（`DAI/checks/`）は探していない．")
 w("")
 w("**申告**（設計 0・3・4・8・9 節が求めるもの．冒頭の 6 項に加えて）：")
 w("")
@@ -1163,13 +1246,20 @@ DQ_CNT = quote(design, "CREMA-D の区間の半幅は約 0.3 点の見込みな�
 w(f"- **区間は 95% で，補正していない**（設計 4 節：「{DQ_CI}」）．差の区間の数について，設計 4 節は「{DQ_NINT}」と書いている．`effects.csv` は {N_INT['ef']:,} 行で，うち K 本の引き方 0〜9 の行は {N_INT['ef_all']} 行である．"
   f"このほかに，水準の区間が {N_INT['lv']:,} 個（`levels.csv`），感情ごとの再現率の区間が {N_INT['pe']:,} 個（`per_emotion.csv`）ある．どれも補正していない．差が全部 0 でも偶然の印は付きうる．設計 4 節：「{DQ_CNT}」"
   f"統計の検査（`stats.md`）は「{RQ['S5a']}」「{RQ['S5b']}」「{RQ['S5c']}」と書いている．")
+DQ20_JK1 = quote(design20, "IEMOCAP の区間は 5 セッションの jackknife（自由度 3）である．MELD の分割 4 は塊が 2 つしか無い．", "実験 20 の設計 5 節")
+DQ20_JK2 = quote(design20, "jackknife のコーパス（AFEW・IEMOCAP・MELD）では，外れた分割の種の揺れが `v_cluster` の側に入る（IEMOCAP は全部の分割が外れるので `v_seed` は 0 になる）．", "実験 20 の設計 5 節")
+CP20_AFEW = quote((ROOT / "DAI" / "checks" / "DAI-20" / "code_post.md").read_text(), "AFEW では，ある塊を除くと分割 0 のテストが無効になり，その分割の種の揺れが `v_cluster` の側に入る．", "実験 20 の点検の報告")
 DQ_NOISE = quote(design, "**区間が含まない揺れ**：ソースの取り方，学習側の発話，手法と設定の選び方，重みの表の引き方，CREMA-D の文（12 文を全話者が読むので，話者と文が交差する．区間は「同じ 12 文を読む新しい話者」への区間である）．"
                          "CREMA-D の種 0・1 の区間は，種の項の自由度が小さいので狭めに出る．", "設計 4 節")
 w(f"- {DQ_NOISE}（設計 4 節の文のまま）")
 w(f"- **区間の作り方**（`effects.csv` の `method`・`df`・`folds_dropped`）：AFEW・IEMOCAP・MELD は，塊を全分割から同時に除く jackknife と K 本の引き方の項（自由度は順に {DF['AFEW'][0]}・{DF['IEMOCAP'][0]}・{DF['MELD'][0]}），"
   "MOSEI と CREMA-D は，塊の重みの引き直しと K 本の引き方の項（自由度を持たない）である．CREMA-D の塊は話者（91 人）である（設計 2 節．台本が単位の npz で，塊の名前が発話の名前の話者の番号と同じことを確かめた）．"
   f"jackknife で除かれる分割は，AFEW の全行で「{FD['AFEW'][0]}」，IEMOCAP の全行で「{FD['IEMOCAP'][0]}」である．IEMOCAP は全部の分割が除かれ，K 本の引き方の項（`v_seed`）は全行で 0 である．IEMOCAP は自由度 3 で区間が広い．"
-  f"統計の検査（`stats.md`）は，CREMA-D の区間について「{RQ['S3']}」と書いている（「この 2 つ」は，K 本の引き方の項の自由度が小さいことと，この縮みである）．K 本の引き方の項の割合は 3.2 節に並べた．")
+  f"統計の検査（`stats.md`）は，CREMA-D の区間について「{RQ['S3']}」と書いている（「この 2 つ」は，K 本の引き方の項の自由度が小さいことと，この縮みである）．K 本の引き方の項の割合は 3.2 節に並べた．"
+  f"統計の検査は「{RQ['S3b']}」ことも求めていた．実験 20 の設計 5 節：「{DQ20_JK1}」「{DQ20_JK2}」実験 20 の計算の後の点検（`DAI/checks/DAI-20/code_post.md`）：「{CP20_AFEW}」"
+  "この実験の集計でも，IEMOCAP は全部の分割が除かれて `v_seed` が全行で 0 で，AFEW は全行で分割 0 が除かれる（上の値）．**IEMOCAP の `v_seed` が 0 であることは，区間が K 本の引き方の揺れを含まないことを意味しない．"
+  "実験 20 の設計の文のとおり，除かれた分割の K 本の引き方の揺れは塊の項（`v_cluster`）に入る**．"
+  f"MELD のテストの塊の数は，分割 0〜4 の順に {'・'.join(map(str, MELD_CL))} 個で，分割 4 は 2 個である（この台本が単位の npz で数えた）．")
 DQ_SAME1 = quote(design, "`same_as` の印は，全部の単位で塊ごと・感情ごとの正解の数が同じ版に付く．正解の数が同じでも，誤りの行き先が違えば判定は違う", "設計 4 節")
 DQ_SAME2 = quote(design, "判定そのものが全部の単位で同じ版には `same_pred` の印を付ける．「同じ判定」と書くのは `same_pred` の付いた版だけにする．", "設計 4 節")
 DQ_SAME3 = quote(design, "作りの上で同じになる版：CREMA-D の提案は n0 ＝ 0 なので，相性を外した版は水準だけの重みと同じ判定になり，n0 を外した版は提案と同じになる．相性を使わない点を選び直した版は，選ばれた点が n0 ＝ 0 なら相性を外した版と同じになる．"
@@ -1177,6 +1267,7 @@ DQ_SAME3 = quote(design, "作りの上で同じになる版：CREMA-D の提案�
 w(f"- **「同じ判定」と「正解の数が同じ」**（設計 4 節）：「{DQ_SAME1}」「{DQ_SAME2}」この文書の「同じ判定」は，2 つの版の判定が全部の単位の全部のテストの発話で同じこと（`same_pred`）を指す．"
   "「正解の数が同じ」は，判定は違う発話があるが，塊ごと・感情ごとの正解の数が全部の単位で同じこと（`same_as` が付き `same_pred` が付かない）を指す．どちらも差は 0 になる．同じ群の版は独立な比べとして数えない．"
   f"設計 4 節：「{DQ_SAME3}」")
+DQ_LIC = quote(design, "CREMA-D の利用条件は Open Database License（配布元の README）．", "設計 8 節")
 DQ_CD1 = quote(design, "CREMA-D は，俳優が決まった 12 文を演技で読むコーパスである．同じ文が学習側とテストにまたがる．**文の重ならない分割での測り直しは範囲の外で，CREMA-D の値は「同じ 12 文が両側に出る条件」での値である．**", "設計 8 節")
 DQ_CD2 = quote(design, "CREMA-D の設定（引き戻しの強さ，提案の点，学び直しの点）は，実験 18 の単位で選んだ値である．提案の点と学び直しの点を選んだ単位の仮のターゲットは元の 4 コーパス（分類器が 3 つ）で，演技のコーパスは入らない．"
                        "声の引き戻しの強さを選んだ単位にだけ，RAVDESS を仮のターゲットにした単位が入る．", "設計 8 節")
@@ -1186,7 +1277,8 @@ w(f"- **CREMA-D の事情**（設計 8 節）：「{DQ_CD1}」「{DQ_CD2}」「{
   "50 単位のどれでも，テストの話者は同じ単位の候補に現れない．ソースは 50 単位とも元の 4 コーパスである．文は 12 種類で，12 種類ともテストと候補の両方に出る．"
   f"文「It's eleven o'clock.」（発話の名前の記号 `IEO`）のテストの発話は {IEO_ALL} 本で，うち Neutral は {IEO_NEU} 本である（テストの Neutral は全部で {CD_NEU:,} 本）．声と顔がそろわない 1 発話（`1076_MTI_SAD_XX`）は，テストにも候補にも無い．"
   f"感情認識の査読想定（`review_affect.md`）は，実験 18 の設計の記録を結果の文に引き継ぐよう求めた（「{RQ['RA5c']}」）．実験 18 の設計 8 節：「{E18_LABEL}」「{E18_FACE}」"
-  f"使わない 1 発話について，同じ報告は「{RQ['RA5b']}」と書いている．利用条件について，実験 18 の設計は「{E18_LIC}」，同じ報告は「{RQ['RA5a']}」と書いている．")
+  f"使わない 1 発話について，同じ報告は「{RQ['RA5b']}」と書いている．利用条件について，実験 18 の設計は「{E18_LIC}」と書いていた．**CREMA-D の利用条件は，その後に確かめてある**．同じ報告は「{RQ['RA5d']}」「{RQ['RA5e']}」と書き，この実験の設計 8 節は「{DQ_LIC}」と書いている．"
+  f"まだ確かめていないのは RAVDESS の利用条件だけである（同じ報告：「{RQ['RA5a']}」）．")
 DQ_OUT1 = quote(design, "**声・顔・言葉の単独の分類器の学び直しは範囲の外**．", "設計 8 節")
 DQ_OUT2 = quote(design, "**引き戻しの強さの感度は範囲の外**．強さは K 本だけの融合のために選んだ値を，どの疑似ラベルにも共通に使う．", "設計 8 節")
 DQ_OUT3 = quote(design, "1 組のエンコーダ，凍結した特徴の上の線形の分類器に限る．話者と内容の分離についての記録は実験 20 の設計 9 節と同じ．", "設計 8 節")
@@ -1202,13 +1294,14 @@ w(f"- **見たデータ**（設計 9 節）：「{DQ_SEEN1}」「{DQ_SEEN2}」�
   f"計算の前の漏れの検査（`leak.md`）は「{RQ['L4']}」と求めていた．設計にこの文は無い．台帳の DAI-21 の行は，本体の申告として「{LQ_START0}」と書いている（2026-11-15 に本体が足した文．この台本は，台帳の行にこの文があることだけを確かめた）．")
 w("")
 RQ_WHERE = {
-    "S2": "冒頭の 3 つの読み分け．CREMA-D の差は区間で読んだ（要点 7〜10，表の下の注）", "S3": "0 節の「区間の作り方」，3.2 節", "S5a": "0 節の「区間は 95% で，補正していない」", "S5b": "同上．要点の冒頭",
+    "S2": "冒頭の 3 つの読み分け．CREMA-D の差は区間で読んだ（要点 7〜10，表の下の注）", "S3": "0 節の「区間の作り方」，3.2 節", "S3b": "0 節の「区間の作り方」（実験 20 の設計と点検の報告の文を引いた）", "S5a": "0 節の「区間は 95% で，補正していない」", "S5b": "同上．要点の冒頭",
     "S5c": "0 節の「同じ判定」と「正解の数が同じ」", "S6": "要点 11，2.6 節", "S7": "要点 1 の「今の提案（実験 1 の保存）との差」", "S8": "要点 1 の「K 本の引き方で分けた値」，表の下の注",
     "S38": "3.2 節（計算の前の見込みと結果）", "L2": "要点 8，冒頭の 6 項の 2", "L3": "要点 1 の「K 本の引き方で分けた値」", "L4": "0 節の「見たデータ」（台帳の本体の申告を引いた）", "LV3": "2.6 節",
-    "C1": "要点 2", "C5": "要点 1，4 節", "C9a": "要点 10，4 節", "C9b": "並べていない（要点 2，4 節）", "C10": "要点 11（疑似ラベルごとの最大の点どうしの差は書いていない）", "C11": "要点 2・10",
+    "C1": "要点 2", "C5": "要点 1，4 節", "C9a": "要点 10，4 節", "C9b": "並べていない（要点 2，4 節）", "C10": "要点 11（疑似ラベルごとの最大の点どうしの差は書いていない）", "C16a": "2.6 節（この台本が固定のファイルから数え直した）", "C16b": "要点 1，2.6 節",
+    "C16c": "2.6 節（ρ と a の端の数を疑似ラベルごとに書いた）", "C11": "要点 2・10",
     "C12": "数えていない（4 節）", "C14": "要点 5・9，4 節", "CV4a": "要点 5", "CV4b": "要点 5", "CV4c": "要点 5", "CV4d": "要点 3", "D2": "要点 11", "D4": "要点 9", "D4b": "要点 9", "D6a": "要点 12", "D6b": "要点 1",
     "RA2": "4 節（文を除いたテストの表は，まだ出していない）", "RA3": "2.6 節（表の数を並べた．相関は出していない）", "RA4": "0 節の「固定のファイル」「CREMA-D の事情」", "RA4b": "2.6 節",
-    "RA5a": "0 節の「CREMA-D の事情」", "RA5b": "同上", "RA5c": "同上", "RM2": "要点 1", "RM5": "冒頭（この台本が実験 18 の集計と照らした）", "RM10a": "要点 11", "RM10b": "要点 8", "RM11": "2.6 節",
+    "RA5a": "0 節の「CREMA-D の事情」", "RA5d": "同上", "RA5e": "同上", "RA5b": "同上", "RA5c": "同上", "RM2": "要点 1", "RM5": "冒頭（この台本が実験 18 の集計と照らした）", "RM10a": "要点 11", "RM10b": "要点 8", "RM11": "2.6 節",
     "K1": "要点 5，4 節", "KV4": "4 節", "KW4": "表の下の注"}
 must(set(RQ_WHERE) == set(RQ), "求めの一覧と対応の一覧がそろわない")
 w("**計算の前の検査と査読想定の役が，結果の文・表の書き方について残した求めと，この文書の対応**．報告を全部読み，設計の第 3 版に同じ文が無いか，一部だけ入った求めと読み方を，報告の文のまま一覧にした．"
@@ -1270,7 +1363,9 @@ w(f"1. **学び直した融合の分類器で，提案の手法の疑似ラベ�
   f"設計は，この差の偏りの向きを「{DQ_MAIN}」と書いている（0 節）．値は，手法を選んだときに見たテストと同じテストの上の値である（冒頭の 6 項）．CREMA-D は，元の 4 コーパスと並ぶ独立な確かめとして数えない（冒頭の 6 項の 2）．5 コーパスの結果は互いに独立ではない（同 5）．"
   f"比較の検査（`compare.md`）は，5 コーパスを並べるときの読み方を「{RQ['C5']}」と書いている（主の点は，元の 4 コーパスが ρ = 1・a = 1，CREMA-D の K = 5 が ρ = 1・a = 16，K = 10・25 が ρ = 4・a = 1 である）．"
   f"定義の検査（`define.md`）は「{RQ['D6b']}」と書いている（疑似ラベルは，どれも同じ切片のずらしを当てた確率である）．"
-  f"ML の査読想定（`review_ml.md`）は「{RQ['RM2']}」と書いている．点推定が負の {by_corpus(MID_ZN)} は，この読み方に当たる．")
+  f"ML の査読想定（`review_ml.md`）は「{RQ['RM2']}」と書いている．点推定が負の {by_corpus(MID_ZN)} は，この読み方に当たる．"
+  f"実験 18 の規則で疑似ラベルごとに選ぶと，提案の手法の疑似ラベルは 15 条件のうち {EDGE_PROP['rho_hi']} 条件で ρ の上端（4）を選び，積の疑似ラベルは {EDGE_PROD15['rho_hi']} 条件で選ぶ（2.6 節）．主の点の ρ は，元の 4 コーパスが 1，CREMA-D が K = 5 で 1，K = 10・25 で 4 である．"
+  f"比較の検査（`compare.md`）は「{RQ['C16b']}」と書いている．")
 gJ = groups(eget("stud_prod", "joint_AVT"), ALL12)
 J_REST = gJ["z"]
 must(len(gJ["same"]) + len(gJ["cnt"]) + len(J_REST) == 12 and len(gJ["cnt"]) == 1, "stud_prod − joint_AVT の読み（文を直す）")
@@ -1321,7 +1416,12 @@ w("")
 B6 = ["none_AVT"] + B5
 N_LOW2 = sum(cnt(eget("stud_prop", v), ALL12, ("nn", "n")) for v in B6)
 must(N_LOW2 == 0 and all(cnt(eget("stud_prop", v), ALL12, ("same", "cnt")) == 0 for v in B6), "要点 2 の数え（文を直す）")
-w(f"2. **提案の手法の疑似ラベルで学び直した融合（`stud_prop`）と，K 本だけの融合・実験 1 の 5 つの比較手法（実験 1 の評価の回の保存の判定）との差では，相手 {len(B6)} 個 × 12 条件の {len(B6) * 12} 個の区間（補正していない）に，区間が 0 を含まずに `stud_prop` が低かった条件は無い**．"
+BK2 = brk([q("stud_prop", v, c, K) for v in B6 for c, K in ALL12])
+BK2I = brk([q("stud_prop", v, "IEMOCAP", K) for v in B6 for K in KS])
+must(BK2["n"] == 72 and BK2["lo"] == 0 and BK2["zero"] == 0 and BK2["hi"] + BK2["z"] == 72 and BK2I["n"] == 18, f"要点 2 の内訳：{BK2}")
+w(f"2. **提案の手法の疑似ラベルで学び直した融合（`stud_prop`）と，K 本だけの融合・実験 1 の 5 つの比較手法（実験 1 の評価の回の保存の判定）との差では，相手 {len(B6)} 個 × 12 条件の {BK2['n']} 個の区間（補正していない）のうち，"
+  f"区間が 0 を含まず `stud_prop` が高いのは {BK2['hi']} 個，区間が 0 を含むのは {BK2['z']} 個（うち点推定が負 {BK2['zn']} 個．IEMOCAP は {BK2I['n']} 個のうち {BK2I['z']} 個が 0 を含む）で，区間が 0 を含まずに `stud_prop` が低かった条件は無い**．"
+  "区間が 0 を含む差は，2 つの版が同じ水準であることを意味しない．低かった条件が無いことを，損が無いことの証拠として読まない．IEMOCAP は自由度 3 で区間が広い．"
   "差は，同じ 200 単位の上の対の差である．実験 1 の 5 つの比較手法の設定は，それぞれの方法が自分のために選んだ点で（候補の数は 12・9・9・4・5），`stud_prop` の主の点は，積の疑似ラベルのために選ばれた点を借りた点である（0 節の表）．"
   "この差は，疑似ラベルの違いと学び直しの形の違いの両方を含む（設計 1 節の Q2．内訳は要点 3）．`stud_prop` の判定も相手の判定も，切片をずらしていない．"
   f"比較の検査（`compare.md`）は，この並べ方に 3 つの注を求めた：「{RQ['C1']}」K 本だけの融合との差について，同じ報告は「{RQ['C11']}」と書いている．"
@@ -1356,17 +1456,23 @@ MK_C = lambda m: (f"{m}_prop", f"b_{m}")          # noqa: E731
 A_NEG, A_POS = multi4(MK_A, ("nn", "n")), multi4(MK_A, ("pp", "p"))
 B_NEG, B_POS = multi4(MK_B, ("nn", "n")), multi4(MK_B, ("pp", "p"))
 must(len(A_NEG) > 0 and len(B_NEG) > 0, "要点 3 の，区間が 0 を含まず負の条件が無い（文を直す）")
+BKA = brk([q(*MK_A(m), c, K) for m in EX1 for c, K in ALL12])
+BKB = brk([q(*MK_B(m), c, K) for m in EX1 for c, K in ALL12])
+must(BKA["lo"] == len(A_NEG) and BKB["lo"] == len(B_NEG) and BKA["zero"] == 0 and BKB["zero"] == 0 and BKA["hi"] + BKA["z"] + BKA["lo"] == 36 and BKB["hi"] + BKB["z"] + BKB["lo"] == 36, "要点 3 の内訳")
 w(f"3. **温度つき蒸留・一致した発話だけの疑似ラベル・ラベルと疑似ラベルを混ぜる方法の 3 つについて，`stud_prop` − 実験 1 の手法を，設計 4 節の読み方で分けた**．"
   "`stud_prop − <手法>（実験 1 の保存）` ＝（同じ疑似ラベルで学び直しの形を替えた差：`stud_prop − <手法>_prop`）＋（同じ手法の中で疑似ラベルだけを替えた差：`<手法>_prop − <手法>_prod`）＋（この実験で解き直した版と実験 1 の保存のずれ：`<手法>_prod − <手法>（実験 1 の保存）`）で，"
   f"点推定はこの足し算が成り立つ（台本が確かめた）．解き直した版と実験 1 の保存のずれの点推定の絶対値は，3 手法 × 12 条件のどれでも {DEV_REP:.4f} 点以下である．共訓練と共正則化は積を受け取らない方法なので，この内訳は作れない（設計 4 節）．値は表の文書の 3 節にある．")
 w(f"   - **同じ手法の中で疑似ラベルだけを替えた差**（`<手法>_prop − <手法>_prod`．どちらもこの実験で解いた．両側は同じ手法・同じ設定で，違いは疑似ラベルだけである．設計 4 節の名前は「疑似ラベルの違いの分」）："
-  f"区間が 0 を含まずに提案の手法の疑似ラベルが低かった条件は，{multi4_txt(A_NEG, MK_A)} である．3 手法 × 12 条件の 36 個の区間（補正していない）のうち，ほかの {36 - len(A_NEG)} 個は，0 を含むか，提案の手法の疑似ラベルが高い向きにある．"
-  f"設計 4 節は，この差の偏りの向きを「{DQ_Q2B.split('．')[0]}．{DQ_Q2B.split('．')[1]}．」と書いている．")
+  f"区間が 0 を含まずに提案の手法の疑似ラベルが低かった条件は，{multi4_txt(A_NEG, MK_A)} である．3 手法 × 12 条件の 36 個の区間（補正していない）のうち，ほかの {36 - len(A_NEG)} 個は，区間が 0 を含まず提案の手法の疑似ラベルが高い {BKA['hi']} 個と，区間が 0 を含む {BKA['z']} 個（うち点推定が負 {BKA['zn']} 個）である．"
+  f"設計 4 節は，この差の偏りの向きを「{DQ_Q2B.split('．')[0]}．{DQ_Q2B.split('．')[1]}．」と書いている．"
+  "一方，提案の手法の疑似ラベルは，形と設定を同じテストの発話の上の値を見た後に決めた手法の答えである（冒頭の 6 項の 6）．比較の検査（`compare.md`）は，これを提案に有利な向きと書いている（要点 2 に引いた文の (2)）．"
+  "不利な向きと有利な向きの 2 つを合わせた向きは決まらない．")
 for m in EX1:
     w(f"      - {EXN[m]}：{read_short(eget(*MK_A(m)), ALL12)}")
 w(f"   - **同じ疑似ラベルで学び直しの形を替えた差**（`stud_prop − <手法>_prop`．両側は同じ提案の手法の疑似ラベルを受け取る．違いは，学び直しの形と，それぞれの形の設定である．設計 4 節の名前は「学び直しの形の違いの分」）："
-  f"区間が 0 を含まずに `stud_prop` が低かった条件は，{multi4_txt(B_NEG, MK_B)} である．3 手法 × 12 条件の 36 個の区間（補正していない）のうち，ほかの {36 - len(B_NEG)} 個は，0 を含むか，`stud_prop` が高い向きにある．"
-  f"比較の再検査（`compare_v2.md`）は「{RQ['CV4d']}」と書いている．")
+  f"区間が 0 を含まずに `stud_prop` が低かった条件は，{multi4_txt(B_NEG, MK_B)} である．3 手法 × 12 条件の 36 個の区間（補正していない）のうち，ほかの {36 - len(B_NEG)} 個は，区間が 0 を含まず `stud_prop` が高い {BKB['hi']} 個と，区間が 0 を含む {BKB['z']} 個（うち点推定が負 {BKB['zn']} 個）である．"
+  f"比較の再検査（`compare_v2.md`）は「{RQ['CV4d']}」と書いている．"
+  "両側が同じ提案の手法の疑似ラベルを受け取るので，疑似ラベルの形と設定を同じテストの上の値を見た後に決めたことによる有利な向きは，この差の両側に入る．")
 for m in EX1:
     w(f"      - {EXN[m]}：{read_short(eget(*MK_B(m)), ALL12)}")
 DQ_AFEW = quote(design, "AFEW のテストは 5 分割とも 158 発話なので，1 発話でも判定が違うと一致の割合は 0.9937 になり基準を下回る．AFEW ではこの基準は「完全に一致」と同じ意味である．", "設計 4 節")
@@ -1402,11 +1508,14 @@ MK_P = lambda t: ("stud_prop", f"stud_{t}")       # noqa: E731
 MK_X = lambda t: (f"stud_{t}", "stud_prod")       # noqa: E731
 P_NEG = multi5(MK_P, ("nn", "n"))
 must(len(P_NEG) > 0 and {t for t, _, _ in P_NEG} >= {"tcal", "konly"}, "要点 5 の，提案の手法の疑似ラベルが低い条件（文を直す）")
+BKP = brk([q(*MK_P(t), c, K) for t in EXTRA for c, K in ALL15])
+must(BKP["n"] == 75 and BKP["lo"] == len(P_NEG) and BKP["zero"] == 0 and BKP["hi"] + BKP["z"] + BKP["lo"] == 75, "要点 5 の内訳")
 w(f"5. **提案の手法の疑似ラベル − 別の疑似ラベル（`stud_prop − stud_<別の疑似ラベル>`．同じ主の点で，疑似ラベルだけを替えた差）で，区間が 0 を含まずに提案の手法の疑似ラベルが低かった条件は，{multi5_txt(P_NEG, MK_P)} である**．"
-  f"別の疑似ラベル 5 つ × 15 条件の 75 個の区間（補正していない）のうち，ほかの {75 - len(P_NEG)} 個は，0 を含むか，提案の手法の疑似ラベルが高い向きにある．"
+  f"別の疑似ラベル 5 つ × 15 条件の 75 個の区間（補正していない）のうち，ほかの {75 - len(P_NEG)} 個は，区間が 0 を含まず提案の手法の疑似ラベルが高い {BKP['hi']} 個と，区間が 0 を含む {BKP['z']} 個（うち点推定が負 {BKP['zn']} 個）である．"
   f"分類器ごとの温度の較正との差について，設計 3.1 節は「{DQ_TCAL.split('．')[1]}．」と書いている．別の疑似ラベルごとの読みを下に並べる（値と UAR は表の文書の 2 節．読みの一覧は 2.2 節）．"
   "下の差に，設計は部品の名前を付けていない．この文書も「〜の分」と呼ばない．"
-  f"比較の再検査（`compare_v2.md`）は「{RQ['CV4a']}」「{RQ['CV4b']}」「{RQ['CV4c']}」と書いている．比較の検査（`compare.md`）の案：「{RQ['C14']}」．"
+  f"比較の再検査（`compare_v2.md`）は，K 本だけで測った表との差と相性を外した表との差について「{RQ['CV4a']}」と書いている（「提案の追加の情報の分」は報告の呼び名である．この文書はこの名前を使わず，差の両側の版の名前で書く）．"
+  f"同じ報告は「{RQ['CV4b']}」「{RQ['CV4c']}」とも書いている．比較の検査（`compare.md`）の案：「{RQ['C14']}」．"
   f"台本の再検査（`code_v2.md`）によると，{RQ['K1']}．")
 for t, lab in MT.EXTRA:
     w(f"   - **{lab}（`stud_{t}`）**")
@@ -1434,14 +1543,14 @@ DQ_HW = quote(design, "CREMA-D の区間の半幅は約 0.3 点の見込みな�
 w(f"7. **CREMA-D の推定時の答えで，提案の手法 − 積（どちらも切片をずらした答え）は，3 つの K とも区間が 0 を含まず 1.0 点未満だった（{vals(ALL3, C_PP)}）**．差が 1.0 点未満なので，表の印は付かない．"
   f"設計 4 節は計算の前に「{DQ_HW}」と書いている．この差の区間の半幅は，K = 5・10・25 の順に {'・'.join(f'{x:.2f}' for x in HW_PP)} 点である．"
   "CREMA-D は，元の 4 コーパスと並ぶ独立な確かめとして数えない（冒頭の 6 項の 2）．CREMA-D の値は，同じ 12 文が学習側とテストの両方に出る条件での値で，設定は実験 18 の単位で選んだ値である（0 節）．"
-  "K 本の引き方 0・1 の単位は，実験 18 の単位とソース・K 本が同じである（冒頭の 6 項の 4）．")
+  "K 本の引き方 0・1 の単位は，実験 18 の単位とソース・K 本が同じである（冒頭の 6 項の 4）．"
+  "**設計 4 節が計算の前に予告した，文「It's eleven o'clock.」を除いたテストの値と，文を塊にした区間の感度は，まだ出していない**（4 節）．この項と要点 8〜10 の CREMA-D の値は，その感度を見る前の値である．")
 w(f"   - **切片をずらす前どうし**（`prop@raw − prod@raw`）：{read_short(eget('prop@raw', 'prod@raw'), ALL3)}")
 w(f"   - **提案の手法の中の，切片をずらした答え − ずらす前**（`prop − prop@raw`）：{read_short(eget('prop', 'prop@raw'), ALL3)}")
 w(f"   - **K 本の引き方で分けた値**（どちらも切片をずらした答え．値の表は 2.3 節）：引き方 0・1（10 単位）：{read_short(eget('prop', 'prod', '0-1'), ALL3)}引き方 2〜9（40 単位）：{read_short(eget('prop', 'prod', '2-9'), ALL3)}"
   "2 つは同じテストの上の値で，独立な 2 回の測定ではない．引き方 0・1 の区間は狭めに出る（0 節）．")
 em7 = [f"{EMO[e]} {fpt(min(emo_diff('prop', 'prod', CD, e)))}〜{fpt(max(emo_diff('prop', 'prod', CD, e)))}" for e in range(4)]
 w("   - **感情ごとの再現率**（2.5 節．提案の手法 − 積の点の値の引き算．感情ごとの差の区間は作っていない）：3 つの K の値の幅は，" + "，".join(em7) + " である．")
-design20 = (ROOT / "DAI" / "docs" / "実験20_設計.md").read_text()
 DQ20_WF = quote(design20, "3 つの候補の数は入れ子の表なので，独立な 3 つの相手として数えない．", "実験 20 の設計 4 節")
 DQ_2CLS = quote(design, "**分類器が 2 つであることの読み方**：K 本で量を合わせる相手は，自由に動かせる値の数が 4 コーパスより少ない（重みの表を探す版では 8 個が 4 個になる）．相手の位置を，4 コーパスと並べて同じ性質として読まない．", "設計 3.3 節")
 DQ_PSEL = quote(design, "別のコーパスで選んだ指数の積は，CREMA-D には選んだ指数が無いので入れない．", "設計 3.3 節")
@@ -1454,7 +1563,11 @@ MKM = lambda v: ("prop", f"{v}@raw")              # noqa: E731
 must(len(OPP) == 11 and all(n_multi(OPP, mk_, ("nn", "n", "same")) == 0 for mk_ in (MKA, MKR, MKM)), "要点 8 の数え（文を直す）")
 ZN8 = [(v, K) for v in OPP for K in KS if klass(q("prop", v, CD, K)) == "z" and q("prop", v, CD, K).est < 0]
 must(len(ZN8) > 0, "要点 8 の点推定が負の条件が無い（文を直す）")
-w(f"8. **CREMA-D で，提案の手法 − 別のまとめ方（相手 {len(OPP)} 個．どちらも切片をずらした答え）の {len(OPP) * 3} 個の区間（相手 {len(OPP)} 個 × 同じテストを共有する 3 つの K．補正していない）に，区間が 0 を含まずに提案の手法が低かった条件は無い**．"
+BK8 = brk([q("prop", v, CD, K) for v in OPP for K in KS])
+must(BK8["n"] == 33 and BK8["lo"] == 0 and BK8["zero"] == 0 and BK8["zn"] == len(ZN8), f"要点 8 の内訳：{BK8}")
+w(f"8. **CREMA-D で，提案の手法 − 別のまとめ方（相手 {len(OPP)} 個．どちらも切片をずらした答え）の {BK8['n']} 個の区間（相手 {len(OPP)} 個 × 同じテストを共有する 3 つの K．補正していない）のうち，"
+  f"区間が 0 を含まず提案の手法が高いのは {BK8['hi']} 個，区間が 0 を含むのは {BK8['z']} 個（うち点推定が負 {BK8['zn']} 個）で，区間が 0 を含まずに提案の手法が低かった条件は無い**．"
+  "区間が 0 を含む差は，2 つの版が同じ水準であることを意味しない．"
   "点推定が負の条件は，" + "，".join(f"{nmc(v)}の K = {K} で {ci(q('prop', v, CD, K))}" for v, K in ZN8) + " である．"
   f"相手ごとの読み：{read_multi(OPP, MKA)}値と UAR は表の文書の 4 節にある．"
   f"設計 3.3 節は相手の読み方を「{DQ_2CLS}」と書いている．{DQ_PSEL}（設計 3.3 節）"
@@ -1500,6 +1613,7 @@ w("10. **CREMA-D で，学び直した 1 つの分類器と並べる**（学び�
   f"今の提案 − 積（`stud_prod − prod`）：{read_short(eget('stud_prod', 'prod'), ALL3)}"
   f"CREMA-D には，学び直しの標準の相手（実験 1 の 5 手法，実験 2 の手法）を入れていない（0 節）．CREMA-D の学び直しの値は，既にある学び直しの手法との比べではない（比較の検査 `compare.md` の求め：「{RQ['C9a']}」）．"
   f"K 本だけの融合との差について，同じ報告は「{RQ['C11']}」と書いている．"
+  "CREMA-D の学び直しの値についても，設計 4 節が予告した，文「It's eleven o'clock.」を除いたテストの値と，文を塊にした区間の感度は，まだ出していない（4 節）．"
   "単独の分類器（微調整した声・顔）と提案の手法の対の差は集計に無い．UAR の値が大きいほうの単独の分類器は 3 つの K とも声で，UAR の点の値の引き算（提案の手法 − 微調整した声．対の差ではない．区間は無い）は，K = 5・10・25 の順に "
   + "・".join(fpt(level("prop", CD, K).uar - level("ret_A", CD, K).uar) for K in KS) + " 点である．"
   f"上限（候補の全ラベルで学んだ融合．参照）の UAR は {level('full_AV', CD, 5).uar:.2f}，ソースの融合の分類器の平均（K = 0）の UAR は {level('start_AV', CD, 5).uar:.2f} である（どちらも K に依らない判定）．")
@@ -1540,8 +1654,7 @@ NQ1 = quote(NOTE.read_text(), "(b) 8 節の 3 条件を，学び直しに当て�
 NOTE_FIRST = git("log", "--format=%h %ad", "--date=format:%Y-%m-%d %H:%M:%S", "--", "DAI/docs/論文のセッションへの伝言_2026-11-14.md").strip().split("\n")[-1].split(" ", 1)
 NOTE_V1 = git("show", f"{NOTE_FIRST[0]}:DAI/docs/論文のセッションへの伝言_2026-11-14.md")
 must(NQ in NOTE_V1 and NQ1 in NOTE_V1 and NOTE_FIRST[1] < "2026-11-15 03:20:00", "伝言の最初の版に，引いた文が無い（文を直す）")
-NOTE_LAST = last_commit("DAI/docs/論文のセッションへの伝言_2026-11-14.md")
-must(NOTE_LAST[1] < "2026-11-15 05:28:00" and git("status", "--porcelain", "--", "DAI/docs/論文のセッションへの伝言_2026-11-14.md").strip() == "", "伝言の最後のコミットの時刻")
+must(git("status", "--porcelain", "--", "DAI/docs/論文のセッションへの伝言_2026-11-14.md").strip() == "", "伝言に，コミットしていない変更がある")
 
 
 def tq(c, K, t_, k_):
@@ -1554,13 +1667,19 @@ SIGN_SAME = [k_ for k_ in ALL15 if (DT[k_] > 0) == (S_PP(*k_).est > 0)]
 NEG_T = [k_ for k_ in ALL15 if DT[k_] < 0]
 MIM = [tq(*k_, t_, "m") for k_ in ALL15 for t_ in ("prod", "prop")]
 MIM_D = [tq(*k_, "prop", "m") - tq(*k_, "prod", "m") for k_ in ALL15]
-must(len(SIGN_SAME) == 15 and len(NEG_T) >= 1, "要点 12 の符号の並び（文を直す）")
+BOTH_POS = [k_ for k_ in ALL15 if DT[k_] > 0 and S_PP(*k_).est > 0]
+BOTH_NEG = [k_ for k_ in ALL15 if DT[k_] < 0 and S_PP(*k_).est < 0]
+must(len(SIGN_SAME) == 15 and len(NEG_T) >= 1 and len(BOTH_POS) + len(BOTH_NEG) == 15 and BOTH_NEG == NEG_T, "要点 12 の符号の並び（文を直す）")
+must("def fit_students(X, Xt, W0, b0, cw, cb, gk, n: int, own, teachers: dict, specs: list, label: str):" in src21 and 'fit_students(u.Xp["AVT"], u.Xt["AVT"]' in src21
+     and "fit_students(u.Xp[u.fus], u.Xt[u.fus]" in src21 and "uar_pool=100 * S.uar(yp[nk], pp[nk])" in src21, "台本の学び直しの入力と，候補の上で測る行")
 w("12. **この項は，設計の文書に無い並べ方で，結果を開いた後に並べた探索の記述である．仕組みについての主張には使わない**．"
   f"研究者が 2026-11-14 の夜に決めたことの記録（`DAI/docs/論文のセッションへの伝言_2026-11-14.md` の 1 節の 3）に「{NQ1}」とあり，同じ文書の 10.4 節の 2 に「{NQ}」とある．"
-  f"どちらの文も，この文書の最初の版（コミット {NOTE_FIRST[0]}，{NOTE_FIRST[1][5:16]}．計算の起動より前）からある．「3 条件」の当てはめそのものは，この文書ではしていない．並べたのは，その材料になる 3 つの量である．量の定義と並べ方は，結果を開いた後に，この台本で決めた．"
+  f"どちらの文も，伝言の最初の版（コミット {NOTE_FIRST[0]}，{NOTE_FIRST[1][5:16]}．計算の起動より前）からある．「3 条件」の当てはめそのものは，この文書ではしていない．並べたのは，その材料になる 3 つの量である．量の定義と並べ方は，結果を開いた後に，この台本で決めた．"
   "並べる量は 3 つである．(a) **疑似ラベルの UAR**（単位の csv の `teacher_uar`）：疑似ラベルの判定（確率が最大の感情）の UAR を，K 本を除いた候補の発話の上で，候補のラベルで測った値．候補のラベルは，疑似ラベルを作るのにも学び直しにも使っていない（測るためだけに使う）．"
   "(b) **学び直した融合の分類器の UAR**（`uar`）：テストの発話の上の UAR．(c) **疑似ラベルと判定が一致した割合**（`mimic`）：K 本を除いた候補の発話のうち，学び直した融合の分類器の判定が，疑似ラベルの判定と同じだった発話の割合．"
-  "列の定義は，台本の該当の行を読み，判定の配列から数え直した値が単位の csv の値と一致することで確かめた（0 節）．(a) と (c) は候補の発話の上の量で，(b) はテストの発話の上の量である．値は 50 単位の平均で，(a) の差は平均どうしの引き算である（区間は無い．丸める前の値から引いた）．"
+  "列の定義は，台本の該当の行を読み，判定の配列から数え直した値が単位の csv の値と一致することで確かめた（0 節）．(a) と (c) は候補の発話の上の量で，(b) はテストの発話の上の量である．"
+  "**候補の発話（K 本を除く）は，学び直した融合の分類器が疑似ラベルで学んだ入力である．(a)・(c) と，2.4 節の候補の上の UAR は，学習データの上の量で，(b) だけが学習に使っていない発話の上の量である**（台本の `fit_students` は候補の全部の発話を学習に使い，`save_students` は同じ発話の上で測る）．"
+  "値は 50 単位の平均で，(a) の差は平均どうしの引き算である（区間は無い．丸める前の値から引いた）．"
   f"定義の検査（`define.md`）：「{RQ['D6a']}」")
 w("")
 w("   | コーパス | K | (a) 疑似ラベルの UAR：積 | (a) 提案の手法 | (a) の差（提案の手法 − 積） | (b) の差（`stud_prop − stud_prod`．要点 1 と同じ値） | (c) 判定が一致した割合：積 | (c) 提案の手法 |")
@@ -1569,8 +1688,9 @@ for c, K in ALL15:
     w(f"   | {c} | {K} | {tq(c, K, 'prod', 't'):.2f} | {tq(c, K, 'prop', 't'):.2f} | {fpt(DT[(c, K)])} | {ci(S_PP(c, K))} | {tq(c, K, 'prod', 'm'):.3f} | {tq(c, K, 'prop', 'm'):.3f} |")
 w("")
 w(f"   - (a) の差は 15 条件で {fpt(min(DT.values()))}〜{fpt(max(DT.values()))} 点，(b) の差の点推定は {rng_of(S_PP, ALL15)} 点である．(a) の差が負の条件は {'，'.join(f'{c} の K = {K}（{fpt(DT[(c, K)])}）' for c, K in NEG_T)}で，"
-  "この条件は (b) の差の点推定も負である（要点 1）．15 条件のどれでも，(a) の差と (b) の差の点推定の符号は同じである．15 条件は 5 コーパス × 同じテストを共有する 3 つの K で，独立な 15 個の測定ではない．符号がそろうことを，検定の結果として読まない．")
-w(f"   - (c) は 15 条件 × 2 つの疑似ラベルで {min(MIM):.3f}〜{max(MIM):.3f} で，同じ条件の中の提案の手法 − 積の差は " + f"{min(MIM_D):+.4f}〜{max(MIM_D):+.4f}".replace("-", "−") + " である．")
+  f"この条件は (b) の差の点推定も負である（要点 1）．(a) の差と (b) の差の点推定は，{len(BOTH_POS)} 条件でどちらも正，{len(BOTH_NEG)} 条件（{by_corpus(BOTH_NEG)}）でどちらも負である．"
+  "どちらの差も正の条件が多いので，符号が同じ条件の数は，2 つの差の結びつきの強さを表さない．15 条件は 5 コーパス × 同じテストを共有する 3 つの K で，独立な 15 個の測定ではない．この数えを，検定の結果として読まない．")
+w(f"   - (c) は 15 条件 × 2 つの疑似ラベルで {min(MIM):.3f}〜{max(MIM):.3f} で，同じ条件の中の提案の手法 − 積の差は " + f"{min(MIM_D):+.4f}〜{max(MIM_D):+.4f}".replace("-", "−") + " である．(c) は，学び直した融合の分類器が学習に使った発話の上で，学習に使った疑似ラベルとの一致を測った量である．")
 w("   - 疑似ラベルを替えた学び直し 5 つを含む 7 通りの疑似ラベルの同じ 3 つの量と，学び直した融合の分類器の候補の上の UAR は，2.4 節に並べた．(a) と (b) の差の大きさの関係を説明する量（学び直した分類器の切片の分と向きの分など）は，まだ出していない（4 節）．")
 w("")
 
@@ -1585,10 +1705,13 @@ w(f"UAR と差の表は `DAI/docs/実験21_結果の表_2026-11-15.md`（sha256 
   "2 節が疑似ラベルを替えた学び直し，3 節が実験 1 の比較手法との並び（元の 4 コーパス），4 節が CREMA-D の推定時の答え，5 節が記述の版（設定を疑似ラベルごとに選んだ点，設定の 12 点の UAR）である．"
   "この台本は，表の文書が今の集計から書き出し直した表と 1 字も違わないことを確かめた（0 節）．")
 w("")
-w(f"**表の文書は，この文書の最初の書き出しの後に，本体が書き出し直した**（最初の版はコミット {TD_FIRST[0]}，{TD_FIRST[1][5:16]}．今の版はコミット {TD_LAST[0]}，{TD_LAST[1][5:16]}）．"
-  "この台本は，最初の版と今の版を欄ごと・行ごとに比べ，次の直しだけが入っていることを確かめた．値，印，表の行の数は変わっていない．"
+w(f"**表の文書は，最初の書き出しの後に，本体が {len(TD_HIST) - 1} 回書き出し直した**（最初の版はコミット {TD_FIRST[0]}，{TD_FIRST[1][5:16]}．その後のコミットは {'・'.join(h_ for h_, _ in TD_HIST[-2::-1])}．今の版は {TD_LAST[0]}，{TD_LAST[1][5:16]}）．"
+  "この台本は，最初の版と今の版を欄ごと・行ごとに比べ，次の直しだけが入っていることを確かめた．値と印は変わっていない．"
   f"(1) 差がちょうど 0 で区間の両端も 0 の欄のうち，判定が違う {TBL_NOTE} 個に「{NOTE_CNT}」の注が付いた（MELD の K = 25 の今の提案，MELD の K = 10 と MOSEI の K = 25 の温度つき蒸留の，この実験で解いた版 − 実験 1 の保存）．"
-  f"(2) 差が 0.00 に丸まっていた {TBL_DIG} 個の欄に，符号が読めるように桁が足された．(3) 文の行は 2 行が変わった：桁の決まりの行（差が 0.00 に丸まるときの桁と，差がちょうど 0 の欄の注の説明が入った）と，K 本の引き方の説明の行である．"
+  f"(2) 差が 0.00 に丸まっていた {TBL_DIG} 個の欄に，符号が読めるように桁が足された．(3) 文の行は 2 行が変わり，1 行が増えた．変わったのは，桁の決まりの行（差が 0.00 に丸まるときの桁と，差がちょうど 0 の欄の注の説明が入った）と，K 本の引き方の説明の行である．"
+  f"増えたのは，1 節のまとめの表の下の注「{TD_EXPL}」である（照合の第 1 回の指摘 10）．"
+  "(4) 1 節の「提案の手法との差」の表で，再現の検算（元の 4 コーパス）と性能の差（CREMA-D）が 1 行に並んでいた行が，「今の提案 − K 本だけの融合」の行と「再現の確かめ」の行の 2 行に分かれた（同じ指摘）．表の行は 3 行増えた．"
+  "分かれた行の欄の値は，元の行の欄と，3 節の表の「今の提案 − K 本だけの融合」の行の欄と同じである．"
   f"K 本の引き方の説明は「{TD_K29}」になった．元の 4 コーパスの単位は実験 20 と同じ単位である（設計 2 節：「{DQ_UNITS}」）．この文書は，引き方 2〜9 の K 本を「下調べと違う K 本」と書く．")
 w("")
 w(f"今の表の文書と，この文書の書き方の対応を記録する．(a) 表の文書は負の符号を「-」，この文書は「−」と書く．(b) 差が丸めると ±1.00 か 0.00 になるときと，区間の端が 0.05 より 0 に近いときに桁を足す決まりは，2 つの文書で同じである．今の表の文書に，0 に丸まったままの差と区間の端は残っていない（差がちょうど 0 の欄を除く）．"
@@ -1666,6 +1789,7 @@ w("### 2.4 疑似ラベルごとの 3 つの量（探索の記述．主の点．
 w("")
 w("要点 12 の 3 つの量を，7 通りの疑似ラベルについて並べた．(a) は疑似ラベルの判定の UAR（K 本を除いた候補の発話の上．候補のラベルで測る），(b) は学び直した融合の分類器のテストの上の UAR（区間つき．`levels.csv`），"
   "(c) は，K 本を除いた候補の発話のうち，学び直した融合の分類器の判定が疑似ラベルの判定と同じだった割合である．「候補の上の UAR」は，学び直した融合の分類器の UAR を，(a) と同じ候補の発話の上で測った値である（単位の csv の `uar_pool`）．"
+  "候補の発話（K 本を除く）は，学び直した融合の分類器が疑似ラベルで学んだ入力なので，(a)・(c)・候補の上の UAR は学習データの上の量である．(b) だけが，学習に使っていない発話の上の量である．"
   "(a)・(c)・候補の上の UAR に区間は無い．結果を開いた後に並べた記述で，仕組みについての主張には使わない．")
 w("")
 w("| コーパス | K | 疑似ラベル | (a) 疑似ラベルの UAR（候補の上） | 学び直した融合の UAR（候補の上） | (b) 学び直した融合の UAR（テストの上） | (c) 判定が一致した割合 |")
@@ -1716,7 +1840,18 @@ for c, K in ALL15:
 w("")
 TETH = {k_: [tuple(FZC[K]["tether"][k_]) for K in KS] for k_ in ("A", "V", "AV")}
 must(all(TETH["V"][i_][0] == 0.001 for i_ in range(3)) and [SGRID[GM[(CD, K)]][0] for K in KS] == [1.0, 4.0, 4.0], "CREMA-D の顔の引き戻しの強さと ρ")
+RHO_LT = sum(SGRID[GM[k_]][0] < SGRID[GS[k_]][0] for k_ in ALL15)
+RHO_EQ = sum(SGRID[GM[k_]][0] == SGRID[GS[k_]][0] for k_ in ALL15)
+must(RHO_LT + RHO_EQ == 15, "主の点の ρ が，提案の手法の疑似ラベルのために選んだ点の ρ より大きい条件がある（文を直す）")
+must(EDGE_PROP["rho_hi"] == 13 and EDGE_PROD15["rho_hi"] == 8, f"ρ の上端の点の数が，比較の検査の報告の数と違う（文を直す）：{EDGE_PROP}，{EDGE_PROD15}")
 w(f"固定のファイルの記録では，上の表の学び直しの設定の点（主の点と，疑似ラベルごとに選んだ点の計 {frozen['n_student_points']} 個）のうち，ρ が格子の端（0.0625 か 4）の点は {frozen['n_student_points_at_rho_edge']} 個である．"
+  "**選んだ点が格子の端に当たった数を，疑似ラベルごとに数えた**（この台本が，固定のファイルの点の番号と `student_grid.csv` の ρ・a から数えた．格子は ρ が 0.0625・0.25・1・4，a が 1・4・16）．"
+  f"主の点（積の疑似ラベルのために選ばれた点．15 条件）は，ρ が上端（4）の点が {EDGE_MAIN['rho_hi']} 個（CREMA-D の K = 10・25），下端（0.0625）の点が {EDGE_MAIN['rho_lo']} 個，a が端（1 か 16）の点が {EDGE_MAIN['a_edge']} 個である．"
+  f"提案の手法の疑似ラベルのために選んだ点（`stud_prop_sel`．15 条件）は，ρ が上端の点が {EDGE_PROP['rho_hi']} 個，下端の点が {EDGE_PROP['rho_lo']} 個，a が端の点が {EDGE_PROP['a_edge']} 個である．"
+  f"積の疑似ラベルのために選んだ点（元の 4 コーパスの `stud_prod_sel` の 12 条件）は，ρ が上端の点が {EDGE_PROD4['rho_hi']} 個，下端の点が {EDGE_PROD4['rho_lo']} 個，a が端の点が {EDGE_PROD4['a_edge']} 個である．"
+  f"これに CREMA-D の主の点（積の疑似ラベルのために同じ規則で選んだ点．3 条件）を足した 15 条件では，ρ が上端の点が {EDGE_PROD15['rho_hi']} 個，a が端の点が {EDGE_PROD15['a_edge']} 個である．"
+  f"計算の前の比較の検査（`compare.md`）は「{RQ['C16a']}」「{RQ['C16b']}」と書き，「{RQ['C16c']}」と求めていた．固定のファイルが持つのは ρ の端の数の合計だけで，疑似ラベルごとの数と a の端の数は，この文書で数えた．"
+  f"主の点の ρ が，提案の手法の疑似ラベルのために実験 18 の規則で選んだ点の ρ より小さい条件は，15 条件のうち {RHO_LT} 条件で，残る {RHO_EQ} 条件は同じ ρ である（主の点の ρ のほうが大きい条件は無い）．"
   f"CREMA-D の引き戻しの強さ（固定のファイルの `tether`．K = 5・10・25 の順）は，声が {'・'.join(f'({a:g}, {b:g})' for a, b in TETH['A'])}，顔が {'・'.join(f'({a:g}, {b:g})' for a, b in TETH['V'])}，声と顔の融合が {'・'.join(f'({a:g}, {b:g})' for a, b in TETH['AV'])} である．"
   f"ML の査読想定（`review_ml.md`）は「{RQ['RM11']}」と書いている．")
 w("")
@@ -1838,7 +1973,8 @@ w("- 5 コーパスの結果は互いに独立ではない．CREMA-D は，元�
 w("- 学び直しの設定（主の点）は，積の疑似ラベルのために選ばれた点を借りた点である．この決め方は提案の手法の疑似ラベルに不利な向きで，学び直しを足すと決めた時点は提案の手法に有利な向きである．2 つを合わせた向きは決まらない（設計 3.1 節）．"
   "主の点は，元の 4 コーパスと CREMA-D で違う（ρ・a）．5 コーパスの差の違いには，コーパスの違いに設定の違いが重なる（要点 1）．")
 w("- 実験 1 の比較手法との差（要点 2）は，疑似ラベルの違いと学び直しの形の違いの両方を含む．相手の設定は自分のために選んだ点で，提案の手法の疑似ラベルだけがソースで測った表と K 本の作り直しを使う．"
-  "内訳（要点 3）のうち，疑似ラベルだけを替えた差は提案の手法の疑似ラベルに不利な向きに偏る（設計 4 節）．共訓練と共正則化には内訳が無い．標準の手法（実験 2 の手法）とは並べていない．")
+  "内訳（要点 3）のうち，疑似ラベルだけを替えた差は，設定を積の疑似ラベルのために選んだぶん，提案の手法の疑似ラベルに不利な向きに偏る（設計 4 節）．"
+  "一方，提案の手法の疑似ラベルの形と設定は同じテストの発話の上の値を見た後に決めたので，こちらは提案の手法に有利な向きである．2 つを合わせた向きは決まらない．共訓練と共正則化には内訳が無い．標準の手法（実験 2 の手法）とは並べていない．")
 w("- 疑似ラベルを替えた学び直し 5 つの差（要点 5）には，設計が部品の名前を付けていない．分類器ごとの温度の較正との差には，まとめ方の違いと確率の鋭さの違いの両方が入る（設計 3.1 節）．"
   "推定時の答えの部品を外した版の内訳（要点 9，実験 20）を，学び直した融合の差の内訳として読まない．提案の部品を外した版 6 つのうち 3 つは，疑似ラベルにしていない．")
 w("- CREMA-D の値は，同じ 12 文が学習側とテストの両方に出る条件での値である．文の重ならない分割での測り直しは範囲の外である．CREMA-D の設定は実験 18 の単位で選んだ値で，その単位の仮のターゲットは分類器が 3 つの元の 4 コーパスである．"
@@ -1856,7 +1992,8 @@ w("### まだ出していない量")
 w("")
 DQ_LATER = quote(design, "**計算の後に保存から出す表**（設計に予告しておく）：CREMA-D で文「It's eleven o'clock.」を除いたテストの UAR と差（この文は Neutral の発話が少なく，K 本に入ると声の分類器の手がかりになりうる），"
                          "文を塊にした区間（12 塊）の感度，CREMA-D の文ごと・強さごとの内訳，仮定の表．", "設計 4 節")
-w(f"設計 4 節は，計算の後に保存から出す表を予告している：「{DQ_LATER}」この 4 つは，今回は出していない．")
+w(f"設計 4 節は，計算の後に保存から出す表を予告している：「{DQ_LATER}」この 4 つは，今回は出していない．"
+  "設計が計算の前に出すと予告した表なので，論文で CREMA-D の値を使う前に出す量として残す．どれも単位の保存から，学び直さずに出せる．いつ出すかは，この文書の時点では決まっていない（本体と研究者が決める）．")
 w("")
 w(f"- **CREMA-D で文「It's eleven o'clock.」を除いたテストの UAR と差**．単位の npz の `sid_test` から，学び直さずに出せる．感情認識の査読想定（`review_affect.md`）は，この文について「{RQ['RA2']}」と書いている．")
 w("- **CREMA-D の文を塊にした区間（12 塊）の感度**．今の区間は話者を塊にした区間で，「同じ 12 文を読む新しい話者」への区間である（0 節）．")
@@ -1893,8 +2030,10 @@ w("- 割合は小数 3 桁（一致の割合は小数 6 桁），検算の量は
 w("")
 w("## 6. 変更の記録")
 w("")
+N_TRI_V1 = len(re.findall(r"[+−]?\d+\.\d+ \[[+−]?\d+\.\d+, [+−]?\d+\.\d+\]", V1_TEXT))
+must(N_TRI_V1 == 706, f"第 1 版の「値 [下端, 上端]」の組の数：{N_TRI_V1}")
 must(git("log", "--format=%h", "--diff-filter=A", "--", "DAI/docs/実験21_結果の文の下書き_2026-11-15.md").strip() == "4f1cbe0", "この文書の最初のコミット")
-w("- 第 1 版（2026-11-15）：照合（gate-claim）の前の版．最初に書き出した後（コミット 4f1cbe0）に，本体が台帳と表の文書を直したので，同じ第 1 版のまま次の直しを入れて書き出し直した．結果ファイルから取った値と表は変えていない．")
+w("- 第 1 版（2026-11-15）：照合（gate-claim）の前の版．最初に書き出した後（コミット 4f1cbe0）に，本体が台帳と表の文書を直したので，同じ第 1 版のまま次の直しを入れて書き出し直した（コミット 8994e38）．結果ファイルから取った値と表は変えていない．")
 w("   1. 表の文書についての記述（2.1 節，0 節の点検の記録 4，5 節）を，書き出し直した表の文書に合わせた．最初の書き出しでは，注の無い差が 0 の欄 3 個，K 本の引き方の説明の文，差が 0.00 に丸まる欄 8 個を，表の文書との違いとして書いていた．"
   "この 3 点は表の文書の側で直ったので，直ったことと，最初の版から変わったのが注 3 個・桁 8 個・文の 2 行だけであること（台本が欄ごとに比べた）を書いた．")
 w("   2. 計算の前の漏れの検査が求めた 1 文（DAI-19 の軽い試しを見た前後）を，台帳の DAI-21 の行に本体が足した申告の文として 0 節の「見たデータ」に引いた．4 節の「まだ出していない量」から，この項を外した．")
@@ -1902,19 +2041,42 @@ w("   3. 0 節の「照合の前に値を使った先」に，本体の申告（
 w("   4. 0 節の「計算の前の検査」の起動の台本についての文を直した．最初の書き出しは「起動の台本を検査した記録は，計算の前の報告に無い」と書いていた．起動の台本の下書きの版は，実験 20 の計算の後に使う台本の検査（`DAI/checks/DAI-20/code_post_tools.md`・`code_post_tools_v2.md`）が検査していた．"
   "流した起動の台本の sha256 が，第 2 回が検査した版と同じであることを台本が確かめた．4 節の限界の同じ記述も直した．")
 w("")
+w(f"- 第 2 版（2026-11-15）：照合の第 1 回（`DAI/checks/DAI-21/claim.md`．判定は「直してから通す」．報告は数値の食い違いを挙げていない．指摘 {N_CLAIM1} 件）の直しを入れた．"
+  f"結果ファイルから取った値は第 1 版から変えていない．第 1 版（コミット 8994e38）の「値 [下端, 上端]」の形の {N_TRI_V1} 組は，この版に全部残っている（台本が確かめた）．")
+w("   1. 0 節の起動の台本の文で，流した起動の台本の sha256 の値が埋まっていなかった箇所を直した．書き出した文に，埋めていない書式が残っていれば台本が止まるようにした（指摘 1）．")
+w("   2. 0 節の「照合の前に値を使った先」に，論文のセッションへの伝言（コミット c6d5e2e．「照合中」の印つきで実験 21 の値を書いた）を足した．伝言の値がこの文書の値と同じ文字であることを台本が確かめる．"
+  "この結果の値の文字が出てくる文書を台本が探し，見つかった文書を書くようにした．伝言の最後のコミットが結果を開く前であることを求めていた台本の照合を外した（指摘 2）．")
+w("   3. 2.6 節に，選んだ学び直しの設定の点が格子の端に当たった数を，ρ と a の両方について疑似ラベルごとに書いた（台本が固定のファイルと `student_grid.csv` から数えた）．格子が狭いと提案の手法の疑似ラベルの側が不利になるという比較の検査の文を，要点 1 と 2.6 節に引いた．"
+  "0 節の「求めと，この文書の対応」の一覧に，この項を足した（指摘 3）．")
+w("   4. 要点 3 の「同じ手法の中で疑似ラベルだけを替えた差」と 4 節の限界に，提案の手法に有利な向き（提案の手法の疑似ラベルの形と設定を，同じテストの上の値を見た後に決めた）と，2 つを合わせた向きが決まらないことを書いた．"
+  "「同じ疑似ラベルで学び直しの形を替えた差」には，この有利な向きが両側に入ることを書いた（指摘 4）．")
+w("   5. 0 節の「区間の作り方」に，統計の検査が求めた区間の読み方を足した：IEMOCAP の K 本の引き方の項が 0 でも，その揺れは除かれた分割を通して塊の項に入ること（実験 20 の設計と点検の報告の文），MELD の分割 4 の塊が 2 個であること（台本が単位の npz で数えた）．一覧にもこの項を足した（指摘 5）．")
+w("   6. 0 節の「CREMA-D の事情」で，CREMA-D の利用条件が確かめてあること（感情認識の査読想定の報告と設計 8 節）を引き，まだ確かめていないのは RAVDESS だけと書いた（指摘 6）．")
+w("   7. 要点 12 の「15 条件のどれでも符号は同じ」を，「どちらも正の条件の数と，どちらも負の条件の数」に書き換えた．候補の発話が学び直した分類器の学習データで，疑似ラベルの UAR・判定が一致した割合・候補の上の UAR が学習データの上の量であることを，要点 12 と 2.4 節に書いた（指摘 7）．")
+w("   8. 要点 2 と 8 の太字の文に，区間の読みの内訳（区間が 0 を含まず高い数，区間が 0 を含む数，そのうち点推定が負の数．要点 2 は IEMOCAP の内訳も）を同じ文で書いた．要点 3 と 5 の「ほかの…個」にも同じ内訳を書いた．数は台本が集計から数えた（指摘 8）．")
+w("   9. 要点 7 と 10 に，設計 4 節が予告した CREMA-D の感度の表（文「It's eleven o'clock.」を除いた値，文を塊にした区間）がまだ出ていないことを書いた．4 節に，論文で CREMA-D の値を使う前に出す量として残すことを書いた（指摘 9）．")
+w("   10. 要点 5 で，「〜の分」と呼ばないと書いた直後に置いた比較の再検査の引用に，引用の中の名前が報告の呼び名で，この文書は使わないことを書いた．2.1 節を，本体が書き出し直した表の文書（まとめの表の下の注，1 行に並んでいた 2 種類の差を 2 行に分けた）に合わせた（指摘 10）．")
+w("")
 
 # ---- 書き出す前の検査（句読点，使わないと決めた語，符号の読めない区間の端）
 text = "\n".join(L) + "\n"
+# 第 1 版（照合の第 1 回が見た版）にあった「値 [下端, 上端]」の組が，第 2 版に全部残っていること（値を変えていないことの確かめ）
+TRI = re.compile(r"[+−]?\d+\.\d+ \[[+−]?\d+\.\d+, [+−]?\d+\.\d+\]")
+tri_old, tri_new = TRI.findall(V1_TEXT), TRI.findall(text)
+gone_ = [x for x in set(tri_old) if tri_old.count(x) > tri_new.count(x)]
+must(len(tri_old) == N_TRI_V1 and gone_ == [], f"第 1 版にあった値と区間の組が減っている：{gone_[:5]}（第 1 版 {len(tri_old)} 組，この版 {len(tri_new)} 組）")
 must("、" not in text and "。" not in text, "句読点に「、」「。」がある")
 body = text
 for s_ in sorted(set(QUOTED), key=len, reverse=True):                     # 元の文書から引いた文は，語の検査から除く
     body = body.replace(s_, "")
-for ok_ in ("再現率", "今の提案の再現", "3 手法の再現", "温度つき蒸留の再現", "混ぜる方法の再現", "4 つの再現の割合", "再現の基準", "再現の検算", "再現の割合"):
-    body = body.replace(ok_, "")                                          # 「再現率」は指標の名前．「今の提案の再現」「再現の基準」は設計 4・5 節の検算の名前
+for ok_ in ("再現率", "今の提案の再現", "3 手法の再現", "温度つき蒸留の再現", "混ぜる方法の再現", "4 つの再現の割合", "再現の基準", "再現の検算", "再現の割合", "再現の確かめ"):
+    body = body.replace(ok_, "")                                          # 「再現率」は指標の名前．「今の提案の再現」「再現の基準」は設計 4・5 節の検算の名前．「再現の確かめ」は表の文書の行の名前
 for bad in ("セル", "当たり", "外れ", "有意", "勝", "負け", "差が無い", "差がない", "差は無い", "差はない", "K で増え", "K で減", "K が大きいほど", "K とともに",
             "再現", "確認", "効い", "効く", "効か", "効き", "上回", "下回", "生徒", "教師", "先生", "出発点", "明らか", "顕著", "劇的"):
     must(bad not in body, f"使わないと決めた語がある：{bad}（…{body[max(0, body.find(bad) - 40):body.find(bad) + 30]}…）")
 m_ = re.search(r"\[[+−-]0\.0, |, [+−-]0\.0\]", text.replace("「+0.00 [+0.0, +0.0]」", ""))      # 表の文書の欄の書き方を引いた 1 か所を除く
+m2_ = re.search(r"\{[A-Za-z_][A-Za-z0-9_\[\]:.'()]*\}", text)
+must(m2_ is None, f"埋めていない書式がある（…{text[max(0, (m2_.start() if m2_ else 0) - 60):(m2_.end() if m2_ else 0) + 20]}…）")
 must(m_ is None, f"符号の読めない区間の端がある（…{text[max(0, (m_.start() if m_ else 0) - 120):(m_.end() if m_ else 0) + 20]}…）")
 Path(args.out).write_text(text)
 print(f"書いた：{args.out}（{len(L)} 行）")
