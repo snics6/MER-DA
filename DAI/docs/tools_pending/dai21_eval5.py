@@ -20,8 +20,10 @@ import hashlib
 import itertools
 import json
 import platform
+import subprocess
 import sys
 import time
+import types
 from pathlib import Path
 
 import numpy as np
@@ -63,12 +65,26 @@ WF_MS = P20.WF_MS
 N_WF = P20.N_WF
 AGREE_MIN = P18.NONE_AGREE               # 保存の確率（float32）から作り直した判定と保存の判定の一致の下限（0.995）
 SEED_SETS = {"all": None, "0-1": (0, 1), "2-9": tuple(range(2, 10))}
+EXTRA_T = ("noprof", "noint", "levelfree", "konly", "tcal")     # 主の設定の点だけで学び直す疑似ラベル（提案の部品を外した表 3 つ，K 本だけで測った表，分類器ごとの温度の較正）
+EX1 = ("kd", "agree", "mix")             # 実験 1 の手法のうち，積の疑似ラベルを受け取る 3 つ（4 コーパスで，疑似ラベルだけを提案に替えた版を足す）
+FULL_K = 25                              # CREMA-D の上限（候補の全ラベルで学ぶ分類器）に使う引き戻しの強さは，K = 25 の値
+N_SEL_CD = 40                            # CREMA-D の設定を選んだ単位の数（実験 18．CREMA-D を触らずに残し，分類器が 2 つ以上の仮のターゲットの単位）
 TEMP_MODES = P20.TEMP_MODES
 B_VERS = P20.B_VERS
 A2 = ("prod", "avg", "conf", "M_F2_K", "M_F6_K", "cf_D_l05", "tcal", "temp", "tempb") + tuple(f"wf{m}" for m in WF_MS)     # CREMA-D で比べる相手（別のコーパスで選んだ指数の積は無い）
 SCRIPTS = ("dai20_eval.py", "dai18_probe.py", "dai17_probe.py", "dai16_probe.py", "dai15.py", "dai14.py", "dai12_probe.py", "dai11_probe.py", "dai3.py", "dai1.py",
            "dai1_stats.py", "dai_solver.py", "dai_data.py")
 RUN = {"commit": "", "dirty": True}
+WATCH = tuple(f"DAI/exp/{n}" for n in SCRIPTS) + ("DAI/exp/dai21_eval5.py", "DAI/frozen/dai21_frozen.json", "DAI/frozen/dai20_frozen.json", "DAI/splits", "measure", "features",
+                                                  "data/metadata", "requirements.txt", "DAI/docs/実験21_設計.md")
+FIXED = ("DAI/frozen/dai21_frozen.json", "DAI/frozen/dai20_frozen.json", "DAI/exp/dai16_probe.py", "DAI/exp/dai18_probe.py")   # 集計の段が，単位を作った後に変わっていないことを確かめるもの（選んだ点と格子）
+
+
+def same_code(commit: str, other: str = "HEAD", paths=WATCH) -> bool:
+    """2 つのコミットのあいだで，計算に関わるファイルに差が無いか（実験 20 の same_code と同じ形）．"""
+    if str(commit) == str(other) or (other == "HEAD" and commit == RUN["commit"]):
+        return True
+    return subprocess.run(["git", "diff", "--quiet", str(commit), str(other), "--", *paths], cwd=ROOT).returncode == 0
 
 
 def tables_of(nm: int) -> np.ndarray:
@@ -200,16 +216,53 @@ def teacher_probs(LMp: np.ndarray, W: np.ndarray | None) -> np.ndarray:
     return np.exp(P16.norm_log(Sp + dl))
 
 
-def fit_students(X, Xt, W0, b0, cw, cb, gk, n: int, teachers: dict, label: str):
-    """実験 1 の同時に解く版と同じ式（dai1.make_G の joint）：重み ＝ a × K 本 ＋ 疑似ラベル（感情ごとの総量をそろえ，合計 ρ × 候補の本数）．
-    疑似ラベル × 設定の格子（SGRID の 12 点）をまとめて解く．戻り：{(疑似ラベルの名前, 格子の番号): (テストの判定, 候補の判定)}，勾配の最大，止まりの数．"""
-    names = list(teachers)
-    G = torch.stack([float(a_) * gk + S.soft_rows(S.t(teachers[t_]), dai1.mval(r_, n)) for t_ in names for r_, a_ in SGRID])
-    res = S.fit(X, G, W0, b0, Cw=cw, Cb=cb)
+def teachers_of(LMp: np.ndarray, DK: np.ndarray, Dext: np.ndarray, K: int, i: int, w_tcal: np.ndarray) -> dict:
+    """学び直しに使う疑似ラベル（候補の上の確率）．どれも，提案と同じ切片のずらしを当てた確率．
+    prod：積．prop：提案（格子の点 i）．noprof：提案から相性を外した表（同じ n0・戻し先で β = 0）．noint：提案の重みから分類器 × 感情の成分を消した表．
+    levelfree：分類器どうしの水準の違いを外した表（格子の点 14）．konly：K 本だけで測った表．tcal：分類器ごとの温度の較正（K 本で合わせた重み）．"""
+    n0, b_, pr = GRID[i]
+    Wp = P16.to_w(P16.mix_rel(DK, Dext, 4 * K, n0, b_, pr))
+    return {"prod": teacher_probs(LMp, None), "prop": teacher_probs(LMp, Wp),
+            "noprof": teacher_probs(LMp, P16.to_w(P16.mix_rel(DK, Dext, 4 * K, n0, 0.0, pr))), "noint": teacher_probs(LMp, P16.noint(Wp)),
+            "levelfree": teacher_probs(LMp, P16.to_w(P16.mix_rel(DK, Dext, 4 * K, float("inf"), 1.0, "eq"))), "konly": teacher_probs(LMp, P16.to_w(DK)),
+            "tcal": teacher_probs(LMp, np.repeat(np.asarray(w_tcal, float)[:, None], 4, 1))}
+
+
+def student_specs(gm: int, ex1: dict | None = None) -> list:
+    """学び直す問の一覧 [(名前, 手法, 疑似ラベル, 設定)]．
+    今の提案の式（joint）：積と提案の疑似ラベルは設定の格子の 12 点すべて，ほかの疑似ラベルは主の点 gm だけ．
+    ex1 を渡すと（4 コーパスだけ），実験 1 の 3 手法（温度つき蒸留 kd，一致した発話だけ agree，混ぜる手 mix）に，実験 1 が固定した設定のまま，
+    積と提案の疑似ラベルを渡した問を足す（積を渡した問は実験 1 の保存の再現の検算に使う）．"""
+    sp = [(f"stud_{t_}_g{gi}", "joint", t_, dict(rho=SGRID[gi][0], a=SGRID[gi][1])) for t_ in ("prod", "prop") for gi in range(NS)]
+    sp += [(f"stud_{t_}_g{gm}", "joint", t_, dict(rho=SGRID[gm][0], a=SGRID[gm][1])) for t_ in EXTRA_T]
+    if ex1:
+        sp += [(f"{m_}_{t_}", m_, t_, dict(ex1[m_])) for m_ in EX1 for t_ in ("prod", "prop")]
+    return sp
+
+
+def fit_students(X, Xt, W0, b0, cw, cb, gk, n: int, own, teachers: dict, specs: list, label: str):
+    """実験 1 の段 3 と同じ式と同じ解き方（dai1.make_G で重みを作り，まとめて解く）．own：その分類器の K 本だけの版の候補の上の確率（agree・mix が使う）．
+    戻り：{名前: (テストの判定, 候補の判定)}，重み W・b（float32），勾配の最大，止まりの数．"""
+    un = types.SimpleNamespace(n=n)
+    G, G2, T2 = zip(*[dai1.make_G(un, m_, S.t(teachers[t_]), own, gk, dict(it)) for _, m_, t_, it in specs])
+    res = S.fit(X, torch.stack(G), W0, b0, Cw=cw, Cb=cb, G2=torch.stack(G2), T2=np.array(T2, float))
     if float(res["grad_max"]) > P16.GRAD_TOL or not res["finite_p"].all():
         raise SystemExit(f"学び直しが解けていない（{label}．勾配の最大 {float(res['grad_max']):.1e}）")
     Zt, Zp = S.logits(Xt, res["W"], res["b"]).argmax(-1).cpu().numpy(), S.logits(X, res["W"], res["b"]).argmax(-1).cpu().numpy()
-    return {(t_, gi): (Zt[j * NS + gi], Zp[j * NS + gi]) for j, t_ in enumerate(names) for gi in range(NS)}, float(res["grad_max"]), int(res["stalled"])
+    return ({sp[0]: (Zt[q], Zp[q]) for q, sp in enumerate(specs)}, res["W"].to(torch.float32).cpu().numpy(), res["b"].to(torch.float32).cpu().numpy(),
+            float(res["grad_max"]), int(res["stalled"]))
+
+
+def save_students(arr: dict, rows: list, K: int, out: dict, Wb: tuple, specs: list, teach: dict, yt, yp, nk) -> None:
+    arr[f"studW_K{K}"], arr[f"studb_K{K}"] = Wb                              # 学び直した融合の分類器の重み（specs の並び）
+    arr[f"stud_items_K{K}"] = np.array([sp[0] for sp in specs])
+    for name, m_, t_, it in specs:
+        pt, pp = out[name]
+        arr[f"pred_K{K}_{name}"], arr[f"predpool_K{K}_{name}"] = pt.astype(np.int8), pp.astype(np.int8)     # テストの判定と，候補の上の判定（K 本の位置を含む全部）
+        gi = int(name.rsplit("_g", 1)[1]) if m_ == "joint" else -1
+        rows.append(dict(K=K, version=(f"stud_{t_}" if m_ == "joint" else name), method=m_, teacher=t_, grid=gi, rho=it.get("rho", np.nan), a=it.get("a", np.nan),
+                         uar=100 * S.uar(yt, pt), uar_pool=100 * S.uar(yp[nk], pp[nk]), mimic=float((pp[nk] == teach[t_][nk].argmax(1)).mean()),
+                         teacher_uar=100 * S.uar(yp[nk], teach[t_][nk].argmax(1))))
 
 
 # ------------------------------------------------------------------ 固定のファイル
@@ -238,7 +291,7 @@ def stage_freeze() -> None:
             j = fz1[T]["select"][f"AVT|{K}|joint|one"]
             assert fz1[T]["main"][str(K)] == "one"
             four.setdefault(T, {})[str(K)] = dict(prop_grid=int(f20["choice"][T][str(K)]["grid"]), student_main=sgrid_index(j["rho"], j["a"]),
-                                                  student_prop_sel=sel18(T, K, "AVT", "M_F6_mixsel"))
+                                                  student_prop_sel=sel18(T, K, "AVT", "M_F6_mixsel"), student_prod_sel=sel18(T, K, "AVT", "prod"))
     # CREMA-D：実験 18 が，CREMA-D を触らずに残した単位（T = CREMA-D）だけで選んだ値
     ud = OUT18 / "units"
     cd = {}
@@ -258,13 +311,15 @@ def stage_freeze() -> None:
         g = pd.concat(rows).groupby("version").uar_adj.mean()
         vals = [float(g[f"M_F6_mix{q}"]) for q in range(NG)]
         v0 = [vals[q] if GRID[q][1] == 0.0 else -np.inf for q in range(NG)]
-        if int(np.argmax(vals)) != i or CD in seen:
-            raise SystemExit(f"CREMA-D の選び直しが合わない：K={K} 保存 {i} 選び直し {int(np.argmax(vals))} 現れたコーパス {sorted(seen)}")
+        if int(np.argmax(vals)) != i or CD in seen or n != N_SEL_CD:
+            raise SystemExit(f"CREMA-D の選び直しが合わない：K={K} 保存 {i} 選び直し {int(np.argmax(vals))} 単位 {n} 現れたコーパス {sorted(seen)}")
         cd[str(K)] = dict(prop_grid=i, noprof_sel=int(np.argmax(v0)), n_units=n, corpora_in_units=sorted(seen),
                           student_main=sel18(CD, K, "AV", "prod"), student_prop_sel=sel18(CD, K, "AV", "M_F6_mixsel"),
                           tether={k: teth18[CD][f"{k}|{K}"] for k in ("A", "V", "AV")})
     srcs = [OUT18 / "summary" / "students_sel.csv", OUT18 / "frozen_sel.json", OUT18 / "tether.json", FROZEN20, OUT1 / "select" / "frozen.json"]
-    json.dump(dict(four=four, cremad=cd, sgrid=[[r, a] for r, a in SGRID], source_sha256={str(p.relative_to(ROOT)): dai15.sha(p) for p in srcs if p.exists()},
+    pts = [q[k_] for d_ in list(four.values()) + [cd] for q in (d_.values() if d_ is not cd else cd.values()) for k_ in q if k_.startswith("student_")]
+    json.dump(dict(four=four, cremad=cd, sgrid=[[r, a] for r, a in SGRID], n_student_points=len(pts),
+                   n_student_points_at_rho_edge=int(sum(SGRID[g_][0] in (min(r for r, _ in SGRID), max(r for r, _ in SGRID)) for g_ in pts)), source_sha256={str(p.relative_to(ROOT)): dai15.sha(p) for p in srcs if p.exists()},
                    wf_tables2_sha256=hashlib.sha256(tables_of(2).tobytes()).hexdigest(),
                    rule="学び直しの主の設定は，積を疑似ラベルにした学び直しのために選ばれた値（4 コーパスは実験 1，CREMA-D は実験 18 が CREMA-D を含まない単位で選んだ値）．"
                         "提案の設定と引き戻しの強さも，評価するコーパスを含まない単位で選んだ値",
@@ -292,40 +347,46 @@ def unit_students4(T: str, f: int, r: int, fz: dict, fz1T: dict) -> tuple[list, 
     if not ((z["y_test"].astype(int) == yt).all() and (z["sid_test"].astype(str) == sv.sid).all()):
         raise SystemExit(f"{T} f{f} r{r}：実験 20 の単位のテストが実験 1 の保存と違う")
     rows, arr = [], dict(y_test=yt.astype(np.int8), cl_test=sv.cl, sid_test=sv.sid)
+    TK = dai1.build_tk(u, sv.p1, sv.p2, sv.teth)                              # 実験 1 の段 1・2 の保存から作り直した確率（K 本だけの融合の確率を agree・mix が使う）
     for K in KS:
         kpos = u.kpos[K]
         assert (z[f"kpos_K{K}"] == kpos).all()
         nk = np.setdiff1d(np.arange(u.n), kpos)
         i = int(fz["four"][T][str(K)]["prop_grid"])
         LMp = np.stack([P16.centered(z[f"p_pool_ret_{m}_K{K}"].astype(np.float64)) for m in "AVT"])
-        W = P16.to_w(P16.mix_rel(z[f"D_M_K_K{K}"], z["SR_M_ext"], 4 * K, *GRID[i]))
-        teach = {"prod": teacher_probs(LMp, None), "prop": teacher_probs(LMp, W)}
-        ag = {t_: float((teach[t_][nk].argmax(1) == z[f"pred_pool_K{K}_{v}"].astype(int)).mean()) for t_, v in (("prod", "prod"), ("prop", f"M_F6_mix{i}"))}
+        W = None
+        del W
+        teach = teachers_of(LMp, z[f"D_M_K_K{K}"], z["SR_M_ext"], K, i, z[f"W_tcal_K{K}"])
+        chk = (("prod", "prod"), ("prop", f"M_F6_mix{i}"), ("noprof", f"M_F6_mix{P20.same_but(i, beta=0.0)}"), ("noint", f"M_F6n_mix{i}"),
+               ("levelfree", f"M_F6_mix{GRID.index((float('inf'), 1.0, 'eq'))}"), ("konly", "M_F6_K"), ("tcal", "tcal"))
+        ag = {t_: float((teach[t_][nk].argmax(1) == z[f"pred_pool_K{K}_{v}"].astype(int)).mean()) for t_, v in chk}
         if min(ag.values()) < AGREE_MIN:
             raise SystemExit(f"{T} f{f} r{r} K={K}：疑似ラベルの作り直しが実験 20 の保存と違う（{ag}）")
         cw, cb = sv.teth[("AVT", K)]
         W0, b0 = u.start["AVT"]
-        out, gmax, stalled = fit_students(u.Xp["AVT"], u.Xt["AVT"], W0, b0, cw, cb, S.balanced_onehot(yp, kpos, u.n), u.n, teach, f"{T} f{f} r{r} K={K}")
         gm = int(fz["four"][T][str(K)]["student_main"])
-        joint_saved = z[f"pred_raw_K{K}_joint_AVT"].astype(int)
-        for (t_, gi), (pt, pp) in out.items():
-            arr[f"pred_K{K}_{t_}_g{gi}"] = pt.astype(np.int8)
-            rows.append(dict(K=K, version=f"stud_{t_}", grid=gi, rho=SGRID[gi][0], a=SGRID[gi][1], uar=100 * S.uar(yt, pt), uar_pool=100 * S.uar(yp[nk], pp[nk]),
-                             mimic=float((pp[nk] == teach[t_][nk].argmax(1)).mean())))
-        rows.append(dict(K=K, version="_check", grad=gmax, stalled=stalled, agree_prod=ag["prod"], agree_prop=ag["prop"],
-                         joint_repro=float((out[("prod", gm)][0] == joint_saved).mean()),      # 積を疑似ラベルにして学び直した判定が，実験 1 の保存の「今の提案」と一致する割合
-                         teacher_uar_prod=100 * S.uar(yp[nk], teach["prod"][nk].argmax(1)), teacher_uar_prop=100 * S.uar(yp[nk], teach["prop"][nk].argmax(1))))
+        ex1 = {m_: {k_: v_ for k_, v_ in fz1T["select"][f"AVT|{K}|{m_}|one"].items() if k_ != "pseudo_uar"} for m_ in EX1}
+        specs = student_specs(gm, ex1)
+        out, Wst, bst, gmax, stalled = fit_students(u.Xp["AVT"], u.Xt["AVT"], W0, b0, cw, cb, S.balanced_onehot(yp, kpos, u.n), u.n, TK[K]["none_AVT"][0], teach, specs,
+                                                    f"{T} f{f} r{r} K={K}")
+        save_students(arr, rows, K, out, (Wst, bst), specs, teach, yt, yp, nk)
+        saved = {"joint": z[f"pred_raw_K{K}_joint_AVT"].astype(int), **{m_: z[f"pred_raw_K{K}_b_{m_}"].astype(int) for m_ in EX1}}
+        rows.append(dict(K=K, version="_check", grad=gmax, stalled=stalled, agree_prod=ag["prod"], agree_prop=ag["prop"], agree_min=min(ag.values()),
+                         joint_repro=float((out[f"stud_prod_g{gm}"][0] == saved["joint"]).mean()),   # 積を疑似ラベルにして学び直した判定が，実験 1 の保存の「今の提案」と一致する割合
+                         **{f"{m_}_repro": float((out[f"{m_}_prod"][0] == saved[m_]).mean()) for m_ in EX1},   # 同じく，実験 1 の 3 手法の保存の判定と一致する割合
+                         Cw=float(cw), Cb=float(cb), prop_grid=i, student_main=gm, dai20_npz_sha256=dai15.sha(OUT20 / "units" / f"{T}_ALL_f{f}_r{r}.npz")))
     return rows, arr
 
 
 # ------------------------------------------------------------------ CREMA-D
 
-def unit_cremad(u, teth: dict) -> tuple[list, dict]:
-    """CREMA-D の 1 単位．teth：{"種類|K": (C′, C_b)}．土台は実験 18 の関数（fit_none，ret_models，ext_rel）をそのまま呼ぶ．"""
+def unit_cremad(u, teth: dict, sel: dict) -> tuple[list, dict]:
+    """CREMA-D の 1 単位．teth：{"種類|K": (C′, C_b)}．sel：{K: (提案の格子の点, 学び直しの主の点)}．土台は実験 18 の関数（fit_none，ret_models，ext_rel）をそのまま呼ぶ．"""
     rows, arr = [], {}
     mods, nm = u.mods, len(u.mods)
     yt, yp = u.ytest, u.ypool
     arr["y_test"], arr["cl_test"], arr["sid_test"], arr["y_pool"], arr["cl_pool"] = yt.astype(np.int8), u.cl, u.sid, yp.astype(np.int8), u.cl_pool
+    arr["sid_pool"] = u.cp.df["sample_id"].to_numpy().astype(str)[u.pool]
     for kind in u.kinds:
         arr[f"srcs_{kind}"] = np.array(u.srcs[kind])
     ext = P18.ext_rel(u.srcs, mods)
@@ -333,6 +394,14 @@ def unit_cremad(u, teth: dict) -> tuple[list, dict]:
     arr["D_M_ext"], arr["D_M_home"], arr["ret_M"] = Dext, Dhome, np.array([ext[m][1] for m in mods])
     pairs = list(itertools.combinations(range(NF), 2))
     tables = tables_of(nm)
+    for kind in u.kinds:                                                        # 出発点（ソースの分類器の平均．K = 0）と，上限（候補の全ラベルで学んだ分類器．参照）の判定
+        p0 = S.logits(u.Xt[kind], *u.start[kind]).argmax(1).cpu().numpy()
+        arr[f"pred_raw_K0_start_{kind}"] = p0.astype(np.int8)
+        rows.append(dict(K=0, version=f"start_{kind}", uar_raw=100 * S.uar(yt, p0)))
+        rf = P18.fit_none(u, kind, FULL_K, teth, [np.arange(u.n)])               # 候補の全ラベル．出発点への引き戻しの強さは K = 25 の値を使う
+        pf = S.logits(u.Xt[kind], rf["W"][0], rf["b"][0]).argmax(1).cpu().numpy()
+        arr[f"pred_raw_K0_full_{kind}"] = pf.astype(np.int8)
+        rows.append(dict(K=0, version=f"full_{kind}", uar_raw=100 * S.uar(yt, pf)))
     for K in KS:
         kpos = u.kpos[K]
         yk = yp[kpos]
@@ -353,30 +422,34 @@ def unit_cremad(u, teth: dict) -> tuple[list, dict]:
         for kind in u.kinds:                                                    # K 本だけの分類器
             rn = P18.fit_none(u, kind, K, teth)
             pt = S.logits(u.Xt[kind], rn["W"][0], rn["b"][0]).argmax(1).cpu().numpy()
-            arr[f"pred_raw_K{K}_none_{kind}"] = pt.astype(np.int8)
-            rows.append(dict(K=K, version=f"none_{kind}", uar_raw=100 * S.uar(yt, pt)))
+            ppn = S.logits(u.Xp[kind], rn["W"][0], rn["b"][0]).argmax(1).cpu().numpy()
+            arr[f"pred_raw_K{K}_none_{kind}"], arr[f"predpool_K{K}_none_{kind}"] = pt.astype(np.int8), ppn.astype(np.int8)
+            arr[f"W_none_{kind}_K{K}"], arr[f"b_none_{kind}_K{K}"] = rn["W"][0].to(torch.float32).cpu().numpy(), rn["b"][0].to(torch.float32).cpu().numpy()
+            rows.append(dict(K=K, version=f"none_{kind}", uar_raw=100 * S.uar(yt, pt), uar_pool=100 * S.uar(yp[nk], ppn[nk])))
         DK = np.stack([P16.dprime(Ph[k], yk)[0] for k in range(nm)])
         DO = np.stack([P16.dprime(Pp[k][nk], yp[nk])[0] for k in range(nm)])
         arr[f"D_M_K_K{K}"], arr[f"D_M_orc_K{K}"], arr[f"kpos_K{K}"], arr[f"kfold_K{K}"] = DK, DO, kpos.astype(np.int32), fold.astype(np.int8)
         combine_all(arr, rows, K, Pt, Pp, Ph, P2, PJ, kpos, fold, yk, yt, yp, DK, DO, Dext, Dhome, tables)
-        # 学び直し（融合の分類器）：疑似ラベルは積と，提案の格子の全部の点（選ぶ点は集計の段で固定のファイルから引く）
+        # 学び直し（融合の分類器）
         LMp = np.stack([P16.centered(p) for p in Pp])
-        teach = {"prod": teacher_probs(LMp, None)}
-        for i in sorted({q for q in range(NG) if GRID[q][1] == 1.0 and GRID[q][0] in (0.0, 20.0)}):   # 提案の点の候補（n0 = 0・20，相性を使う）
-            teach[f"mix{i}"] = teacher_probs(LMp, P16.to_w(P16.mix_rel(DK, Dext, 4 * K, *GRID[i])))
+        i, gm = sel[K]
+        teach = teachers_of(LMp, DK, Dext, K, i, arr[f"W_tcal_K{K}"])
         cw, cb = teth[f"{u.fus}|{K}"]
         W0, b0 = u.start[u.fus]
-        out, gmax, stalled = fit_students(u.Xp[u.fus], u.Xt[u.fus], W0, b0, cw, cb, u.gK(K), u.n, teach, f"{u.name()} K={K}")
-        for (t_, gi), (pt, pp) in out.items():
-            arr[f"pred_K{K}_stud_{t_}_g{gi}"] = pt.astype(np.int8)
-            rows.append(dict(K=K, version=f"stud_{t_}", grid=gi, rho=SGRID[gi][0], a=SGRID[gi][1], uar=100 * S.uar(yt, pt), uar_pool=100 * S.uar(yp[nk], pp[nk]),
-                             mimic=float((pp[nk] == teach[t_][nk].argmax(1)).mean())))
-        rows.append(dict(K=K, version="_check", grad=gmax, stalled=stalled, gpu_max_mb=(torch.cuda.max_memory_allocated() / 2 ** 20 if torch.cuda.is_available() else 0.0)))
+        specs = student_specs(gm)                                               # CREMA-D には実験 1 の手法の固定の設定が無いので，今の提案の式だけ
+        out, Wst, bst, gmax, stalled = fit_students(u.Xp[u.fus], u.Xt[u.fus], W0, b0, cw, cb, u.gK(K), u.n, None, teach, specs, f"{u.name()} K={K}")
+        save_students(arr, rows, K, out, (Wst, bst), specs, teach, yt, yp, nk)
+        rows.append(dict(K=K, version="_check", grad=gmax, stalled=stalled, Cw=float(cw), Cb=float(cb), prop_grid=i, student_main=gm,
+                         gpu_max_mb=(torch.cuda.max_memory_allocated() / 2 ** 20 if torch.cuda.is_available() else 0.0)))
     return rows, arr
 
 
 def cremad_teth(fz: dict) -> dict:
     return {f"{k}|{K}": tuple(v) for K in KS for k, v in fz["cremad"][str(K)]["tether"].items()}
+
+
+def cremad_sel(fz: dict) -> dict:
+    return {K: (int(fz["cremad"][str(K)]["prop_grid"]), int(fz["cremad"][str(K)]["student_main"])) for K in KS}
 
 
 # ------------------------------------------------------------------ 段の回し方
@@ -387,10 +460,10 @@ def loop(out: Path, sub: str, todo: list, fn) -> None:
     gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""
     for name, args in todo:
         if (d / f"{name}.csv").exists():
-            if (pd.read_csv(d / f"{name}.csv", low_memory=False).commit == RUN["commit"]).all():
+            if all(same_code(x) for x in pd.read_csv(d / f"{name}.csv", low_memory=False).commit.unique()):
                 print(f"{sub} {name}：済み（飛ばす）", flush=True)
                 continue
-            raise SystemExit(f"{sub} {name} が別のコミットで既にある")
+            raise SystemExit(f"{sub} {name} が，計算に関わるファイルの違うコミットで既にある")
         t0 = time.time()
         rows, arr = fn(*args)
         np.savez_compressed(d / f"{name}.npz", **arr)                       # npz を先に書き，csv を済みの印にする
@@ -398,7 +471,7 @@ def loop(out: Path, sub: str, todo: list, fn) -> None:
         df.to_csv(d / f"{name}.csv", index=False)
         ck = df[df.version == "_check"]
         print(f"{sub} {name}：{time.time() - t0:.0f} 秒．行 {len(df)}．勾配の最大 {ck.grad.max():.1e}" +
-              (f"．今の提案の再現 {ck.joint_repro.min():.4f}．疑似ラベルの一致 {min(ck.agree_prod.min(), ck.agree_prop.min()):.4f}" if "joint_repro" in ck else ""), flush=True)
+              (f"．今の提案の再現 {ck.joint_repro.min():.4f}．疑似ラベルの一致 {ck.agree_min.min():.4f}" if "joint_repro" in ck else ""), flush=True)
         del rows, arr
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -417,13 +490,41 @@ def todo_cremad(folds, seeds) -> list:
 # ------------------------------------------------------------------ 集計
 
 def role_of(v: str) -> str:
+    """表の行の役．proposal：提案（推定時の答えと，学び直した融合）．current：今の提案（積の疑似ラベルで学び直した融合）．konly_fusion：K 本だけの融合．
+    teacher_ablation：疑似ラベルを替えた学び直し．selection：設定を別の規則で選んだ版（記述）．B：実験 1 の比較手法．"""
     b = v.split("@")[0]
-    return ("proposal" if b in ("prop", "stud_prop") else "A" if b in A2 else "ablation" if b in P20.ABL else "oracle" if b in ("M_F6_orc",) else
-            "reference" if b in ("M_F6_ext",) else "single" if b.startswith(("ret_", "none_A", "none_V", "none_T")) and b not in ("none_AVT", "none_AV") else
-            "selection" if b.endswith("_sel") else "B")
+    if b in ("prop", "stud_prop"):
+        return "proposal"
+    if b in ("stud_prod", "joint_AVT"):
+        return "current"
+    if b in ("none_AVT", "none_AV"):
+        return "konly_fusion"
+    if b in tuple(f"stud_{t_}" for t_ in EXTRA_T):
+        return "teacher_ablation"
+    if b in tuple(f"{m_}_prop" for m_ in EX1):
+        return "B_new_teacher"                                              # 実験 1 の手法に提案の疑似ラベルを渡した版
+    if b in tuple(f"{m_}_prod" for m_ in EX1):
+        return "B_repro"                                                    # 実験 1 の手法をこの台本で作り直した版（保存の再現の検算）
+    if b.startswith("full_"):
+        return "upper"
+    if b.startswith("start_"):
+        return "start"
+    if b in A2:
+        return "A"
+    if b in P20.ABL:
+        return "ablation"
+    if b.endswith("_sel"):
+        return "selection"
+    if b == "M_F6_orc":
+        return "oracle"
+    if b == "M_F6_ext":
+        return "reference"
+    if b.startswith(("ret_", "none_")):
+        return "single"
+    return "B"
 
 
-def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, list]:
+def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, list, list]:
     """cells：{(コーパス, K, 版): {(分割, 種): 塊ごとの数}}．水準と差を，実験 20 の集計と同じ区間の作り方で出す．"""
     def eff(A, B, c, k_):
         if set(A) != set(B):
@@ -439,6 +540,10 @@ def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, li
     def sub(A, seeds):
         return A if seeds is None else {k_: x for k_, x in A.items() if k_[1] in seeds}
 
+    def only(A, i):                                                          # 感情 i の列だけ残した数（再現率とその区間は 4 倍する．実験 20 と同じ）
+        m = np.zeros(4); m[i] = 1.0
+        return {k_: (x[0], x[1] * m, x[2]) for k_, x in A.items()}
+
     same_as = {}
     for c, K in sorted({(c, K) for c, K, _ in cells}):
         vs = [v for (c2, K2, v) in cells if c2 == c and K2 == K]
@@ -450,11 +555,22 @@ def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, li
             size[sig[v]] = size.get(sig[v], 0) + 1
         for v in vs:
             same_as[(c, K, v)] = first[sig[v]] if size[sig[v]] > 1 else ""
-    lv, ef = [], []
+    lv, ef, pe = [], [], []
     for (c, K, v), dd in sorted(cells.items()):
-        e_ = eff(dd, zero(dd), c, ("L", part, c, K, v))
-        lv.append(dict(part=part, c=c, K=K, version=v, role=role_of(v), uar=e_["est"], lo=e_["lo"], hi=e_["hi"], se=e_["se"], df=e_["df"], method=e_["method"],
-                       n_fr=e_["n_fr"], same_as=same_as[(c, K, v)]))
+        for sn, ss in SEED_SETS.items():
+            ds = sub(dd, ss)
+            if not ds or (sn != "all" and len(ds) == len(dd)):
+                continue
+            e_ = eff(ds, zero(ds), c, ("L", part, c, K, v, sn))
+            lv.append(dict(part=part, c=c, K=K, version=v, role=role_of(v), seeds=sn, uar=e_["est"], lo=e_["lo"], hi=e_["hi"], se=e_["se"], df=e_["df"], method=e_["method"],
+                           n_fr=e_["n_fr"], same_as=same_as[(c, K, v)]))
+        cor, tot = sum(x[1].sum(0) for x in dd.values()), sum(x[2].sum(0) for x in dd.values())
+        full = all((x[2].sum(0) > 0).all() for x in dd.values())
+        for i in range(4):
+            r_ = eff(only(dd, i), zero(dd), c, ("E", part, c, K, v, i)) if full else None
+            pe.append(dict(part=part, c=c, K=K, version=v, role=role_of(v), emotion=i, recall=(4 * r_["est"] if full else np.nan), lo=(4 * r_["lo"] if full else np.nan),
+                           hi=(4 * r_["hi"] if full else np.nan), recall_pooled=100 * cor[i] / max(tot[i], 1), n=float(tot[i]), n_units=len(dd),
+                           n_per_seed=float(tot[i]) * len({k_[0] for k_ in dd}) / len(dd)))
     for a, b in con:
         for c, K in sorted({(c, K) for c, K, _ in cells}):
             A, B = cells.get((c, K, a)), cells.get((c, K, b))
@@ -466,7 +582,7 @@ def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, li
                     continue
                 ef.append(dict(part=part, a=a, b=b, c=c, K=K, seeds=sn, role_a=role_of(a), role_b=role_of(b), a_same_as=same_as[(c, K, a)], b_same_as=same_as[(c, K, b)],
                                **eff(As, Bs, c, ("A", part, a, b, c, K, sn))))
-    return lv, ef
+    return lv, ef, pe
 
 
 def stage_summary(out: Path, allow_partial: bool) -> None:
@@ -474,15 +590,30 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
     sdir.mkdir(exist_ok=True)
     fz = load_frozen()
     f20 = P20.load_frozen()
-    lv, ef, grid_rows, chk = [], [], [], {}
+    lv, ef, pe, grid_rows, chk, conf, wrows = [], [], [], [], {}, {}, []
+    ST_EX = tuple(f"stud_{t_}" for t_ in EXTRA_T)
+
+    def check_commits(cs, sub_):
+        """単位どうしで計算に関わるファイルに差が無いことと，単位を作った後に固定のファイルと格子の台本が変わっていないことを確かめる．"""
+        ucom = sorted(map(str, cs.commit.unique()))
+        if not allow_partial and not all(same_code(x, ucom[0]) for x in ucom):
+            raise SystemExit(f"{sub_} の中に，計算に関わるファイルの違うコミットで作った単位が混ざっている")
+        if not allow_partial and not all(same_code(x, "HEAD", FIXED) for x in ucom):
+            raise SystemExit(f"{sub_} の単位を作った後に，固定のファイルか格子の台本が変わっている")
+        if cs.duplicated(["name", "K", "version", "grid"]).any():
+            raise SystemExit(f"{sub_} の行が重なっている")
+        return ucom
+
+    def add_conf(c, K, v, yt, pred):
+        np.add.at(conf.setdefault((c, K, v), np.zeros((4, 4))), (yt, pred.astype(int)), 1)
+
     # ---- 4 コーパス
     files = sorted((out / "students4").glob("*.csv"))
     if len(files) != len(todo_students4(None, None, None)) and not allow_partial:
         raise SystemExit(f"students4 の出力が {len(files)} 個")
     if files:
         cs = pd.concat([pd.read_csv(p, low_memory=False) for p in files], ignore_index=True)
-        if cs.commit.nunique() != 1 and not allow_partial:
-            raise SystemExit("students4 のコミットが 1 つでない")
+        ucom4 = check_commits(cs, "students4")
         cells = {}
         for p in files:
             T, f, r = p.stem.split("_ALL_")[0], int(p.stem.split("_f")[1].split("_r")[0]), int(p.stem.rsplit("_r", 1)[1])
@@ -491,31 +622,40 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
             assert (z20["y_test"].astype(int) == yt).all() and (z20["cl_test"] == z["cl_test"]).all()
             for K in KS:
                 q = fz["four"][T][str(K)]
-                i, gm, gs = int(f20[T][K][0]), int(q["student_main"]), int(q["student_prop_sel"])
-                names = {"stud_prop": (z, f"pred_K{K}_prop_g{gm}"), "stud_prod": (z, f"pred_K{K}_prod_g{gm}"), "stud_prop_sel": (z, f"pred_K{K}_prop_g{gs}"),
+                i, gm, gs, gps = int(f20[T][K][0]), int(q["student_main"]), int(q["student_prop_sel"]), int(q["student_prod_sel"])
+                assert i == int(q["prop_grid"])
+                names = {"stud_prop": (z, f"pred_K{K}_stud_prop_g{gm}"), "stud_prod": (z, f"pred_K{K}_stud_prod_g{gm}"),
+                         "stud_prop_sel": (z, f"pred_K{K}_stud_prop_g{gs}"), "stud_prod_sel": (z, f"pred_K{K}_stud_prod_g{gps}"),
+                         **{f"stud_{t_}": (z, f"pred_K{K}_stud_{t_}_g{gm}") for t_ in EXTRA_T},
+                         **{f"{m_}_{t_}": (z, f"pred_K{K}_{m_}_{t_}") for m_ in EX1 for t_ in ("prod", "prop")},
                          "prop": (z20, f"pred_adj_K{K}_M_F6_mix{i}"), "prod": (z20, f"pred_adj_K{K}_prod"),
                          **{v: (z20, f"pred_raw_K{K}_{v}") for v in ("none_AVT", "joint_AVT") + B_VERS}}
                 for v, (src, kk) in names.items():
                     P12._add(cells.setdefault((T, K, v), {}), (f, r), ST.counts(yt, src[kk].astype(int), z["cl_test"]), f"{p.stem} {v}")
+                    if v in ("stud_prop", "stud_prod", "joint_AVT", "none_AVT", "prop", "prod"):
+                        add_conf(T, K, v, yt, src[kk])
         P12._finish(cells)
-        con = ([("stud_prop", b) for b in ("joint_AVT", "stud_prod", "none_AVT", "prop", "prod") + B_VERS]
-               + [("stud_prop_sel", "joint_AVT"), ("stud_prod", "joint_AVT"), ("joint_AVT", "none_AVT"), ("prop", "joint_AVT")] + [(b, "joint_AVT") for b in B_VERS])
-        a, b = table_block(cells, con, {c: ST.g_eff_of(c)[0] for c in C4}, "4corpora")
-        lv += a; ef += b
+        con = ([("stud_prop", b) for b in ("stud_prod", "joint_AVT", "none_AVT", "prop", "prod") + ST_EX + B_VERS]
+               + [("stud_prop_sel", "stud_prod_sel"), ("stud_prod", "joint_AVT"), ("joint_AVT", "none_AVT"), ("prop", "joint_AVT")]
+               + [(s_, "stud_prod") for s_ in ST_EX] + [(b, "joint_AVT") for b in B_VERS]
+               + [("stud_prop", f"{m_}_prop") for m_ in EX1] + [(f"{m_}_prop", f"b_{m_}") for m_ in EX1] + [(f"{m_}_prod", f"b_{m_}") for m_ in EX1])
+        a, b, e = table_block(cells, con, {c: ST.g_eff_of(c)[0] for c in C4}, "4corpora")
+        lv += a; ef += b; pe += e
         st = cs[cs.version.astype(str).str.startswith("stud_")].assign(T=lambda d: d.name.str.split("_ALL_").str[0])
-        grid_rows.append(st.groupby(["T", "K", "version", "grid", "rho", "a"])[["uar", "mimic"]].mean().reset_index().rename(columns={"T": "c"}).assign(part="4corpora"))
+        grid_rows.append(st.groupby(["T", "K", "version", "grid", "rho", "a"])[["uar", "mimic", "teacher_uar"]].agg(["mean", "count"]).reset_index().rename(columns={"T": "c"}).assign(part="4corpora"))
         ck = cs[cs.version == "_check"]
         chk.update(students4=dict(n_units=len(files), grad_max=float(ck.grad.max()), stalled=int(ck.stalled.sum()), joint_repro_min=float(ck.joint_repro.min()),
-                                  joint_repro_mean=float(ck.joint_repro.mean()), agree_min=float(min(ck.agree_prod.min(), ck.agree_prop.min())),
-                                  commits=sorted(cs.commit.astype(str).unique().tolist())))
+                                  joint_repro_mean=float(ck.joint_repro.mean()), joint_repro_ok=bool(ck.joint_repro.min() >= AGREE_MIN),
+                                  n_joint_repro_below=int((ck.joint_repro < AGREE_MIN).sum()), agree_min=float(ck.agree_min.min()),
+                                  **{f"{m_}_repro_min": float(ck[f"{m_}_repro"].min()) for m_ in EX1}, **{f"n_{m_}_repro_below": int((ck[f"{m_}_repro"] < AGREE_MIN).sum()) for m_ in EX1},
+                                  commits=ucom4))
     # ---- CREMA-D
     files = sorted((out / "cremad").glob("*.csv"))
     if len(files) != len(todo_cremad(None, None)) and not allow_partial:
         raise SystemExit(f"cremad の出力が {len(files)} 個")
     if files:
         cs = pd.concat([pd.read_csv(p, low_memory=False) for p in files], ignore_index=True)
-        if cs.commit.nunique() != 1 and not allow_partial:
-            raise SystemExit("cremad のコミットが 1 つでない")
+        ucomc = check_commits(cs, "cremad")
         cells = {}
         fk = P18.fus(CD)
         for p in files:
@@ -531,26 +671,48 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                              prop_noprof_sel=f"pred_adj_K{K}_M_F6_mix{int(q['noprof_sel'])}", prop_noint=f"pred_adj_K{K}_M_F6n_mix{i}",
                              prop_n0zero=f"pred_adj_K{K}_M_F6_mix{P20.same_but(i, n0=0.0)}", prop_home=f"pred_adj_K{K}_M_F6h_mix{i}",
                              prop_levelfree=f"pred_adj_K{K}_M_F6_mix{GRID.index((float('inf'), 1.0, 'eq'))}",
-                             stud_prod=f"pred_K{K}_stud_prod_g{gm}", stud_prop=f"pred_K{K}_stud_mix{i}_g{gm}", stud_prop_sel=f"pred_K{K}_stud_mix{i}_g{gs}",
-                             **{f"none_{k}": f"pred_raw_K{K}_none_{k}" for k in ("A", "V", fk)}, ret_A=f"pred_raw_K{K}_ret_A", ret_V=f"pred_raw_K{K}_ret_V")
+                             stud_prod=f"pred_K{K}_stud_prod_g{gm}", stud_prop=f"pred_K{K}_stud_prop_g{gm}", stud_prop_sel=f"pred_K{K}_stud_prop_g{gs}",
+                             **{f"stud_{t_}": f"pred_K{K}_stud_{t_}_g{gm}" for t_ in EXTRA_T},
+                             **{f"none_{k}": f"pred_raw_K{K}_none_{k}" for k in ("A", "V", fk)}, ret_A=f"pred_raw_K{K}_ret_A", ret_V=f"pred_raw_K{K}_ret_V",
+                             **{f"full_{k}": f"pred_raw_K0_full_{k}" for k in ("A", "V", fk)}, **{f"start_{k}": f"pred_raw_K0_start_{k}" for k in ("A", "V", fk)})
                 for v, kk in names.items():
                     P12._add(cells.setdefault((CD, K, v), {}), (f, r), ST.counts(yt, z[kk].astype(int), z["cl_test"]), f"{p.stem} {v}")
+                    if v in ("stud_prop", "stud_prod", f"none_{fk}", "prop", "prod"):
+                        add_conf(CD, K, v, yt, z[kk])
+                Dk, Do, De = z[f"D_M_K_K{K}"], z[f"D_M_orc_K{K}"], z["D_M_ext"]
+                wrows.append((K, np.stack([P16.to_w(P16.mix_rel(Dk, De, 4 * K, *GRID[i])), P16.to_w(Do), P16.to_w(Dk), P16.to_w(De)])))
         P12._finish(cells)
         nf = f"none_{fk}"
         con = ([("prop", b) for b in A2 + P20.ABL + (nf, "stud_prod", "M_F6_ext")] + [(a, "prod") for a in A2[1:] + ("prop_noprof", "prop_levelfree", "M_F6_orc", "M_F6_ext")]
                + [("prop_noint", "prop_noprof"), ("prop", "prop@raw")] + [("prop@raw", f"{b}@raw") for b in A2] + [("prop", f"{b}@raw") for b in A2[1:]]
-               + [("stud_prop", b) for b in ("stud_prod", nf, "prop", "prod")] + [("stud_prop_sel", "stud_prod"), ("stud_prod", nf), ("stud_prod", "prod")])
-        a, b = table_block(cells, con, {CD: P18.g_eff_of(CD)}, "cremad")
-        lv += a; ef += b
+               + [("stud_prop", b) for b in ("stud_prod", nf, "prop", "prod") + ST_EX] + [("stud_prop_sel", "stud_prod"), ("stud_prod", nf), ("stud_prod", "prod")]
+               + [(s_, "stud_prod") for s_ in ST_EX])
+        a, b, e = table_block(cells, con, {CD: P18.g_eff_of(CD)}, "cremad")
+        lv += a; ef += b; pe += e
+        mods = P18.MODS_OF[CD]
+        pd.DataFrame([dict(c=CD, K=K, mod=m, emotion=e_, w_prop=float(W[0, j, e_]), w_orc=float(W[1, j, e_]), w_K=float(W[2, j, e_]), w_ext=float(W[3, j, e_]),
+                           n_units=sum(1 for k_, _ in wrows if k_ == K))
+                      for K in KS for W in [np.mean([w_ for k_, w_ in wrows if k_ == K], 0)] for j, m in enumerate(mods) for e_ in range(4)]).to_csv(sdir / "weights_cremad.csv", index=False)
         st = cs[cs.version.astype(str).str.startswith("stud_")]
-        grid_rows.append(st.groupby(["K", "version", "grid", "rho", "a"])[["uar", "mimic"]].mean().reset_index().assign(c=CD, part="cremad"))
+        grid_rows.append(st.groupby(["K", "version", "grid", "rho", "a"])[["uar", "mimic", "teacher_uar"]].agg(["mean", "count"]).reset_index().assign(c=CD, part="cremad"))
         ck = cs[cs.version == "_check"]
         chk.update(cremad=dict(n_units=len(files), grad_max=float(ck.grad.max()), stalled=int(ck.stalled.sum()), adj_resid_max=float(cs.adj_resid.max()),
-                               wf_n_capped=int(cs[cs.version == f"wf{N_WF}"].wf_n_capped.fillna(0).sum()), commits=sorted(cs.commit.astype(str).unique().tolist())))
+                               wf_n_capped=int(cs[cs.version == f"wf{N_WF}"].wf_n_capped.fillna(0).sum()), commits=ucomc))
+        gq = cs[cs.version.astype(str).str.fullmatch(r"M_F6_mix\d+")].copy()        # 提案の格子の 16 点の UAR（切片をずらした答え．CREMA-D）
+        gq["grid"] = gq.version.str.replace("M_F6_mix", "").astype(int)
+        gl = gq.groupby(["K", "grid"]).uar_adj.mean().reset_index()
+        gl["frozen"] = [int(fz["cremad"][str(int(K))]["prop_grid"]) == int(g_) for K, g_ in zip(gl.K, gl.grid)]
+        gl.assign(c=CD, n0=[GRID[int(g_)][0] for g_ in gl.grid], beta=[GRID[int(g_)][1] for g_ in gl.grid], prior=[GRID[int(g_)][2] for g_ in gl.grid]).to_csv(
+            sdir / "grid_levels_cremad.csv", index=False)
     pd.DataFrame(lv).to_csv(sdir / "levels.csv", index=False)
     pd.DataFrame(ef).to_csv(sdir / "effects.csv", index=False)
-    if grid_rows:
-        pd.concat(grid_rows, ignore_index=True).to_csv(sdir / "student_grid.csv", index=False)
+    pd.DataFrame(pe).to_csv(sdir / "per_emotion.csv", index=False)
+    pd.DataFrame([dict(c=c, K=K, version=v, true=a_, pred=b_, n=float(M[a_, b_])) for (c, K, v), M in sorted(conf.items()) for a_ in range(4) for b_ in range(4)]).to_csv(
+        sdir / "confusion.csv", index=False)                                # n は全部の単位（分割 × 種）の合計
+    if grid_rows:                                                           # 設定の格子の点ごとの平均（区間は付けない．テストで最良の点の値は上に偏る）
+        g_ = pd.concat(grid_rows, ignore_index=True)
+        g_.columns = ["_".join([str(x) for x in col if x != ""]) if isinstance(col, tuple) else col for col in g_.columns]
+        g_.to_csv(sdir / "student_grid.csv", index=False)
     json.dump(dict(chk, summary_commit=RUN["commit"]), open(sdir / "convergence.json", "w"), indent=1)
     print(f"summary：水準の行 {len(lv)}，差の行 {len(ef)}．{json.dumps(chk, ensure_ascii=False)[:400]}", flush=True)
 
@@ -586,7 +748,7 @@ def stage_check18(out: Path) -> None:
     u = P18.Unit6(HOLD, CD, 0, 0)
     assert all(sorted(u.srcs[k]) == sorted(C4) for k in u.kinds), u.srcs
     t0 = time.time()
-    rows, arr = unit_cremad(u, teth)
+    rows, arr = unit_cremad(u, teth, {K: (2, sgrid_index(1.0, 1)) for K in KS})
     z = np.load(OUT18 / "units" / f"{HOLD}_{CD}_f0_r0.npz", allow_pickle=False)
     res = []
     for K in KS:
@@ -643,7 +805,17 @@ def selftest() -> None:
         Q0 = teacher_probs(np.stack([P16.centered(p) for p in Pp]), None)
         Q1 = teacher_probs(np.stack([P16.centered(p) for p in Pp]), np.ones((nm, 4)))
         assert np.allclose(Q0.sum(1), 1.0) and np.abs(Q0 - Q1).max() < 1e-9             # 重みが全部 1 の提案の疑似ラベルは積と同じ
-    assert role_of("stud_prop") == "proposal" and role_of("wf10@raw") == "A" and role_of("b_kd") == "B" and role_of("none_AV") == "B" and role_of("ret_A") == "single"
+    assert role_of("stud_prop") == "proposal" and role_of("wf10@raw") == "A" and role_of("b_kd") == "B" and role_of("none_AV") == "konly_fusion" and role_of("ret_A") == "single"
+    assert role_of("prop_noprof_sel") == "ablation" and role_of("stud_prop_sel") == "selection" and role_of("stud_tcal") == "teacher_ablation" and role_of("joint_AVT") == "current"
+    sp = student_specs(6)
+    assert len(sp) == 2 * NS + len(EXTRA_T) and len({s_[0] for s_ in sp}) == len(sp) and sp[-1][:3] == ("stud_tcal_g6", "joint", "tcal") and sp[6][3] == dict(rho=1.0, a=1)
+    sp2 = student_specs(6, {"kd": dict(temp=2.0, rho=1.0), "agree": dict(tau=0.7, f=1.0), "mix": dict(alpha=0.2, f=1.0)})
+    assert len(sp2) == len(sp) + 6 and sp2[-1][:3] == ("mix_prop", "mix", "prop")
+    assert role_of("kd_prop") == "B_new_teacher" and role_of("mix_prod") == "B_repro" and role_of("full_AV") == "upper" and role_of("stud_noint") == "teacher_ablation"
+    LMq = np.stack([P16.centered(p) for p in Pp])
+    tq = teachers_of(LMq, DK, De, K, 2, np.ones(nm))                             # 温度の重みが全部 1 なら積と同じ疑似ラベル．n0 = 0 の点 2 から相性を外すと点 0
+    assert np.abs(tq["tcal"] - tq["prod"]).max() < 1e-9 and all(np.allclose(q_.sum(1), 1.0) for q_ in tq.values()) and set(tq) == {"prod", "prop"} | set(EXTRA_T)
+    assert np.abs(tq["noprof"] - teacher_probs(LMq, P16.to_w(P16.mix_rel(DK, De, 4 * K, *GRID[0])))).max() < 1e-12
     print("selftest：通った")
 
 
@@ -697,16 +869,26 @@ def main() -> None:
                 gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__, scipy=scipy.__version__,
                 pandas=pd.__version__, python=platform.python_version(), this_script_sha256=dai15.sha(Path(__file__).resolve()),
                 scripts={n: dai15.sha(ROOT / "DAI" / "exp" / n) for n in SCRIPTS}, design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""),
-                frozen_sha256=dai15.sha(FROZEN), frozen20_sha256=dai15.sha(FROZEN20), dai20_provenance_sha256=(dai15.sha(OUT20 / "provenance.json") if (OUT20 / "provenance.json").exists() else ""),
-                KS=KS, SGRID=[list(x) for x in SGRID], rng_seed=SEED, wf_tables2_sha256=hashlib.sha256(tables_of(2).tobytes()).hexdigest())
+                frozen_sha256=dai15.sha(FROZEN), frozen20_sha256=dai15.sha(FROZEN20),
+                inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
+                               "dai18_splits_new.csv": dai15.sha(OUT18 / "splits_new.csv")}, dai20_provenance_sha256=(dai15.sha(OUT20 / "provenance.json") if (OUT20 / "provenance.json").exists() else ""),
+                KS=KS, SGRID=[list(x) for x in SGRID], rng_seed=SEED, wf_tables2_sha256=hashlib.sha256(tables_of(2).tobytes()).hexdigest(),
+                consts=dict(AGREE_MIN=AGREE_MIN, GRAD_TOL=P16.GRAD_TOL, EXTRA_T=EXTRA_T, EX1=EX1, FULL_K=FULL_K, N_SEL_CD=N_SEL_CD, NF=NF, WATCH=WATCH, FIXED=FIXED))
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     if args.stage == "students4":
         fz1, _ = dai3.load_fz1(OUT1)
         loop(out, "students4", todo_students4(args.targets, args.folds, args.seeds), lambda T, f, r: unit_students4(T, f, r, fz, fz1[T]))
     elif args.stage == "cremad":
-        teth = cremad_teth(fz)
-        loop(out, "cremad", todo_cremad(args.folds, args.seeds), lambda f, r: unit_cremad(P18.Unit6(HOLD, CD, f, r), teth))
+        teth, sel = cremad_teth(fz), cremad_sel(fz)
+
+        def one(f, r):
+            u = P18.Unit6(HOLD, CD, f, r)
+            assert all(sorted(u.srcs[k_]) == sorted(C4) for k_ in u.kinds), u.srcs      # ソースは元の 4 コーパス
+            return unit_cremad(u, teth, sel)
+
+        loop(out, "cremad", todo_cremad(args.folds, args.seeds), one)
     else:
         stage_summary(out, args.allow_partial)
         json.dump(prov, open(out / "provenance.json", "w"), ensure_ascii=False, indent=1)
