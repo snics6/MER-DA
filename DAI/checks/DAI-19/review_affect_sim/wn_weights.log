@@ -1,0 +1,180 @@
+== 1. q[s->t] = A_{s->t} / H_t（行：分類器のソース s，列：当てた相手 t）
+A
+         AFEW  IEMOCAP  MELD  MOSEI
+AFEW      NaN     0.62  0.57   0.30
+IEMOCAP  0.76      NaN  0.62   0.33
+MELD     0.88     0.69   NaN   0.41
+MOSEI    0.50     0.44  0.54    NaN
+  相手ごとの順位（1 が最も届く）
+          AFEW  IEMOCAP  MELD  MOSEI
+AFEW      NaN      2.0   2.0    3.0
+IEMOCAP   2.0      NaN   1.0    2.0
+MELD      1.0      1.0   NaN    1.0
+MOSEI     3.0      3.0   3.0    NaN
+V
+         AFEW  IEMOCAP  MELD  MOSEI
+AFEW      NaN     0.84  0.86   0.57
+IEMOCAP  0.87      NaN  0.78   0.68
+MELD     0.84     0.87   NaN   0.48
+MOSEI    0.59     0.80  0.74    NaN
+  相手ごとの順位（1 が最も届く）
+          AFEW  IEMOCAP  MELD  MOSEI
+AFEW      NaN      2.0   1.0    2.0
+IEMOCAP   1.0      NaN   2.0    1.0
+MELD      2.0      1.0   NaN    3.0
+MOSEI     3.0      3.0   3.0    NaN
+T
+         AFEW  IEMOCAP  MELD  MOSEI
+AFEW      NaN     0.50  0.65   0.31
+IEMOCAP  0.77      NaN  0.61   0.24
+MELD     0.91     0.60   NaN   0.60
+MOSEI    0.67     0.42  0.70    NaN
+  相手ごとの順位（1 が最も届く）
+          AFEW  IEMOCAP  MELD  MOSEI
+AFEW      NaN      2.0   2.0    2.0
+IEMOCAP   2.0      NaN   3.0    3.0
+MELD      1.0      1.0   NaN    1.0
+MOSEI     3.0      3.0   1.0    NaN
+
+== 2. 重み（最初に書いたコーパスの重み）
+      s       t m   w_s  wn_s   H_s   H_t   A_s   A_t   q_s   q_t
+   AFEW IEMOCAP A 0.597 0.449 4.501 8.167 5.059 3.420 0.619 0.760
+   AFEW IEMOCAP V 0.378 0.489 8.041 5.094 4.261 7.014 0.836 0.872
+   AFEW IEMOCAP T 0.532 0.397 3.310 5.714 2.882 2.538 0.504 0.767
+   AFEW    MELD A 0.337 0.391 4.501 3.569 2.019 3.973 0.566 0.883
+   AFEW    MELD V 0.211 0.506 8.041 2.104 1.804 6.727 0.857 0.837
+   AFEW    MELD T 0.507 0.416 3.310 4.784 3.111 3.024 0.650 0.913
+   AFEW   MOSEI A 0.308 0.377 4.501 3.302 0.991 2.228 0.300 0.495
+   AFEW   MOSEI V 0.265 0.491 8.041 3.000 1.708 4.739 0.569 0.589
+   AFEW   MOSEI T 0.277 0.315 3.310 2.756 0.856 2.233 0.311 0.675
+IEMOCAP    MELD A 0.283 0.474 8.167 3.569 2.206 5.597 0.618 0.685
+IEMOCAP    MELD V 0.271 0.473 5.094 2.104 1.640 4.418 0.780 0.867
+IEMOCAP    MELD T 0.456 0.500 5.714 4.784 2.895 3.456 0.605 0.605
+IEMOCAP   MOSEI A 0.233 0.429 8.167 3.302 1.095 3.613 0.332 0.442
+IEMOCAP   MOSEI V 0.335 0.461 5.094 3.000 2.044 4.052 0.681 0.796
+IEMOCAP   MOSEI T 0.217 0.365 5.714 2.756 0.658 2.372 0.239 0.415
+   MELD   MOSEI A 0.415 0.434 3.569 3.302 1.364 1.920 0.413 0.538
+   MELD   MOSEI V 0.480 0.392 2.104 3.000 1.443 1.566 0.481 0.744
+   MELD   MOSEI T 0.333 0.465 4.784 2.756 1.667 3.336 0.605 0.697
+w_s 大きいほうの重み：最小 0.507 中央 0.666 最大 0.789 ／ |w-0.5| の中央 0.166 ／ 0.45〜0.55 に入る組 4/18
+wn_s 大きいほうの重み：最小 0.500 中央 0.558 最大 0.685 ／ |w-0.5| の中央 0.058 ／ 0.45〜0.55 に入る組 8/18
+
+ コーパスごとの「重み > 0.5」の数（9 個中）と重みの範囲
+  AFEW     w_s   >0.5: 3/9  範囲 0.21〜0.60
+  AFEW     wn_s  >0.5: 1/9  範囲 0.32〜0.51
+  IEMOCAP  w_s   >0.5: 1/9  範囲 0.22〜0.62
+  IEMOCAP  wn_s  >0.5: 4/9  範囲 0.36〜0.60
+  MELD     w_s   >0.5: 5/9  範囲 0.33〜0.79
+  MELD     wn_s  >0.5: 4/9  範囲 0.39〜0.61
+  MOSEI    w_s   >0.5: 9/9  範囲 0.52〜0.78
+  MOSEI    wn_s  >0.5: 9/9  範囲 0.51〜0.68
+
+== 3. 重みの大きいソースと中の値（18 組）
+  w_s: 重みの大きいソースが『相手の中の値が高い』ソース 17/18，『自分の中の値が高い』ソース 1/18
+  wn_s: 重みの大きいソースが『相手の中の値が高い』ソース 12/18，『自分の中の値が高い』ソース 6/18
+  wn で重みが大きいソースは q の大きいほう（定義どおり）．相手側の q の小ささで決まるかを下の分解で見る
+
+== 4. 対数の散らばりの分解（最小二乗の決定係数．12 個の値）
+  A log A       ソースだけ 0.09  相手だけ 0.90  両方 0.99
+  A log(A/H_t)  ソースだけ 0.13  相手だけ 0.70  両方 0.96
+  V log A       ソースだけ 0.06  相手だけ 0.96  両方 0.98
+  V log(A/H_t)  ソースだけ 0.04  相手だけ 0.60  両方 0.80
+  T log A       ソースだけ 0.13  相手だけ 0.82  両方 0.94
+  T log(A/H_t)  ソースだけ 0.19  相手だけ 0.64  両方 0.89
+
+== 5. 重みの大きいソースが，第 3 のコーパスに当てた値の大きいソースと一致する数（声・顔・言葉 36 個）
+      s       t       c m  w_s  wn_s  A_s_c  A_t_c  w_ok  wn_ok
+   AFEW IEMOCAP    MELD A 0.60  0.45   2.02   2.21 False   True
+   AFEW IEMOCAP   MOSEI A 0.60  0.45   0.99   1.10 False   True
+   AFEW IEMOCAP    MELD V 0.38  0.49   1.80   1.64 False  False
+   AFEW IEMOCAP   MOSEI V 0.38  0.49   1.71   2.04  True   True
+   AFEW IEMOCAP    MELD T 0.53  0.40   3.11   2.90  True  False
+   AFEW IEMOCAP   MOSEI T 0.53  0.40   0.86   0.66  True  False
+   AFEW    MELD IEMOCAP A 0.34  0.39   5.06   5.60  True   True
+   AFEW    MELD   MOSEI A 0.34  0.39   0.99   1.36  True   True
+   AFEW    MELD IEMOCAP V 0.21  0.51   4.26   4.42  True  False
+   AFEW    MELD   MOSEI V 0.21  0.51   1.71   1.44 False   True
+   AFEW    MELD IEMOCAP T 0.51  0.42   2.88   3.46 False   True
+   AFEW    MELD   MOSEI T 0.51  0.42   0.86   1.67 False   True
+   AFEW   MOSEI IEMOCAP A 0.31  0.38   5.06   3.61 False  False
+   AFEW   MOSEI    MELD A 0.31  0.38   2.02   1.92 False  False
+   AFEW   MOSEI IEMOCAP V 0.26  0.49   4.26   4.05 False  False
+   AFEW   MOSEI    MELD V 0.26  0.49   1.80   1.57 False  False
+   AFEW   MOSEI IEMOCAP T 0.28  0.32   2.88   2.37 False  False
+   AFEW   MOSEI    MELD T 0.28  0.32   3.11   3.34  True   True
+IEMOCAP    MELD    AFEW A 0.28  0.47   3.42   3.97  True   True
+IEMOCAP    MELD   MOSEI A 0.28  0.47   1.10   1.36  True   True
+IEMOCAP    MELD    AFEW V 0.27  0.47   7.01   6.73 False  False
+IEMOCAP    MELD   MOSEI V 0.27  0.47   2.04   1.44 False  False
+IEMOCAP    MELD    AFEW T 0.46  0.50   2.54   3.02  True  False
+IEMOCAP    MELD   MOSEI T 0.46  0.50   0.66   1.67  True  False
+IEMOCAP   MOSEI    AFEW A 0.23  0.43   3.42   2.23 False  False
+IEMOCAP   MOSEI    MELD A 0.23  0.43   2.21   1.92 False  False
+IEMOCAP   MOSEI    AFEW V 0.34  0.46   7.01   4.74 False  False
+IEMOCAP   MOSEI    MELD V 0.34  0.46   1.64   1.57 False  False
+IEMOCAP   MOSEI    AFEW T 0.22  0.36   2.54   2.23 False  False
+IEMOCAP   MOSEI    MELD T 0.22  0.36   2.90   3.34  True   True
+   MELD   MOSEI    AFEW A 0.42  0.43   3.97   2.23 False  False
+   MELD   MOSEI IEMOCAP A 0.42  0.43   5.60   3.61 False  False
+   MELD   MOSEI    AFEW V 0.48  0.39   6.73   4.74 False  False
+   MELD   MOSEI IEMOCAP V 0.48  0.39   4.42   4.05 False  False
+   MELD   MOSEI    AFEW T 0.33  0.46   3.02   2.23 False  False
+   MELD   MOSEI IEMOCAP T 0.33  0.46   3.46   2.37 False  False
+  一致： {'w_s': np.int64(12), 'wn_s': np.int64(12)} / 36
+  モダリティごと
+    w_ok  wn_ok
+m             
+A     4      6
+T     6      4
+V     2      2
+  ソースの対ごと
+                  w_ok  wn_ok
+s       t                   
+AFEW    IEMOCAP     3      3
+        MELD        3      5
+        MOSEI       1      1
+IEMOCAP MELD        4      2
+        MOSEI       1      1
+MELD    MOSEI       0      0
+  wn の重みが 0.45〜0.55 の外の組だけ： 6 / 18
+
+== 6. eq の腕の表の水準（4 感情の合計 ÷ 2 ソース）と，最初のコーパスの分
+      s       t m  ext_lv  pc_lv  pcn_lv  ext_share_s  pc_share_s  pcn_share_s  pcn_row_s  A_s  pcn_row_t  A_t  wn_pcn_share_s
+   AFEW IEMOCAP A    4.24   4.24    4.50         0.36        0.60         0.31       2.79 5.06       6.21 3.42            0.27
+   AFEW IEMOCAP V    5.64   5.64    5.58         0.61        0.38         0.60       6.73 4.26       4.44 7.01            0.59
+   AFEW IEMOCAP T    2.71   2.71    3.02         0.37        0.53         0.28       1.67 2.88       4.38 2.54            0.20
+   AFEW    MELD A    3.00   3.00    2.85         0.56        0.34         0.45       2.55 2.02       3.15 3.97            0.34
+   AFEW    MELD V    4.27   2.48    4.33         0.79        0.36         0.80       6.89 1.80       1.76 6.73            0.80
+   AFEW    MELD T    3.07   3.07    3.26         0.41        0.51         0.33       2.15 3.11       4.37 3.02            0.26
+   AFEW   MOSEI A    1.61   1.61    1.49         0.58        0.31         0.45       1.35 0.99       1.63 2.23            0.33
+   AFEW   MOSEI V    3.22   3.10    3.17         0.73        0.28         0.72       4.58 1.71       1.77 4.74            0.71
+   AFEW   MOSEI T    1.54   1.54    1.44         0.55        0.28         0.36       1.03 0.86       1.86 2.23            0.20
+IEMOCAP    MELD A    3.90   3.78    3.75         0.70        0.29         0.67       5.05 2.21       2.45 5.60            0.65
+IEMOCAP    MELD V    3.03   2.40    2.90         0.71        0.34         0.69       3.97 1.64       1.82 4.42            0.66
+IEMOCAP    MELD T    3.18   3.18    3.18         0.54        0.46         0.54       3.46 2.90       2.89 3.46            0.54
+IEMOCAP   MOSEI A    2.35   2.35    2.08         0.71        0.23         0.65       2.71 1.10       1.46 3.61            0.58
+IEMOCAP   MOSEI V    3.05   3.05    2.93         0.63        0.34         0.59       3.47 2.04       2.39 4.05            0.55
+IEMOCAP   MOSEI T    1.51   1.51    1.25         0.67        0.22         0.54       1.36 0.66       1.14 2.37            0.41
+   MELD   MOSEI A    1.64   1.64    1.63         0.52        0.42         0.45       1.47 1.36       1.78 1.92            0.39
+   MELD   MOSEI V    1.50   1.50    1.62         0.41        0.48         0.31       1.01 1.44       2.23 1.57            0.23
+   MELD   MOSEI T    2.50   2.50    2.41         0.63        0.33         0.60       2.89 1.67       1.92 3.34            0.57
+  r' = A_s/H_t が 1.5 を超える向き： 0 / 36．最大 0.91
+  水準の比 extpcn ÷ ext：最小 0.83 中央 0.97 最大 1.12
+  行の水準 ÷ 実際に測った away（extpcn）：最小 0.26 最大 3.82
+  extpcn：中の値が高いソースの分 最小 0.36 中央 0.63 最大 0.80（0.5 超 14/18）
+  ext   ：中の値が高いソースの分 最小 0.52 中央 0.63 最大 0.79
+  extpc ：中の値が高いソースの分 最小 0.22 中央 0.34 最大 0.52（0.5 超 1/18）
+
+== 7. Neutral（d_0）：中の値と，外から当てた値（3 ソースの平均），その比．ほかの 3 感情の比も
+  A AFEW     中 Neutral 1.06  外 0.58  比 0.55 ｜ ほかの 3 感情：中 3.44 外 2.63 比 0.76
+  A IEMOCAP  中 Neutral 1.33  外 0.66  比 0.50 ｜ ほかの 3 感情：中 6.83 外 4.09 比 0.60
+  A MELD     中 Neutral 0.80  外 0.42  比 0.52 ｜ ほかの 3 感情：中 2.77 外 1.63 比 0.59
+  A MOSEI    中 Neutral 0.44  外 0.17  比 0.39 ｜ ほかの 3 感情：中 2.86 外 0.98 比 0.34
+  V AFEW     中 Neutral 1.73  外 0.85  比 0.49 ｜ ほかの 3 感情：中 6.31 外 5.31 比 0.84
+  V IEMOCAP  中 Neutral 0.93  外 0.73  比 0.79 ｜ ほかの 3 感情：中 4.17 外 3.51 比 0.84
+  V MELD     中 Neutral 0.21  外 0.11  比 0.51 ｜ ほかの 3 感情：中 1.89 外 1.56 比 0.83
+  V MOSEI    中 Neutral 0.34  外 0.15  比 0.44 ｜ ほかの 3 感情：中 2.66 外 1.58 比 0.59
+  T AFEW     中 Neutral 0.74  外 0.52  比 0.70 ｜ ほかの 3 感情：中 2.57 外 2.08 比 0.81
+  T IEMOCAP  中 Neutral 1.10  外 0.65  比 0.59 ｜ ほかの 3 感情：中 4.61 外 2.25 比 0.49
+  T MELD     中 Neutral 1.40  外 0.74  比 0.53 ｜ ほかの 3 感情：中 3.39 外 2.37 比 0.70
+  T MOSEI    中 Neutral 0.43  外 0.28  比 0.64 ｜ ほかの 3 感情：中 2.33 外 0.78 比 0.34

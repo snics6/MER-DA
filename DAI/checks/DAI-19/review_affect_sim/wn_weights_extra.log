@@ -1,0 +1,39 @@
+(1) 重みの大きいソースが，第 3 のコーパスに当てた値の大きいソースと一致する数（w，wn）
+  全体 12 12 / 36
+  MOSEI を含む対 2 2 / 18
+  MOSEI を含まない対 10 10 / 18
+  差が 1 割未満の組 12 ／それを除く 8 8 / 24
+  第 3 のコーパスごと
+         w_ok       wn_ok      
+         sum count   sum count
+c                             
+AFEW       2     9     1     9
+IEMOCAP    2     9     2     9
+MELD       3     9     3     9
+MOSEI      5     9     6     9
+(2) 第 3 のコーパスごとに，当てた値（4 感情の合計）と，最も小さいソース
+   A AFEW {'IEMOCAP': 3.42, 'MELD': 3.97, 'MOSEI': 2.23} 最も小さい: MOSEI
+   A IEMOCAP {'AFEW': 5.06, 'MELD': 5.6, 'MOSEI': 3.61} 最も小さい: MOSEI
+   A MELD {'AFEW': 2.02, 'IEMOCAP': 2.21, 'MOSEI': 1.92} 最も小さい: MOSEI
+   A MOSEI {'AFEW': 0.99, 'IEMOCAP': 1.1, 'MELD': 1.36} 最も小さい: AFEW
+   V AFEW {'IEMOCAP': 7.01, 'MELD': 6.73, 'MOSEI': 4.74} 最も小さい: MOSEI
+   V IEMOCAP {'AFEW': 4.26, 'MELD': 4.42, 'MOSEI': 4.05} 最も小さい: MOSEI
+   V MELD {'AFEW': 1.8, 'IEMOCAP': 1.64, 'MOSEI': 1.57} 最も小さい: MOSEI
+   V MOSEI {'AFEW': 1.71, 'IEMOCAP': 2.04, 'MELD': 1.44} 最も小さい: MELD
+   T AFEW {'IEMOCAP': 2.54, 'MELD': 3.02, 'MOSEI': 2.23} 最も小さい: MOSEI
+   T IEMOCAP {'AFEW': 2.88, 'MELD': 3.46, 'MOSEI': 2.37} 最も小さい: MOSEI
+   T MELD {'AFEW': 3.11, 'IEMOCAP': 2.9, 'MOSEI': 3.34} 最も小さい: IEMOCAP
+   T MOSEI {'AFEW': 0.86, 'IEMOCAP': 0.66, 'MELD': 1.67} 最も小さい: IEMOCAP
+(3) 第 3 のコーパスでの残り方（A_{s->c} ÷ H_s）との差の絶対値の平均（72 個）
+切る_r_s         0.435
+切る_r_dash      0.419
+切る_r_m         0.409
+切らない_r_s       0.538
+切らない_r_dash    0.487
+切らない_r_m       0.477
+dtype: float64
+   切る_r_s  切る_r_dash  切る_r_m  切らない_r_s  切らない_r_dash  切らない_r_m
+m                                                            
+A   0.470      0.408   0.408     0.481        0.413     0.413
+T   0.308      0.329   0.295     0.308        0.329     0.295
+V   0.527      0.520   0.524     0.824        0.718     0.722
