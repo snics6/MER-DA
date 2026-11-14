@@ -94,7 +94,7 @@ for K in (5, 10, 25):
         w(f"| {r.rule} | {lab}（`{r.a} − {r.b}`） | {r.where} | " + " | ".join(o) + f" | {u}／{d} | {judge(r.rule, u, d) if r.where == "adj" else "—"} |")
     w("")
 vers16 = [v for v in vlab16]
-w("### 1.4 UAR の水準（adj の層．参照の版と K 本だけの分類器・微調整した分類器は raw）")
+w("### 1.4 UAR の水準（adj の層．K 本だけの分類器・提案の融合の生徒・微調整した分類器は raw）")
 w("")
 w("| 版 | K | AFEW | IEMOCAP | MOSEI | MELD |")
 w("|---|---|---|---|---|---|")
@@ -103,7 +103,7 @@ for v in vers16:
         x = lv[(lv.version == v) & (lv.K == K)].set_index("c")
         if not len(x):
             continue
-        col = "uar_raw" if (v.startswith(("none_", "ret_", "joint_")) or "orc" in v) else "uar_adj"
+        col = "uar_raw" if v.startswith(("none_", "ret_", "joint_")) else "uar_adj"
         vals = [f"{x.loc[c, col]:.2f}" if c in x.index and pd.notna(x.loc[c, col]) else "—" for c in C]
         w(f"| {vlab16[v]}（`{v}`） | {K} | " + " | ".join(vals) + " |")
 w("")

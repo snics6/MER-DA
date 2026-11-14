@@ -85,12 +85,12 @@ MAIN16 = {("M_F6_orc", "prod", "adj"), ("M_F6_mixsel", "prod", "adj")}
 
 w("\\subsection*{実験 16：各版の UAR}")
 for K in KS:
-    w(HEAD_LV.format(cap=f"実験 16：各版の UAR（K = {K}．ラベルを使わずに切片をずらした答え．K 本だけの融合，提案の融合の生徒，微調整した分類器，全ラベルの版はずらす前の答え）"))
+    w(HEAD_LV.format(cap=f"実験 16：各版の UAR（K = {K}．ラベルを使わずに切片をずらした答え．K 本だけの融合，提案の融合の生徒，微調整した分類器はずらす前の答え）"))
     for v, lab in vlab16.items():
         x = lv[(lv.version == v) & (lv.K == K)].set_index("c")
         if not len(x):
             continue
-        col = "uar_raw" if (v.startswith(("none_", "ret_", "joint_")) or "orc" in v) else "uar_adj"
+        col = "uar_raw" if v.startswith(("none_", "ret_", "joint_")) else "uar_adj"
         w(tex(fix(lab)) + " & " + " & ".join(f"{x.loc[c, col]:.2f}" for c in C) + " \\\\")
     w("\\end{longtable}")
 
