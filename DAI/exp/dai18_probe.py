@@ -593,6 +593,8 @@ def select_points(csvs: pd.DataFrame) -> tuple[dict, list]:
                 if not all(v in piv.columns for v in cands):
                     continue
                 q = piv.loc[(piv.index.get_level_values("T") == c) & (piv.index.get_level_values("K") == K), cands].dropna()   # 候補がすべてそろう単位だけ
+                if name == "MS_eq_sel":                                     # 比べる MN_eq_sel と同じ単位で選ぶ（3 つを合わせて引く形が無い RAVDESS の単位を除く．probe_v2 指摘 1）
+                    q = q[[len(MODS_OF[cc]) >= 2 for cc in q.index.get_level_values("c")]]
                 if len(q) == 0:
                     continue
                 vals = q.mean().to_numpy()
@@ -836,6 +838,8 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                 for kind in kinds_of(c):
                     role = "fusion" if len(kind) >= 2 else kind
                     for t_ in TEACH:
+                        if t_ == "M_F6_mixsel" and len(MODS_OF[c]) < 2:            # RAVDESS には無い疑似ラベル（code_v2 記録 2）
+                            continue
                         vals = [gs.get((c, K, role, t_, gi), np.nan) for gi in range(len(SGRID))]
                         if not np.isfinite(vals).any():
                             continue

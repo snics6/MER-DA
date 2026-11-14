@@ -6,6 +6,7 @@ cd /home/snics/MER-DA
 mkdir -p logs
 trap 'touch logs/dai18_probe.failed' ERR
 rm -f logs/dai18_probe.done logs/dai18_probe.failed
+[ -n "${SHA18:-}" ] || { echo "SHA18 が渡されていない"; touch logs/dai18_probe.failed; exit 1; }
 [ "$(sha256sum DAI/exp/dai18_probe.py | cut -d' ' -f1)" = "${SHA18:?}" ] || { echo "dai18_probe.py の sha256 が違う"; touch logs/dai18_probe.failed; exit 1; }
 PY=.venv/bin/python
 # 実験 1 と 4 コーパスの実験 16・17 の置き場が書き換わらないことを，前後の sha256 で確かめる
