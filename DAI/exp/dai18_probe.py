@@ -154,6 +154,7 @@ def load_src(s: str, kind: str):
 
 def stage_source(out: Path) -> None:
     (out / "source").mkdir(parents=True, exist_ok=True)
+    pd.concat([C6.get(c).df[["sample_id", "speaker_id", "cluster", "fold", "label_4"]].assign(corpus=c) for c in NEW]).to_csv(out / "splits_new.csv", index=False)
     rows = []
     for c in NEW:
         cp = C6.get(c)
@@ -291,10 +292,12 @@ def run_base(u: Unit6) -> tuple[list, dict]:
     return rows, arr
 
 
-def stage_tether(out: Path) -> None:
+def stage_tether(out: Path, allow_partial: bool) -> None:
     """評価のターゲット T ごとに，T の仮のターゲットの単位の none の UAR の平均が最大の引き戻しの強さを種類 × K ごとに選ぶ（同点は小さい C′・小さい C_b）．"""
-    files = sorted((out / "base").glob("*.csv"))
-    d = pd.concat([pd.read_csv(p) for p in files], ignore_index=True)
+    n_exp = len(all_units())
+    files, d = load_csvs(out, "base", n_exp, allow_partial)             # base の出力が 300 個そろい，コミットが 1 つであることを確かめる（gate-code 指摘 2）
+    if not len(d):
+        raise SystemExit("base の出力が無い")
     d = d[d.K.isin(KS)]
     out_j = {}
     for T in CORP6:
@@ -308,7 +311,8 @@ def stage_tether(out: Path) -> None:
                 sel[f"AV|{K}|own"] = sel.get(f"AV|{K}")
                 sel[f"AV|{K}"] = sel[f"AVT|{K}"]
         out_j[T] = sel
-    json.dump(dict(tether=out_j, n_rows=len(d), time=time.strftime("%Y-%m-%d %H:%M:%S"), commit=RUN["commit"]), open(out / "tether.json", "w"), indent=1)
+    json.dump(dict(tether=out_j, n_rows=len(d), n_units=len(files), n_units_expected=n_exp, base_commits=sorted(d.commit.astype(str).unique().tolist()),
+                   time=time.strftime("%Y-%m-%d %H:%M:%S"), commit=RUN["commit"]), open(out / "tether.json", "w"), indent=1)
     print(f"tether：{sum(len(v) for v in out_j.values())} 組", flush=True)
 
 
@@ -669,8 +673,11 @@ def run_students(u: Unit6, z, choice: dict, teth: dict) -> tuple[list, dict]:
             Zp = S.logits(u.Xp[kind], res["W"], res["b"])
             rn = fit_none(u, kind, K, teth)
             nt = S.logits(u.Xt[kind], rn["W"][0], rn["b"][0]).argmax(1).cpu().numpy()
+            npl = S.logits(u.Xp[kind], rn["W"][0], rn["b"][0]).argmax(1).cpu().numpy()
             arr[f"pred_K{K}_{kind}_none"] = nt.astype(np.int8)
-            rows.append(dict(K=K, student=kind, teacher="_check", grad=float(res["grad_max"]), stalled=int(res["stalled"]), uar_none=100 * S.uar(yt, nt)))
+            arr[f"pred_pool_K{K}_{kind}_none"] = npl.astype(np.int8)                # 候補の上の K 本だけの分類器の判定（条件 2 の量．gate-code 指摘 1）
+            rows.append(dict(K=K, student=kind, teacher="_check", grad=float(res["grad_max"]), stalled=int(res["stalled"]), uar_none=100 * S.uar(yt, nt),
+                             uar_pool_none=100 * S.uar(yp[nk], npl[nk])))
             for j, t_ in enumerate(names):
                 for gi in range(nG):
                     q = j * nG + gi
@@ -699,8 +706,8 @@ def loop_units(out: Path, sub: str, fn, targets, folds, seeds, extra=None) -> No
             torch.cuda.reset_peak_memory_stats()
         u = Unit6(T, c, f, r)
         rows, arr = fn(u, extra)
+        np.savez_compressed(d / f"{name}.npz", **arr)                       # npz を先に書き，csv を済みの印にする（途中で止まっても再開できる）
         pd.DataFrame(rows).assign(T=T, c=c, fold=f, seed=r, commit=RUN["commit"], dirty=RUN["dirty"], sec=time.time() - t0).to_csv(d / f"{name}.csv", index=False)
-        np.savez_compressed(d / f"{name}.npz", **arr)
         gm = torch.cuda.max_memory_allocated() / 2 ** 20 if torch.cuda.is_available() else 0.0
         print(f"{sub} {name}：{time.time() - t0:.0f} 秒．行 {len(rows)}．GPU の最大 {gm:.0f} MB", flush=True)
         del u, rows, arr
@@ -709,7 +716,7 @@ def loop_units(out: Path, sub: str, fn, targets, folds, seeds, extra=None) -> No
 
 
 def load_csvs(out: Path, sub: str, n_exp: int, allow_partial: bool) -> tuple[list, pd.DataFrame]:
-    files = sorted((out / sub).glob("*.npz"))
+    files = sorted(p.with_suffix(".npz") for p in (out / sub).glob("*.csv"))
     if len(files) != n_exp and not allow_partial:
         raise SystemExit(f"{sub} の出力が {len(files)} 個（{n_exp} のはず）")
     csvs = pd.concat([pd.read_csv(p.with_suffix(".csv")) for p in files], ignore_index=True) if files else pd.DataFrame()
@@ -747,6 +754,8 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
         return float(np.mean([np.mean([ST.uar_full(dd[k]) for k in dd if k[0] == f]) for f in sorted({k[0] for k in dd})]))
 
     def eff(A, B, c, key, pool=False):
+        if set(A) != set(B) and not allow_partial:
+            raise SystemExit(f"差の単位がそろわない：{key}（{len(A)} と {len(B)}）")
         es = (P12.effect_stats_pool if pool else ST.effect_stats)(A, B, geff[c], row_rng(*key))
         return dict(est=es["effect"], lo=es["lo"], hi=es["hi"], se=es["se"], df=es.get("df", np.nan), method=es["method"], n_fr=es["n_units"],
                     verdict=P16.verdict(es["lo"], es["hi"], es["effect"]))
@@ -755,6 +764,9 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
     files, csvs = load_csvs(out, "units", n_units, allow_partial)
     choice, chrows = select_points(csvs)
     pd.DataFrame(chrows).to_csv(sdir / "sel.csv", index=False)
+    miss = [(c, K, nm_) for c in CORP6 for K in KS for nm_ in seldef_of(c) if (c, K, nm_) not in choice]
+    if miss and not allow_partial:
+        raise SystemExit(f"版の選択が欠けた組がある：{miss[:5]}（計 {len(miss)}）")
     layers = ("adj", "raw", "pool")
     cells = {w: {} for w in layers}
     for p in files:
@@ -867,6 +879,19 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
         for (K, role, a, b), q in se_.groupby(["K", "role", "a", "b"]):
             crit.append(dict(K=K, student=role, a=a, b=b, main=bool(K == K_MAIN and b == "prod" and a in ("M_F6_mixsel", "MN_eq_sel", "MN_F2K_sel", "MN_F6K_sel")), **count_row(q)))
         pd.DataFrame(crit).to_csv(sdir / "students_criteria.csv", index=False)
+        # 3 つの条件の量（記述）：選んだ生徒の格子の点で，疑似ラベルが K 本だけの分類器より当たる幅（候補の K 本以外）と，生徒が疑似ラベルを再現した割合
+        tt = sc[sc.student == "_teacher"][["T", "c", "fold", "seed", "K", "teacher", "uar_pool", "maxp"]].rename(columns={"uar_pool": "uar_pool_teacher"})
+        st = sc[sc.grid.notna() & (sc.grid >= 0) & ~sc.student.isin(["_teacher"]) & (sc.teacher != "_check")].copy()
+        st = st[[sch.get((r_.c, int(r_.K), r_.student, r_.teacher), -1) == int(r_.grid) for r_ in st.itertuples()]]
+        st = st[["T", "c", "fold", "seed", "K", "student", "teacher", "uar", "uar_pool", "mimic"]]
+        nn_ = sc[sc.teacher == "_check"][["T", "c", "fold", "seed", "K", "student", "uar_none", "uar_pool_none"]]
+        cond = st.merge(tt, on=["T", "c", "fold", "seed", "K", "teacher"]).merge(nn_, on=["T", "c", "fold", "seed", "K", "student"])
+        if len(cond) != len(st) and not allow_partial:
+            raise SystemExit(f"条件の量の行がそろわない（{len(cond)} 行，生徒の行 {len(st)}）")
+        cond["edge"] = cond.uar_pool_teacher - cond.uar_pool_none                 # 条件 2 の量：疑似ラベルの UAR − K 本だけの分類器の UAR（候補）
+        cond["gain_none"] = cond.uar - cond.uar_none
+        cond.groupby(["c", "K", "student", "teacher"])[["edge", "mimic", "gain_none", "uar_pool_teacher", "uar_pool_none", "maxp"]].mean().reset_index().to_csv(
+            sdir / "students_conditions.csv", index=False)
         tt = sc[sc.student == "_teacher"]
         json.dump(dict(n_units=len(sfiles), teacher_agree_min=float(tt.agree_saved.min()), grad_max=float(sc[sc.teacher == "_check"].grad.max())),
                   open(sdir / "students_checks.json", "w"), indent=1)
@@ -924,7 +949,10 @@ def main() -> None:
                 scripts={n: dai15.sha(HERE / n) for n in SCRIPTS if (HERE / n).exists()}, design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""),
                 inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
                                **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
-                               **{f"out/{q.name}": dai15.sha(q) for q in (out / "tether.json", out / "frozen_sel.json") if q.exists()}},
+                               **{f"out/{q.name}": dai15.sha(q) for q in (out / "tether.json", out / "frozen_sel.json", out / "splits_new.csv") if q.exists()},
+                               **{f"out/source/{q.name}": dai15.sha(q) for q in sorted((out / "source").glob("*")) if q.is_file()},
+                               **{f"metadata/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "metadata").glob("*.csv"))},
+                               **{f"cache/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "cache").glob("*.npz"))}},
                 KS=KS, SEEDS=SEEDS, TETH=TETH, SGRID=SGRID, KNN_K=KNN_K, RELS=RELS, LAMS=LAMS, MODS_OF=MODS_OF, CORP6=CORP6, rng_seed=SEED)
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
@@ -933,7 +961,7 @@ def main() -> None:
     elif args.stage == "base":
         loop_units(out, "base", lambda u, _: run_base(u), args.targets, args.folds, args.seeds)
     elif args.stage == "tether":
-        stage_tether(out)
+        stage_tether(out, args.allow_partial)
     elif args.stage == "units":
         teth = json.load(open(out / "tether.json"))["tether"]
         loop_units(out, "units", lambda u, _: run_unit(u, teth[u.T]), args.targets, args.folds, args.seeds)
