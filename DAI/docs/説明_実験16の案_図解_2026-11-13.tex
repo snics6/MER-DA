@@ -153,6 +153,31 @@
 
 \noindent 解きたいのは，\textbf{これらの分類器の答えを，発話ごとに，どれをどの程度信頼してまとめるか}である．今の方法（基準）は，微調整した 3 つの分類器の確率を同じ強さで掛け合わせる．
 
+\subsection*{分類器のつながり（今の提案の手順．実験 1 で作ったもの）}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  st/.style={draw,rounded corners=2pt,align=center,font=\scriptsize,inner sep=3pt,minimum height=12mm},
+]
+  \node[st,fill=cSrc!18,minimum width=30mm] (a) at (0,0) {\textbf{(1) ソースの分類器}\\コーパス × モダリティごと\\（ソース 2 つ × 声・顔・言葉，\\と融合）};
+  \node[st,fill=cClf!15,minimum width=26mm] (b) at (3.7,0) {\textbf{(2) 出発点}\\モダリティごとに，\\ソース 2 つの分類器を\\平均する};
+  \node[st,fill=cK!18,minimum width=28mm] (c) at (7.2,0) {\textbf{(3) K 本だけの融合}\\融合の出発点から\\K 本で学ぶ};
+  \node[st,fill=cK!28,minimum width=30mm] (d) at (10.9,0) {\textbf{(4) 微調整した}\\\textbf{声・顔・言葉}\\出発点から，K 本と\\(3) の疑似ラベルで学ぶ};
+  \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d);
+  \draw[arr] (b.south) |- (9.0,-1.45) -| (d.south);
+  \node[st,fill=black!5,minimum width=36mm] (e1) at (7.6,-3.0) {\textbf{今の提案}\\3 つの確率を同じ重みで掛ける（積）};
+  \node[st,fill=cRel!40,minimum width=40mm] (e2) at (12.2,-3.0) {\textbf{実験 16}\\表から作った重みで\\3 つの点を足す（8 節）};
+  \draw[arr] (d.south) ++(-0.4,0) -- (e1.north);
+  \draw[arr] (d.south) ++(0.4,0) -- (e2.north);
+  \node[st,fill=cTest!8,minimum width=26mm] (f) at (9.9,-4.75) {答え（感情）};
+  \draw[arr] (e1) -- (f); \draw[arr] (e2) -- (f);
+  \node[font=\scriptsize,align=left,anchor=west] at (-1.5,-3.0) {今の提案は，さらに積を疑似ラベルにして\\融合の分類器を学び直す（「提案の融合の生徒」）．\\実験 16 はその前の段階，「3 つをどうまとめるか」\\だけを変えて，推定時の答えで比べる．};
+\end{tikzpicture}
+\caption{分類器のつながり．ソースの分類器はコーパス × モダリティごとにあるが，最後にまとめるのは (4) の 3 つ（声・顔・言葉）である．ソースの分類器は (2) の出発点として (4) に入る．R2 の「⑦ 両方の組」だけは，ソースの分類器も (4) と並べてまとめる．}
+\end{figure}
+
+
 %======================================================================
 \section{信頼度とは何か}
 \ex{black!60}{実験 16・17 で共通}
@@ -588,6 +613,31 @@ MELD & 43.4 & 37.2 & \textbf{49.0} \\
 \end{tikzpicture}
 \caption{感情を順に仮定して比べる形（本体の案）．Happy の点は「Happy に強い分類器」を重く数えて出し，Sad の点は「Sad に強い分類器」を重く数えて出す．}
 \end{figure}
+
+\noindent\textbf{実際の計算（3 つの分類器，4 つの感情の例）}：実際は確率そのものではなく，各分類器の「感情の点」（確率の対数から，4 感情の平均を引いた値）に重みを掛けて足す．重みは 7.3 節の表 (D) を 12 個の平均 0.54 で割ったものである．
+\begin{center}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{l cccc c cccc}
+\toprule
+ & \multicolumn{4}{c}{この発話の確率} & & \multicolumn{4}{c}{感情の点（対数 − 平均）} \\
+\cmidrule{2-5}\cmidrule{7-10}
+分類器 & N & H & S & A & & N & H & S & A \\
+\midrule
+顔 & 0.1 & 0.6 & 0.2 & 0.1 & & $-0.62$ & $+1.17$ & $+0.07$ & $-0.62$ \\
+声 & 0.2 & 0.1 & 0.5 & 0.2 & & $-0.06$ & $-0.75$ & $+0.86$ & $-0.06$ \\
+言葉 & 0.3 & 0.3 & 0.2 & 0.2 & & $+0.20$ & $+0.20$ & $-0.20$ & $-0.20$ \\
+\midrule
+\multicolumn{6}{l}{\textbf{今の方法}：重みは全部 1．点を足す（確率の積と同じ順になる）} & $-0.47$ & $+0.62$ & $\mathbf{+0.73}$ & $-0.88$ \\
+\midrule
+\multicolumn{6}{l}{重み（顔）：0.97，1.71，0.78，1.15} & & & & \\
+\multicolumn{6}{l}{重み（声）：1.02，0.47，1.30，1.02} & & & & \\
+\multicolumn{6}{l}{重み（言葉）：0.99，0.80，0.80，0.99} & & & & \\
+\multicolumn{6}{l}{\textbf{実験 16}：感情ごとに，その列の重みを掛けて足す} & $-0.46$ & $\mathbf{+1.82}$ & $+1.01$ & $-0.97$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+今の方法では Sad（$+0.73$）が答えになる．実験 16 では，Happy の点は「Happy に強い顔」を重く（1.71）数え，「Happy に弱い声」を軽く（0.47）数えるので，Happy（$+1.82$）が答えになる．最後に，7.3 節の切片のずらしをしてから答えを決める．
 
 \begin{figure}[H]
 \centering
