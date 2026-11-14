@@ -73,17 +73,20 @@ PLAIN = ("none_AVT", "joint_AVT", "ret_A", "ret_V", "ret_T") + B_VERS           
 B_ROWS = {"none": "none_AVT", "joint|one|main": "joint_AVT", "cand:kd|one": "b_kd", "cand:agree|one": "b_agree", "cand:mix|one": "b_mix",
           "cand:cotrain|ct": "b_cotrain", "cand:coreg|cr": "b_coreg"}   # 実験 1 の集計の行の名前 → この台本の版
 SEED_SETS = {"all": None, "0-1": (0, 1), "2-9": tuple(range(2, 10)), "0-2": (0, 1, 2)}
-SCRIPTS = ("dai20_eval.py", "dai16_probe.py", "dai15.py", "dai12_probe.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
+SCRIPTS = ("dai20_eval.py", "dai16_probe.py", "dai15.py", "dai14.py", "dai12_probe.py", "dai11_probe.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py",
+           "dai_data.py")                                                  # この台本が読み込む DAI/exp の台本の全部（dai14・dai11_probe は読み込まれるだけで，計算の道では呼ばれない）
 RUN = {"commit": "", "dirty": True}
-WATCH = tuple(f"DAI/exp/{n}" for n in SCRIPTS) + ("DAI/frozen/dai20_frozen.json", "DAI/splits", "measure", "features", "data/metadata", "DAI/docs/実験20_設計.md")
+WATCH = tuple(f"DAI/exp/{n}" for n in SCRIPTS) + ("DAI/frozen/dai20_frozen.json", "DAI/splits", "measure", "features", "data/metadata", "requirements.txt",
+                                                  "DAI/docs/実験20_設計.md")
 
 
-def same_code(commit: str) -> bool:
-    """単位の csv に書かれたコミットと今の HEAD のあいだで，計算に関わるファイル（台本と部品，固定のファイル，分割，読み込み，発話一覧，設計）に差が無いか．
-    途中で止まった計算を，関係の無いコミットの後でも続きから流せるようにする（差があれば止める）．"""
-    if commit == RUN["commit"]:
+def same_code(commit: str, other: str = "HEAD") -> bool:
+    """2 つのコミットのあいだで，計算に関わるファイル（台本と部品，固定のファイル，分割，読み込み，発話一覧，設計）に差が無いか．
+    単位の段：済みの単位の csv のコミットと今の HEAD を比べ，差が無いときだけ飛ばす（関係の無いコミットの後でも続きから流せる．差があれば止める）．
+    集計の段：単位どうしを比べる（全部の単位が同じ台本と入力で作られたことだけを確かめる．集計の段だけを後から直して流し直せる）．"""
+    if str(commit) == str(other) or (other == "HEAD" and commit == RUN["commit"]):
         return True
-    return subprocess.run(["git", "diff", "--quiet", str(commit), "HEAD", "--", *WATCH], cwd=ROOT).returncode == 0
+    return subprocess.run(["git", "diff", "--quiet", str(commit), str(other), "--", *WATCH], cwd=ROOT).returncode == 0
 WS = np.concatenate([np.ones((1, 3, 4)), 3.0 * np.random.default_rng([SEED, 1]).dirichlet(np.ones(3), size=(N_WF, 4)).transpose(0, 2, 1)])
 # WS：(1 + N_WF, 分類器 3, 感情 4)．表 0 は等しい重み（全部 1）．表 1〜N_WF は，感情ごとに 3 つの分類器の重みを Dirichlet(1, 1, 1) から引いて 3 倍した表
 # （感情ごとの和は 3，12 個の平均は 1．提案の重みと同じ大きさ）．全部の単位と K で同じ表を使う．候補の数 m の版は，表 0 と表 1〜m を候補にする．
@@ -401,8 +404,9 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
     if len(files) != len(exp) and not allow_partial:
         raise SystemExit(f"units の出力が {len(files)} 個（{len(exp)} のはず）")
     csvs = pd.concat([pd.read_csv(p.with_suffix(".csv"), low_memory=False) for p in files], ignore_index=True)
-    if not all(same_code(x) for x in csvs.commit.unique()) and not allow_partial:
-        raise SystemExit("units の中に，計算に関わるファイルの違うコミットの単位がある")
+    ucom = sorted(map(str, csvs.commit.unique()))
+    if not all(same_code(x, ucom[0]) for x in ucom) and not allow_partial:
+        raise SystemExit("units の中に，計算に関わるファイルの違うコミットで作った単位が混ざっている")
     if csvs.duplicated(["T", "c", "fold", "seed", "K", "version"]).any():
         raise SystemExit("units の行が重なっている")
     geff = {c: ST.g_eff_of(c)[0] for c in CORP}
@@ -414,6 +418,7 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
         es = ST.effect_stats(A, B, geff[c], seed_rng(*k_))
         return dict(est=es["effect"], lo=es["lo"], hi=es["hi"], se=es["se"], df=es.get("df", np.nan), method=es["method"], n_fr=es["n_units"],
                     n_folds=es["n_folds"], folds_dropped=es.get("folds_dropped", ""), v_cluster=es.get("v_jk", np.nan), v_seed=es.get("v_seed", np.nan),
+                    v_seed_all=es.get("v_seed_all", np.nan),                 # jackknife のコーパスでは，外れた分割の種の揺れが v_cluster の側に入る（v_seed_all は全分割の種の項）
                     mark={"上回る": "↑", "下回る": "↓"}.get(P16.verdict(es["lo"], es["hi"], es["effect"]), ""))   # 表の読みやすさのための印（判定ではない）
 
     # ---- 格子の全点の UAR（adj）と 3 通りの選び方（固定：下調べが選んだ点．loto：ほかの 3 つの評価のターゲットの平均が最大の点．oracle：自分のテストで最大の点）
@@ -431,7 +436,7 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
             i_lo = int(oth.idxmax()) if len(oth) else i_fz                          # 同点は番号の小さい点
             i_or = int(own.idxmax())
             pick[(c, K)] = dict(prop=i_fz, prop_noprof=same_but(i_fz, beta=0.0), prop_noprof_sel=j_np, prop_n0zero=same_but(i_fz, n0=0.0), prop_loto=i_lo, oracle_grid=i_or,
-                                prop_levelfree=GRID.index((float("inf"), 1.0, "eq")))        # 水準を K 本で測らない版（水準は 3 つとも同じ．相性はソース）
+                                prop_levelfree=GRID.index((float("inf"), 1.0, "eq")))        # 分類器どうしの水準の違いを外した版（3 つの水準を K 本で測った水準の平均にそろえる．相性はソース）
             for i in range(NG):
                 grows.append(dict(c=c, K=K, grid=i, n0=GRID[i][0], beta=GRID[i][1], prior=GRID[i][2], uar_adj=float(own.get(i, np.nan)),
                                   uar_adj_others=float(oth.get(i, np.nan)), frozen=bool(i == i_fz), loto=bool(i == i_lo), oracle=bool(i == i_or)))
@@ -589,10 +594,11 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
                    adj_resid_max=float(csvs.adj_resid.max()), recheck_agree_min=float(c2.recheck_agree_min.min()), eq_agree_min=float(c2.eq_agree.min()),
                    psel_agree_min=float(c2.psel_agree.min()),
                    others_B_dev_max=dev_b, others_sha256=({str(q.relative_to(ROOT)): dai15.sha(q) for q in (B_SRC, C_SRC)} if tag == "eval" else {}),
+                   unit_commits=ucom, summary_commit=RUN["commit"],
                    sec_total=float(csvs.groupby(["T", "c", "fold", "seed"]).sec.first().sum())), open(sdir / "convergence.json", "w"), indent=1)
     print(f"summary：単位 {len(files)}，差の行 {len(effs)}，水準の行 {len(lrows)}．作り直した提案の判定の一致の最小 {c2.recheck_agree_min.min():.6f}，"
           f"等しい重みの表と積の一致の最小 {c2.eq_agree.min():.6f}，指数の積の作り直しの一致の最小 {c2.psel_agree.min():.6f}，"
-          f"切片の反復が上限に当たった表の数 {int(csvs.wf_n_capped.fillna(0).sum())}", flush=True)
+          f"切片の反復が上限に当たった（組, 表）の数 {int(csvs[csvs.version == f'wf{N_WF}'].wf_n_capped.fillna(0).sum())}", flush=True)
 
 
 # ------------------------------------------------------------------ 検算
