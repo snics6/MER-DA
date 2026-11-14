@@ -211,7 +211,7 @@
 ]
   \node[st,fill=cSrc!10] (a) at (0,0) {\textbf{① 学習時}\\[2pt]ソースで分類器を作る\\[2pt]ソースで信頼度を測る\\{\scriptsize（中で測る → 外で測り直す）}};
   \node[st,fill=cMeta!10] (b) at (3.9,0) {\textbf{② メタ学習}\\[2pt]ソースの 1 つを\\仮のターゲットにして，\\「決め方の数」を決める};
-  \node[st,fill=cK!12] (c) at (7.8,0) {\textbf{③ ターゲットで適応}\\[2pt]K 本で微調整する\\[2pt]K 本で水準と切片を\\測り直す};
+  \node[st,fill=cK!12] (c) at (7.8,0) {\textbf{③ ターゲットで適応}\\[2pt]K 本で微調整する\\[2pt]K 本で水準を測り，\\表を組み立てる};
   \node[st,fill=cTest!8] (d) at (11.7,0) {\textbf{④ テスト}\\[2pt]発話ごとに，\\信頼度の表を使って\\分類器の答えをまとめる};
   \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d);
   % 使うデータ
@@ -222,7 +222,7 @@
   \node[font=\scriptsize,anchor=east] at (-1.75,-1.92) {使うデータ};
   % できるもの
   \node[font=\scriptsize,anchor=north,align=center] at (0,-2.4) {\chip{cClf}{分類器 9 個}\\[2pt]\chipk{cRel}{相性の表}};
-  \node[font=\scriptsize,anchor=north,align=center] at (3.9,-2.4) {\chip{cMeta}{決め方の数 3 つ}};
+  \node[font=\scriptsize,anchor=north,align=center] at (3.9,-2.4) {\chip{cMeta}{組み立て方の数 3 つ}};
   \node[font=\scriptsize,anchor=north,align=center] at (7.8,-2.4) {\chip{cClf}{微調整した分類器}\\[2pt]\chipk{cRel}{信頼度の表（完成）}};
   \node[font=\scriptsize,anchor=north,align=center] at (11.7,-2.4) {感情の答え};
   \node[font=\scriptsize,anchor=east] at (-1.75,-2.62) {できるもの};
@@ -235,149 +235,263 @@
 \end{chui}
 
 %======================================================================
-\section{① 学習時：ソースで信頼度を測る（2 段）}
-\ex{cE16}{実験 16}
+\section{① 学習時：ソースで信頼度の表を作る}
+\ex{cE16}{実験 16（11 月 14 日に，実際に計算した手順に合わせて書き直した）}
 
-研究者の案のとおり，まずソースの\textbf{中}で大本の信頼度を測り，次に\textbf{別のソース}に当てて測り直す．
+この節では，ターゲットのラベルを 1 本も使わずに，ソースだけで「信頼度の表」の材料を作る手順を説明する．
+信頼度の表は，分類器 3 つ（声・顔・言葉）× 感情 4 つの 12 個の数である（3 節）．
+
+\subsection*{5.1 1 回の計算に出てくる 4 つのコーパスの役}
+
+下調べでは，4 つのコーパスに次の 3 つの役を割り当てて 1 回の計算をする．
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
-  % 1 段目
-  \node[font=\small\bfseries,anchor=west] at (-0.3,2.3) {1 段目：自分のコーパスの中で測る};
-  \node[font=\scriptsize,anchor=east] at (-0.1,1.45) {IEMOCAP};
-  \foreach \i in {0,1,2,3}{ \fill[cSrc] (\i*0.95,1.2) rectangle (\i*0.95+0.85,1.7); }
-  \draw[pattern=north east lines,pattern color=cSrc] (3.8,1.2) rectangle (4.65,1.7);
-  \node[font=\scriptsize] at (1.85,0.95) {この 4 組で分類器を学ぶ};
-  \node[font=\scriptsize] at (4.25,0.95) {この組で測る};
-  \node[font=\scriptsize,align=left,anchor=west] at (-0.3,0.25) {話者が重ならないように 5 組に分け，\\測る組を替えて 5 回繰り返す．};
-  \node[draw,fill=cRel!60,rounded corners=2pt,font=\small] (h) at (5.9,1.45) {大本 0.75};
-  % 2 段目
-  \node[font=\small\bfseries,anchor=west] at (7.4,2.3) {2 段目：別のソースに当てて測り直す};
-  \node[clf] (c) at (8.3,1.0) {IEMOCAP の\\顔の分類器};
-  \node[corp,minimum width=20mm,minimum height=8mm] (m1) at (11.6,1.6) {MELD};
-  \node[corp,minimum width=20mm,minimum height=8mm] (m2) at (11.6,0.4) {MOSEI};
-  \draw[arr] (c) -- (m1); \draw[arr] (c) -- (m2);
-  \node[draw,fill=cRel!40,rounded corners=2pt,font=\small] at (13.5,1.6) {0.60};
-  \node[draw,fill=cRel!45,rounded corners=2pt,font=\small] at (13.5,0.4) {0.65};
-  % まとめ
-  \begin{scope}[yshift=-3.9cm,xshift=0.6cm]
-    \draw[->] (0,0) -- (0,2.4);
-    \node[font=\scriptsize,anchor=south west] at (-0.3,2.4) {顔の Happy の信頼度（例）};
-    \draw (0,0) -- (6.3,0);
-    \foreach \v/\x/\l/\d in {0.75/1.1/{IEMOCAP\\の中}/90,0.60/3.2/{MELD\\に当てる}/45,0.65/5.2/{MOSEI\\に当てる}/55}{
-      \fill[cRel!\d] (\x-0.5,0) rectangle (\x+0.5,\v*2.7);
-      \node[font=\scriptsize] at (\x,\v*2.7+0.18) {\v};
-      \node[font=\scriptsize,align=center,anchor=north] at (\x,-0.05) {\l};
-    }
-    \node[font=\small,align=left,anchor=west] at (6.9,1.75) {\textbf{残り方}：外での平均 0.625 ÷ 大本 0.75 ＝ 0.83\\[2pt]ターゲットでの見込み ＝ 大本 × 残り方};
-    \node[font=\small,align=left,anchor=west] at (6.9,0.45) {\textbf{ばらつき}：MELD と MOSEI の差 0.05\\[2pt]小さいほど，ソースで測った値を信用する};
-  \end{scope}
+  \node[draw=black!30,fill=black!6,rounded corners=3pt,minimum width=30mm,minimum height=17mm,align=center,font=\small,text=black!55] at (0,0) {MOSEI\\[2pt]{\scriptsize\textbf{評価のターゲット}}\\{\scriptsize 触らない（本番用に残す）}};
+  \node[draw=cK!80!black,line width=1.4pt,fill=cK!20,rounded corners=3pt,minimum width=36mm,minimum height=17mm,align=center,font=\small] at (4.3,0) {AFEW\\[2pt]{\scriptsize\textbf{仮のターゲット}}\\{\scriptsize K 本・ラベル無し・テスト}};
+  \node[draw=cSrc!80!black,fill=cSrc!20,rounded corners=3pt,minimum width=30mm,minimum height=17mm,align=center,font=\small] at (8.6,0) {IEMOCAP\\[2pt]{\scriptsize\textbf{ソース 1}}\\{\scriptsize ラベルを全部使う}};
+  \node[draw=cSrc!80!black,fill=cSrc!20,rounded corners=3pt,minimum width=30mm,minimum height=17mm,align=center,font=\small] at (12.2,0) {MELD\\[2pt]{\scriptsize\textbf{ソース 2}}\\{\scriptsize ラベルを全部使う}};
+  % 仮のターゲットの中身
+  \fill[cK] (2.6,-1.35) rectangle (3.2,-1.15);
+  \fill[cU] (3.2,-1.35) rectangle (5.1,-1.15);
+  \draw[cTest,very thick] (5.2,-1.35) rectangle (6.0,-1.15);
+  \node[font=\tiny,anchor=north] at (2.9,-1.4) {K 本};
+  \node[font=\tiny,anchor=north] at (4.15,-1.4) {ラベル無し};
+  \node[font=\tiny,anchor=north,cTest] at (5.6,-1.4) {テスト};
 \end{tikzpicture}
-\caption{信頼度を測る 2 段．分類器 9 個 × 感情 4 つのそれぞれについて，この測定をする．}
+\caption{1 回の計算の役の例．評価のターゲットは，本番で一度だけ試すために残し，この下調べでは中身を一切見ない．仮のターゲットは全ラベルを持つので，「K 本しかない」状況を作って答え合わせができる．}
 \end{figure}
 
 \begin{itemize}
-  \item 信頼度は「その感情の発話に，ほかの感情の発話より高い点を付ける割合」で測る．この量は，感情の割合の違いにも，答えが特定の感情に寄る癖（切片のずれ）にも依らない．
-  \item コーパスごとに別々に測り，データを混ぜない．平均するときはコーパス 1 つを 1 票にする．
+  \item 評価のターゲットの選び方が 4 通り，残り 3 つから仮のターゲットの選び方が 3 通りで，組み合わせは 12 通りある．ソースは残りの 2 つである．
+  \item 仮のターゲットの中の話者の分け方（5 通り）と K 本の引き方（2 通り）も替えて，計 12 × 5 × 2 = 120 回計算する．
+  \item たとえば AFEW を仮のターゲットにする計算は，ソースの組（IEMOCAP と MELD，IEMOCAP と MOSEI，MELD と MOSEI）を替えて 3 通りある．AFEW の結果はこの 3 通りの平均である．
 \end{itemize}
 
-%======================================================================
-\section{② メタ学習：「決め方の数」をソースだけで決める}
-\ex{cE16}{実験 16（実験 17 も同じ選び方を使う）}
+\subsection*{5.2 ソースの分類器ごとに，中で測り，外で測り直す}
 
-ターゲットで使う手順には，前もって決めておく数が 3 つある．この 3 つを，\textbf{ソースの 1 つをターゲットに見立てた模擬}で決める．
+ソースの分類器は，モダリティごとにソースの数だけある（この例では声の分類器が IEMOCAP の分と MELD の分の 2 つ）．
+1 つの分類器について，信頼度の行（感情 4 つ）を 2 通りに測る．
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
-  \node[font=\small\bfseries] at (3.0,1.1) {ソースの役を順に替える};
-  \foreach \r/\y in {1/0.2,2/-0.75,3/-1.7}{
-    \node[font=\scriptsize,anchor=east] at (-0.1,\y) {\r 回目};
-    \foreach \nm/\x/\i in {IEMOCAP/0.9/1,MELD/2.65/2,MOSEI/4.4/3}{
-      \ifnum\r=\i
-        \node[draw=cK!80!black,line width=1.6pt,fill=cK!30,rounded corners=2pt,minimum width=15.5mm,minimum height=7mm,font=\scriptsize\bfseries] at (\x,\y) {\nm};
-      \else
-        \node[draw=cSrc!80!black,fill=cSrc!22,rounded corners=2pt,minimum width=15.5mm,minimum height=7mm,font=\scriptsize] at (\x,\y) {\nm};
-      \fi
-    }
-    \node[draw=black!30,fill=black!6,rounded corners=2pt,minimum width=13mm,minimum height=7mm,font=\scriptsize,text=black!45] at (6.2,\y) {AFEW};
+  % IEMOCAP の声の分類器
+  \node[clf,minimum width=26mm] (ci) at (0,1.2) {IEMOCAP の\\声の分類器};
+  \node[clf,minimum width=26mm] (cm) at (0,-1.6) {MELD の\\声の分類器};
+  % 中
+  \node[draw=cSrc!80!black,fill=cSrc!12,rounded corners=2pt,font=\scriptsize,align=center,minimum width=34mm] (hi) at (4.6,1.9) {\textbf{中で測る}：IEMOCAP の中の\\話者で分けた交差検証};
+  \node[draw=cSrc!80!black,fill=cSrc!12,rounded corners=2pt,font=\scriptsize,align=center,minimum width=34mm] (ai) at (4.6,0.5) {\textbf{外で測る}：MELD の\\全発話に当てる};
+  \node[draw=cSrc!80!black,fill=cSrc!12,rounded corners=2pt,font=\scriptsize,align=center,minimum width=34mm] (hm) at (4.6,-0.9) {\textbf{中で測る}：MELD の中の\\話者で分けた交差検証};
+  \node[draw=cSrc!80!black,fill=cSrc!12,rounded corners=2pt,font=\scriptsize,align=center,minimum width=34mm] (am) at (4.6,-2.3) {\textbf{外で測る}：IEMOCAP の\\全発話に当てる};
+  \draw[arr] (ci) -- (hi.west); \draw[arr] (ci) -- (ai.west); \draw[arr] (cm) -- (hm.west); \draw[arr] (cm) -- (am.west);
+  % 行の値（例）
+  \foreach \e/\x in {N/7.75,H/8.55,S/9.35,A/10.15}{ \node[font=\scriptsize] at (\x,2.65) {\e}; }
+  \node[font=\scriptsize,anchor=west] at (10.6,2.65) {合計};
+  \foreach \vals/\y/\s in {{0.8,0.4,1.2,0.8}/1.9/3.2,{0.6,0.3,0.7,0.6}/0.5/2.2,{0.8,0.4,0.8,0.8}/-0.9/2.8,{0.6,0.4,0.7,0.6}/-2.3/2.3}{
+    \foreach \v [count=\j from 0] in \vals { \node[draw,fill=cRel!50,minimum width=7.5mm,minimum height=5.5mm,inner sep=0pt,font=\scriptsize] at (7.75+0.8*\j,\y) {\v}; }
+    \node[font=\scriptsize,anchor=west] at (10.6,\y) {\s};
   }
-  \node[draw=cK!80!black,line width=1.6pt,fill=cK!30,minimum width=4.5mm,minimum height=3.2mm] at (0.0,-2.55) {};
-  \node[font=\scriptsize,anchor=west] at (0.3,-2.55) {仮のターゲット};
-  \node[draw=cSrc!80!black,fill=cSrc!22,minimum width=4.5mm,minimum height=3.2mm] at (2.75,-2.55) {};
-  \node[font=\scriptsize,anchor=west] at (3.05,-2.55) {仮のソース};
-  \node[draw=black!30,fill=black!6,minimum width=4.5mm,minimum height=3.2mm] at (5.0,-2.55) {};
-  \node[font=\scriptsize,anchor=west] at (5.3,-2.55) {使わない};
-  % 1 回の中身
-  \begin{scope}[xshift=8.6cm,yshift=0.5cm]
-    \node[font=\small\bfseries] at (2.5,0.6) {1 回の中身};
-    \node[box,fill=cK!15,minimum width=50mm] (p1) at (2.5,-0.1) {仮のターゲットから K 本を引く};
-    \node[box,fill=cK!15,minimum width=50mm] (p2) at (2.5,-0.95) {③と同じ適応をする};
-    \node[box,fill=cTest!8,minimum width=50mm] (p3) at (2.5,-1.8) {残りの発話で，まとめた答えの UAR を測る};
-    \node[box,fill=cMeta!15,minimum width=50mm] (p4) at (2.5,-2.65) {UAR が最も高くなる「決め方の数」を選ぶ};
-    \draw[arr] (p1) -- (p2); \draw[arr] (p2) -- (p3); \draw[arr] (p3) -- (p4);
-  \end{scope}
 \end{tikzpicture}
-\caption{メタ学習．太い枠が仮のターゲットである．仮のターゲットは全ラベルを持つので，「K 本しか無い」状況を何度でも作って答え合わせができる．本当のターゲット（AFEW）はここでは使わない．}
+\caption{ソースの声の分類器 2 つの，中と外の信頼度（例）．N・H・S・A は Neutral・Happy・Sad・Angry．中で測った値は「同じコーパスなら，これくらい頼れる」，外で測った値は「別のコーパスに持ち出すと，これくらいに落ちる」を表す．}
 \end{figure}
 
+\noindent\textbf{残り方}：外に持ち出すとどれだけ残るかを，モダリティごとに 1 つの数にまとめる．
 \begin{center}
-\begin{tabular}{>{\raggedright}p{6.2cm}p{9.3cm}}
+\small
+残り方（声）＝ 外で測った値の合計 ÷ 中で測った値の合計 ＝（2.2 ＋ 2.3）÷（3.2 ＋ 2.8）＝ 4.5 ÷ 6.0 ＝ \textbf{0.75}
+\end{center}
+外での値は相手のコーパスでしか測れず，ターゲットではまだ測れない．そこで「ターゲットに持ち出しても，別のソースに持ち出したときと同じくらい残る」と置き，\textbf{中で測った値 × 残り方}を，ソースで見込むターゲットでの信頼度にする（研究者の 2 段の案）．
+
+\subsection*{5.3 微調整した分類器の行にする}
+
+ターゲットで使う声の分類器は，ソースの声の分類器 2 つの平均から始めて，K 本で微調整したものである（2 節）．そこで，その行も 2 つの平均にする．
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \foreach \e/\x in {N/1.0,H/1.8,S/2.6,A/3.4}{ \node[font=\scriptsize] at (\x,1.55) {\e}; }
+  \node[font=\scriptsize,anchor=east] at (0.5,0.9) {IEMOCAP：中 × 0.75};
+  \node[font=\scriptsize,anchor=east] at (0.5,0.2) {MELD：中 × 0.75};
+  \foreach \vals/\y in {{0.60,0.30,0.90,0.60}/0.9,{0.60,0.30,0.60,0.60}/0.2}{
+    \foreach \v [count=\j from 0] in \vals { \node[draw,fill=cSrc!30,minimum width=7.5mm,minimum height=5.5mm,inner sep=0pt,font=\scriptsize] at (1.0+0.8*\j,\y) {\v}; }
+  }
+  \draw[arr] (3.95,0.55) -- node[above,font=\scriptsize]{平均} (5.2,0.55);
+  \foreach \v [count=\j from 0] in {0.60,0.30,0.75,0.60} { \node[draw,fill=cSrc!45,minimum width=7.5mm,minimum height=5.5mm,inner sep=0pt,font=\scriptsize] at (5.7+0.8*\j,0.55) {\v}; }
+  \foreach \e/\x in {N/5.7,H/6.5,S/7.3,A/8.1}{ \node[font=\scriptsize] at (\x,1.2) {\e}; }
+  \node[font=\scriptsize,anchor=west] at (8.6,0.55) {← 声の行（ソースで見込んだ値）};
+  % 水準と相性に分ける
+  \draw[arr] (6.9,0.1) -- (6.9,-0.55);
+  \node[draw,fill=cRel!35,rounded corners=2pt,font=\scriptsize,align=left,anchor=north] at (6.9,-0.6) {水準（行の平均）0.56\\相性（平均との差）：N +0.04，H −0.26，S +0.19，A +0.04};
+\end{tikzpicture}
+\caption{微調整した声の分類器の，ソースで見込んだ行（例）．顔と言葉の行も同じ手順で作る．こうして 3 × 4 の表ができる．}
+\end{figure}
+
+\begin{chui}
+\textbf{ここまでにターゲットは出てこない．}5 節の表は，ソース 2 つのラベルだけで作る．仮のターゲットの K 本・ラベル無しの発話・テストは，どれも使わない．この表をそのまま使うのが R2 の「④ ソースだけ」である．
+\end{chui}
+
+%======================================================================
+\section{② メタ学習：ターゲットでの組み立て方を，別のコーパスで決める}
+\ex{cE16}{実験 16（実験 17 も同じ選び方を使う．11 月 14 日に書き直した）}
+
+\subsection*{6.1 何を決めるか}
+
+ターゲットで信頼度の表を組み立てるとき（7 節），前もって決めておく数が 3 つある．
+
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright}p{4.3cm}>{\raggedright}p{7.4cm}p{3.3cm}}
 \toprule
-\chip{cMeta}{決め方の数} & 意味 \\
+決める数 & 意味 & 候補 \\
 \midrule
-水準を等しい重みへ戻す強さ（n0） & K 本で測った水準をどれだけ信じるか．「等しい重みを，ラベル何本ぶん信じるか」 \\
-相性を使う強さ & ソースで測った相性を，そのまま使うか，弱めて使うか \\
-微調整した分類器とソースの分類器の比重 & 「ソースの分類器は，ターゲットのラベル何本ぶんか」．K が増えるほど微調整した分類器を重くする \\
+戻す強さ n0 & K 本で測った水準を，どれだけ信じるか（7.2 節で図にする） & 0，20，80，∞（ラベルの本数） \\
+戻し先 & 水準を，どこへ向けて戻すか & 3 つの平均（等しい重み），ソースで見込んだ水準 \\
+相性を使うか β & 5 節の相性を表に入れるか & 入れない（0），入れる（1） \\
 \bottomrule
 \end{tabular}
 \end{center}
+組み合わせは 4 × 2 × 2 ＝ 16 通りである（n0 ＝ 0 では戻し先が効かないので，中身が違うのは 14 通り）．R2 の「⑦ 両方の組」では，ソースの分類器の重さ（微調整した分類器の 0.25 倍か 1 倍）も一緒に決める．
 
-仮のターゲットは 3 つしか取れないので，決める数を 3 つに絞る．数を増やすと，仮のターゲットにだけ合った値を選んでしまう．
+\subsection*{6.2 なぜ別のコーパスで決めるか}
 
-%======================================================================
-\section{③ ターゲットで適応：K 本で水準と切片を測り直す}
-\ex{cE16}{実験 16（K 本で水準を測る形は実験 17 も使う）}
+16 通りのうちどれが良いかは，テストで成績を測れば分かる．しかし，同じコーパスのテストで選ぶと，そのテストに合わせた選び方になり，成績が甘く出る．そこで，\textbf{成績を測るコーパスを一切含まない計算で選ぶ}．
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-  \node[box,fill=cK!25,minimum width=24mm] (k) at (0,0) {ターゲットの K 本\\（K = 5 なら 20 本）};
-  \node[box,fill=cClf!15,minimum width=40mm] (a) at (4.2,1.3) {(a) 分類器を微調整する};
-  \node[box,fill=cRel!35,minimum width=40mm] (b) at (4.2,0) {(b) モダリティごとの水準を測る\\（一部を抜いて測る．3 つの数）};
-  \node[box,fill=black!6,minimum width=40mm] (c) at (4.2,-1.3) {(c) 切片を決める\\（感情ごとに 1 つ．4 つの数）};
-  \draw[arr] (k) -- (a.west); \draw[arr] (k) -- (b.west); \draw[arr] (k) -- (c.west);
-  \begin{scope}[xshift=7.4cm,yshift=-1.25cm]
-    \node[font=\small\bfseries,anchor=west] at (-0.3,3.25) {(b) 測った水準を等しい重みの側へ戻す（例）};
-    \draw[->] (0,0) -- (0,2.7);
-    \draw (0,0) -- (5.0,0);
-    \draw[dashed] (0,0.533*3.4) -- (5.0,0.533*3.4);
-    \foreach \m/\x/\v/\u/\c in {顔/0.9/0.70/0.62/cV,声/2.5/0.48/0.51/cA,言葉/4.1/0.42/0.48/cT}{
-      \fill[\c!35] (\x-0.6,0) rectangle (\x-0.06,\v*3.4);
-      \fill[\c] (\x+0.06,0) rectangle (\x+0.6,\u*3.4);
-      \node[font=\scriptsize,fill=white,inner sep=0.8pt] at (\x-0.33,\v*3.4+0.2) {\v};
-      \node[font=\scriptsize,fill=white,inner sep=0.8pt] at (\x+0.33,\u*3.4+0.2) {\u};
-      \node[font=\small,\c] at (\x,-0.26) {\m};
-    }
-    \node[font=\scriptsize,anchor=south east] at (5.0,2.55) {点線：3 つの平均 0.53};
-    \node[font=\scriptsize,anchor=north west,align=left] at (-0.3,-0.5) {薄い棒：K 本で測った値．濃い棒：使う値．\\n0 = 20 のとき，平均との差が半分になる．};
+\begin{tikzpicture}[
+  cc/.style={draw,rounded corners=2pt,minimum width=17mm,minimum height=6.5mm,font=\scriptsize,inner sep=1pt},
+]
+  \node[font=\small\bfseries,anchor=west] at (-1.8,2.0) {AFEW の成績に使う設定を選ぶとき};
+  \node[font=\scriptsize,anchor=west] at (-1.8,1.45) {AFEW を「評価のターゲット」（触らない側）に置いた 30 回だけを使う};
+  \node[font=\scriptsize\bfseries] at (0.35,0.85) {仮のターゲット};
+  \node[font=\scriptsize\bfseries] at (3.6,0.85) {ソース};
+  \node[font=\scriptsize\bfseries] at (6.4,0.85) {触らない};
+  \foreach \t/\sa/\sb/\y in {IEMOCAP/MOSEI/MELD/0.2,MOSEI/IEMOCAP/MELD/-0.6,MELD/IEMOCAP/MOSEI/-1.4}{
+    \node[cc,draw=cK!80!black,fill=cK!25] at (0.35,\y) {\t};
+    \node[cc,draw=cSrc!80!black,fill=cSrc!20] at (2.75,\y) {\sa};
+    \node[cc,draw=cSrc!80!black,fill=cSrc!20] at (4.45,\y) {\sb};
+    \node[cc,draw=black!30,fill=black!6,text=black!50] at (6.4,\y) {AFEW};
+  }
+  \node[font=\scriptsize,anchor=west] at (-1.8,-2.1) {それぞれ 分割 5 × 種 2 ＝ 10 回．計 30 回};
+  % 手順
+  \begin{scope}[xshift=10.9cm,yshift=1.3cm]
+    \node[box,fill=cK!15,minimum width=52mm] (s1) at (0,0) {30 回のそれぞれで，16 通りの設定で\\表を組み立てて答えをまとめる};
+    \node[box,fill=cTest!8,minimum width=56mm] (s2) at (0,-1.2) {仮のターゲットのテストで UAR を測り，\\設定ごとに 30 回の平均を出す};
+    \node[box,fill=cMeta!15,minimum width=56mm] (s3) at (0,-2.4) {平均が最も高い設定を 1 つ選ぶ};
+    \node[box,fill=cK!25,minimum width=56mm] (s4) at (0,-3.6) {その設定を，AFEW を仮のターゲットに\\した計算（AFEW の成績）に使う};
+    \draw[arr] (s1) -- (s2); \draw[arr] (s2) -- (s3); \draw[arr] (s3) -- (s4);
   \end{scope}
 \end{tikzpicture}
-\caption{ターゲットでの適応．20 本で測った水準は 10 点ほど揺れるので，等しい重みの側へ戻してから使う．戻す強さ n0 は②で決めた値である．}
+\caption{メタ学習の中身．「AFEW のための設定」を，AFEW が仮のターゲットにもソースにも出てこない 30 回で選ぶ．IEMOCAP・MOSEI・MELD の成績に使う設定も，それぞれ同じやり方で選ぶ．選ぶのは K ごとである．}
 \end{figure}
+
+\begin{itemize}
+  \item 「メタ学習」と呼んでいるが，実際にしているのは「16 通りの中から 1 つを，別のコーパスでの成績で選ぶ」ことである．
+  \item こうすると，AFEW のテストの正解は，AFEW の設定の選び方に入らない．
+  \item 選ぶ計算の中にも，ソース 2 つと仮のターゲット 1 つがあり，評価する計算と同じ形をしている．
+\end{itemize}
+
+%======================================================================
+\section{③ ターゲットで適応：K 本で水準を測り，表を組み立てる}
+\ex{cE16}{実験 16（11 月 14 日に書き直した）}
+
+ここで初めてターゲットの K 本を使う．K = 5 なら 4 感情 × 5 本 ＝ 20 本である．
+
+\subsection*{7.1 K 本で水準を測る}
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
-  \node[box,fill=cK!20,minimum width=30mm,minimum height=11mm] (l) at (0,0) {\textbf{水準}（3 つの数）\\ターゲットの K 本で測る};
-  \node[font=\Large] at (2.5,0) {＋};
-  \node[box,fill=cSrc!20,minimum width=34mm,minimum height=11mm] (p) at (5.2,0) {\textbf{相性}（感情ごとの差）\\ソースで測る（①）};
-  \node[font=\Large] at (7.9,0) {＝};
-  \node[box,fill=cRel!50,minimum width=34mm,minimum height=11mm] (r) at (10.6,0) {\textbf{信頼度の表}\\このターゲット用に完成};
+  \node[font=\small\bfseries,anchor=west] at (-0.3,1.6) {20 本を 5 組に分ける（1 組 ＝ 各感情 1 本ずつ，計 4 本）};
+  \foreach \g in {0,1,2,3,4}{
+    \foreach \e/\c in {0/cV,1/cA,2/cT,3/cK}{ \fill[cK!70] (\g*1.6+\e*0.32,0.8) rectangle (\g*1.6+\e*0.32+0.27,1.05); }
+    \node[font=\tiny] at (\g*1.6+0.6,0.6) {組 \g};
+  }
+  \draw[cTest,thick] (-0.08,0.72) rectangle (1.3,1.13);
+  \node[font=\scriptsize,align=left,anchor=west] at (8.2,0.92) {組 0 を抜いた 16 本で分類器を微調整し直し，\\抜いた組 0 の 4 本に点を付ける．組を替えて 5 回．};
+  \draw[arr] (3.9,0.45) -- (3.9,-0.15);
+  \node[box,fill=cRel!35,minimum width=110mm,align=left] at (5.3,-0.75) {20 本すべてに「その発話を使わずに学んだ分類器」の点が付く．\\これで分類器ごと・感情ごとの信頼度を測り，行の平均を K 本で測った\textbf{水準}にする．};
 \end{tikzpicture}
-\caption{信頼度の表の組み立て．数が少ない水準は K 本から，数が多い相性はソースから取る．}
+\caption{K 本で水準を測る手順．分類器は K 本を学習に使っているので，同じ発話でそのまま測ると強く見えすぎる．1 組ずつ抜いて測ることで，これを避ける．}
 \end{figure}
+
+20 本しかないので，測った水準はぶれる．このぶれを抑えるのが，次の「戻す」操作である．
+
+\subsection*{7.2 水準を戻す（戻す強さ n0）}
+
+\textbf{考え方}：K 本で測った水準に，「3 つの分類器はどれも同じくらい強い」と言う仮のラベルを n0 本ぶん混ぜて平均する．n0 が大きいほど，K 本の測定より「どれも同じ」を信じる．
+\begin{center}
+\small
+使う水準 ＝（K 本の本数 × K 本で測った水準 ＋ n0 × 戻し先の水準）÷（K 本の本数 ＋ n0）
+\end{center}
+例：K 本で測った水準が 顔 0.70，声 0.48，言葉 0.42 だったとする．3 つの平均は 0.533 である．戻し先を「3 つの平均」，n0 ＝ 20 にすると，顔は（20 × 0.70 ＋ 20 × 0.533）÷ 40 ＝ 0.617 になる．
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \foreach \n/\ox/\fv/\av/\tv in {0/0/0.70/0.48/0.42,20/3.9/0.617/0.507/0.477,80/7.8/0.567/0.523/0.511,{$\infty$}/11.7/0.533/0.533/0.533}{
+    \begin{scope}[xshift=\ox cm]
+      \draw (0,0) -- (3.0,0);
+      \draw[dashed,black!50] (0,0.533*3.2) -- (3.0,0.533*3.2);
+      \foreach \v/\x/\c/\m in {\fv/0.5/cV/顔,\av/1.5/cA/声,\tv/2.5/cT/言葉}{
+        \fill[\c] (\x-0.33,0) rectangle (\x+0.33,\v*3.2);
+        \node[font=\tiny,fill=white,inner sep=0.5pt] at (\x,\v*3.2+0.17) {\pgfmathprintnumber[fixed,fixed zerofill,precision=2]{\v}};
+        \node[font=\scriptsize,\c] at (\x,-0.22) {\m};
+      }
+      \node[font=\small\bfseries] at (1.5,2.75) {n0 ＝ \n};
+    \end{scope}
+  }
+  \node[font=\scriptsize,anchor=north,align=center] at (1.5,-0.5) {K 本の値をそのまま使う};
+  \node[font=\scriptsize,anchor=north,align=center] at (5.4,-0.5) {平均との差が半分になる};
+  \node[font=\scriptsize,anchor=north,align=center] at (9.3,-0.5) {差が 5 分の 1 になる};
+  \node[font=\scriptsize,anchor=north,align=center] at (13.2,-0.5) {3 つとも同じ\\（今の方法と同じ重み）};
+\end{tikzpicture}
+\caption{戻す強さ n0 による水準の変わり方（K = 5，ラベル 20 本の例）．点線は 3 つの平均 0.533．n0 はラベルの本数で数えるので，K が増えると同じ n0 でも K 本の測定が強く効く（K = 25 の 100 本なら，n0 ＝ 20 でも差は 6 分の 5 残る）．}
+\end{figure}
+
+\begin{itemize}
+  \item \textbf{戻し先}は 2 通りある．「3 つの平均」は上の図のとおりである．「ソースで見込んだ水準」は，5 節の表の行の平均へ向けて戻す．
+  \item n0 ＝ ∞ で相性を入れないと，表は全部同じ数になり，今の方法と同じ答えになる．
+\end{itemize}
+
+\subsection*{7.3 水準に相性を足して表にする}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \node[box,fill=cK!25,minimum width=28mm,minimum height=14mm] (l) at (0,0) {\textbf{水準}\\（7.2 節．n0 ＝ 20）\\声 0.507};
+  \node[font=\Large] at (1.95,0) {＋};
+  \node[box,fill=cSrc!25,minimum width=40mm,minimum height=14mm] (p) at (4.6,0) {\textbf{β × 相性}（5.3 節．β ＝ 1）\\N +0.04，H −0.26，\\S +0.19，A +0.04};
+  \node[font=\Large] at (7.3,0) {＝};
+  \foreach \v [count=\j from 0] in {0.55,0.25,0.70,0.55} { \node[draw,fill=cRel!50,minimum width=8.5mm,minimum height=6mm,inner sep=0pt,font=\scriptsize] at (8.2+0.95*\j,0) {\v}; }
+  \foreach \e/\x in {N/8.2,H/9.15,S/10.1,A/11.05}{ \node[font=\scriptsize] at (\x,0.6) {\e}; }
+  \node[font=\scriptsize,anchor=west] at (11.6,0) {声の行};
+\end{tikzpicture}
+\caption{表の組み立て（例．声の行）．水準はターゲットの K 本から，相性はソースから取る．顔と言葉の行も同じで，3 × 4 の表ができる．値が負になれば 0 にする．}
+\end{figure}
+
+\begin{itemize}
+  \item 最後に，表の 12 個の平均で割って\textbf{重み}にする．重みが全部 1 なら今の方法と同じである．8 節の 2 つのまとめ方は，この重みを使う．
+  \item \textbf{切片}：感情ごとに違う重みを掛けると，答えが特定の感情に寄りやすい．主の比べでは，ラベルを使わずに，ラベル無しの発話の上で確率の平均が今の方法と同じになるように，感情ごとの足し算の数（切片）をずらす．K 本で切片を決める版と，全ラベルで決める版（参照）も別に記録した．
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\caption{R2 の条件と，表の作り方の対応．}
+\begin{tabular}{>{\raggedright}p{4.6cm}>{\raggedright\arraybackslash}p{10.4cm}}
+\toprule
+条件 & 表の作り方 \\
+\midrule
+① 本体の形・水準は K 本＋相性はソース & 7.1〜7.3 節のとおり．n0・戻し先・β は 6 節で選ぶ \\
+③ 本体の形・K 本だけ & 12 個すべてを 7.1 節の手順で K 本から測る（戻さない．ソースの相性も使わない） \\
+④ 本体の形・ソースだけ & 5 節の表をそのまま使う（ターゲットのラベルを表に使わない） \\
+参照：全ラベル & 仮のターゲットのラベル無しの発話の本当のラベル（K 本以外の全部）で 12 個を測る．実際には使えない \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 %======================================================================
 \section{④ テスト：発話ごとに答えをまとめる}
@@ -478,7 +592,7 @@
   \node[tool] (t1) at (0,1.25) {\textbf{分類器の 2 つの誤り}\\切片のずれ：少数のラベルで直せる\\向きのずれ：少数のラベルでは直せない};
   \node[tool] (t2) at (0,-2.55) {\textbf{ソースの本数の価値}\\ソースは，ターゲットの\\ラベル何本ぶんか};
   \node[use,fill=cRel!25,anchor=west] (u1) at (3.7,2.5) {\textbf{信頼度の測り方}：切片に依らない量で測り，向きの良さだけを表す（5 節）};
-  \node[use,fill=cK!15,anchor=west] (u2) at (3.7,1.25) {\textbf{K 本の使い道}：切片 4 つと水準 3 つだけを K 本で決め，相性はソースから取る（7 節）};
+  \node[use,fill=cK!15,anchor=west] (u2) at (3.7,1.25) {\textbf{K 本の使い道}：水準 3 つだけを K 本で決め，相性はソースから取る．切片は主の比べではラベルを使わずにずらす（7 節）};
   \node[use,fill=black!5,anchor=west] (u3) at (3.7,0.0) {\textbf{結果の読み方}：「切片だけを直した版」を対照に置き，得が切片の分か信頼の分かを分ける（11 節）};
   \node[use,fill=cMeta!15,anchor=west] (u4) at (3.7,-1.95) {\textbf{水準を戻す強さ n0}：「等しい重みは，ラベル何本ぶんか」（6・7 節）};
   \node[use,fill=cMeta!15,anchor=west] (u5) at (3.7,-3.15) {\textbf{分類器どうしの比重}：「ソースの分類器は，ラベル何本ぶんか」．K が増えるほど微調整した分類器を重くする（6 節）};
