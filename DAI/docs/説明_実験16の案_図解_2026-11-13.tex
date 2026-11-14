@@ -458,18 +458,53 @@
 
 \subsection*{7.3 水準に相性を足して表にする}
 
+表の 1 行（1 つの分類器）は，次の 2 つに分けられる（3 節）．
+\begin{itemize}
+  \item \textbf{水準}：行の平均．1 つの数で，「この分類器は全体としてどれだけ当たるか」を表す．
+  \item \textbf{相性}：行の各値から平均を引いた 4 つの数（足すと 0）．「この分類器は，どの感情が比較的得意で，どれが苦手か」を表す．
+\end{itemize}
+水準と相性は，別々のデータから取る．
+\begin{itemize}
+  \item \textbf{水準はターゲットの K 本から取る．}どのモダリティが強いかはコーパスで大きく変わる（AFEW は顔，IEMOCAP は声，MELD は言葉が強い）ので，ソースからは見込めない．水準は分類器 1 つに 1 つの数なので，20 本でも測れる．
+  \item \textbf{相性はソースから取る．}相性は分類器 3 つ × 感情 4 つの 12 個の数で，感情ごとに 5 本しかない K 本では測れない．「どの感情が比較的得意か」はコーパスをまたいで似ていると見込んで，ソースで測った値を使う．
+\end{itemize}
+
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-  \node[box,fill=cK!25,minimum width=28mm,minimum height=14mm] (l) at (0,0) {\textbf{水準}\\（7.2 節．n0 ＝ 20）\\声 0.507};
-  \node[font=\Large] at (1.95,0) {＋};
-  \node[box,fill=cSrc!25,minimum width=40mm,minimum height=14mm] (p) at (4.6,0) {\textbf{β × 相性}（5.3 節．β ＝ 1）\\N +0.04，H −0.26，\\S +0.19，A +0.04};
-  \node[font=\Large] at (7.3,0) {＝};
-  \foreach \v [count=\j from 0] in {0.55,0.25,0.70,0.55} { \node[draw,fill=cRel!50,minimum width=8.5mm,minimum height=6mm,inner sep=0pt,font=\scriptsize] at (8.2+0.95*\j,0) {\v}; }
-  \foreach \e/\x in {N/8.2,H/9.15,S/10.1,A/11.05}{ \node[font=\scriptsize] at (\x,0.6) {\e}; }
-  \node[font=\scriptsize,anchor=west] at (11.6,0) {声の行};
+\begin{tikzpicture}[c/.style={draw,minimum width=7.6mm,minimum height=5.4mm,inner sep=0pt,font=\scriptsize}]
+  % (A) ソースで見込んだ表
+  \node[font=\scriptsize\bfseries,align=center] at (1.5,2.35) {(A) ソースで見込んだ表\\（5 節）};
+  \foreach \e/\x in {N/0.4,H/1.15,S/1.9,A/2.65}{ \node[font=\tiny] at (\x,1.75) {\e}; }
+  \foreach \m/\c/\y/\vals in {顔/cV/1.3/{0.50,0.90,0.40,0.60},声/cA/0.7/{0.60,0.30,0.75,0.60},言葉/cT/0.1/{0.55,0.45,0.45,0.55}}{
+    \node[font=\scriptsize,\c,anchor=east] at (0.0,\y) {\m};
+    \foreach \v [count=\j from 0] in \vals { \node[c,fill=cSrc!35] at (0.4+0.75*\j,\y) {\v}; }
+  }
+  \draw[arr] (3.15,0.7) -- node[above,font=\tiny,align=center]{行ごとに\\分ける} (4.15,0.7);
+  % (B) 水準（ソース）と相性
+  \node[font=\scriptsize\bfseries,align=center] at (4.75,2.35) {水準\\（ソース）};
+  \foreach \v/\y in {0.60/1.3,0.56/0.7,0.50/0.1}{ \node[c,fill=cSrc!20,text=black!45] at (4.75,\y) {\v}; }
+  \node[font=\scriptsize] at (4.75,-0.5) {捨てる};
+  \node[font=\scriptsize\bfseries,align=center] at (7.3,2.35) {(B) 相性（ソース）\\平均との差};
+  \foreach \e/\x in {N/5.9,H/6.88,S/7.86,A/8.84}{ \node[font=\tiny] at (\x,1.75) {\e}; }
+  \foreach \y/\vals in {1.3/{$-$0.10,$+$0.30,$-$0.20,0.00},0.7/{$+$0.04,$-$0.26,$+$0.19,$+$0.04},0.1/{$+$0.05,$-$0.05,$-$0.05,$+$0.05}}{
+    \foreach \v [count=\j from 0] in \vals { \node[c,fill=cSrc!45,minimum width=9.4mm] at (5.9+0.98*\j,\y) {\v}; }
+  }
+  % (C) 水準（K 本）
+  \node[font=\scriptsize\bfseries,align=center] at (10.2,2.35) {(C) 水準\\（K 本．7.2 節）};
+  \foreach \v/\y in {0.617/1.3,0.507/0.7,0.477/0.1}{ \node[c,fill=cK!55,minimum width=9.5mm] at (10.2,\y) {\v}; }
+    % (D) 結果
+  \node[font=\scriptsize\bfseries,align=center] at (12.85,2.35) {(D) できた表\\＝ (C) ＋ (B)};
+  \foreach \e/\x in {N/11.75,H/12.5,S/13.25,A/14.0}{ \node[font=\tiny] at (\x,1.75) {\e}; }
+  \foreach \m/\c/\y/\vals in {顔/cV/1.3/{0.52,0.92,0.42,0.62},声/cA/0.7/{0.55,0.25,0.70,0.55},言葉/cT/0.1/{0.53,0.43,0.43,0.53}}{
+    \foreach \v [count=\j from 0] in \vals { \node[c,fill=cRel!55] at (11.75+0.75*\j,\y) {\v}; }
+  }
+  \draw[arr] (10.75,0.7) -- (11.3,0.7);
+  % 計算の例
+  \node[draw,rounded corners=2pt,fill=black!3,font=\scriptsize,align=left,anchor=north west] at (-0.6,-0.85) {
+    計算の例（顔の Happy）：K 本で測った顔の水準 0.617 ＋ ソースで測った顔の Happy の相性 $+$0.30 ＝ 0.917 → 0.92\\
+    計算の例（声の Happy）：K 本で測った声の水準 0.507 ＋ ソースで測った声の Happy の相性 $-$0.26 ＝ 0.247 → 0.25};
 \end{tikzpicture}
-\caption{表の組み立て（例．声の行）．水準はターゲットの K 本から，相性はソースから取る．顔と言葉の行も同じで，3 × 4 の表ができる．値が負になれば 0 にする．}
+\caption{表の組み立て（例の数）．(A) のソースで見込んだ表は，顔・声・言葉の水準がほぼ同じ（0.60，0.56，0.50）である．ソースの水準は捨て，K 本で測った水準 (C) に置き換える．相性 (B) はそのまま残す．できた表 (D) は，「顔が全体に強く（K 本から），特に Happy に強い（ソースから）」を表す．値が負になれば 0 にする．相性を使わない設定（β ＝ 0）では (B) を全部 0 にするので，各行は水準だけの同じ値が並ぶ．}
 \end{figure}
 
 \begin{itemize}
