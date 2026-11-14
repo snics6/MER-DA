@@ -3,6 +3,7 @@
 \documentclass[a4paper,11pt]{ltjsarticle}
 \usepackage[margin=20mm]{geometry}
 \usepackage{booktabs}
+\usepackage{longtable}
 \usepackage{array}
 \usepackage{float}
 \usepackage{xcolor}
@@ -582,36 +583,7 @@
 \caption{実験 16 の主な 3 つの版（K = 5．⑥ 感情を順に仮定して比べる形）．棒は今の方法との差，縦の線は 95\% 区間．今の方法の UAR は AFEW 68.6，IEMOCAP 71.2，MOSEI 40.7，MELD 50.3 点である．}
 \end{figure}
 
-\subsection*{判定の規則の結果（K = 5・10・25）}
-
-\begin{table}[H]
-\centering
-\scriptsize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{>{\raggedright}p{6.0cm}>{\raggedright}p{2.9cm}>{\raggedright}p{2.9cm}p{2.9cm}}
-\toprule
-版（今の方法との差） & K = 5 & K = 10 & K = 25 \\
-\midrule
-\multicolumn{4}{l}{\textbf{参照（全ラベルで測った信頼度．実際には使えない）}} \\
-⑥ 感情を順に仮定して比べる & 当たり：4 つとも & 当たり：AFEW，MOSEI & 当たり：AFEW，IEMOCAP，MELD \\
-⑦ 答えを表で読み替える & 当たり：AFEW，MOSEI & 当たり：AFEW，MOSEI & 当たり：AFEW，MOSEI，MELD \\
-③ 研究者の形（柔らかい版） & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 当たり：AFEW，MELD \\
-② 水準だけ & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 外れ（AFEW だけ） \\
-\midrule
-\multicolumn{4}{l}{\textbf{実際に使える版}} \\
-⑥ × 水準は K 本，相性はソース & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 当たり：AFEW，MELD \\
-③ × 水準は K 本，相性はソース & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 外れ（AFEW だけ） \\
-⑥ × K 本だけで測る & 外れ（AFEW だけ） & 外れ（AFEW だけ） & 外れ（AFEW だけ） \\
-⑥ × ソースで測った値だけ & \textbf{下回った}：IEMOCAP，MELD & \textbf{下回った}：IEMOCAP，MELD & \textbf{下回った}：IEMOCAP，MELD \\
-⑦ × K 本で読み替える & 外れ（AFEW 上，MOSEI 下） & 外れ（AFEW 上，MOSEI 下） & 外れ（AFEW だけ） \\
-⑧ まとめ方を学ぶ & 外れ（MELD 下） & 外れ & 外れ（MELD 下） \\
-⑥ × 水準 K・相性ソース ＋ ソースの分類器 & 外れ（AFEW だけ） & 当たり：AFEW，MELD & 外れ（AFEW だけ） \\
-\midrule
-K 本での見込みで版を選ぶ（8 通り） & どれも 2 コーパス以上では上回らない & 同じ & 同じ \\
-\bottomrule
-\end{tabular}
-\caption{実験 16 の規則ごとの判定．「AFEW だけ」は AFEW だけで上回ったことを表す．K = 10 の 40 本は K = 5 の 20 本を含み，テストも同じなので，K の間の違いを差の証拠として読まない（16 節）．差と区間の全部は \texttt{DAI/docs/実験16・17\_下調べ\_結果の表\_K5・10・25\_2026-11-14.md} にある．}
-\end{table}
+\input{説明_実験16・17_結果の表_16}
 
 \subsection*{なぜ全ラベルでは上がるのに，実際に使える版では上がらないか}
 
@@ -742,33 +714,8 @@ C & A のまとめた答えを疑似ラベルにして，声・顔・言葉・�
   \item \textbf{AFEW を除くと 1 コーパス}：上回るのは MELD だけで，規則の水準（2 つ以上）に届かない．判定の機会が 24 あるので，どれかが偶然当たる見込みは約 0.09 ある．
 \end{itemize}
 
-\begin{table}[H]
-\centering
-\scriptsize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{>{\raggedright}p{6.0cm}>{\raggedright}p{2.9cm}>{\raggedright}p{2.9cm}p{2.9cm}}
-\toprule
-版 & K = 5 & K = 10 & K = 25 \\
-\midrule
-\multicolumn{4}{l}{\textbf{A：推定時にまとめた答え（今の方法との差）}} \\
-全ラベルの信頼度（参照．実際には使えない） & 当たり：4 つとも & 当たり：AFEW，MOSEI，MELD & 当たり：AFEW，IEMOCAP，MELD \\
-等しい重み & 外れ & 外れ & 外れ \\
-水準は K 本 & 外れ（AFEW だけ） & 当たり：AFEW，MELD & 外れ（AFEW だけ） \\
-感情ごとの信頼度は K 本 & 外れ（AFEW だけ） & 当たり：AFEW，MELD & 当たり：AFEW，IEMOCAP \\
-\midrule
-\multicolumn{4}{l}{\textbf{C：学び直した分類器（今の提案との差）}} \\
-融合 × 水準は K 本 & 当たり：AFEW，MELD & 当たり：AFEW，MELD & 外れ（MELD だけ） \\
-融合 × 感情ごとの信頼度は K 本 & 外れ（AFEW だけ） & 外れ & 外れ \\
-融合 × 等しい重み & 外れ & 外れ & 外れ \\
-声・顔 × 3 通り & どれも外れ & どれも外れ & どれも外れ \\
-言葉 × 3 通り & どれも外れ & 外れ（等しい重みが MELD だけ） & 外れ（3 通りとも IEMOCAP だけ） \\
-\midrule
-\multicolumn{4}{l}{\textbf{B：ソースの発話に重みを付けて学び直す（9 通り）}} \\
-声・顔・言葉 × 3 通りの重み & どれも外れ & どれも外れ & どれも外れ \\
-\bottomrule
-\end{tabular}
-\caption{実験 17 の規則ごとの判定．K = 10 の A の 2 つの当たりも，AFEW を除くと 1 コーパスである．差と区間の全部は \texttt{DAI/docs/実験16・17\_下調べ\_結果の表\_K5・10・25\_2026-11-14.md} にある．}
-\end{table}
+\input{説明_実験16・17_結果の表_17}
+
 
 %======================================================================
 \section{K = 10 の追補の読み方}
