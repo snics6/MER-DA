@@ -59,7 +59,7 @@ def main() -> None:
         s = f"{q.uar:.2f}" + (f" [{q.lo:.1f}, {q.hi:.1f}]" if ci else "")
         if q.same_as and q.same_as != v:
             s += "＝"
-            notes.append(f"K = {K}，{c}：{nm(v)} は {nm(q.same_as)} と正解の数が全部の単位で同じ")
+            notes.append((C4.index(c), K, f"{c}，K = {K}：{nm(v)} は {nm(q.same_as)} と正解の数が全部の単位で同じ"))
         return s
 
     def diff(a: str, b: str, c: str, K: int, seeds: str = "all") -> str:
@@ -108,11 +108,11 @@ def main() -> None:
     w("")
     w(f"`{R.relative_to(ROOT) if R.is_relative_to(ROOT) else R}/` から書き出した（結果ファイルを読むだけ．書き出しの台本は `DAI/docs/tools_pending/md_tables_dai20.py`）．照合（gate-claim）の前の表である．")
     w("")
-    w("- 設計は `DAI/docs/実験20_設計.md`（第 5 版）．単位は，コーパスごとに分割 5 × K 本の引き方 10 ＝ 50，計 200．K = 5・10・25 を同じ扱いで並べる．主の K と判定の規則は置いていない．")
+    w(f"- 設計は `DAI/docs/実験20_設計.md`（第 5 版）．単位は，コーパスごとに分割 5 × K 本の引き方 10 ＝ 50（集計に入った単位の数は {conv.get('n_units', '不明')}）．K = 5・10・25 を同じ扱いで並べる．主の K と判定の規則は置いていない．")
     w("- 値は UAR（%）．差は UAR の点の差で，括弧は 95% 区間（補正していない）．↑・↓ は読みやすさのための印（区間が 0 を含まず，差が 1.0 点以上）で，判定ではない．印の無い差は「同じ水準」を意味しない．")
     w("- 「切片をずらした答え」は，ラベルを使わずに，答えの感情の割合がそろうように切片をずらした答えである．「切片をずらす前」はそのままの答えである．")
     w("- 「＝」は，別の版と正解の数が全部の単位で同じ版（表の下の注）．「0（同じ数）」は，差の両側の正解の数が全部の単位で同じことを表す．")
-    w("- テストの発話は，手法を選んだ下調べ（実験 16・18）のテストと同じ発話である（設計 0 節）．")
+    w("- テストの発話は，設定を選んだ下調べ（実験 16 と K = 10 の追補）で同じコーパスを仮のターゲットにした単位のテストと同じ発話である（設計 0 節）．")
     if conv:
         w(f"- 検算の量（`convergence.json`）：単位 {conv.get('n_units')}，微調整した分類器の再現のずれの最大 {conv.get('teacher_dev_max'):.2e}，勾配の最大 {conv.get('grad_max'):.1e}，"
           f"止まり {conv.get('stalled')}，作り直した提案の判定の一致の最小 {conv.get('recheck_agree_min'):.4f}，実験 1 の集計から写した水準との差の最大 {conv.get('others_B_dev_max'):.1e}．")
@@ -147,37 +147,54 @@ def main() -> None:
                                     ("prop_levelfree", "prod", "水準の違いを外す − 積"), ("prop_noint", "prop_noprof", "分類器 × 感情の成分を消す − 相性を外す")])
     w("## 4. 学び直した 1 つの分類器（比べる相手 B）")
     w("")
-    w("B の行は実験 1 の評価の回の保存で，同じ 200 単位の上の値である．提案の手法の行は推定時の答え（学び直す前）である．提案の手法の答えを疑似ラベルにした学び直しは実験 21 で測る．")
+    w("B の行は実験 1 の評価の回の保存の判定で，提案の手法と同じ単位の上の値である．提案の手法の行は推定時の答え（学び直す前）である．提案の手法の答えを疑似ラベルにした学び直しは実験 21 で測る．区間はこの実験の集計で作り直した値で，塊の重みを引き直すコーパス（MOSEI）では，実験 1 の報告の区間と端が少し違いうる．")
     w("")
     level_table("UAR", [("prop", "**提案の手法**（推定時の答え）")] + B_LAB + SINGLE_LAB, ci=True)
     diff_table("提案の手法（推定時の答え）− 相手", [("prop", v, f"− {lab}") for v, lab in B_LAB])
     w("## 5. 標準の手法（比べる相手 C．実験 2 の評価の回の集計から写した値）")
     w("")
-    w("UAR を並べるだけである．「今の提案 − 手法」の差は実験 2 が出した値（同じ単位の上の差．単位の数は手法で違う）で，提案の手法との差ではない．")
+    w("UAR を並べるだけである．「今の提案 − 手法」の差は実験 2 が出した値（同じ単位の上の差）で，提案の手法との差ではない．勾配法の手法（DANN・MME とその対照）は K 本の引き方 0〜2 の 15 単位で測ってあるので，表を単位の数で分け，提案の手法・積・今の提案の値も同じ単位の上の値を並べる．単位の数が違う表どうしで値を見比べない．")
     w("")
     oc = ot[ot.group == "C"]
+    lv02 = lv[lv.seeds == "0-2"]
     if len(oc):
         for K in KS:
-            w(f"**K = {K}**")
-            w("")
-            w("| 手法 | " + " | ".join(f"{c}：UAR | {c}：今の提案 − 手法" for c in C4) + " | 単位の数 |")
-            w("|---|" + "---|---|" * len(C4) + "---|")
-            for m in [m for m in C_LAB if (oc.method == m).any()] + sorted(set(oc.method) - set(C_LAB)):
-                cells, ns = [], set()
-                for c in C4:
-                    q = oc[(oc.method == m) & (oc.c == c) & (oc.K == K)]
-                    if not len(q):
-                        cells += ["—", "—"]
-                        continue
-                    q = q.iloc[0]
-                    ns.add(int(q.n_units))
-                    cells += [f"{q.uar:.2f}", f"{q.exp1prop_minus_method:+.2f} [{q.exp1prop_minus_method_lo:+.1f}, {q.exp1prop_minus_method_hi:+.1f}]"]
-                w(f"| {C_LAB.get(m, m)} | " + " | ".join(cells) + f" | {'・'.join(map(str, sorted(ns)))} |")
-            w("")
+            for nu, lab_u in ((50, "50 単位（K 本の引き方 0〜9）で測った手法"), (15, "15 単位（K 本の引き方 0〜2）で測った手法")):
+                ocu = oc[(oc.K == K) & (oc.n_units == nu)]
+                if not len(ocu):
+                    continue
+                w(f"**K = {K}：{lab_u}**")
+                w("")
+                w("| 手法 | " + " | ".join(f"{c}：UAR | {c}：今の提案 − 手法" for c in C4) + " |")
+                w("|---|" + "---|---|" * len(C4))
+                src = lva if nu == 50 else lv02                              # 提案の手法と積を，同じ単位の上の値で並べる
+                for v, lab in (("prop", "**提案の手法**（推定時の答え．同じ単位）"), ("prod", "積（同じ単位）")):
+                    cells = []
+                    for c in C4:
+                        q = src[(src.version == v) & (src.c == c) & (src.K == K)]
+                        cells += [f"{q.iloc[0].uar:.2f}" if len(q) else "—", "—"]
+                    w(f"| {lab} | " + " | ".join(cells) + " |")
+                cells = []
+                for c in C4:                                                 # 今の提案の，同じ単位の上の値（実験 2 の集計が持つ．手法によらず同じはずなので 1 つ目の行から取る）
+                    q = ocu[ocu.c == c]
+                    vals = sorted(set(round(float(x), 6) for x in q.uar_exp1prop_same_units.dropna())) if "uar_exp1prop_same_units" in q.columns else []
+                    cells += ["／".join(f"{x:.2f}" for x in vals) if vals else "—", "—"]
+                w("| 今の提案（学び直した融合．同じ単位） | " + " | ".join(cells) + " |")
+                for m in [m for m in C_LAB if (ocu.method == m).any()] + sorted(set(ocu.method) - set(C_LAB)):
+                    cells = []
+                    for c in C4:
+                        q = ocu[(ocu.method == m) & (ocu.c == c)]
+                        if not len(q):
+                            cells += ["—", "—"]
+                            continue
+                        q = q.iloc[0]
+                        cells += [f"{q.uar:.2f}", f"{q.exp1prop_minus_method:+.2f} [{q.exp1prop_minus_method_lo:+.1f}, {q.exp1prop_minus_method_hi:+.1f}]"]
+                    w(f"| {C_LAB.get(m, m)} | " + " | ".join(cells) + " |")
+                w("")
     w("## 6. 参照と参考（実際には使えない版，ソースのラベルだけで作る版，設定の選び方）")
     w("")
     level_table("UAR（切片をずらした答え）", [("prop", "**提案の手法**"), ("prod", "積")] + REF_LAB)
-    diff_table("差", [("M_F6_orc", "prod", "全ラベルで測った表 − 積"), ("prop", "M_F6_orc", "提案の手法 − 全ラベルで測った表"), ("M_F6_ext", "prod", "ソースだけで測った表 − 積"),
+    diff_table("差", [("M_F6_orc", "prod", "全ラベルで測った表 − 積"), ("M_F6_ext", "prod", "ソースだけで測った表 − 積"),
                      ("prop", "M_F6_ext", "提案の手法 − ソースだけで測った表"), ("M_F8", "prod", "ソースどうしで学んだ重み − 積"), ("prop", "M_F8", "提案の手法 − ソースどうしで学んだ重み"),
                      ("prop_loto", "prop", "ほかの 3 コーパスで選んだ点 − 固定の点"), ("oracle_grid", "prop", "自分のテストで最良の点 − 固定の点")])
     w("### 提案の手法の設定の点（格子 16 点のうち）")
@@ -202,7 +219,7 @@ def main() -> None:
     if notes:
         w("## 注：正解の数が全部の単位で同じ版（「＝」の印）")
         w("")
-        for n_ in sorted(set(notes)):
+        for _, _, n_ in sorted(set(notes)):
             w(f"- {n_}")
         w("")
         w("この印は正解の数で付けている．判定そのものが同じとは限らない（誤りの行き先が違っても付く）．")
