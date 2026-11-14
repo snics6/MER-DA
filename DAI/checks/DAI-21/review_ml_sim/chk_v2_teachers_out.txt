@@ -1,0 +1,22 @@
+/home/snics/MER-DA/DAI/checks/DAI-21/review_ml_sim/chk_v2_teachers.py:50: Pandas4Warning: Starting with pandas version 4.0 all arguments of min will be keyword-only.
+  print("一致が 1 未満の行の数：", {c[3:]: int((d[c] < 1).sum()) for c in agc}, "／ 0.995 未満の行の数：", int((d[agc].min(1) < 0.995).sum()))
+行 720（単位 120 × K 2 つ × 提案の点 3）．疑似ラベルが有限で和が 1：True
+作り直した判定と保存の判定の一致の最小： {'prod': 1.0, 'prop': 1.0, 'noprof': 1.0, 'noint': 1.0, 'levelfree': 1.0, 'konly': 1.0}
+一致が 1 未満の行の数： {'prod': 0, 'prop': 0, 'noprof': 0, 'noint': 0, 'levelfree': 0, 'konly': 0} ／ 0.995 未満の行の数： 0
+温度の較正の重みの範囲： 0.0 〜 3.668
+
+積の疑似ラベルと判定が違う候補の割合（%．仮のターゲット × K の平均．提案の点 2）
+            dif_prop  dif_noprof  dif_noint  dif_levelfree  dif_konly  dif_tcal
+c       K                                                                      
+AFEW    5       7.19        6.86       7.10           1.65       9.81      9.19
+        25      4.47        4.18       4.35           1.37       4.89      3.86
+IEMOCAP 5       2.33        1.92       2.14           1.20       6.53      3.79
+        25      1.80        1.52       1.65           0.97       3.93      1.68
+MELD    5      11.64       11.42      11.38           5.50      16.16     15.57
+        25      8.00        6.87       7.20           5.19       8.36      7.82
+MOSEI   5      13.98       10.97      12.26           9.01      21.63     15.70
+        25     10.02        5.71       7.50           8.42      12.84      6.04
+
+real	2m40.888s
+user	3m29.856s
+sys	0m0.408s

@@ -524,8 +524,9 @@ def role_of(v: str) -> str:
     return "B"
 
 
-def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, list, list]:
-    """cells：{(コーパス, K, 版): {(分割, 種): 塊ごとの数}}．水準と差を，実験 20 の集計と同じ区間の作り方で出す．"""
+def table_block(cells: dict, con: list, geff: dict, part: str, psig: dict) -> tuple[list, list, list]:
+    """cells：{(コーパス, K, 版): {(分割, 種): 塊ごとの数}}．水準と差を，実験 20 の集計と同じ区間の作り方で出す．
+    psig：{(コーパス, K, 版): テストの判定の並びの sha256}．same_as は正解の数が同じ版の印，same_pred は判定そのものが同じ版の印である．"""
     def eff(A, B, c, k_):
         if set(A) != set(B):
             raise SystemExit(f"差の単位がそろわない：{k_}")
@@ -555,6 +556,16 @@ def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, li
             size[sig[v]] = size.get(sig[v], 0) + 1
         for v in vs:
             same_as[(c, K, v)] = first[sig[v]] if size[sig[v]] > 1 else ""
+    same_pred = {}                                                           # 判定の並びが全部の単位で同じ版（正解の数が同じでも，誤りの行き先が違えばこの印は付かない）
+    for c, K in sorted({(c, K) for c, K, _ in cells}):
+        vs = [v for (c2, K2, v) in cells if c2 == c and K2 == K]
+        dg = {v: psig[(c, K, v)].hexdigest() for v in vs}
+        first, size = {}, {}
+        for v in vs:
+            first.setdefault(dg[v], v)
+            size[dg[v]] = size.get(dg[v], 0) + 1
+        for v in vs:
+            same_pred[(c, K, v)] = first[dg[v]] if size[dg[v]] > 1 else ""
     lv, ef, pe = [], [], []
     for (c, K, v), dd in sorted(cells.items()):
         for sn, ss in SEED_SETS.items():
@@ -563,7 +574,7 @@ def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, li
                 continue
             e_ = eff(ds, zero(ds), c, ("L", part, c, K, v, sn))
             lv.append(dict(part=part, c=c, K=K, version=v, role=role_of(v), seeds=sn, uar=e_["est"], lo=e_["lo"], hi=e_["hi"], se=e_["se"], df=e_["df"], method=e_["method"],
-                           n_fr=e_["n_fr"], same_as=same_as[(c, K, v)]))
+                           n_fr=e_["n_fr"], same_as=same_as[(c, K, v)], same_pred=same_pred[(c, K, v)]))
         cor, tot = sum(x[1].sum(0) for x in dd.values()), sum(x[2].sum(0) for x in dd.values())
         full = all((x[2].sum(0) > 0).all() for x in dd.values())
         for i in range(4):
@@ -581,8 +592,14 @@ def table_block(cells: dict, con: list, geff: dict, part: str) -> tuple[list, li
                 if not As or (sn != "all" and len(As) == len(A)):
                     continue
                 ef.append(dict(part=part, a=a, b=b, c=c, K=K, seeds=sn, role_a=role_of(a), role_b=role_of(b), a_same_as=same_as[(c, K, a)], b_same_as=same_as[(c, K, b)],
-                               **eff(As, Bs, c, ("A", part, a, b, c, K, sn))))
+                               same_pred=bool(psig[(c, K, a)].hexdigest() == psig[(c, K, b)].hexdigest()), **eff(As, Bs, c, ("A", part, a, b, c, K, sn))))
     return lv, ef, pe
+
+
+def units1_digest() -> str:
+    """実験 1 の評価の回の単位の保存（段 1〜3 の npz）の名前と sha256 を並べた文字列の sha256．学び直しの段の入力の記録に使う．"""
+    fs = sorted((OUT1 / "eval" / "units").glob("*_ALL_f*_r*_p[123].npz"))
+    return f"{len(fs)}:" + hashlib.sha256("".join(f"{q.name} {dai15.sha(q)}\n" for q in fs).encode()).hexdigest()
 
 
 def stage_summary(out: Path, allow_partial: bool) -> None:
@@ -614,7 +631,7 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
     if files:
         cs = pd.concat([pd.read_csv(p, low_memory=False) for p in files], ignore_index=True)
         ucom4 = check_commits(cs, "students4")
-        cells = {}
+        cells, psig = {}, {}
         for p in files:
             T, f, r = p.stem.split("_ALL_")[0], int(p.stem.split("_f")[1].split("_r")[0]), int(p.stem.rsplit("_r", 1)[1])
             z, z20 = np.load(p.with_suffix(".npz"), allow_pickle=False), np.load(OUT20 / "units" / f"{p.stem}.npz", allow_pickle=False)
@@ -632,14 +649,16 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                          **{v: (z20, f"pred_raw_K{K}_{v}") for v in ("none_AVT", "joint_AVT") + B_VERS}}
                 for v, (src, kk) in names.items():
                     P12._add(cells.setdefault((T, K, v), {}), (f, r), ST.counts(yt, src[kk].astype(int), z["cl_test"]), f"{p.stem} {v}")
+                    psig.setdefault((T, K, v), hashlib.sha256()).update(np.ascontiguousarray(src[kk].astype(np.int8)).tobytes())
                     if v in ("stud_prop", "stud_prod", "joint_AVT", "none_AVT", "prop", "prod"):
                         add_conf(T, K, v, yt, src[kk])
         P12._finish(cells)
         con = ([("stud_prop", b) for b in ("stud_prod", "joint_AVT", "none_AVT", "prop", "prod") + ST_EX + B_VERS]
                + [("stud_prop_sel", "stud_prod_sel"), ("stud_prod", "joint_AVT"), ("joint_AVT", "none_AVT"), ("prop", "joint_AVT")]
                + [(s_, "stud_prod") for s_ in ST_EX] + [(b, "joint_AVT") for b in B_VERS]
-               + [("stud_prop", f"{m_}_prop") for m_ in EX1] + [(f"{m_}_prop", f"b_{m_}") for m_ in EX1] + [(f"{m_}_prod", f"b_{m_}") for m_ in EX1])
-        a, b, e = table_block(cells, con, {c: ST.g_eff_of(c)[0] for c in C4}, "4corpora")
+               + [("stud_prop", f"{m_}_prop") for m_ in EX1] + [(f"{m_}_prop", f"b_{m_}") for m_ in EX1] + [(f"{m_}_prod", f"b_{m_}") for m_ in EX1]
+               + [(f"{m_}_prop", f"{m_}_prod") for m_ in EX1])                 # 同じ手法・同じ設定で，疑似ラベルだけをこの実験の中で替えた差
+        a, b, e = table_block(cells, con, {c: ST.g_eff_of(c)[0] for c in C4}, "4corpora", psig)
         lv += a; ef += b; pe += e
         st = cs[cs.version.astype(str).str.startswith("stud_")].assign(T=lambda d: d.name.str.split("_ALL_").str[0])
         grid_rows.append(st.groupby(["T", "K", "version", "grid", "rho", "a"])[["uar", "mimic", "teacher_uar"]].agg(["mean", "count"]).reset_index().rename(columns={"T": "c"}).assign(part="4corpora"))
@@ -656,7 +675,7 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
     if files:
         cs = pd.concat([pd.read_csv(p, low_memory=False) for p in files], ignore_index=True)
         ucomc = check_commits(cs, "cremad")
-        cells = {}
+        cells, psig = {}, {}
         fk = P18.fus(CD)
         for p in files:
             f, r = int(p.stem.split("_f")[1].split("_r")[0]), int(p.stem.rsplit("_r", 1)[1])
@@ -677,6 +696,7 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                              **{f"full_{k}": f"pred_raw_K0_full_{k}" for k in ("A", "V", fk)}, **{f"start_{k}": f"pred_raw_K0_start_{k}" for k in ("A", "V", fk)})
                 for v, kk in names.items():
                     P12._add(cells.setdefault((CD, K, v), {}), (f, r), ST.counts(yt, z[kk].astype(int), z["cl_test"]), f"{p.stem} {v}")
+                    psig.setdefault((CD, K, v), hashlib.sha256()).update(np.ascontiguousarray(z[kk].astype(np.int8)).tobytes())
                     if v in ("stud_prop", "stud_prod", f"none_{fk}", "prop", "prod"):
                         add_conf(CD, K, v, yt, z[kk])
                 Dk, Do, De = z[f"D_M_K_K{K}"], z[f"D_M_orc_K{K}"], z["D_M_ext"]
@@ -687,7 +707,7 @@ def stage_summary(out: Path, allow_partial: bool) -> None:
                + [("prop_noint", "prop_noprof"), ("prop", "prop@raw")] + [("prop@raw", f"{b}@raw") for b in A2] + [("prop", f"{b}@raw") for b in A2[1:]]
                + [("stud_prop", b) for b in ("stud_prod", nf, "prop", "prod") + ST_EX] + [("stud_prop_sel", "stud_prod"), ("stud_prod", nf), ("stud_prod", "prod")]
                + [(s_, "stud_prod") for s_ in ST_EX])
-        a, b, e = table_block(cells, con, {CD: P18.g_eff_of(CD)}, "cremad")
+        a, b, e = table_block(cells, con, {CD: P18.g_eff_of(CD)}, "cremad", psig)
         lv += a; ef += b; pe += e
         mods = P18.MODS_OF[CD]
         pd.DataFrame([dict(c=CD, K=K, mod=m, emotion=e_, w_prop=float(W[0, j, e_]), w_orc=float(W[1, j, e_]), w_K=float(W[2, j, e_]), w_ext=float(W[3, j, e_]),
@@ -872,7 +892,10 @@ def main() -> None:
                 frozen_sha256=dai15.sha(FROZEN), frozen20_sha256=dai15.sha(FROZEN20),
                 inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
                                **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
-                               "dai18_splits_new.csv": dai15.sha(OUT18 / "splits_new.csv")}, dai20_provenance_sha256=(dai15.sha(OUT20 / "provenance.json") if (OUT20 / "provenance.json").exists() else ""),
+                               "dai18_splits_new.csv": dai15.sha(OUT18 / "splits_new.csv"),
+                               **{f"metadata/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "metadata").glob("*.csv"))},
+                               **{f"cache/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "cache").glob("*.npz"))}},
+                dai1_eval_units_digest=(units1_digest() if args.stage == "students4" else ""), dai20_provenance_sha256=(dai15.sha(OUT20 / "provenance.json") if (OUT20 / "provenance.json").exists() else ""),
                 KS=KS, SGRID=[list(x) for x in SGRID], rng_seed=SEED, wf_tables2_sha256=hashlib.sha256(tables_of(2).tobytes()).hexdigest(),
                 consts=dict(AGREE_MIN=AGREE_MIN, GRAD_TOL=P16.GRAD_TOL, EXTRA_T=EXTRA_T, EX1=EX1, FULL_K=FULL_K, N_SEL_CD=N_SEL_CD, NF=NF, WATCH=WATCH, FIXED=FIXED))
     with open(out / "provenance_log.jsonl", "a") as fh:

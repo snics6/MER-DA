@@ -1,0 +1,10 @@
+              unit  K  n_versions  agree_min worst  n_exact
+AFEW_IEMOCAP_f0_r0  5          38        1.0  prod       38
+AFEW_IEMOCAP_f0_r0 25          38        1.0  prod       38
+   MELD_AFEW_f1_r1  5          38        1.0  prod       38
+   MELD_AFEW_f1_r1 25          38        1.0  prod       38
+check3：通った
+
+real	1m7.117s
+user	3m0.313s
+sys	0m36.957s
