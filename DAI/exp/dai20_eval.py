@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
 import json
 import math
 import platform
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -60,18 +62,28 @@ SEED = 20261114 + 20
 WF_MS = (10, 100, 1000)                  # K 本で重みの表を探す版：乱数の表の数（等しい重みの表を別に 1 つ足す）
 N_WF = max(WF_MS)
 TAU_T = P16.TAU_F8                       # K 本で合わせたモダリティごとの重み：1 へ引く罰則の強さ（実験 16 の F8 と同じ 0.01．この相手のために選んでいない）
-A_VERS = ("prod", "avg", "conf", "M_F2_K", "M_F6_K", "cf_D_l05", "temp", "tempb") + tuple(f"wf{m}" for m in WF_MS)   # 比べる相手 A（同じ 3 つの分類器の答えのまとめ方）
-ABL = ("prop_noprof", "prop_noprof_sel", "prop_noint", "prop_n0zero", "prop_home")                               # 提案の部品を 1 つ外した版
+A_VERS = ("prod", "psel", "avg", "conf", "M_F2_K", "M_F6_K", "cf_D_l05", "tcal", "temp", "tempb") + tuple(f"wf{m}" for m in WF_MS)   # 比べる相手 A（同じ 3 つの分類器の答えのまとめ方）
+ABL = ("prop_noprof", "prop_noprof_sel", "prop_noint", "prop_n0zero", "prop_home", "prop_levelfree")             # 提案の部品を 1 つ外した版
+TEMP_MODES = {"tcal": "sep", "temp": "joint", "tempb": "joint_b"}
 REF_VERS = ("M_F6_ext", "M_F8")                                        # 参考（ソースのラベルだけで作る表）
 ORC_VERS = ("M_F6_orc",)                                               # 参照（T の候補の全ラベルで測った表．実際には使えない）
 B_METHODS = ("kd", "agree", "mix", "cotrain", "coreg")                 # 実験 1 の 5 つの比較手法（融合の分類器．主の版）
 B_VERS = tuple(f"b_{m}" for m in B_METHODS)
-PLAIN = ("none_AVT", "joint_AVT", "ret_A", "ret_V", "ret_T", "prod_sel") + B_VERS    # 切片をずらさない判定だけを持つ版
+PLAIN = ("none_AVT", "joint_AVT", "ret_A", "ret_V", "ret_T") + B_VERS                # 切片をずらさない判定だけを持つ版（学び直した 1 つの分類器）
 B_ROWS = {"none": "none_AVT", "joint|one|main": "joint_AVT", "cand:kd|one": "b_kd", "cand:agree|one": "b_agree", "cand:mix|one": "b_mix",
           "cand:cotrain|ct": "b_cotrain", "cand:coreg|cr": "b_coreg"}   # 実験 1 の集計の行の名前 → この台本の版
 SEED_SETS = {"all": None, "0-1": (0, 1), "2-9": tuple(range(2, 10)), "0-2": (0, 1, 2)}
 SCRIPTS = ("dai20_eval.py", "dai16_probe.py", "dai15.py", "dai12_probe.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
 RUN = {"commit": "", "dirty": True}
+WATCH = tuple(f"DAI/exp/{n}" for n in SCRIPTS) + ("DAI/frozen/dai20_frozen.json", "DAI/splits", "measure", "features", "data/metadata", "DAI/docs/実験20_設計.md")
+
+
+def same_code(commit: str) -> bool:
+    """単位の csv に書かれたコミットと今の HEAD のあいだで，計算に関わるファイル（台本と部品，固定のファイル，分割，読み込み，発話一覧，設計）に差が無いか．
+    途中で止まった計算を，関係の無いコミットの後でも続きから流せるようにする（差があれば止める）．"""
+    if commit == RUN["commit"]:
+        return True
+    return subprocess.run(["git", "diff", "--quiet", str(commit), "HEAD", "--", *WATCH], cwd=ROOT).returncode == 0
 WS = np.concatenate([np.ones((1, 3, 4)), 3.0 * np.random.default_rng([SEED, 1]).dirichlet(np.ones(3), size=(N_WF, 4)).transpose(0, 2, 1)])
 # WS：(1 + N_WF, 分類器 3, 感情 4)．表 0 は等しい重み（全部 1）．表 1〜N_WF は，感情ごとに 3 つの分類器の重みを Dirichlet(1, 1, 1) から引いて 3 倍した表
 # （感情ごとの和は 3，12 個の平均は 1．提案の重みと同じ大きさ）．全部の単位と K で同じ表を使う．候補の数 m の版は，表 0 と表 1〜m を候補にする．
@@ -80,8 +92,11 @@ SETTINGS = dict(KS=list(KS), layer="adj（候補の上の確率の平均を積�
                         select="K 本の上の UAR（組 j の発話は，組 j を抜いて作った分類器の確率と，その分類器の候補の上の確率から決めた切片で判定）が最大の表",
                         tie="最大に並んだ表の平均を使う（最大が表 0 だけなら積の判定をそのまま使う）"),
                 temp=dict(fit="K 本の抜いた確率（中心化した対数）の，感情ごとに等しい重みの対数尤度", tau=TAU_T, bounds=[0.0, P16.W_MAX],
+                          tcal="分類器ごとに別々に，その分類器だけの対数尤度で重み 1 つを合わせる", temp="3 つの重みを，まとめた答えの対数尤度で同時に合わせる",
                           tempb="切片 4 つも同時に合わせ，重みだけを使う"),
-                conf="発話ごとに，各分類器の重み ＝ その分類器の最大の確率", avg="3 つの確率の平均")
+                wf_tables_sha256=hashlib.sha256(WS.tobytes()).hexdigest(),
+                conf="発話ごとに，各分類器の重み ＝ その分類器の最大の確率", avg="3 つの確率の平均",
+                psel="実験 1 が別のコーパスで選んだ指数（固定のファイルの w）を平均 1 に割って掛ける積")
 
 
 def dev() -> torch.device:
@@ -176,8 +191,9 @@ def unit_list(tag: str, targets, folds, seeds) -> list:
     return out
 
 
-def match_shift_batch(Lp: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    """P16.match_shift を表の束 Lp (表, 発話, 4) に当てる．表ごとに同じ式・同じ止め方（収束した表は動かさない）．戻り：切片のずれ (表, 4)．"""
+def match_shift_batch(Lp: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, int]:
+    """P16.match_shift を表の束 Lp (表, 発話, 4) に当てる．表ごとに同じ式・同じ止め方（収束した表は動かさない）．
+    戻り：(切片のずれ (表, 4)，反復の上限までに収束しなかった表の数)．"""
     d = torch.zeros(Lp.shape[0], 4, dtype=Lp.dtype, device=Lp.device)
     lt = torch.log(target.clamp(min=1e-12))
     live = torch.arange(Lp.shape[0], device=Lp.device)
@@ -190,15 +206,16 @@ def match_shift_batch(Lp: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         upd = upd - upd.mean(1, keepdim=True)
         d[live[~done]] = upd[~done]
         live = live[~done]
-    return d
+    return d, int(len(live))
 
 
-def wf_search(LMh: np.ndarray, yk: np.ndarray, fold: np.ndarray, LMpj: list) -> np.ndarray:
+def wf_search(LMh: np.ndarray, yk: np.ndarray, fold: np.ndarray, LMpj: list) -> tuple[np.ndarray, int]:
     """表 WS のそれぞれについて，K 本の上の UAR（%）を adj の層で測る．組 j の発話は，組 j を抜いて作った分類器の点（LMh の行）に，
     その分類器の候補の上の点（LMpj[j]：(3, 候補, 4)）からラベルを使わずに決めた切片を足して判定する（実験 16 の入れ子と同じ切片の決め方）．"""
     dv = dev()
     W = torch.tensor(WS, dtype=torch.float64, device=dv)
     pred = torch.empty((len(WS), len(yk)), dtype=torch.long, device=dv)
+    ncap = 0
     for j in range(NF):
         te = np.flatnonzero(fold == j)
         Lj = torch.tensor(LMpj[j], dtype=torch.float64, device=dv)
@@ -208,7 +225,8 @@ def wf_search(LMh: np.ndarray, yk: np.ndarray, fold: np.ndarray, LMpj: list) -> 
         for a in range(0, len(WS), step):
             Sp = torch.einsum("rky,kny->rny", W[a:a + step], Lj)
             Sp = Sp - torch.logsumexp(Sp, -1, keepdim=True)
-            d = match_shift_batch(Sp, tgt)
+            d, nc = match_shift_batch(Sp, tgt)
+            ncap += nc
             Sh = torch.einsum("rky,kny->rny", W[a:a + step], Lh)
             Sh = Sh - torch.logsumexp(Sh, -1, keepdim=True)
             pred[a:a + step, te] = (Sh + d[:, None, :]).argmax(-1)
@@ -216,7 +234,7 @@ def wf_search(LMh: np.ndarray, yk: np.ndarray, fold: np.ndarray, LMpj: list) -> 
     y = torch.tensor(yk, device=dv)
     hit = (pred == y[None]).double()
     ua = torch.stack([hit[:, y == c].mean(1) for c in range(4) if bool((y == c).any())], 1).mean(1)
-    return (100.0 * ua).cpu().numpy()
+    return (100.0 * ua).cpu().numpy(), ncap
 
 
 def wf_pick(ua: np.ndarray, m: int) -> tuple[np.ndarray, np.ndarray]:
@@ -226,9 +244,13 @@ def wf_pick(ua: np.ndarray, m: int) -> tuple[np.ndarray, np.ndarray]:
     return WS[tied].mean(0), tied
 
 
-def temp_w(LM: np.ndarray, y: np.ndarray, fit_b: bool) -> np.ndarray:
-    """モダリティごとの重み 3 つ（温度の逆数に当たる）を，感情ごとに等しい重みの対数尤度で合わせる（1 へ引く罰則 TAU_T，範囲 0〜W_MAX）．"""
-    return np.asarray(P16.fit_wb(LM, y, np.ones(3), TAU_T, fit_w=True, fit_b=fit_b)[0], float)
+def temp_w(LM: np.ndarray, y: np.ndarray, mode: str) -> np.ndarray:
+    """モダリティごとの重み（温度の逆数に当たる）を，感情ごとに等しい重みの対数尤度で合わせる（1 へ引く罰則 TAU_T，範囲 0〜W_MAX）．
+    sep：分類器ごとに別々に，その分類器だけの答えの対数尤度で合わせる（分類器ごとの温度の較正）．
+    joint：3 つを同時に，まとめた答えの対数尤度で合わせる（重みつき対数線形プール）．joint_b：joint に切片 4 つを足して合わせ，重みだけを使う．"""
+    if mode == "sep":
+        return np.array([float(P16.fit_wb(LM[k:k + 1], y, np.ones(1), TAU_T, fit_w=True, fit_b=False)[0][0]) for k in range(LM.shape[0])])
+    return np.asarray(P16.fit_wb(LM, y, np.ones(LM.shape[0]), TAU_T, fit_w=True, fit_b=(mode == "joint_b"))[0], float)
 
 
 def b_preds(sv, K: int) -> dict:
@@ -244,9 +266,9 @@ def b_preds(sv, K: int) -> dict:
     return out
 
 
-def add_extra(arr: dict, rows: list, bp: dict) -> None:
+def add_extra(arr: dict, rows: list, bp: dict, wsel: dict) -> None:
     """実験 16 の単位の出力（arr・rows）に，比べる相手と部品を外した版の判定を足す．使うのは arr の確率（float32）と表だけ．
-    bp：{K: {版: 判定}}（実験 1 の比較手法の判定の写し）．"""
+    bp：{K: {版: 判定}}（実験 1 の比較手法の判定の写し）．wsel：{K: 指数 3 つ}（実験 1 が別のコーパスで選んだ積の指数）．"""
     yt, yp = arr["y_test"].astype(int), arr["y_pool"].astype(int)
     pairs = list(itertools.combinations(range(NF), 2))
     pidx = {p: n for n, p in enumerate(pairs)}
@@ -273,12 +295,16 @@ def add_extra(arr: dict, rows: list, bp: dict) -> None:
         def f6(W: np.ndarray, LM: np.ndarray) -> np.ndarray:
             return P16.norm_log(np.einsum("ky,kny->ny", W, LM))
 
+        # ---- 別のコーパスで選んだ指数の積（指数は平均 1 に割る．切片をずらす前の判定は実験 1 の prod_sel と同じ式）
+        ws = np.asarray(wsel[K], float)
+        ws = ws / ws.mean() if ws.mean() > 0 else np.ones(3)
+        put("psel", P16.norm_log(np.tensordot(ws, LMt, axes=1)), P16.norm_log(np.tensordot(ws, LMp, axes=1)), w_A=ws[0], w_V=ws[1], w_T=ws[2])
         # ---- 確率の平均，確信度で重みづける平均
         put("avg", P16.lg(np.mean(Pt, 0)), P16.lg(np.mean(Pp, 0)))
         ct, cp = np.stack([p.max(1) for p in Pt]), np.stack([p.max(1) for p in Pp])
         put("conf", P16.lg((ct[:, :, None] * np.stack(Pt)).sum(0) / ct.sum(0)[:, None]), P16.lg((cp[:, :, None] * np.stack(Pp)).sum(0) / cp.sum(0)[:, None]))
-        # ---- K 本で合わせたモダリティごとの重み（temp：重みだけ．tempb：切片も同時に合わせ，重みだけを使う）
-        for v, fb in (("temp", False), ("tempb", True)):
+        # ---- K 本で合わせたモダリティごとの重み（tcal：分類器ごとに別々．temp：3 つを同時．tempb：切片も同時に合わせ，重みだけを使う）
+        for v, fb in TEMP_MODES.items():
             w = temp_w(LMh, yk, fb)
             est = np.empty((len(kpos), 4))                                      # K 本での見積もり（入れ子）：組 j の発話は，組 j を使わずに合わせた重みで当てる
             for j in range(NF):
@@ -288,14 +314,15 @@ def add_extra(arr: dict, rows: list, bp: dict) -> None:
                 dl, _ = P16.match_shift(P16.norm_log(np.tensordot(wj, LMpj[j], axes=1)), np.exp(P16.norm_log(LMpj[j].sum(0))).mean(0))
                 est[te] = P16.norm_log(np.tensordot(wj, LMh[:, te], axes=1) + dl)
             put(v, P16.norm_log(np.tensordot(w, LMt, axes=1)), P16.norm_log(np.tensordot(w, LMp, axes=1)), w_A=w[0], w_V=w[1], w_T=w[2],
-                est_uar=100 * S.uar(yk, est.argmax(1)), est_ll=P16.bal_ll(est, yk))
+                w_bound=float(((w <= 1e-9) | (w >= P16.W_MAX - 1e-9)).mean()), est_uar=100 * S.uar(yk, est.argmax(1)), est_ll=P16.bal_ll(est, yk))
             arr[f"W_{v}_K{K}"] = w
         # ---- K 本で重みの表を探す版（候補の数 m ごと）
-        ua = wf_search(LMh, yk, fold, LMpj)
+        ua, ncap = wf_search(LMh, yk, fold, LMpj)
         arr[f"wf_uar_K{K}"] = ua.astype(np.float32)
         for m in WF_MS:
             W, tied = wf_pick(ua, m)
-            ex = dict(wf_index=int(tied[0]), wf_n_tied=len(tied), wf_uar_k=float(ua[tied[0]]), wf_uar_k_eq=float(ua[0]))
+            ex = dict(wf_index=int(tied[0]), wf_n_tied=len(tied), wf_uar_k=float(ua[tied[0]]), wf_uar_k_eq=float(ua[0]), wf_n_capped=ncap)
+            arr[f"wf_tied{m}_K{K}"] = tied.astype(np.int16)                      # 最大に並んだ表の番号
             if len(tied) == 1 and tied[0] == 0:                                  # 等しい重みの表だけが最大：積の判定をそのまま使う
                 for w_ in ("raw", "adj"):
                     arr[f"pred_{w_}_K{K}_wf{m}"] = arr[f"pred_raw_K{K}_prod"]
@@ -318,7 +345,8 @@ def add_extra(arr: dict, rows: list, bp: dict) -> None:
             Wh = P16.to_w(np.maximum(0.0, lev + (Dhome - Dhome.mean(1, keepdims=True))))
             put(f"M_F6h_mix{i}", f6(Wh, LMt), f6(Wh, LMp))
         e0 = float((f6(np.ones((3, 4)), LMt).argmax(1) == arr[f"pred_raw_K{K}_prod"]).mean())
-        rows.append(dict(K=K, version="_check20", recheck_agree_min=min(agree), eq_agree=e0))
+        e1 = float((arr[f"pred_raw_K{K}_psel"] == arr[f"pred_raw_K{K}_prod_sel"]).mean())
+        rows.append(dict(K=K, version="_check20", recheck_agree_min=min(agree), eq_agree=e0, psel_agree=e1))
         # ---- 実験 1 の比較手法の判定の写し
         for v, p in bp[K].items():
             if len(p) != len(yt):
@@ -329,20 +357,21 @@ def add_extra(arr: dict, rows: list, bp: dict) -> None:
 
 def stage_units(out: Path, tag: str, targets, folds, seeds) -> None:
     fz1, _ = dai3.load_fz1(OUT1)
+    load_frozen()                                                           # 固定のファイルの設定が台本と合うことを，計算の前に確かめる
     udir = out / "units"
     udir.mkdir(parents=True, exist_ok=True)
     gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""
     for T, c, f, r, name in unit_list(tag, targets, folds, seeds):
         if (udir / f"{name}.csv").exists():
-            if (pd.read_csv(udir / f"{name}.csv", low_memory=False).commit == RUN["commit"]).all():
+            if all(same_code(x) for x in pd.read_csv(udir / f"{name}.csv", low_memory=False).commit.unique()):
                 print(f"{name}：済み（飛ばす）", flush=True)
                 continue
-            raise SystemExit(f"{name} が別のコミットで既にある")
+            raise SystemExit(f"{name} が，計算に関わるファイルの違うコミットで既にある")
         t0 = time.time()
         sv = dai3.Saved(OUT1, tag, T, c, f, r, fz1[T])
         rows, arr = P16.run_unit(sv)
         t1 = time.time()
-        add_extra(arr, rows, {K: b_preds(sv, K) for K in KS})
+        add_extra(arr, rows, {K: b_preds(sv, K) for K in KS}, sv.wsel)
         np.savez_compressed(udir / f"{name}.npz", **arr)                    # npz を先に書き，csv を済みの印にする
         df = pd.DataFrame(rows).assign(T=T, c=c, fold=f, seed=r, tag=tag, commit=RUN["commit"], dirty=RUN["dirty"], sec=time.time() - t0, sec_extra=time.time() - t1,
                                        host=platform.node(), gpu=gpu, dai1_commits=",".join(sorted(sv.commits)))
@@ -359,7 +388,7 @@ def stage_units(out: Path, tag: str, targets, folds, seeds) -> None:
 
 def role_of(v: str) -> str:
     b = v.split("@")[0]
-    return ("proposal" if b == "prop" else "A" if b in A_VERS + ("prod_sel",) else "ablation" if b in ABL else "selection" if b == "prop_loto" else
+    return ("proposal" if b == "prop" else "A" if b in A_VERS else "ablation" if b in ABL else "selection" if b == "prop_loto" else
             "oracle" if b in ORC_VERS + ("oracle_grid",) else "reference" if b in REF_VERS else "single" if b.startswith("ret_") else "B")
 
 
@@ -372,8 +401,8 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
     if len(files) != len(exp) and not allow_partial:
         raise SystemExit(f"units の出力が {len(files)} 個（{len(exp)} のはず）")
     csvs = pd.concat([pd.read_csv(p.with_suffix(".csv"), low_memory=False) for p in files], ignore_index=True)
-    if csvs.commit.nunique() != 1 and not allow_partial:
-        raise SystemExit("units のコミットが 1 つでない")
+    if not all(same_code(x) for x in csvs.commit.unique()) and not allow_partial:
+        raise SystemExit("units の中に，計算に関わるファイルの違うコミットの単位がある")
     if csvs.duplicated(["T", "c", "fold", "seed", "K", "version"]).any():
         raise SystemExit("units の行が重なっている")
     geff = {c: ST.g_eff_of(c)[0] for c in CORP}
@@ -384,7 +413,8 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
             raise SystemExit(f"差の単位がそろわない：{k_}")
         es = ST.effect_stats(A, B, geff[c], seed_rng(*k_))
         return dict(est=es["effect"], lo=es["lo"], hi=es["hi"], se=es["se"], df=es.get("df", np.nan), method=es["method"], n_fr=es["n_units"],
-                    n_folds=es["n_folds"], folds_dropped=es.get("folds_dropped", ""), mark=P16.verdict(es["lo"], es["hi"], es["effect"]))
+                    n_folds=es["n_folds"], folds_dropped=es.get("folds_dropped", ""), v_cluster=es.get("v_jk", np.nan), v_seed=es.get("v_seed", np.nan),
+                    mark={"上回る": "↑", "下回る": "↓"}.get(P16.verdict(es["lo"], es["hi"], es["effect"]), ""))   # 表の読みやすさのための印（判定ではない）
 
     # ---- 格子の全点の UAR（adj）と 3 通りの選び方（固定：下調べが選んだ点．loto：ほかの 3 つの評価のターゲットの平均が最大の点．oracle：自分のテストで最大の点）
     g = csvs[csvs.version.astype(str).str.fullmatch(r"M_F6_mix\d+")].copy()
@@ -400,7 +430,8 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
             i_fz, j_np = frozen[c][K]
             i_lo = int(oth.idxmax()) if len(oth) else i_fz                          # 同点は番号の小さい点
             i_or = int(own.idxmax())
-            pick[(c, K)] = dict(prop=i_fz, prop_noprof=same_but(i_fz, beta=0.0), prop_noprof_sel=j_np, prop_n0zero=same_but(i_fz, n0=0.0), prop_loto=i_lo, oracle_grid=i_or)
+            pick[(c, K)] = dict(prop=i_fz, prop_noprof=same_but(i_fz, beta=0.0), prop_noprof_sel=j_np, prop_n0zero=same_but(i_fz, n0=0.0), prop_loto=i_lo, oracle_grid=i_or,
+                                prop_levelfree=GRID.index((float("inf"), 1.0, "eq")))        # 水準を K 本で測らない版（水準は 3 つとも同じ．相性はソース）
             for i in range(NG):
                 grows.append(dict(c=c, K=K, grid=i, n0=GRID[i][0], beta=GRID[i][1], prior=GRID[i][2], uar_adj=float(own.get(i, np.nan)),
                                   uar_adj_others=float(oth.get(i, np.nan)), frozen=bool(i == i_fz), loto=bool(i == i_lo), oracle=bool(i == i_or)))
@@ -438,6 +469,22 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
     for (c, K, v), dd in cells.items():
         emo[(c, K, v)] = (sum(x[1].sum(0) for x in dd.values()), sum(x[2].sum(0) for x in dd.values()))
     P12._finish(cells)
+    # 同じ数になる版：(T, K) ごとに，全部の単位で塊ごと・感情ごとの正解の数が同じ版をまとめ，並びで最初の版の名前を same_as に書く（1 つだけの版は空）
+    same_as = {}
+    for c in CORP:
+        for K in KS:
+            vs = [v for (c2, K2, v) in cells if c2 == c and K2 == K]
+            vs = [v for v in ("prod", "prop") if v in vs] + [v for v in vs if v not in ("prod", "prop")]
+            first, size = {}, {}
+            for v in vs:
+                dd = cells[(c, K, v)]
+                sig = hashlib.sha256(b"".join(repr(k_).encode() + np.ascontiguousarray(dd[k_][1]).tobytes() for k_ in sorted(dd))).hexdigest()
+                first.setdefault(sig, v)
+                size[sig] = size.get(sig, 0) + 1
+                same_as[(c, K, v)] = sig
+            for v in vs:
+                sig = same_as[(c, K, v)]
+                same_as[(c, K, v)] = first[sig] if size[sig] > 1 else ""
 
     def zero(A: dict) -> dict:                                              # 同じ件数で正解 0 の数（水準の区間を effect_stats で作るための相手．実験 1 の dai1_desc.zero_of と同じ）
         return {k_: (x[0], np.zeros_like(x[1]), x[2]) for k_, x in A.items()}
@@ -457,19 +504,21 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
                 continue
             e_ = eff(ds, zero(ds), c, ("L", c, K, v, sn))
             lrows.append(dict(c=c, K=K, version=v, role=role_of(v), seeds=sn, uar=e_["est"], lo=e_["lo"], hi=e_["hi"], se=e_["se"], df=e_["df"], method=e_["method"],
-                              n_fr=e_["n_fr"], grid=pick[(c, K)].get(v.split("@")[0], -1)))
+                              n_fr=e_["n_fr"], grid=pick[(c, K)].get(v.split("@")[0], -1), same_as=same_as[(c, K, v)]))
         cor, tot = emo[(c, K, v)]
         full = all((x[2].sum(0) > 0).all() for x in dd.values())             # 全部の単位のテストに 4 感情がそろうときだけ区間を作る
         for i in range(4):
             r_ = eff(only(dd, i), zero(dd), c, ("E", c, K, v, i)) if full else None
             erows.append(dict(c=c, K=K, version=v, role=role_of(v), emotion=i, recall=(4 * r_["est"] if full else np.nan), lo=(4 * r_["lo"] if full else np.nan),
-                              hi=(4 * r_["hi"] if full else np.nan), n_fr=(r_["n_fr"] if full else 0), recall_pooled=100 * cor[i] / max(tot[i], 1), n=float(tot[i])))
+                              hi=(4 * r_["hi"] if full else np.nan), n_fr=(r_["n_fr"] if full else 0), recall_pooled=100 * cor[i] / max(tot[i], 1), n=float(tot[i]),
+                              n_units=len(dd), n_per_seed=float(tot[i]) * len({k_[0] for k_ in dd}) / len(dd)))   # n は全部の単位の合計．n_per_seed は種 1 つぶん（別々の発話の数）
     pd.DataFrame(erows).to_csv(sdir / "per_emotion.csv", index=False)
     lv = pd.DataFrame(lrows)
     lv.to_csv(sdir / "levels.csv", index=False)
-    con = ([("prop", b) for b in A_VERS + ABL + ("none_AVT", "joint_AVT", "prod_sel") + B_VERS + REF_VERS]
+    con = ([("prop", b) for b in A_VERS + ABL + ("none_AVT", "joint_AVT") + B_VERS + REF_VERS]
            + [(a, "prod") for a in A_VERS[1:] + ("prop_noprof", "prop_noprof_sel", "prop_loto", "oracle_grid") + ORC_VERS + REF_VERS]
-           + [("prop_loto", "prop"), ("oracle_grid", "prop"), ("prop", "prop@raw")] + [("prop@raw", f"{b}@raw") for b in A_VERS])
+           + [("prop_loto", "prop"), ("oracle_grid", "prop"), ("prop", "prop@raw"), ("prop_levelfree", "prod"), ("prop_noint", "prop_noprof")]
+           + [("prop@raw", f"{b}@raw") for b in A_VERS] + [("prop", f"{b}@raw") for b in A_VERS[1:]])
     effs = []
     for a, b in con:
         for c in CORP:
@@ -484,7 +533,8 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
                     As, Bs = sub(A, ss), sub(B, ss)
                     if sn == "0-2" or not As or (sn != "all" and len(As) == len(A)):
                         continue
-                    effs.append(dict(a=a, b=b, c=c, K=K, seeds=sn, role_b=role_of(b), same_counts=bool(same), **eff(As, Bs, c, ("A", a, b, c, K, sn))))
+                    effs.append(dict(a=a, b=b, c=c, K=K, seeds=sn, role_a=role_of(a), role_b=role_of(b), same_counts=bool(same), a_same_as=same_as[(c, K, a)],
+                                     b_same_as=same_as[(c, K, b)], **eff(As, Bs, c, ("A", a, b, c, K, sn))))
     pd.DataFrame(effs).to_csv(sdir / "effects.csv", index=False)
     # ---- 仮定の表
     ck = csvs[csvs.version == "_check"]
@@ -496,7 +546,8 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
                        **{f"home_{i}": float(v[3][j, i]) for i in range(4)}) for (T, c_), v in sorted(ret_emo.items()) for j, m in enumerate(MODS)]).to_csv(sdir / "source_tables.csv", index=False)
     pd.DataFrame([dict(c=c, K=K, mod=m, emotion=i, w_prop=float(W[0, j, i]), w_orc=float(W[1, j, i]), w_K=float(W[2, j, i]), w_ext=float(W[3, j, i]), n_units=len(v))
                   for (c, K), v in sorted(wacc.items()) for W in [np.mean(v, 0)] for j, m in enumerate(MODS) for i in range(4)]).to_csv(sdir / "weights.csv", index=False)
-    pd.DataFrame([dict(c=c, K=K, version=v, true=a, pred=b, n=float(M[a, b])) for (c, K, v), M in sorted(conf.items()) for a in range(4) for b in range(4)]).to_csv(
+    pd.DataFrame([dict(c=c, K=K, version=v, true=a, pred=b, n=float(M[a, b]), n_units=len(cells[(c, K, v)])) for (c, K, v), M in sorted(conf.items())
+                  for a in range(4) for b in range(4)]).to_csv(                # n は全部の単位（分割 × 種）の合計
         sdir / "confusion.csv", index=False)
     es_ = csvs[csvs.version.astype(str).str.fullmatch(r"est_M_F6_mix\d+")].copy()
     es_["grid"] = es_.version.str.replace("est_M_F6_mix", "").astype(int)
@@ -505,9 +556,10 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
     eg["rank_uar"] = eg.groupby(["c", "K"]).est_uar.rank(ascending=False, method="min")
     eg["frozen"] = [bool((c, K) in pick and pick[(c, K)]["prop"] == i) for c, K, i in zip(eg.c, eg.K, eg.grid)]
     eg.to_csv(sdir / "est_grid.csv", index=False)
-    wf = csvs[csvs.version.astype(str).str.fullmatch(r"wf\d+|temp|tempb")].copy()
+    wf = csvs[csvs.version.astype(str).str.fullmatch(r"wf\d+|tcal|temp|tempb|cf_D_l05")].copy()
     wf["eq_only_share"] = np.where(wf.wf_index.notna(), ((wf.wf_index == 0) & (wf.wf_n_tied == 1)).astype(float), np.nan)   # 等しい重みの表だけが最大だった単位（その単位では積と同じ判定）
-    fc = [x for x in ("wf_index", "wf_n_tied", "wf_uar_k", "wf_uar_k_eq", "eq_only_share", "w_A", "w_V", "w_T", "est_uar", "est_ll", "uar_raw", "uar_adj") if x in wf.columns]
+    fc = [x for x in ("wf_index", "wf_n_tied", "wf_n_capped", "wf_uar_k", "wf_uar_k_eq", "eq_only_share", "w_A", "w_V", "w_T", "w_bound", "est_uar", "est_ll", "n_unused", "uar_raw", "uar_adj")
+          if x in wf.columns]                                                # wf_uar_k は候補の中の最大の値で，上に偏る（テストの当たりの見積もりではない）
     wf.groupby([key, "K", "version"])[fc].mean().reset_index().rename(columns={key: "c"}).to_csv(sdir / "competitor_fit.csv", index=False)
     # ---- 実験 1・2 から写す値（B：実験 1 の集計の水準と区間．C：実験 2 の集計の水準と「実験 1 の提案 − 手法」の差）と，作り直した値との照合
     oth, dev_b = [], np.nan
@@ -518,7 +570,9 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
             mine = lv[(lv.c == r.T) & (lv.K == r.K) & (lv.version == B_ROWS[r.row]) & (lv.seeds == "all")]
             oth.append(dict(group="B", c=r.T, K=r.K, method=r.row, version=B_ROWS[r.row], uar=r.effect, lo=r.lo, hi=r.hi, se=r.se, n_units=r.n_units, seeds="0-9",
                             uar_here=(float(mine.uar.iloc[0]) if len(mine) else np.nan), source=str(B_SRC.relative_to(ROOT))))
-        dev_b = float(np.nanmax([abs(x["uar"] - x["uar_here"]) for x in oth])) if oth else np.nan
+        dev_b = float(np.max([abs(x["uar"] - x["uar_here"]) for x in oth])) if oth else np.nan      # 欠けた行があれば NaN になり，下で止まる
+        if not allow_partial and len(oth) != len(CORP) * len(KS) * len(B_ROWS):
+            raise SystemExit(f"実験 1 の集計から写す行が {len(oth)} 行（{len(CORP) * len(KS) * len(B_ROWS)} のはず）")
         if not allow_partial and not (dev_b < 1e-6):
             raise SystemExit(f"実験 1 の集計から写した水準と，この実験で作り直した水準が {dev_b:.2e} 違う")
         cc = pd.read_csv(C_SRC, low_memory=False)
@@ -526,21 +580,25 @@ def stage_summary(out: Path, tag: str, allow_partial: bool) -> None:
         for r in cc.itertuples():
             oth.append(dict(group="C", c=r.T, K=r.K, method=r.method, version="", uar=r.uar_other, lo=np.nan, hi=np.nan, se=np.nan, n_units=r.n_units,
                             seeds=("0-2" if r.n_units == 15 else "0-9"), gradient=bool(r.gradient), appendix=bool(r.appendix), point=r.point,
+                            descriptive_version=bool(r.descriptive_version), exp2_group=str(r.group),
                             exp1prop_minus_method=r.effect, exp1prop_minus_method_lo=r.lo, exp1prop_minus_method_hi=r.hi, uar_exp1prop_same_units=r.uar_prop,
                             source=str(C_SRC.relative_to(ROOT))))
     pd.DataFrame(oth).to_csv(sdir / "others.csv", index=False)
     c2 = csvs[csvs.version == "_check20"]
     json.dump(dict(n_units=len(files), teacher_dev_max=float(ck.teacher_dev.max()), grad_max=float(ck.grad.max()), stalled=int(ck.stalled.sum()),
                    adj_resid_max=float(csvs.adj_resid.max()), recheck_agree_min=float(c2.recheck_agree_min.min()), eq_agree_min=float(c2.eq_agree.min()),
+                   psel_agree_min=float(c2.psel_agree.min()),
                    others_B_dev_max=dev_b, others_sha256=({str(q.relative_to(ROOT)): dai15.sha(q) for q in (B_SRC, C_SRC)} if tag == "eval" else {}),
                    sec_total=float(csvs.groupby(["T", "c", "fold", "seed"]).sec.first().sum())), open(sdir / "convergence.json", "w"), indent=1)
-    print(f"summary：単位 {len(files)}，差の行 {len(effs)}，水準の行 {len(lrows)}", flush=True)
+    print(f"summary：単位 {len(files)}，差の行 {len(effs)}，水準の行 {len(lrows)}．作り直した提案の判定の一致の最小 {c2.recheck_agree_min.min():.6f}，"
+          f"等しい重みの表と積の一致の最小 {c2.eq_agree.min():.6f}，指数の積の作り直しの一致の最小 {c2.psel_agree.min():.6f}，"
+          f"切片の反復が上限に当たった表の数 {int(csvs.wf_n_capped.fillna(0).sum())}", flush=True)
 
 
 # ------------------------------------------------------------------ 検算
 
 def selftest() -> None:
-    assert len(GRID) == 16 and GRID[2] == (0.0, 1.0, "eq")
+    assert len(GRID) == 16 and GRID[2] == (0.0, 1.0, "eq") and GRID[14] == (float("inf"), 1.0, "eq")
     for i, (n0, b, p) in enumerate(GRID):
         assert GRID[same_but(i, beta=0.0)] == (n0, 0.0, p) and GRID[same_but(i, n0=0.0)] == (0.0, b, p)
     assert WS.shape == (N_WF + 1, 3, 4) and np.allclose(WS.sum(1), 3.0) and np.allclose(WS[0], 1.0) and WS.min() >= 0
@@ -553,7 +611,9 @@ def selftest() -> None:
     tgt = np.exp(P16.norm_log(LM.sum(0))).mean(0)
     Sp = np.einsum("rky,kny->rny", WS[:6], LM)
     Sp = Sp - scipy.special.logsumexp(Sp, axis=-1, keepdims=True)
-    db = match_shift_batch(torch.tensor(Sp), torch.tensor(tgt)).numpy()
+    db, ncap = match_shift_batch(torch.tensor(Sp), torch.tensor(tgt))
+    db = db.numpy()
+    assert ncap == 0
     for r_ in range(6):
         d1, rs = P16.match_shift(Sp[r_], tgt)
         assert np.abs(db[r_] - d1).max() < 1e-9 and rs < 1e-6, (r_, np.abs(db[r_] - d1).max())
@@ -567,8 +627,8 @@ def selftest() -> None:
     Ph /= Ph.sum(-1, keepdims=True)
     LMh = np.stack([P16.centered(p) for p in Ph])
     LMpj = [np.stack([P16.centered(p) for p in rng.dirichlet(np.ones(4) * 0.7, size=(3, n))]) for _ in range(NF)]
-    ua = wf_search(LMh, yk, fold, LMpj)
-    assert ua.shape == (N_WF + 1,)
+    ua, ncap = wf_search(LMh, yk, fold, LMpj)
+    assert ua.shape == (N_WF + 1,) and ncap == 0
     for r_ in (0, 1, 7, N_WF):
         pred = np.empty(4 * K, int)
         for j in range(NF):
@@ -590,9 +650,10 @@ def selftest() -> None:
     Pg[0, np.arange(40), yg] += 1.0
     Pg /= Pg.sum(-1, keepdims=True)
     Lg = np.stack([P16.centered(p) for p in Pg])
-    for fb in (False, True):
+    for fb in TEMP_MODES.values():
         w = temp_w(Lg, yg, fb)
         assert w.shape == (3,) and (w >= 0).all() and (w <= P16.W_MAX).all() and w.argmax() == 0, w
+    assert np.allclose(temp_w(Lg[:1], yg, "sep"), temp_w(Lg[:1], yg, "joint"), atol=1e-5)          # 分類器が 1 つなら 2 つの合わせ方は同じ
     # 相性を home から取る版：home が ext の定数倍（残り方が 1）なら提案の表と同じ
     DK, De = rng.uniform(0.2, 2.0, size=(3, 4)), rng.uniform(0.2, 2.0, size=(3, 4))
     for n0, beta, prior in GRID:
@@ -644,7 +705,7 @@ def main() -> None:
                 frozen_sha256=(dai15.sha(FROZEN) if FROZEN.exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
                                **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))}},
-                KS=KS, GRID=[list(map(str, g_)) for g_ in GRID], rng_seed=SEED, settings=SETTINGS, wf_tables_sha256=__import__("hashlib").sha256(WS.tobytes()).hexdigest(),
+                KS=KS, GRID=[list(map(str, g_)) for g_ in GRID], rng_seed=SEED, settings=SETTINGS, wf_tables_sha256=hashlib.sha256(WS.tobytes()).hexdigest(),
                 consts=dict(D_MIN=P16.D_MIN, EPS=P16.EPS, AUC_CLIP=P16.AUC_CLIP, TAU=P16.TAU, TAU_F8=P16.TAU_F8, W_MAX=P16.W_MAX, ADJ_ITERS=P16.ADJ_ITERS, ADJ_TOL=P16.ADJ_TOL,
                             CHECK_TEACHER=P16.CHECK_TEACHER, GRAD_TOL=P16.GRAD_TOL, NF=NF))
     with open(out / "provenance_log.jsonl", "a") as fh:

@@ -18,6 +18,8 @@ for STAGE in units summary; do
   echo "=== dai20 $STAGE $(date '+%F %T')"
   $PY DAI/exp/dai20_eval.py --stage "$STAGE" 2>&1 | tee -a "logs/dai20_${STAGE}.log"
 done
+# 実験 1 の評価の回の単位の保存の sha256 を残す（由来の記録）
+find results/dai1/eval/units -name '*.npz' -print0 | sort -z | xargs -0 sha256sum > results/dai20_eval/dai1_eval_units_sha256.txt
 AFTER=$(snap)
 [ "$BEFORE" = "$AFTER" ] || { echo "実験 1・2 か下調べの置き場か固定のファイルが書き換わった"; touch logs/dai20_eval.failed; exit 1; }
 date '+%F %T' > logs/dai20_eval.done
