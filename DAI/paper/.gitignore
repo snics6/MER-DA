@@ -1,0 +1,20 @@
+# LaTeX 中間生成物
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.nav
+*.snm
+*.vrb
+
+# OS / エディタ
+.DS_Store
+*.pdf
+!sn-jnl-user-manual.pdf

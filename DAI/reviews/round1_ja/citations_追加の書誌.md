@@ -1,0 +1,28 @@
+# `[@要追加: ...]` の書誌（2026-11-15，paper-citations 第 1 回）
+
+対象の 6 節（01，02，04，05，06，10）に出る `[@要追加]` は 15 件である．記録（`docs/related-work.md`，`research_notes/`，`DAI_paper/参照論文/`，`data/README.md`，`DAI/docs/`）に書誌があるかを先に確かめ，無いものは一般の語での検索（Crossref の API，arXiv の API，論文集の頁）で書誌だけを確かめた．研究者やプロジェクトの情報は送っていない．
+
+確かめ方の略号：CR ＝ Crossref の API（api.crossref.org）で DOI か題を引いた，AX ＝ arXiv の API，PR ＝ 論文集の頁（PMLR，NeurIPS の bibtex，ICLR の発表の頁），WS ＝ ウェブ検索の結果（JSTOR の書誌など）．
+
+| # | 原稿の表記（節） | 著者 | 年 | 題 | 掲載先 | DOI / arXiv | 記録の場所 | 確かめ方 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Hsu ほか 2021（2） | Hsu W-N, Bolte B, Tsai Y-HH, Lakhotia K, Salakhutdinov R, Mohamed A | 2021 | HuBERT: Self-Supervised Speech Representation Learning by Masked Prediction of Hidden Units | IEEE/ACM Transactions on Audio, Speech, and Language Processing 29:3451–3460 | 10.1109/TASLP.2021.3122291．arXiv 2106.07447 | `research_notes/有名な論文_2026-11-07/MER.md:513,714`（◎） | CR，AX |
+| 2 | YOLOv8-face（2） | （論文ではない）配布物 derronqi/yolov8-face．学習データの論文は Yang S, Luo P, Loy CC, Tang X | 2016（WIDER FACE） | WIDER FACE: A Face Detection Benchmark | Proc. IEEE CVPR 2016, pp. 5525–5533 | 10.1109/CVPR.2016.596 | `data/README.md:454-465`（重みの中身と配布元 https://github.com/derronqi/yolov8-face，GPL-3.0，WIDER FACE で学習） | CR（WIDER FACE），WS（配布元）．引用は WIDER FACE にし，重みの配布元は脚注の URL にする．YOLOv8 本体（Ultralytics）を引くなら書誌は別に確かめる（今回は確かめていない） |
+| 3 | Ledoit & Wolf 2004（2） | Ledoit O, Wolf M | 2004 | A well-conditioned estimator for large-dimensional covariance matrices | Journal of Multivariate Analysis 88(2):365–411 | 10.1016/S0047-259X(03)00096-4 | 記録に書誌は無い（手法の名前だけ．`docs/exploratory-analyses.md:787` など） | CR |
+| 4 | Cameron, Gelbach & Miller 2008（2） | Cameron AC, Gelbach JB, Miller DL | 2008 | Bootstrap-Based Improvements for Inference with Clustered Errors | The Review of Economics and Statistics 90(3):414–427 | 10.1162/rest.90.3.414 | 記録に無い（候補 (c)） | CR，WS（NBER の書誌の頁．抄録：クラスタが少ないと通常の検定が有意を出しすぎ，名目 5% で 10% になる例をブートストラップ t で直す）．原稿の言い方の直しは `citations_02.md` の 2-9 |
+| 5 | Holm 1979（2） | Holm S | 1979 | A Simple Sequentially Rejective Multiple Test Procedure | Scandinavian Journal of Statistics 6(2):65–70 | DOI 無し（JSTOR 4615733） | 記録に無い | WS（JSTOR の書誌）．Crossref には登録が無い |
+| 6 | Raudys 1998（5） | Raudys Š | 1998 | Intrinsic dimensionality and small sample properties of classifiers | Kybernetika 34(4):461–466 | DOI 無し（https://dml.cz/handle/10338.dmlcz/135232） | `research_notes/TAC 論文 先行研究の精読と穴/g4_theory_intercept_direction.md` 2 節（◎．全 6 頁），RW:566・604 | 記録（号の目次で確認済み）．以前の記録の「34(4):332」は誤り |
+| 7 | Liang ほか 2020（6．IM） | Liang J, Hu D, Feng J | 2020 | Do We Really Need to Access the Source Data? Source Hypothesis Transfer for Unsupervised Domain Adaptation | Proc. ICML 2020, PMLR 119:6028–6039 | arXiv 2002.08546 | 記録は名前だけ（`DAI/docs/実験2_設計.md` 2.1 節「SHOT の IM」） | PR，AX |
+| 8 | Boudiaf ほか 2020（6．IM） | Boudiaf M, Ziko I, Rony J, Dolz J, Piantanida P, Ben Ayed I | 2020 | Information Maximization for Few-Shot Learning | Advances in Neural Information Processing Systems 33 (NeurIPS 2020), pp. 2445–2457 | arXiv 2008.11297（arXiv の題は "Transductive Information Maximization For Few-Shot Learning"） | 記録は名前だけ（D2 2.1 節「TIM」） | PR（NeurIPS の bibtex），AX |
+| 9 | Iwasawa & Matsuo 2021（6．T3A） | Iwasawa Y, Matsuo Y | 2021 | Test-Time Classifier Adjustment Module for Model-Agnostic Domain Generalization | Advances in Neural Information Processing Systems 34 (NeurIPS 2021), pp. 2427–2440 | DOI 無し（論文集の PDF：proceedings.neurips.cc の 1415fe9f…） | 記録は名前だけ（D2 2.1 節） | PR（NeurIPS の bibtex） |
+| 10 | Iscen ほか 2019（6．ラベル伝播） | Iscen A, Tolias G, Avrithis Y, Chum O | 2019 | Label Propagation for Deep Semi-Supervised Learning | Proc. IEEE/CVF CVPR 2019, pp. 5065–5074（Crossref の頁．CVF の公開版の頁番号とは違うことがある） | 10.1109/CVPR.2019.00521．arXiv 1904.04717 | 記録は名前だけ（D2 2.1 節．既定値 k = 50，α = 0.99，硬いラベルは Iscen ほかの値） | CR，AX |
+| 11 | Tellamekala ほか 2023（10．COLD Fusion） | Tellamekala MK, Amiriparian S, Schuller BW, André E, Giesbrecht T, Valstar M | 2024（早期公開 2023） | COLD Fusion: Calibrated and Ordinal Latent Distribution Fusion for Uncertainty-Aware Multimodal Emotion Recognition | IEEE Transactions on Pattern Analysis and Machine Intelligence 46(2):805–822 | 10.1109/TPAMI.2023.3325770．arXiv 2206.05833 | 記録に書誌は無い（D20 4 節に「COLD Fusion が基準に使った型」とあるだけ） | CR，AX．巻号の年は 2024 なので，キーと本文の年は 2024 にそろえる．原稿の言い方の直しは `citations_10.md` の 10-9 |
+| 12 | Gulrajani & Lopez-Paz 2021（10） | Gulrajani I, Lopez-Paz D | 2021 | In Search of Lost Domain Generalization | International Conference on Learning Representations (ICLR 2021) | arXiv 2007.01434 | 候補 #31，RW:891，R-LEV 3.3 節（◎ 道具経由）．RW:203 の「ICLR 2021 の掲載は確認できない」は今回解消した | AX，WS（ICLR 2021 の発表の頁 iclr.cc/virtual/2021/poster/2998，mlanthology の ICLR 2021 の項） |
+| 13 | Kahou ほか 2015（10．EmoNets） | Kahou SE, Bouthillier X, Lamblin P, Gulcehre C, Michalski V, Konda K, Jean S, Froumenty P, ほか | 2016（オンライン 2015） | EmoNets: Multimodal deep learning approaches for emotion recognition in video | Journal on Multimodal User Interfaces 10(2):99–111 | 10.1007/s12193-015-0195-2．arXiv 1503.01800 | 候補 #48，R-LEV 3.4 節（◎ 道具経由．arXiv 版を読んだ） | CR，AX．候補の表の「掲載先は要確認」は今回解消した．読んだのは arXiv 版なので，掲載版で 3.4 節の記述が同じかは確かめていない |
+| 14 | Tukey 1949（10） | Tukey JW | 1949 | One Degree of Freedom for Non-Additivity | Biometrics 5(3):232–242 | 10.2307/3001938 | 記録に無い | CR（Crossref は開始頁 232 だけを持つ．終わりの頁 242 は Crossref では確かめていない） |
+| 15 | （参考）Zhou ほか 2004 | — | — | — | — | — | D2 2.1 節がラベル伝播の出典に Iscen と並べる | 原稿は Iscen だけを引くので書誌は確かめていない |
+
+## 注
+
+- 2・3・5・14 は方法の出典として引くだけなので，記録に読書の記録が無くても書誌が正しければ足りる．4（Cameron ほか）と 11（COLD Fusion）は，原稿の文が文献の内容に触れているので，`citations_02.md` と `citations_10.md` の直し方に従う．
+- 7〜10 の手法は原稿で「同じアンカーと学び直しの式に入れた」変形として使うので，`citations_06.md` の 6-3 の断りを本文に足す．

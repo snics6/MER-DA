@@ -4,7 +4,7 @@
 ほかのコーパス（ソース）のラベル付きデータを混ぜると成績がどう変わるかを測り，
 得と損が生じる仕組みを，ドメイン適応（DA）理論と対応づけた数式モデルで説明する研究である．
 **分析の軸は得の仕組みの仮説 MH1〜MH5**（`docs/researchvision.md` 3 節）．その上に，仕組みの式（E15〜E17）と条件の探索（E18〜）を積んでいる．**解析は，合併の C をソースのみの C に固定した地図（`results/fixc_map/`）を土台にし，論文と発表資料の本文もこの地図だけで書く**（交差検証の地図は付録．同 6.2 節）．
-論文は分析と手法を 1 本に統合する（2026-10-22 決定．数理を前面に）．2026-10-28 に，今の版では IEEE TAC に出さず，教師なしの DA としても半教師ありの DA としても数学的に裏打ちされた手法の新しさを目指して実験を増やすと決めた（`docs/researchvision.md` 6.1 節）．2026-10-31 に投稿先を Discover Artificial Intelligence に決め，論文は `DAI_paper/` で書くことにした（規則は `DAI_paper/CLAUDE.md`）．TAC 向けの旧版の `paper/` の内容には従わない．2026-11-04 に，Albanie ほか 2018 とその後続研究を土台に研究を組み直すと決め，設計と実験は `DAI/` で行うことにした（規則は `DAI/CLAUDE.md`，計画は `DAI/docs/計画_2026-11-04.pdf`）．2026-11-08 に，時間が無いので，まず解析論文として結論をまとめ，エンコーダの凍結を解析のための設定にすると決めた（`docs/researchvision.md` 6.1 節．作業の記録は `research_notes/解析論文のストーリー_2026-11-08/`）．
+論文は分析と手法を 1 本に統合する（2026-10-22 決定．数理を前面に）．2026-10-28 に，今の版では IEEE TAC に出さず，教師なしの DA としても半教師ありの DA としても数学的に裏打ちされた手法の新しさを目指して実験を増やすと決めた（`docs/researchvision.md` 6.1 節）．2026-10-31 に投稿先を Discover Artificial Intelligence に決め，論文は `DAI_paper/` で書くことにした．2026-11-14 に，原稿は `DAI/paper/` で書くことにした（規則は `DAI/paper/CLAUDE.md`．`DAI_paper/` は要項・参照論文・棚卸しを読むだけ）．TAC 向けの旧版の `paper/` の内容には従わない．2026-11-04 に，Albanie ほか 2018 とその後続研究を土台に研究を組み直すと決め，設計と実験は `DAI/` で行うことにした（規則は `DAI/CLAUDE.md`，計画は `DAI/docs/計画_2026-11-04.pdf`）．2026-11-08 に，時間が無いので，まず解析論文として結論をまとめ，エンコーダの凍結を解析のための設定にすると決めた（`docs/researchvision.md` 6.1 節．作業の記録は `research_notes/解析論文のストーリー_2026-11-08/`）．
 各主張の最新の状態と実験の一覧は `docs/results.md`（3.6 節），分析の層と次の実験の計画は `docs/researchvision.md` 3.6・3.7 節．
 
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
@@ -72,8 +72,8 @@
 | `weights/` | 顔検出と表情モデルの重み | × |
 | `results/` | 結果（再計算できる前提．各ファイルに設定とコミット番号を書く） | × |
 | `logs/` | 長時間処理のログ | × |
-| `DAI_paper/` | Discover Artificial Intelligence に出す論文の執筆フォルダ（2026-10-31〜）．規則は `DAI_paper/CLAUDE.md` | ○ |
-| `DAI/` | Albanie 型の研究を土台に組み直す作業場（2026-11-04〜）．規則 `DAI/CLAUDE.md`，計画 `DAI/docs/`，検査の報告 `DAI/checks/`，サブエージェントの写し `DAI/.claude/agents/` | ○（LaTeX の中間生成物は ×） |
+| `DAI_paper/` | Discover Artificial Intelligence に出す論文の旧版の執筆フォルダ（2026-10-31〜11-14）．要項 `docs/venue.md`・参照論文・棚卸しを読むだけにする．原稿は `DAI/paper/` で書く | ○ |
+| `DAI/` | Albanie 型の研究を土台に組み直す作業場（2026-11-04〜）．規則 `DAI/CLAUDE.md`，計画 `DAI/docs/`，論文の原稿 `DAI/paper/`（2026-11-14〜），検査の報告 `DAI/checks/`，サブエージェントの写し `DAI/.claude/agents/` | ○（LaTeX の中間生成物は ×） |
 | `paper/` | TAC 向けの旧版の執筆フォルダ（2026-10-27〜10-28．2026-10-31 からは従わない）．主張契約 `CLAIM.md`，規則 `CLAUDE.md`，数値台帳 `results/numbers.json`，実験要求 `requests.md`．IEEEtran を同梱．`make check` で検査 | ○（PDF と中間生成物は ×） |
 | `slides/` | 発表資料（Beamer，LuaLaTeX．2026-10-27〜）．資料ごとに 1 フォルダ．数値は論文の台帳の `\NUM{key}`，図の値は資料の `scripts/export_figdata.py` が台帳と照合して書き出す．見た目の設定は `~/slides` から 1 回だけ写した（以後は読まない）．規則 `slides/CLAUDE.md` | ○（PDF と中間生成物は ×） |
 | `research_notes/`，`reports/` | 調べ直しのノートと報告（2026-10-27：「TAC 論文の先行研究と書き方」と「TAC 論文 先行研究の精読と穴」．要点は `docs/related-work.md` 1.6・1.13・1.14 節） | ○ |

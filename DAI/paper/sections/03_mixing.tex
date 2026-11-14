@@ -1,0 +1,16 @@
+% Section 3. Sources of numbers: results/e76_analysis/e76a_1_kind.csv (table and pair counts),
+% e76a_1_targets.csv (per-target counts at K=1). Result text: docs/exploratory-analyses.md, E76 section 11.1;
+% claim check: checks/E76/claim.md. Analysis commit e39e54a.
+
+\section{Adding a source corpus helps only while target labels are scarce}
+\label{sec:mixing}
+
+We first measure what the most common use of another corpus does. In the single-source setting (Section~\ref{sec:setup}), one classifier is trained on all labelled utterances of one source corpus together with the $K$ labelled target utterances per emotion, and it is compared with the classifier trained on the $K$ target utterances alone. We call the difference in test UAR between the two (merged minus target-only, in percentage points) the gain of the source. The gain was computed for every ordered pair of groups in which both groups have the feature set, except the two pairs formed by the improvised and scripted parts of IEMOCAP, which share speakers. This gives 40 pairs for the two audio encoders, 28 for V and AV, and 10 for each feature set that contains text. Table~\ref{tab:mixing} reports the gain averaged over the pairs of each feature set.
+
+\input{sections/tab_mixing}
+
+With one labelled utterance per emotion, adding a source raised the mean UAR for all eight feature sets. The mean gain ranged from 6.9 points for V (95\% interval 4.8 to 8.7) to 13.4 points for AV (11.4 to 15.4). At the level of single pairs, the gain was positive after Holm correction in all 10 pairs of T, VT, AT and AVT, in 24 of the 28 pairs of AV, in 27 of the 40 pairs of A (WavLM), in 25 of the 40 pairs of A (HuBERT), and in 9 of the 28 pairs of V. The pairs without a positive gain were concentrated on a few targets. For A (WavLM), only 1 of 6 sources raised UAR on MOSEI and 2 of 6 on RAVDESS, whereas at least 4 of the 5 or 6 sources did so on each of the other five targets. For V, no source raised UAR on AFEW (0 of 5) or on the scripted part of IEMOCAP (0 of 4), and 1 of 5 did on MELD.
+
+The gain shrank as $K$ grew. At $K=5$ the mean gain was between 0.7 points (V; $-1.0$ to 2.4) and 5.9 points (A (HuBERT); 4.3 to 7.4), and at $K=10$ the interval contained zero for A (WavLM), V, AV and AT. When the whole labelled target pool was used, the mean gain was negative for all eight feature sets, with every interval below zero, from $-2.1$ points (V; $-3.3$ to $-0.8$) to $-4.8$ points (T; $-5.8$ to $-3.9$). The loss at this end was not shared by most single pairs: the number of pairs with a negative gain after Holm correction was 5 of 40 for A (WavLM), 11 of 40 for A (HuBERT), 5 of 28 for V, 4 of 28 for AV, 4 of 10 for T, 1 of 10 for VT, 2 of 10 for AT and 2 of 10 for AVT. The two audio encoders gave the same pattern. The eight feature sets are computed on the same corpora, speakers and splits, so they are not eight independent replications.
+
+Adding a source is therefore worth most when the target has one to five labelled utterances per emotion, and it stops paying before the target labels run out. Sections~\ref{sec:intercept} and~\ref{sec:direction} ask which part of the target classifier the $K$ utterances correct, and why that part makes the source unnecessary as $K$ grows.

@@ -1,0 +1,52 @@
+%% Discover Artificial Intelligence (Springer Nature) manuscript.
+%% Class: sn-jnl (copied once from the Springer Nature template on 2026-11-14).
+%% Body sections are added after the outline is agreed with the researcher.
+\documentclass[sn-nature,pdflatex]{sn-jnl}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+
+% Draft markers (remove before submission).
+\newcommand{\TBA}{\textcolor{red}{TBA}}
+\newcommand{\PROV}[1]{\textcolor{orange}{#1}}  % provisional value from a preliminary run
+
+\begin{document}
+
+\title[Article Title]{TODO: Title}
+
+\author*[1]{\fnm{TODO} \sur{TODO}}\email{TODO}
+
+\affil*[1]{\orgdiv{TODO}, \orgname{TODO}, \orgaddress{\city{TODO}, \country{Japan}}}
+
+\abstract{TODO (fewer than 250 words).}
+
+\keywords{TODO}
+
+\maketitle
+
+% ---- Body: sections go here (sections/*.tex, \input) ----
+
+\input{sections/03_mixing}
+
+\backmatter
+
+\bmhead{Acknowledgements}
+TODO
+
+\section*{Declarations}
+
+\begin{itemize}
+\item Funding: TODO (mandatory; state explicitly if none)
+\item Competing interests: TODO
+\item Ethics approval and consent to participate: TODO (public corpora with human subjects)
+\item Data availability: TODO (mandatory)
+\item Code availability: TODO
+\item Author contribution: TODO
+\end{itemize}
+
+\bibliography{references}
+
+\end{document}
