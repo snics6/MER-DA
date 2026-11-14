@@ -1,0 +1,100 @@
+{
+ "dd_interval_independent": {
+  "n": 78,
+  "dev_max": 2.55351295663786e-14
+ },
+ "levels_vs_v1": {
+  "n": 477,
+  "dev": 0.0,
+  "text": 0
+ },
+ "effects_vs_v1": {
+  "n": 702,
+  "dev": 0.0,
+  "text": 0
+ },
+ "sentence_vs_v1": {
+  "n": 702,
+  "est_se_dev": 0.0,
+  "new_lo_vs_old_lo_geff": 0.0,
+  "new_lo_n12_vs_old_lo": 0.0
+ },
+ "by_sentence_vs_v1": {
+  "n": 216,
+  "versions": [
+   "none_AV",
+   "prod",
+   "prop",
+   "stud_prod",
+   "stud_prop",
+   "tcal"
+  ],
+  "dev": 0.0
+ },
+ "by_intensity_vs_v1": {
+  "n": 234,
+  "dev": 0.0
+ },
+ "removed_vs_v1_identical": true,
+ "sentence_mark_from_main": {
+  "n": 702,
+  "mismatch": 0,
+  "dfs": [
+   9.0
+  ],
+  "lo_formula_dev": 8.881784197001252e-16,
+  "lo_n12_formula_dev": 8.881784197001252e-16
+ },
+ "sentence_levels_independent": {
+  "n": 45,
+  "dev_max": 4.440892098500626e-16,
+  "dfs": [
+   9.0
+  ]
+ },
+ "per_emotion_noieo_independent": {
+  "n": 36,
+  "dev_max": 1.4210854715202004e-14
+ },
+ "breakdown16_independent": {
+  "n_K_version": 18,
+  "dev_max": 2.842170943040401e-14,
+  "versions_in_file": [
+   "full_A",
+   "full_AV",
+   "full_V",
+   "none_A",
+   "none_AV",
+   "none_V",
+   "prod",
+   "prop",
+   "ret_A",
+   "ret_V",
+   "start_A",
+   "start_AV",
+   "start_V",
+   "stud_prod",
+   "stud_prop",
+   "tcal"
+  ],
+  "n_versions": 16
+ },
+ "start_full_same_across_K": 1,
+ "kshot_vs_mine": {
+  "n": 150,
+  "dev": 0
+ },
+ "kshot_unit_values_independent": {
+  "n_units_K": 150,
+  "dev_max": 8.881784197001252e-16
+ },
+ "assumptions_independent": {
+  "n_cols_checked": 13,
+  "dev_max": 3.3306690738754696e-16
+ },
+ "dcenter_2rows": {
+  "row1_eq_minus_row2": true,
+  "row_sum_zero": true,
+  "max_abs_dot_with_column_effect": 3.8823728611052486e-13
+ }
+}
