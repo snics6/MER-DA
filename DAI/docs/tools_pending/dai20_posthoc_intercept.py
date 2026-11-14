@@ -42,6 +42,7 @@ SEED_SETS = {"all": None, "0-1": (0, 1), "2-9": tuple(range(2, 10))}        # �
 FROZEN = ROOT / "DAI" / "frozen" / "dai20_frozen.json"
 N_PER_CORPUS = 50                                                           # 評価の回：分割 5 × K 本の引き方 10
 TOL = 1e-9
+EXPECT_LV, EXPECT_EF = 240, 432                                            # 集計の段と照らす行の数（水準：(コーパス, K) 12 × 版と層 20．差：12 × 版 12 × 引き方の組 3）
 MODULES = ("dai1_stats.py", "dai12_probe.py", "dai15.py", "dai16_probe.py", "dai_data.py", "dai20_eval.py")
 
 
@@ -155,7 +156,8 @@ def main() -> None:
                     if (c, K, f"{v}@{lay}") not in cells:
                         continue
                     A = comb(c, K, [f"{v}@{lay}"], ss)
-                    es = ST.effect_stats(A, {k_: (x[0], np.zeros_like(x[1]), x[2]) for k_, x in A.items()}, geff[c], P16.row_rng("dai20post", "L", c, K, v, lay, sn))
+                    lkey = ("dai20", "L", c, K, (v if lay == "adj" else f"{v}@raw"), sn) if lay in ("adj", "raw") else ("dai20post", "L", c, K, v, lay, sn)   # adj・raw は集計の段の水準と同じ鍵
+                    es = ST.effect_stats(A, {k_: (x[0], np.zeros_like(x[1]), x[2]) for k_, x in A.items()}, geff[c], P16.row_rng(*lkey))
                     lrows.append(dict(c=c, K=K, version=v, layer=lay, seeds=sn, uar=es["effect"], lo=es["lo"], hi=es["hi"], se=es["se"], n_fr=es["n_units"]))
                     if v != "prod" and lay != "ob":
                         rows.append(dict(c=c, K=K, version=v, quantity="total", layer=lay, seeds=sn,
@@ -171,7 +173,7 @@ def main() -> None:
     ef, lv = pd.DataFrame(rows), pd.DataFrame(lrows)
     if ef.duplicated(["c", "K", "version", "quantity", "layer", "seeds"]).any() or lv.duplicated(["c", "K", "version", "layer", "seeds"]).any():
         raise SystemExit("行が重なっている")
-    # 検算 1：点推定と区間の両端が「全体 ＝ 切片の分 ＋ 向きの分」を満たす（点推定は恒等式に近い．版の取り違えは検算 2・3 で見る）
+    # 検算 1：点推定が「全体 ＝ 切片の分 ＋ 向きの分」を満たす（恒等式に近い．版の取り違えは検算 2・3 で見る）
     piv = ef[ef.quantity.isin(["total", "intercept"])].pivot_table(index=["c", "K", "version", "layer", "seeds"], columns="quantity", values="est").reset_index()
     piv = piv.merge(ef[ef.quantity == "direction"][["c", "K", "version", "seeds", "est"]].rename(columns={"est": "direction"}), on=["c", "K", "version", "seeds"])
     dev_add = float((piv.total - piv.intercept - piv.direction).abs().max()) if len(piv) else float("nan")
@@ -198,13 +200,13 @@ def main() -> None:
     if strict:
         if not (dev_add < TOL):
             raise SystemExit("足し合わせの検算が合わない")
-        if not (n_lv > 0 and n_ef > 0 and dev_lv < TOL and dev_ef < TOL and dev_ci < 1e-6):
-            raise SystemExit("集計の段と合わない（または照合する行が無い）")
+        if not (n_lv == EXPECT_LV and n_ef == EXPECT_EF and dev_lv < TOL and dev_ef < TOL and dev_ci < 1e-6):
+            raise SystemExit(f"集計の段と合わない（または照合する行の数が違う：水準 {n_lv}／{EXPECT_LV}，差 {n_ef}／{EXPECT_EF}）")
     out.mkdir(parents=True, exist_ok=True)
     ef.to_csv(out / "intercept_direction.csv", index=False)
     lv.to_csv(out / "intercept_levels.csv", index=False)
     git = lambda *a: subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True).stdout.strip()  # noqa: E731
-    json.dump(dict(time=time.strftime("%Y-%m-%d %H:%M:%S"), commit=git("rev-parse", "HEAD"), dirty=bool(git("status", "--porcelain", "--", "DAI/exp", "DAI/frozen", "DAI/docs/tools_pending")),
+    json.dump(dict(time=time.strftime("%Y-%m-%d %H:%M:%S"), commit=git("rev-parse", "HEAD"), dirty=bool(git("status", "--porcelain", "--untracked-files=no", "--", "DAI/exp", "DAI/frozen", "DAI/docs/tools_pending")),
                    script_sha256=dai15.sha(Path(__file__).resolve()), modules_sha256={n: dai15.sha(ROOT / "DAI" / "exp" / n) for n in MODULES if (ROOT / "DAI" / "exp" / n).exists()},
                    units_dir=str(udir), n_units=len(files), units_per_corpus=n_of, key=args.key, grid=args.grid, allow_partial=args.allow_partial,
                    frozen_sha256=(dai15.sha(FROZEN) if args.grid is None else ""), summary_sha256=sums, additivity_dev_max=dev_add,

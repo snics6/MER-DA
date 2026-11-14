@@ -157,6 +157,8 @@ def main() -> None:
     w("")
     oc = ot[ot.group == "C"]
     lv02 = lv[lv.seeds == "0-2"]
+    if len(oc) and not set(oc.n_units.astype(int)) <= {50, 15}:
+        raise SystemExit(f"標準の手法の単位の数に 50・15 以外がある：{sorted(set(oc.n_units.astype(int)))}")
     if len(oc):
         for K in KS:
             for nu, lab_u in ((50, "50 単位（K 本の引き方 0〜9）で測った手法"), (15, "15 単位（K 本の引き方 0〜2）で測った手法")):
