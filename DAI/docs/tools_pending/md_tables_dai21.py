@@ -25,6 +25,28 @@ ABL = [("prop_noprof", "相性を外す（同じ n0・戻し先）"), ("prop_nop
        ("prop_n0zero", "水準を戻さない（n0 = 0）"), ("prop_home", "残り方を掛けない"), ("prop_levelfree", "分類器どうしの水準の違いを外す")]
 
 
+def fest(x) -> str:
+    """差：小数 2 桁．丸めると ±1.00 になって 1.0 点の境目のどちら側か読めないときは桁を足す．"""
+    s = f"{x:+.2f}"
+    if abs(float(s)) == 1.0 and abs(x) != 1.0:
+        for nd in (3, 4, 5):
+            s = f"{x:+.{nd}f}"
+            if abs(float(s)) != 1.0:
+                break
+    return s
+
+
+def fend(x) -> str:
+    """区間の端：小数 1 桁．0.05 より 0 に近いときは符号が読めるよう桁を足す．"""
+    s = f"{x:+.1f}"
+    if abs(x) < 0.05 and x != 0:
+        for nd in (2, 3, 4):
+            s = f"{x:+.{nd}f}"
+            if float(s) != 0.0:
+                break
+    return s
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary21", default=str(ROOT / "results" / "dai21_eval5" / "summary"))
@@ -61,7 +83,7 @@ def main() -> None:
             return "—"
         q = q.iloc[0]
         same = bool(q.same_pred) if "same_pred" in q.index and src is None else False
-        return f"{q.est:+.2f} [{q.lo:+.1f}, {q.hi:+.1f}]{q.mark}" + ("（同じ判定）" if same else "")
+        return f"{fest(q.est)} [{fend(q.lo)}, {fend(q.hi)}]{q.mark}" + ("（同じ判定）" if same else "")
 
     def by_k(title: str, rows: list, corp: list, lead: str = "") -> None:
         """rows：(a, b, 行の名前)．b は文字列か，コーパスごとの相手を返す関数．"""
@@ -100,6 +122,7 @@ def main() -> None:
     w("`results/dai21_eval5/summary/` と `results/dai20_eval/summary/` から書き出した（結果ファイルを読むだけ．書き出しの台本は `DAI/docs/tools_pending/md_tables_dai21.py`）．照合（gate-claim）の前の表である．")
     w("")
     w("- 設計は `DAI/docs/実験21_設計.md`（第 3 版）．単位は，コーパスごとに分割 5 × K 本の引き方 10 ＝ 50．元の 4 コーパスは声・顔・言葉，CREMA-D は声・顔（言葉は無い）．")
+    w("- 数の桁：差は小数 2 桁，区間の端は小数 1 桁．区間の端が 0.05 より 0 に近いときと，差が丸めると ±1.00 になるときは，符号と 1.0 点の境目が読めるように桁を足す．")
     w("- 値は UAR（%）．差は UAR の点の差で，括弧は 95% 区間（補正していない）．↑・↓ は読みやすさのための印（区間が 0 を含まず，差が 1.0 点以上）で，判定ではない．印の無い差は「同じ水準」を意味しない．")
     w("- 「提案の手法」は，感情ごとの信頼度の表で分類器の答えをまとめる手法である．「推定時の答え」はまとめた答えそのもの，「学び直した融合」は，その答えを疑似ラベルにして融合の分類器を学び直したものである．")
     w("- 「今の提案」は，分類器の確率の積を疑似ラベルにして融合の分類器を学び直す手法（実験 1）である．")

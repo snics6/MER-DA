@@ -28,6 +28,28 @@ C_LAB = {"own": "自分の答えを疑似ラベルにする学び直し", "self"
 NAME = dict(A_LAB + ABL_LAB + B_LAB + REF_LAB + SINGLE_LAB + [("prop", "提案の手法")])
 
 
+def fest(x) -> str:
+    """差：小数 2 桁．丸めると ±1.00 になって 1.0 点の境目のどちら側か読めないときは桁を足す．"""
+    s = f"{x:+.2f}"
+    if abs(float(s)) == 1.0 and abs(x) != 1.0:
+        for nd in (3, 4, 5):
+            s = f"{x:+.{nd}f}"
+            if abs(float(s)) != 1.0:
+                break
+    return s
+
+
+def fend(x) -> str:
+    """区間の端：小数 1 桁．0.05 より 0 に近いときは符号が読めるよう桁を足す．"""
+    s = f"{x:+.1f}"
+    if abs(x) < 0.05 and x != 0:
+        for nd in (2, 3, 4):
+            s = f"{x:+.{nd}f}"
+            if float(s) != 0.0:
+                break
+    return s
+
+
 def nm(v: str) -> str:
     b = v.split("@")[0]
     return NAME.get(b, b) + ("（切片をずらす前）" if v.endswith("@raw") else "")
@@ -69,7 +91,7 @@ def main() -> None:
         q = q.iloc[0]
         if bool(q.same_counts):
             return "0（同じ数）"
-        return f"{q.est:+.2f} [{q.lo:+.1f}, {q.hi:+.1f}]{q.mark}"
+        return f"{fest(q.est)} [{fend(q.lo)}, {fend(q.hi)}]{q.mark}"
 
     def has(a: str, b: str) -> bool:
         return bool(((ef.a == a) & (ef.b == b)).any())
@@ -109,6 +131,7 @@ def main() -> None:
     w(f"`{R.relative_to(ROOT) if R.is_relative_to(ROOT) else R}/` から書き出した（結果ファイルを読むだけ．書き出しの台本は `DAI/docs/tools_pending/md_tables_dai20.py`）．照合（gate-claim）の前の表である．")
     w("")
     w(f"- 設計は `DAI/docs/実験20_設計.md`（第 5 版）．単位は，コーパスごとに分割 5 × K 本の引き方 10 ＝ 50（集計に入った単位の数は {conv.get('n_units', '不明')}）．K = 5・10・25 を同じ扱いで並べる．主の K と判定の規則は置いていない．")
+    w("- 数の桁：差は小数 2 桁，区間の端は小数 1 桁．区間の端が 0.05 より 0 に近いときと，差が丸めると ±1.00 になるときは，符号と 1.0 点の境目が読めるように桁を足す．")
     w("- 値は UAR（%）．差は UAR の点の差で，括弧は 95% 区間（補正していない）．↑・↓ は読みやすさのための印（区間が 0 を含まず，差が 1.0 点以上）で，判定ではない．印の無い差は「同じ水準」を意味しない．")
     w("- 「切片をずらした答え」は，ラベルを使わずに，答えの感情の割合がそろうように切片をずらした答えである．「切片をずらす前」はそのままの答えである．")
     w("- 「＝」は，別の版と正解の数が全部の単位で同じ版（表の下の注）．「0（同じ数）」は，差の両側の正解の数が全部の単位で同じことを表す．")
@@ -190,7 +213,7 @@ def main() -> None:
                             cells += ["—", "—"]
                             continue
                         q = q.iloc[0]
-                        cells += [f"{q.uar:.2f}", f"{q.exp1prop_minus_method:+.2f} [{q.exp1prop_minus_method_lo:+.1f}, {q.exp1prop_minus_method_hi:+.1f}]"]
+                        cells += [f"{q.uar:.2f}", f"{fest(q.exp1prop_minus_method)} [{fend(q.exp1prop_minus_method_lo)}, {fend(q.exp1prop_minus_method_hi)}]"]
                     w(f"| {C_LAB.get(m, m)} | " + " | ".join(cells) + " |")
                 w("")
     w("## 6. 参照と参考（実際には使えない版，ソースのラベルだけで作る版，設定の選び方）")
