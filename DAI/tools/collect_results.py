@@ -69,7 +69,7 @@ def main():
     a = ap.parse_args()
     ins, outs = [], []
     for top in expand():
-        for dp, dn, fn in os.walk(top, followlinks=True):
+        for dp, dn, fn in os.walk(top):          # 置き場の中のリンク（dai13_probe の summary_seeds*/rows）はたどらない．同じファイルを 2 回数えないため
             for n in fn:
                 p = Path(dp) / n
                 (ins if tracked(p, top) else outs).append(p)
