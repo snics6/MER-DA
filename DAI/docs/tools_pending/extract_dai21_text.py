@@ -10,7 +10,7 @@
           設計 DAI/docs/実験21_設計.md・検査と点検の報告 DAI/checks/DAI-21/*.md（13 本）・台帳 docs/seen-data.md，
           実験 18・20 の設計，実験 20 の結果の文，DAI/docs/論文のセッションへの伝言_2026-11-14.md，features/build_manifest_extra.py（文の記号の対応の 1 行），
           本体の作業の覚え書き（memory の dai21-retrain-cremad-2026-11-14.md．句があることだけを見る），
-          照合（関門 2）の第 1 回・第 2 回の報告 DAI/checks/DAI-21/claim.md・claim_v2.md（判定と指摘の数と，引く文だけを読む），実験 20 の点検の報告 DAI/checks/DAI-20/code_post.md（引いた文の確かめ），
+          照合（関門 2）の第 1 回・第 2 回・第 3 回の報告 DAI/checks/DAI-21/claim.md・claim_v2.md・claim_v3.md（判定と指摘の数と，引く文だけを読む．報告の中の値は文の値に使わない），実験 20 の点検の報告 DAI/checks/DAI-20/code_post.md（引いた文の確かめ），
           DAI/docs・DAI/paper・DAI/slides・docs・slides・paper の .md と .tex（この結果の値の文字が出てくる文書を探す）
           （どれも，引いた文がそこにあることを確かめるだけ．報告の中の数は照合に使わない．報告の表の行を引いた 3.2・3.3 節は，報告の値として書く），
           表の文書 DAI/docs/実験21_結果の表_2026-11-15.md と書き出しの台本 md_tables_dai21.py（版の呼び名をそろえる．表の文書が今の集計と合うことと，
@@ -214,14 +214,29 @@ def klass(q) -> str:
     return "z"
 
 
-def ci(q, mark: bool = False) -> str:
+NEAR_TH = 0.1                                                               # 基準：引き直しで作る区間の，0 に近いほうの端が，0 から標準誤差の 0.1 倍以内
+NEAR_USED: list = []                                                        # ＊ を付けて書いた区間（書いた順）
+
+
+def near0(q, lo: str = "lo", hi: str = "hi", se: str = "se", method: str = "method") -> bool:
+    """塊の重みの引き直しで作る区間（method が boot で始まる行）で，0 に近いほうの端が，0 から標準誤差の NEAR_TH 倍以内にある．"""
+    s_ = getattr(q, se, None)
+    return bool(str(getattr(q, method, "")).startswith("boot") and s_ is not None and s_ == s_ and s_ > 0 and min(abs(getattr(q, lo)), abs(getattr(q, hi))) < NEAR_TH * s_)
+
+
+def ci(q, mark: bool = False, star: bool = True) -> str:
+    """差と区間．star：引き直しで作る区間の端が 0 に近いとき，値の後に ＊ を付ける（ほかの文書の文字と比べるときは付けない）．"""
     k = klass(q)
     if k == "same":
         return "0（同じ判定）"
     if k == "cnt":
         return "0（正解の数が同じ）"
     m = {"pp": "↑", "nn": "↓"}.get(k, "") if mark else ""
-    return f"{fest(q.est)} [{fend(q.lo)}, {fend(q.hi)}]{m}"
+    s_ = f"{fest(q.est)} [{fend(q.lo)}, {fend(q.hi)}]{m}"
+    if star and near0(q):
+        NEAR_USED.append(s_)
+        s_ += "＊"
+    return s_
 
 
 def lci(r) -> str:
@@ -1291,9 +1306,21 @@ must(N_CLAIM2 == 3, f"照合の第 2 回の新しい指摘の数：{N_CLAIM2}")
 C2_OK = quote(claim2, "は，結果の文としては足りる．", "claim_v2.md")
 C2_STOP = quote(claim2, "論文の本文や発表資料に CREMA-D の値を入れる段で，感度の表がまだ無ければ，その段の照合で「止める」に当たる．", "claim_v2.md")
 V2_TEXT = git("show", "a020495:DAI/docs/実験21_結果の文の下書き_2026-11-15.md")           # 照合の第 2 回が見た第 2 版
+claim3 = (CK / "claim_v3.md").read_text()                                 # 照合の第 3 回：判定，指摘の数，引く文だけを読む（報告の中の値は，文の値に使わない）
+must("## 判定\n\n直してから通す．足した値・数え・区間はすべて出力の csv と一致した．" in claim3 and "第 3 版．1,393 行．コミット 8187af5" in claim3, "照合の第 3 回の判定と対象")
+N_CLAIM3 = claim3.count("\n### [")
+must(N_CLAIM3 == 5 and claim3.count("- 重さ：記録する") == 5, f"照合の第 3 回の指摘の数：{N_CLAIM3}")
+C3_OK = quote(claim3, "足した値・数え・区間はすべて出力の csv と一致した．", "claim_v3.md")
+C3_BOOT = quote(claim3, "書き手が作り直していないと申告した話者の引き直しの区間も，別の乱数で独立に作り直すとモンテカルロの誤差の範囲で一致し，文を塊にした区間は 1 桁目まで一致した．", "claim_v3.md")
+C3_SE = quote(claim3, "標準誤差の比（私の値 ÷ csv）は，文を除いたテストの差で 0.983〜1.010，「除いた値 − 全発話の値」で 0.985〜1.048 だった．", "claim_v3.md")
+C3_FLIP = quote(claim3, "別の乱数で 2,000 組を引いて作り直すと，[−0.338, +0.005] で 0 を含んだ（`check_v3_sensitivity_out.txt`）．", "claim_v3.md")
+C3_KEEP = quote(claim3, "ほかの 3 個（上端 −0.025・−0.050，下端 +0.010）は，私の作り直しでも 0 を含まなかった．", "claim_v3.md")
+C3_DIR = quote(claim3, "懸念が予想するのは，K 本で学ぶと文 `IEO` の Neutral の再現率が下がる向きである．", "claim_v3.md")
+V3_TEXT = git("show", "8187af5:DAI/docs/実験21_結果の文の下書き_2026-11-15.md")           # 照合の第 3 回が見た第 3 版
+must("第 3 版．CREMA-D の感度の表を足した．照合の第 3 回の前" in V3_TEXT.split("\n")[0] and len(V3_TEXT.split("\n")) - 1 == 1393, "照合の第 3 回が見た第 3 版（コミット 8187af5）の題と行の数")
 
 # ---- 冒頭
-w("# 実験 21（DAI-21．提案の手法の評価の回の続き：学び直し 5 コーパスと CREMA-D の評価の回）：結果の文の下書き（2026-11-15．第 3 版．CREMA-D の感度の表を足した．照合の第 3 回の前）")
+w("# 実験 21（DAI-21．提案の手法の評価の回の続き：学び直し 5 コーパスと CREMA-D の評価の回）：結果の文の下書き（2026-11-15．第 4 版．照合の第 3 回の直しを入れた）")
 w("")
 w("この文書は，台本 `DAI/docs/tools_pending/extract_dai21_text.py` が `results/dai21_eval5/` の結果ファイルから数値を取り出して書き出した．"
   "結果ファイルから取る数値と表は，すべて台本が埋めた（手で写していない）．設計・点検の報告・台帳から引いた文は，引いた文が元の文書にあることを台本が確かめた．"
@@ -1301,11 +1328,40 @@ w("この文書は，台本 `DAI/docs/tools_pending/extract_dai21_text.py` が `
   f"第 1 版（コミット 8994e38）への照合の第 1 回（関門 2．`DAI/checks/DAI-21/claim.md`）の判定は「直してから通す」だった．報告は，下書きの数値・区間・読みの区分・同じ判定の扱いがすべて結果ファイルと一致したと書き，指摘は {N_CLAIM1} 件（どれも重さは「記録する」）だった．"
   f"その {N_CLAIM1} 件の直しを入れた第 2 版（コミット a020495）への照合の第 2 回（`DAI/checks/DAI-21/claim_v2.md`）の判定は「通す」だった．報告は，第 1 回の指摘 {N_CLAIM1} 件がどれも直り，直しで値が変わっていないと書いている．"
   f"新しい指摘は {N_CLAIM2} 件で，報告は「{C2_NEW}」と書いている．"
-  "**この第 3 版は，照合を通った第 2 版に，設計 4 節が予告した CREMA-D の感度の表（計算の後の解析．`results/dai21_eval5/posthoc/`）の値と読み方を足した版で，照合の第 3 回をまだ受けていない**．"
-  "足したのは，要点 13〜18，2.7 節，3.3 節の仮定の表，0 節の「計算の後の解析」である．要点 7・10，2.6 節，3.3 節，4 節にあった「感度の表はまだ出していない」という文を直した．第 2 版の値と表は変えていない（変更の一覧は 6 節）．"
-  "足した値は，第 2 版の値と違って，まだ照合を受けていない．論文のセッションへの伝言は，この版の照合が通るまで CREMA-D の値を本文に入れないと書いている（0 節）．")
+  "第 3 版（コミット 8187af5）は，照合を通った第 2 版に，設計 4 節が予告した CREMA-D の感度の表（計算の後の解析．`results/dai21_eval5/posthoc/`）の値と読み方を足した版である．"
+  "足したのは，要点 13〜18，2.7 節，3.3 節の仮定の表，0 節の「計算の後の解析」で，要点 7・10，2.6 節，3.3 節，4 節にあった「感度の表はまだ出していない」という文を直した．第 2 版の値と表は変えていない．"
+  f"第 3 版への照合の第 3 回（`DAI/checks/DAI-21/claim_v3.md`）の判定は「直してから通す」だった．報告は「{C3_OK}」と書き，指摘は {N_CLAIM3} 件（どれも重さは「記録する」）だった．"
+  f"**この第 4 版は，その {N_CLAIM3} 件の直しを入れた版で，直しの後の照合はまだ受けていない**．"
+  "直したのは，要点 16（設計の懸念に直接当たる量である，文「It's eleven o'clock.」の Neutral の再現率の並びを足し，太字の文の範囲を狭めた），要点 14・15（引き直しの乱数に依りうる区間の注），"
+  "要点 17（K 本の引き方を 2 つに分けた並びを外した），要点 18 の 1 文，0 節の「照合の前に値を使った先」の (5) である（変更の一覧は 6 節）．第 3 版の値は変えていない．"
+  "論文のセッションへの伝言は，感度の表を入れた版の照合が通るまで CREMA-D の値を本文に入れないと書いている（0 節）．")
 w("")
 w("値は UAR（4 感情の再現率の平均．%．でたらめに答えると 25%）で，差はすべて UAR の点の差である．角かっこは 95% 区間で，補正していない．")
+w("")
+# 引き直しで作る区間（集計の差の区間のうち，MOSEI と CREMA-D）のうち，端が 0 に近い区間を全部数える
+BOOT_ROWS = [r for r in ef.itertuples() if str(r.method).startswith("boot") and klass(r) not in ("same", "cnt")]
+must({r.c for r in BOOT_ROWS} == {"MOSEI", CD} and all(str(r.method).startswith("jk") for r in ef.itertuples() if r.c in ("AFEW", "IEMOCAP", "MELD"))
+     and max(max(abs(r.lo - (r.est - 1.96 * r.se)), abs(r.hi - (r.est + 1.96 * r.se))) for r in BOOT_ROWS) < 1e-9
+     and max(max(abs(r.lo - (r.est - 1.96 * r.se)), abs(r.hi - (r.est + 1.96 * r.se))) for r in ef20.itertuples() if str(r.method).startswith("boot") and r.se > 0) < 1e-9,
+     "引き直しで作る区間のコーパスと，区間が 点推定 ± 1.96 × 標準誤差 であること")
+NEAR_EF = [r for r in BOOT_ROWS if near0(r)]
+
+
+def n_boot(c: str, allseeds: bool, near: bool) -> int:
+    return sum(r.c == c and (r.seeds == "all") == allseeds for r in (NEAR_EF if near else BOOT_ROWS))
+
+
+NEAR_MOSEI = [r for r in NEAR_EF if r.c == "MOSEI" and r.seeds == "all"]
+must([(r.a, r.b, int(r.K)) for r in NEAR_MOSEI] == [("stud_prop", "stud_prod", 10), ("stud_prop", "stud_konly", 25)], f"MOSEI の，端が 0 に近い区間（文を直す）：{[(r.a, r.b, int(r.K)) for r in NEAR_MOSEI]}")
+w("**「＊」の印**（第 4 版で足した）：MOSEI と CREMA-D の区間は，塊の重みの引き直しで作る区間で，乱数を使う（0 節の「区間の作り方」）．"
+  f"この文書は，引き直しで作る区間のうち，0 に近いほうの端が 0 から標準誤差の {NEAR_TH} 倍以内にある区間の値の後に「＊」を付ける．"
+  "**＊ の付いた区間は，区間の端が 0 に近く，0 を含むかどうかが引き直しの乱数の組に依りうる**（基準は要点 14・15 と同じである．照合の第 3 回の指摘を受けて，第 4 版で決めた）．"
+  "jackknife で作る区間（AFEW・IEMOCAP・MELD の区間と，CREMA-D の文を塊にした区間）は乱数を使わないので，印を付けない．"
+  f"集計の差の区間（`effects.csv`）のうち，この基準に当たるのは，K 本の引き方 0〜9 の行では，MOSEI が {n_boot('MOSEI', True, False)} 個のうち {n_boot('MOSEI', True, True)} 個（"
+  + "，".join(f"`{r.a} − {r.b}` の K = {int(r.K)}" for r in NEAR_MOSEI) + f"），CREMA-D が {n_boot(CD, True, False)} 個のうち {n_boot(CD, True, True)} 個（名前は要点 15）である．"
+  f"K 本の引き方で分けた行では，MOSEI が {n_boot('MOSEI', False, False)} 個のうち {n_boot('MOSEI', False, True)} 個，CREMA-D が {n_boot(CD, False, False)} 個のうち {n_boot(CD, False, True)} 個である（両側が同じ判定の行と，正解の数が同じ行は数えていない）．"
+  "この文書が値を書いた区間のうち，この基準に当たるものには，全部 ＊ が付いている（台本が確かめた．要点 1〜12 では ＠要点1〜12の＊＠ 箇所）．"
+  "区間が 0 を含まない条件の数えと名前は，＊ の有無で変えていない．")
 w("")
 DQ_KIND = quote(design, "**種類**：本番の評価の回の追加．判定の規則は置かず，結果を表で見る（実験 20 と同じ扱い）．", "設計 0 節")
 DQ_KS = quote(design, "K は 5・10・25（同じ扱いで並べる）．", "設計 2 節")
@@ -1356,7 +1412,7 @@ w(f"- **固定のファイル**：`DAI/frozen/dai21_frozen.json`（sha256 {prov[
   f"RAVDESS が現れることについて，設計 8 節は「{DQ_RAV}」と書いている．固定のファイルの元の 5 つのファイル（実験 18 の選んだ設定 3 つ，実験 20 の固定のファイル，実験 1 の固定の設定）の sha256 は，今のファイルと同じである．CREMA-D の引き戻しの強さについて，設計 3.3 節は「{DQ_TETH}」と書いている（値は 2.6 節）．選んだ点の一覧は 2.6 節．")
 w("- **結果の場所**：`results/dai21_eval5/`．集計は `summary/`（7 個の csv と `convergence.json`），単位の保存は `students4/`（元の 4 コーパスの 200 単位の csv と npz．学び直した分類器の判定と重み）と `cremad/`（CREMA-D の 50 単位の csv と npz），"
   "設定とコミットの記録は `provenance.json`・`provenance_log.jsonl`．検算 `check18` の出力は `results/dai21_eval5_check18/`，ログは `logs/dai21_*.log`．")
-DISP20 = [(c, K) for c, K in ALL12 if ci(q("prop", "joint_AVT", c, K)) != ci(q20("prop", "joint_AVT", c, K))]
+DISP20 = [(c, K) for c, K in ALL12 if ci(q("prop", "joint_AVT", c, K), star=False) != ci(q20("prop", "joint_AVT", c, K), star=False)]
 must(all(c == "MOSEI" for c, _ in DISP20), "実験 20 の集計と書いた桁で違う条件が MOSEI のほかにある")
 w(f"- **実験 20 の集計との使い分け**（点検の報告の記録 1）：この文書の値は，1 つの例外を除いて，実験 21 の集計（`results/dai21_eval5/summary/`）から引く．"
   "**例外は，元の 4 コーパスの「提案の手法（推定時の答え）− 積」で，実験 21 の集計に無いので，実験 20 の集計（`results/dai20_eval/summary/effects.csv`）から引く**（要点 6 と 2.3 節．引いた箇所にそのつど書く）．"
@@ -1466,9 +1522,9 @@ G5 = quote(PT2, "分類器が 2 つなので，`topok` はでたらめでも 0.5
 G5B = quote(PT2, "`emocorr_M_*`・`profcorr_row_*`：4 個の数の相関．`profcorr_M_*` は 8 個の数で，各行の和が 0 なので自由な値は 6 個である．", "code_post_tools_v2.md")
 G5C = quote(PT2, "仮定の表の `ret_A`・`ret_V` は残り方であり，内訳の版の名前とは別のものである．", "code_post_tools_v2.md")
 PH_REPORTS = sorted(x.name for x in CK.glob("*.md") if "dai21_posthoc_cremad_sentence" in x.read_text())
-must(PH_REPORTS == ["code_post_tools.md", "code_post_tools_v2.md"], f"計算の後の解析を見た報告（文を直す）：{PH_REPORTS}")
+must(PH_REPORTS == ["claim_v3.md", "code_post_tools.md", "code_post_tools_v2.md"], f"計算の後の解析を見た報告（文を直す）：{PH_REPORTS}")
 must(PH_COMMITS[0][1] < T_PH and T_PH.startswith("2026-11-15 07:50") and PH_COMMITS[0][1] > "2026-11-15 05:28:00" and phv["consts"]["N_BOOT"] == 2000, "計算の後の解析の時刻")
-w(f"- **計算の後の解析（CREMA-D の感度の表．第 3 版で足した）**：設計 4 節は，計算の後に保存から出す表を予告していた（「{DQ_LATER}」）．"
+w(f"- **計算の後の解析（CREMA-D の感度の表．第 3 版で足し，第 4 版で直した）**：設計 4 節は，計算の後に保存から出す表を予告していた（「{DQ_LATER}」）．"
   f"この 4 種類の表を，CREMA-D の 50 単位の保存（npz の判定と，ソースで測った表．単位のコミットは {C_CD[:7]}）から，学び直さずに数え直して出した．"
   f"台本は `DAI/docs/tools_pending/dai21_posthoc_cremad_sentence.py`（sha256 {phv['script_sha256'][:8]}…．コミット {PH_COMMITS[0][0]}，{PH_COMMITS[0][1][5:]}．今のファイルと同じ），"
   f"出力は `results/dai21_eval5/posthoc/` の 12 本（csv 11 本と，由来の記録 `cremad_sentence_provenance.json`．記録の時刻は {T_PH}，コミットは {phv['commit'][:7]}，dirty は偽，所要 {phv['seconds']:.0f} 秒），"
@@ -1478,21 +1534,26 @@ w(f"- **計算の後の解析（CREMA-D の感度の表．第 3 版で足した�
 w(f"   - **台本の検査**（関門 1 の台本の検査役．`DAI/checks/DAI-21/`）：第 1 回（`code_post_tools.md`．コミット {PH_COMMITS[1][0]} の版）の判定は「直してから進む」（指摘 {N_PT1} 件）で，"
   f"直した版（コミット {PH_COMMITS[0][0]}）への第 2 回（`code_post_tools_v2.md`）の判定は「{PT2_J}」だった．第 2 回の新しい指摘は {N_PT2} 件で，どちらも重さは「記録する」である．"
   "第 2 回の報告は，結果の文に値を入れるときの注意を 5 項書いている．この文書は，その 5 項を要点 13〜18 に引いた．"
-  "この解析を見た報告は，この 2 本だけである（`DAI/checks/DAI-21/` の報告のうち，計算の後の解析の台本の名前が出てくるもの）．統計・漏れ・比較・定義の検査と査読想定の役は，この解析を見ていない．")
+  "この解析を見た報告は，この 2 本と，照合の第 3 回（`claim_v3.md`．次の項）の 3 本である（`DAI/checks/DAI-21/` の報告のうち，計算の後の解析の台本の名前が出てくるもの）．統計・漏れ・比較・定義の検査と査読想定の役は，この解析を見ていない．")
+w(f"   - **照合の第 3 回**（関門 2．`claim_v3.md`．第 3 版を見た）：判定は「直してから通す」で，報告は「{C3_OK}{C3_BOOT}」と書いている．"
+  f"指摘は {N_CLAIM3} 件で，どれも重さは「記録する」である：設計の懸念に直接当たる量（文 `IEO` の Neutral の再現率）を引いていないこと，引き直しの乱数に依る区間，要点 17 の分け方，要点 18 の 1 文，照合の前の使用の申告．"
+  "第 4 版は，この 5 件を直した．検算の台本と出力は `DAI/checks/DAI-21/claim_run/`（`check_v3_*`）にある．この台本は，報告の中の値を文の値に使っていない（引いた文は，引用として書いた）．")
 w(f"   - **台帳の記録**（`docs/seen-data.md` の「DAI-21 の計算の後の解析」の行．本体の申告）：「{LQ_PH_SEEN}」「{LQ_PH_PLAN}」「{LQ_PH_READ}」"
   f"値を読んだ時刻は本体の申告で，この台本からは確かめられない．由来の記録の時刻（{T_PH[11:]}）が，直した版のコミット（{PH_COMMITS[0][1][11:]}）より後であることは，この台本が確かめた．")
 w("   - **設計が計算の前に予告したのは，表の種類である．次の点は，結果を開いた後（2026-11-15 05:28 より後）に決まった**：文を塊にした区間の自由度（9），文ごと・強さごとの内訳に入れる 16 版，"
   "K 本の中の文の本数と単位ごとの値の表，「除いた値 − 全発話の値」の区間，仮定の表に入れる量（どれも，計算の後の解析の台本と，その検査の指摘で決まった）．"
-  "この文書が決めた並べ方（2.7 節の差の表で，要点 1〜10 が読みを書いた差を先に並べる順序と，要点 17 で K 本の引き方を文の本数で 2 つに分ける規則）も，結果を開いた後に決めた．")
+  "この文書が決めた並べ方（2.7 節の差の表で，要点 1〜10 が読みを書いた差を先に並べる順序）も，結果を開いた後に決めた．"
+  "第 4 版で足した，文 `IEO` とほかの 11 文の感情ごとの再現率の表（要点 16，2.7 節）と，区間の端が 0 に近いと数える基準（要点 14）は，照合の第 3 回の指摘を受けて，結果を開いた後に決めた．"
+  "第 3 版にあった，K 本の引き方を文の本数で 2 つに分けた並びは，第 4 版で外した（6 節）．")
 w(f"   - **この台本の照合（感度の表）**：出力の csv の値は，単位の npz の判定から，計算の後の解析の台本を読み込まずに，別の書き方で作り直した値と照らした．"
   f"(h) 文を除いたテストの点推定：水準 {len(nl)} 行と差 {len(ne)} 行（ずれの最大 {sci(max(DEV_NL, DEV_NE))}），感情ごとの再現率 {len(npe)} 行（{sci(DEV_NPE)}），除いた発話の数．"
   f"(i) 文を塊にした区間：差 {len(sce)} 行と水準 {len(scl)} 行の点推定・標準誤差・自由度 9 と 11 の両端を，「文を 1 つずつ全部の分割から除く jackknife の分散 ＋ K 本の引き方の項」で作り直した（ずれの最大 {sci(max(DEV_JK, DEV_JKL))}）．"
   f"文の実効の数（{G_EFF_SENT:.3f}）と自由度（{DF_SENT}）も作り直した．"
-  f"(j) 文ごとの内訳 {len(bys)} 行と，強さごとの内訳 {len(byi)} 行（{sci(max(DEV_BS, DEV_BI))}）．(k) K 本の中の文の本数と，単位ごとの UAR と差（{len(ksh)} 行．{sci(DEV_KS)}）．"
+  f"(j) 文ごとの内訳 {len(bys)} 行（4 感情の平均と，感情ごとの再現率の 4 列）と，強さごとの内訳 {len(byi)} 行（{sci(max(DEV_BS, DEV_BI))}）．(k) K 本の中の文の本数と，単位ごとの UAR と差（{len(ksh)} 行．{sci(DEV_KS)}）．"
   f"(l) 仮定の表の {len(phv['assumptions']['from_npz'])} 列のうち {len(ASM_COLS)} 列（水準，残り方，最も強いモダリティの一致，共通の感情の成分の相関，行の中の差の相関，行ごとの相関，上限の割合，0 以下の割合．{sci(DEV_ASM)}）．"
   f"(m) 出力の全発話の列（`*_all`・`*_speaker`）が集計の値と同じこと（ずれの最大 {sci(max(DEV_PH_ALL, DEV_PH_SPK, DEV_PH_LV))}），「除いた値 − 全発話の値」の点推定の列が 2 つの列の引き算であること，印の列．"
   f"**作り直していないもの**：文を除いたテストの区間と，「除いた値 − 全発話の値」の区間（話者の重みの引き直し {phv['consts']['N_BOOT']:,} 回で作る．乱数を使うので，この台本では作り直していない．"
-  f"第 2 回の検査は，別の書き方で 78 個を作り直した結果を「{PT2_BOOT}」と書いている），"
+  f"第 2 回の検査は，別の書き方で 78 個を作り直した結果を「{PT2_BOOT}」と書いている．照合の第 3 回は，別の乱数で区間を作り直し，「{C3_SE}」と書いている．乱数に依りうる区間は要点 14・15 に書いた），"
   f"仮定の表の残りの {len(phv['assumptions']['from_npz']) - len(ASM_COLS)} 列（成分の相関，入れ替えの割合，テストとのずれ．第 2 回の検査は，仮定の表について「{PT2_ASM}」と書いている），"
   "文ごとの取り違えの数（`cremad_by_sentence_confusion.csv`．この文書は引いていない）．")
 # 論文のセッションへの伝言：結果を開いた後のコミットで，実験 21 の値を「照合中」の印つきで書いた（照合の前に値を使った先）
@@ -1512,16 +1573,20 @@ NOTE_ADDED = ["照合済み（`DAI/checks/DAI-21/claim_v2.md`．11-15 朝）", "
               "**CREMA-D の値を論文や資料に入れる前に，設計が予告した感度の表を出す**"]
 must(all(x in NOTE_NOW and x not in NOTE_C2 for x in NOTE_ADDED), "伝言の，照合の第 2 回の後に足された文（文を直す）")
 NOTE_C1 = git("show", f"c6d5e2e:{NOTE_P}")
-NOTE_VALS = [ci(S_PP(c, K)) for c, K in ALL15] + [ci(q("prop", "prod", CD, K)) for K in KS]
+NOTE_VALS = [ci(S_PP(c, K), star=False) for c, K in ALL15] + [ci(q("prop", "prod", CD, K), star=False) for K in KS]      # 伝言の文字と比べるので，＊ は付けない
 must("照合中" in NOTE_C1 and all(x in NOTE_C1 for x in NOTE_VALS) and all(x in NOTE_C2 for x in NOTE_VALS) and all(x in NOTE_C3 for x in NOTE_VALS) and all(x in NOTE_NOW for x in NOTE_VALS), "伝言に書いてある実験 21 の値が，この文書の値と違う")
 NOTE_LOW = [fest(q("stud_prop", f"stud_{t}", c, K).est) for t in EXTRA for c, K in ALL15 if klass(q("stud_prop", f"stud_{t}", c, K)) in ("nn", "n")]
 NOTE_LOW_OK = all(x in NOTE_NOW for x in NOTE_LOW)                           # 今の伝言が，低かった条件の全部の点推定を持つか
 must(len(NOTE_LOW) == 6, "区間が 0 を含まずに低かった条件の数")
 # この結果の値の文字が出てくる文書を探す（AFEW の K = 10 の値と区間）
-PROBE = ci(S_PP("AFEW", 10))
+PROBE = ci(S_PP("AFEW", 10), star=False)
 SCAN = sorted({str(x.relative_to(ROOT)) for d_ in ("DAI/docs", "DAI/paper", "DAI/slides", "docs", "slides", "paper") if (ROOT / d_).exists()
                for x in (ROOT / d_).rglob("*") if x.suffix in (".md", ".tex") and x.is_file() and x.resolve() != OUT.resolve() and PROBE in x.read_text(errors="ignore")})
 must({"DAI/docs/実験21_結果の表_2026-11-15.md", NOTE_P} <= set(SCAN), f"値の文字が出てくる文書：{SCAN}")
+r3_ = NE[("prop", "prod", 5, "all")]
+PROBE3 = (f"{fest(r3_.est)} [{r3_.lo:+.2f}, {r3_.hi:+.2f}]").replace("-", "−")                # 文を除いたテストの prop − prod の K = 5（要点 13 と同じ書き方）
+SCAN3 = sorted({str(x.relative_to(ROOT)) for d_ in ("DAI/docs", "DAI/paper", "DAI/slides", "docs", "slides", "paper") if (ROOT / d_).exists()
+                for x in (ROOT / d_).rglob("*") if x.suffix in (".md", ".tex") and x.is_file() and x.resolve() != OUT.resolve() and PROBE3 in x.read_text(errors="ignore")})
 MEMO = Path("/home/snics/.claude/projects/-home-snics-MER-DA/memory/dai21-retrain-cremad-2026-11-14.md")
 MEMO_OK = MEMO.exists() and "2026-11-15 05:40 の追記" in MEMO.read_text()
 w(f"- **照合の前に値を使った先**：照合（関門 2）の前に，この結果の値は次の場所で使われている．(1) 表の文書 `DAI/docs/実験21_結果の表_2026-11-15.md`（書き出しの台本 `md_tables_dai21.py`．最初の書き出しはコミット {TD_FIRST[0]}，{TD_FIRST[1][5:16]}．"
@@ -1535,14 +1600,21 @@ w(f"- **照合の前に値を使った先**：照合（関門 2）の前に，�
   + f"コミット e97b618（{NOTE_AFTER[1][1][5:16]}）で，本体が，提案の手法が低かった条件を全部挙げる形に直した．"
   + f"**照合の第 2 回の後のコミット 8772450（{NOTE_AFTER[2][1][5:16]}）で，本体が伝言をもう一度直した**．直した中身は 4 つである：0 節の状態の表の実験 21 の行を「照合済み」にした，「落とさないこと」の各項にどの差についての文かを書いた，"
   + "低かった条件の場所の案内を足した，CREMA-D の値を論文や資料に入れる前に感度の表を出すという項を足した（この台本は，この 4 つの文が今の伝言にあり，e97b618 の版に無いことを確かめた）．"
-  + "18 個の値と区間の書き方は変わっていない．この台本は，c6d5e2e・e97b618・8772450 の版と今の版の伝言にあるこの 18 個の値と区間が，この文書の値と同じ文字であることを確かめた．"
+  + "18 個の値と区間の書き方は変わっていない．この台本は，c6d5e2e・e97b618・8772450 の版と今の版の伝言にあるこの 18 個の値と区間が，この文書の値と同じ文字であることを確かめた（この文書が区間の後に付けた ＊ の印は，除いて比べた）．"
   + f"**感度の表を出した後のコミット 45a7501（{NOTE_AFTER[3][1][5:16]}）で，本体が伝言の 0 節の 10 を書き換えた**．変わったのは 1 行で，足された文は「{NQ10}」である．その行に，感度の表の値（小数 2 桁の数）は無い．"
   + ("今の版の伝言は，区間が 0 を含まずに提案の手法の疑似ラベルが低かった 6 条件（要点 5）の点推定を全部持つ．" if NOTE_LOW_OK else "今の版の伝言には，区間が 0 を含まずに提案の手法の疑似ラベルが低かった 6 条件（要点 5）の点推定のうち，無いものがある．")
   + f"**ほかの文書**：この台本が，AFEW の K = 10 の値と区間の文字（{PROBE}）を，`DAI/docs`・`DAI/paper`・`DAI/slides`・`docs`・`slides`・`paper` の .md と .tex のファイルから探すと，この文書のほかに見つかるのは "
   + "，".join(f"`{x}`" for x in SCAN) + " である．値を別の桁や別の形で写した文書は，この探し方では見つからない．検査の報告（`DAI/checks/`）は探していない．"
   + "(5) **感度の表の値**（第 3 版で足した値）：台帳によると，本体が出力の値を読んだのは 07:59 である（上の「計算の後の解析」）．"
   + "伝言には，感度の表の値が書かれていない（感度の表を出した後に変わったのは上の 1 行だけで，その前の版は表を出す前の版である）．"
-  + "本体が感度の表の値を会話やほかの文書で使ったかどうかは，この台本からは分からない．")
+  + "**本体の申告**（照合の第 3 回の指摘 5 を受けて書く．会話の中身は，この台本からは確かめられない）：本体は 2026-11-15 の 08:00 ごろ，研究者へ会話で感度の表の値を伝えた．"
+  + "伝えたのは，提案の手法 − 積，学び直した融合の提案の手法の疑似ラベル − 積の疑似ラベル，学び直した融合 − K 本だけの融合の 3 つについての，全発話の値・文を除いた値・変化とその区間，"
+  + "提案の手法の中の学び直した融合 − 推定時の答えの K = 10 の 2 つの区間，文を塊にした区間の 1 例である．"
+  + "08:40 ごろには，第 3 版の数え（231 個のうち 4 個，12 個）と，`start_A` の文 `IEO` の UAR が 12 文の中で最も低いこと（「この文が当てにくい並びは K 本を使う前からある」という読み）を伝えた．"
+  + "**この読みは，照合の第 3 回の指摘 1 で，範囲が広すぎるとされた（要点 16 を第 4 版で直した）．本体は，研究者に訂正を伝える**．"
+  + "本体は，ほかの文書には感度の表の値を書いていない．どれも照合（関門 2）が通る前の使用である．"
+  + f"この台本が，文を除いたテストの `prop − prod` の K = 5 の値と区間の文字（{PROBE3}）を，上と同じ場所の .md と .tex のファイルから探すと，この文書のほかに"
+  + ("は見つからない" if not SCAN3 else "見つかるのは " + "，".join(f"`{x}`" for x in SCAN3) + " である") + "（検査の報告 `DAI/checks/` は探していない）．")
 w("")
 w("**申告**（設計 0・3・4・8・9 節が求めるもの．冒頭の 6 項に加えて）：")
 w("")
@@ -1635,7 +1707,7 @@ RQ_WHERE = {
     "C1": "要点 2", "C5": "要点 1，4 節", "C9a": "要点 10，4 節", "C9b": "並べていない（要点 2，4 節）", "C10": "要点 11（疑似ラベルごとの最大の点どうしの差は書いていない）", "C16a": "2.6 節（この台本が固定のファイルから数え直した）", "C16b": "要点 1，2.6 節",
     "C16c": "2.6 節（ρ と a の端の数を疑似ラベルごとに書いた）", "C11": "要点 2・10",
     "C12": "数えていない（4 節）", "C14": "要点 5・9，4 節", "CV4a": "要点 5", "CV4b": "要点 5", "CV4c": "要点 5", "CV4d": "要点 3", "D2": "要点 11", "D4": "要点 9", "D4b": "要点 9", "D6a": "要点 12", "D6b": "要点 1",
-    "RA2": "要点 13・14・17，2.7 節（文を除いたテストの表を，計算の後の解析で出した．K 本の側の影響は測っていない）", "RA3": "2.6 節（表の数を並べた）．要点 18，3.3 節（相関は，計算の後の解析の仮定の表にある）", "RA4": "0 節の「固定のファイル」「CREMA-D の事情」", "RA4b": "2.6 節",
+    "RA2": "要点 13・14・16・17，2.7 節（文を除いたテストの表と，文ごとの Neutral の再現率の並びを，計算の後の解析の出力から書いた．K 本の側の影響は測っていない）", "RA3": "2.6 節（表の数を並べた）．要点 18，3.3 節（相関は，計算の後の解析の仮定の表にある）", "RA4": "0 節の「固定のファイル」「CREMA-D の事情」", "RA4b": "2.6 節",
     "RA5a": "0 節の「CREMA-D の事情」", "RA5d": "同上", "RA5e": "同上", "RA5b": "同上", "RA5c": "同上", "RM2": "要点 1", "RM5": "冒頭（この台本が実験 18 の集計と照らした）", "RM10a": "要点 11", "RM10b": "要点 8", "RM11": "2.6 節",
     "K1": "要点 5，4 節", "KV4": "4 節", "KW4": "表の下の注"}
 must(set(RQ_WHERE) == set(RQ), "求めの一覧と対応の一覧がそろわない")
@@ -1691,10 +1763,15 @@ MID_P = [x for x in g1["p"] if x in MID9]
 MID_Z = [x for x in g1["z"] if x in MID9]
 MID_ZN = [x for x in MID_Z if S_PP(*x).est < 0]
 must(len(MID_P) + len(MID_Z) == 9 and len(MID_P) > 0 and len(MID_ZN) > 0, "要点 1 の 9 条件の読み")
+NEAR1 = [(c, K) for c, K in ALL15 if near0(S_PP(c, K))]
+must(NEAR1 == [("MOSEI", 10)] and NEAR1[0] in MID_Z, f"要点 1 の差のうち，区間の端が 0 に近いもの（文を直す）：{NEAR1}")
+NEAR1_TXT = (f"**{vals(NEAR1, S_PP)} の区間は，区間の端が 0 に近く，引き直しの乱数の組に依りうる**（＊ の印．MOSEI の区間は塊の重みの引き直しで作る．"
+             f"0 に近いほうの端が 0 から標準誤差の {NEAR_TH} 倍以内という，要点 15 と同じ基準に当たる．この条件は，上の「区間が 0 を含む条件」に入れてある）．")
 w(f"1. **学び直した融合の分類器で，提案の手法の疑似ラベル − 積の疑似ラベル（`stud_prop − stud_prod`．主の点．同じ計算の中で疑似ラベルだけを替えた差）は，AFEW では 3 つの K とも区間が 0 を含まず 1.0 点以上で（{vals(AF3, S_PP)}），"
   f"CREMA-D では 3 つの K とも区間が 0 を含まず 1.0 点未満だった（{vals(CD3, S_PP)}）**．"
   f"IEMOCAP・MOSEI・MELD の 9 条件（3 コーパス × 同じテストを共有する 3 つの K）の点推定は {rng_of(S_PP, MID9)} 点で，区間が 0 を含まない条件は {vals(MID_P, S_PP)} である（どれも 1.0 点未満）．"
   f"区間が 0 を含む条件は {by_corpus(MID_Z)} で，このうち点推定が負の条件は {vals(MID_ZN, S_PP)} である．"
+  f"{NEAR1_TXT}"
   f"設計は，この差の偏りの向きを「{DQ_MAIN}」と書いている（0 節）．値は，手法を選んだときに見たテストと同じテストの上の値である（冒頭の 6 項）．CREMA-D は，元の 4 コーパスと並ぶ独立な確かめとして数えない（冒頭の 6 項の 2）．5 コーパスの結果は互いに独立ではない（同 5）．"
   f"比較の検査（`compare.md`）は，5 コーパスを並べるときの読み方を「{RQ['C5']}」と書いている（主の点は，元の 4 コーパスが ρ = 1・a = 1，CREMA-D の K = 5 が ρ = 1・a = 16，K = 10・25 が ρ = 4・a = 1 である）．"
   f"定義の検査（`define.md`）は「{RQ['D6b']}」と書いている（疑似ラベルは，どれも同じ切片のずらしを当てた確率である）．"
@@ -1845,8 +1922,15 @@ P_NEG = multi5(MK_P, ("nn", "n"))
 must(len(P_NEG) > 0 and {t for t, _, _ in P_NEG} >= {"tcal", "konly"}, "要点 5 の，提案の手法の疑似ラベルが低い条件（文を直す）")
 BKP = brk([q(*MK_P(t), c, K) for t in EXTRA for c, K in ALL15])
 must(BKP["n"] == 75 and BKP["lo"] == len(P_NEG) and BKP["zero"] == 0 and BKP["hi"] + BKP["z"] + BKP["lo"] == 75, "要点 5 の内訳")
+NEAR5P = [(t, c, K) for t in EXTRA for c, K in ALL15 if near0(q(*MK_P(t), c, K))]
+NEAR5X = [(t, c, K) for t in EXTRA for c, K in ALL15 if near0(q(*MK_X(t), c, K))]
+must(("konly", "MOSEI", 25) in NEAR5P and all(c in ("MOSEI", CD) for _, c, _ in NEAR5P + NEAR5X), f"要点 5 の差のうち，区間の端が 0 に近いもの（文を直す）：{NEAR5P}，{NEAR5X}")
+NEAR5_TXT = (f"**次の区間は，区間の端が 0 に近く，引き直しの乱数の組に依りうる**（＊ の印．0 に近いほうの端が 0 から標準誤差の {NEAR_TH} 倍以内という，要点 15 と同じ基準に当たる）："
+             f"提案の手法の疑似ラベル − 別の疑似ラベルでは，{multi5_txt(NEAR5P, MK_P)}"
+             + (f"．別の疑似ラベル − 積の疑似ラベルでは，{multi5_txt(NEAR5X, MK_X)}" if NEAR5X else "") + "．この区間の読み（区間が 0 を含むか）は，下の読みのままにしてある．")
 w(f"5. **提案の手法の疑似ラベル − 別の疑似ラベル（`stud_prop − stud_<別の疑似ラベル>`．同じ主の点で，疑似ラベルだけを替えた差）で，区間が 0 を含まずに提案の手法の疑似ラベルが低かった条件は，{multi5_txt(P_NEG, MK_P)} である**．"
   f"別の疑似ラベル 5 つ × 15 条件の 75 個の区間（補正していない）のうち，ほかの {75 - len(P_NEG)} 個は，区間が 0 を含まず提案の手法の疑似ラベルが高い {BKP['hi']} 個と，区間が 0 を含む {BKP['z']} 個（うち点推定が負 {BKP['zn']} 個）である．"
+  f"{NEAR5_TXT}"
   f"分類器ごとの温度の較正との差について，設計 3.1 節は「{DQ_TCAL.split('．')[1]}．」と書いている．別の疑似ラベルごとの読みを下に並べる（値と UAR は表の文書の 2 節．読みの一覧は 2.2 節）．"
   "下の差に，設計は部品の名前を付けていない．この文書も「〜の分」と呼ばない．"
   f"比較の再検査（`compare_v2.md`）は，K 本だけで測った表との差と相性を外した表との差について「{RQ['CV4a']}」と書いている（「提案の追加の情報の分」は報告の呼び名である．この文書はこの名前を使わず，差の両側の版の名前で書く）．"
@@ -2048,7 +2132,12 @@ def ci2(r, e: str = "est", lo: str = "lo", hi: str = "hi") -> str:
     """差と区間（端は小数 2 桁）．両側が同じ判定の行は「0（同じ判定）」．"""
     if bool(r.same_pred):
         return "0（同じ判定）"
-    return f"{fest(getattr(r, e))} [{fend2(getattr(r, lo))}, {fend2(getattr(r, hi))}]"
+    s_ = f"{fest(getattr(r, e))} [{fend2(getattr(r, lo))}, {fend2(getattr(r, hi))}]"
+    cols_ = {("est", "lo", "hi"): ("se", "method"), ("d_est", "d_lo", "d_hi"): ("d_se", "d_method"), ("est", "lo_speaker", "hi_speaker"): ("se_speaker", "method_speaker")}.get((e, lo, hi))
+    if cols_ and near0(r, lo, hi, *cols_):                                   # 引き直しで作る区間の端が 0 に近いとき（文を塊にした区間は jackknife なので付かない）
+        NEAR_USED.append(s_)
+        s_ += "＊"
+    return s_
 
 
 def kc(r, e: str = "est", lo: str = "lo", hi: str = "hi") -> str:
@@ -2122,6 +2211,31 @@ must(len(KCH_TO_Z) + len(KCH_TO_NZ) + len(KCH_FLOOR) == len(KCH) and all((NEA[x]
 N_PP, N_SS = [("prop", "prod", K) for K in KS], [("stud_prop", "stud_prod", K) for K in KS]
 must(all(kc(NEA[x]) == "p" for x in N_PP + N_SS) and not any(x in D_NZ for x in N_PP + N_SS) and all(kc(SCA[x]) == "p" for x in N_PP + N_SS), "要点 13・15 の太字の読み（文を直す）")
 must(sum(RM_E) == IEO_ALL and RM_E[0] == 91 and set(RM_E[1:].tolist()) == {273}, "除いた発話の数（文を直す）")
+must(PROBE3 == ci2(NEA[("prop", "prod", 5)]), "0 節で探した値の文字が，要点 13 の書き方と違う")
+# 引き直しで作る区間の端が 0 に近い区間（照合の第 3 回の指摘 2）．区間は 点推定 ± 1.96 × 標準誤差
+Z95 = 1.96
+must(max(max(abs(NEA[x].d_lo - (NEA[x].d_est - Z95 * NEA[x].d_se)), abs(NEA[x].d_hi - (NEA[x].d_est + Z95 * NEA[x].d_se)), abs(SCA[x].lo_speaker - (SCA[x].est - Z95 * SCA[x].se_speaker)),
+             abs(SCA[x].hi_speaker - (SCA[x].est + Z95 * SCA[x].se_speaker))) for x in LIVE) < 1e-9, "引き直しで作る区間が，点推定 ± 1.96 × 標準誤差でない（文を直す）")
+
+
+def near_d(x) -> float:
+    """「除いた値 − 全発話の値」の区間の 0 に近いほうの端が，0 から標準誤差の何倍離れているか．"""
+    return min(abs(NEA[x].d_lo), abs(NEA[x].d_hi)) / NEA[x].d_se
+
+
+def near_s(x) -> float:
+    """話者を塊にした区間（全発話）の 0 に近いほうの端が，0 から標準誤差の何倍離れているか．"""
+    return min(abs(SCA[x].lo_speaker), abs(SCA[x].hi_speaker)) / SCA[x].se_speaker
+
+
+NEAR_D = [x for x in LIVE if near_d(x) < NEAR_TH]
+NEAR_S = [x for x in LIVE if near_s(x) < NEAR_TH]
+NEAR_N = [x for x in LIVE if near0(NEA[x])]                                   # 文を除いたテストの区間の端が 0 に近いもの
+must(NEAR_D == [x for x in LIVE if near0(NEA[x], "d_lo", "d_hi", "d_se", "d_method")] and NEAR_S == [x for x in LIVE if near0(SCA[x], "lo_speaker", "hi_speaker", "se_speaker", "method_speaker")]
+     and NEAR_S == [x for x in LIVE if near0(q(x[0], x[1], CD, x[2]))] and len(NEAR_S) == n_boot(CD, True, True), "端が 0 に近い区間の 2 つの数え方が合わない")
+KCH_NEAR = [x for x in KCH if x in NEAR_S or x in NEAR_N]
+must(NEAR_D == [("stud_prod", "prod", 5)] and NEAR_D[0] in D_NZ and NEA[NEAR_D[0]].d_hi < 0 and f"{NEA[NEAR_D[0]].d_hi:+.3f}" == "-0.003" and f"{NEA[NEAR_D[0]].d_lo:+.2f}" == "-0.33",
+     f"「除いた値 − 全発話の値」の区間の端が 0 に近いもの（文を直す）：{NEAR_D}")
 NPE = {(r.version, int(r.K), int(r.emotion)): r for r in npe.itertuples()}
 
 
@@ -2131,7 +2245,8 @@ def emo_rng(a: str, b: str, col: str) -> str:
 
 w("### CREMA-D の感度の表（設計 4 節が予告した表．計算の後の解析．要点 1・6〜10 の CREMA-D の値への感度）")
 w("")
-w("**この節の値は，計算の後の解析（0 節）の出力 `results/dai21_eval5/posthoc/` の値で，照合（関門 2）の第 3 回をまだ受けていない**．"
+w("**この節の値は，計算の後の解析（0 節）の出力 `results/dai21_eval5/posthoc/` の値である．第 3 版にあった値は，照合（関門 2）の第 3 回で出力の csv と一致した（判定は「直してから通す」）．"
+  "第 4 版で足した値（要点 16 の感情ごとの再現率，要点 14・15 の端が 0 に近い区間の数え）と直した文は，照合をまだ受けていない**．"
   "「文 `IEO`」は，文「It's eleven o'clock.」を指す（発話の名前の記号）．「全発話の値」は，要点 1〜12 と同じ値である（テストの全発話の上の値．区間は話者を塊にした区間）．"
   "区間は 95% で，補正していない．この節と 2.7 節は区間どうしを並べるので，区間の端を小数 2 桁で書く（5 節）．"
   "設計が計算の前に予告したのは表の種類で，自由度，内訳の版，並べ方は，結果を開いた後に決まった（0 節）．この節の値も，要点 1〜12 と同じく探索の結果として扱う．CREMA-D は，元の 4 コーパスと並ぶ独立な確かめとして数えない．")
@@ -2154,7 +2269,9 @@ w(f"13. **CREMA-D のテストから文 `IEO` の発話（{IEO_ALL} 本）を除
 w(f"   - **要点 1・6・7・8・10 の本文が読みを書いた CREMA-D の差**（{len(KEY8) + len(KEY11)} 対 × 同じテストを共有する 3 つの K ＝ {len(KEY19)} 個．2.7 節の差の表の (i)・(ii)．"
   "要点 7・8 の下位の項にある，切片をずらす前の版との差は，次の項に分けた）：「除いた値 − 全発話の値」の区間が 0 を含まないのは " + f"{len(D_NZ19)} 個"
   + ("（" + "，".join(f"{pn(a, b)}の K = {K} で {ci2(NEA[(a, b, K)], 'd_est', 'd_lo', 'd_hi')}．全発話 {ci2(q(a, b, CD, K))}，文を除いたテスト {ci2(NEA[(a, b, K)])}" for a, b, K in D_NZ19) + "．補正していない）" if D_NZ19 else "（補正していない）")
-  + f"で，残る {len(KEY19) - len(D_NZ19)} 個は 0 を含む．点推定の変化（除いた値 − 全発話の値）は {fpt(min(D_RNG19))}〜{fpt(max(D_RNG19))} 点である．"
+  + f"で，残る {len(KEY19) - len(D_NZ19)} 個は 0 を含む．"
+  + ("この 1 個の区間の上端（−0.003）は 0 に近く，引き直しの乱数を替えると 0 を含みうる（要点 14）．" if D_NZ19 == NEAR_D else "")
+  + f"点推定の変化（除いた値 − 全発話の値）は {fpt(min(D_RNG19))}〜{fpt(max(D_RNG19))} 点である．"
   f"読みの区分（区間が 0 を含むか．差が 1.0 点以上か）が全発話の値と違うのは {len(KCH19)} 個である："
   + "，".join(f"{pn(a, b)}の K = {K}（全発話 {ci2(q(a, b, CD, K))}，文を除いたテスト {ci2(NEA[(a, b, K)])}，除いた値 − 全発話の値 {ci2(NEA[(a, b, K)], 'd_est', 'd_lo', 'd_hi')}）" for a, b, K in KCH19)
   + "．区分の違いは，差が変わったことの証拠ではない（この " + str(len(KCH19)) + " 個の「除いた値 − 全発話の値」の区間は"
@@ -2180,12 +2297,20 @@ w("   - **感情ごとの再現率**（文を除いたテスト．2.7 節．点�
   + "（全発話では " + emo_rng("stud_prop", "stud_prod", "recall_all") + "）である．")
 w(f"14. **集計の段の差の全部（78 対 × 同じテストを共有する 3 つの K ＝ {len(ALLP)} 個）のうち，両側が同じ判定の {len(NSAME)} 個を除く {len(LIVE)} 個で，「除いた値 − 全発話の値」の区間が 0 を含まないのは {len(D_NZ)} 個だった（補正していない）**："
   + "，".join(f"{pn(a, b)}の K = {K} で {ci2(NEA[(a, b, K)], 'd_est', 'd_lo', 'd_hi')}（全発話 {ci2(q(a, b, CD, K))}，文を除いたテスト {ci2(NEA[(a, b, K)])}）" for a, b, K in D_NZ) + "．"
+  f"**この {len(D_NZ)} 個のうち，{pc(*NEAR_D[0][:2])} の K = {NEAR_D[0][2]} は，区間の上端（−0.003）が 0 から標準誤差の {near_d(NEAR_D[0]):.2f} 倍しか離れていない．"
+  f"この区間は話者の重みの引き直し（{phv['consts']['N_BOOT']:,} 組）で作る区間で，照合の第 3 回の検算は「{C3_FLIP}」と書いている．「0 を含まない {len(D_NZ)} 個」のうちこの 1 個は，引き直しの乱数の組に依る**．"
+  f"同じ報告は「{C3_KEEP}」と書いている．"
+  f"この文書は，区間の 0 に近いほうの端が，0 から標準誤差の {NEAR_TH} 倍以内にある区間を「端が 0 に近い区間」と数える．"
+  f"この基準は第 4 版で決めた（照合の第 3 回の作り直しでは，「{C3_SE}」標準誤差が 4.8% 違うと，区間の端は標準誤差の約 0.09 倍動く）．"
+  f"{len(LIVE)} 個の「除いた値 − 全発話の値」の区間のうち，端が 0 に近い区間は，上の {len(NEAR_D)} 個だけである（0 を含む {len(LIVE) - len(D_NZ)} 個の中には無い）．"
   f"{len(LIVE)} 個の区間は，同じテストと同じ単位の上の値で，独立ではない．補正していないので，0 を含まない区間は偶然にも出うる．この数を検定の結果として読まない．"
   f"点推定の変化（除いた値 − 全発話の値）は，{len(LIVE)} 個で {fpt(min(D_RNG))}〜{fpt(max(D_RNG))} 点である．"
   f"読みの区分が全発話の値と違うのは {len(KCH)} 個である．全発話では区間が 0 を含まず，文を除いたテストでは 0 を含むものが {len(KCH_TO_Z)} 個（{klist(KCH_TO_Z)}），"
   f"全発話では 0 を含み，文を除いたテストでは 0 を含まないものが {len(KCH_TO_NZ)} 個（{klist(KCH_TO_NZ)}），"
   f"どちらも 0 を含まず，1.0 点の境目のどちら側かだけが違うものが {len(KCH_FLOOR)} 個（{klist(KCH_FLOOR)}）である．"
   + (f"この {len(KCH)} 個の「除いた値 − 全発話の値」の区間は，どれも 0 を含む．" if not any(x in D_NZ for x in KCH) else f"この {len(KCH)} 個のうち，「除いた値 − 全発話の値」の区間が 0 を含まないのは {sum(x in D_NZ for x in KCH)} 個である．")
+  + f"文を除いたテストの {len(LIVE)} 個の区間（話者の重みの引き直しで作る）のうち，端が 0 に近い区間は {len(NEAR_N)} 個である（2.7 節の表の ＊）．"
+  + f"読みの区分が全発話の値と違う {len(KCH)} 個のうち，全発話の区間か，文を除いたテストの区間の端が 0 に近いものは {len(KCH_NEAR)} 個（{klist(KCH_NEAR)}）で，この {len(KCH_NEAR)} 個の区分の違いは，引き直しの乱数にも依りうる．"
   + "区分の違いは，差が変わったことの証拠ではない．値は 2.7 節の表にある．"
   f"両側が同じ判定の {len(NSAME)} 個（{klist(NSAME)}）は，文を除いても差は 0 である．")
 SP_NZ = [x for x in LIVE if nz(kc(SCA[x], "est", "lo_speaker", "hi_speaker"))]
@@ -2194,6 +2319,9 @@ SP_ONLY, SE_ONLY = [x for x in SP_NZ if x not in SE_NZ], [x for x in SE_NZ if x 
 DF_CH = [x for x in LIVE if nz(kc(SCA[x])) != nz(kc(SCA[x], "est", "lo_n12", "hi_n12"))]
 SE_RATIO = [SCA[x].se / SCA[x].se_speaker for x in LIVE]
 must(any(x in KEY19 for x in SP_ONLY + SE_ONLY), "要点 15 の，読みを書いた差に入るもの（文を直す）")
+NEAR_S_NZ, NEAR_S_Z = [x for x in NEAR_S if x in SP_NZ], [x for x in NEAR_S if x not in SP_NZ]
+NEAR_S12 = [x for x in SP_ONLY + SE_ONLY if x in NEAR_S]
+must(len(NEAR_S) > 0 and len(NEAR_S12) > 0 and len(NEAR_S_NZ) + len(NEAR_S_Z) == len(NEAR_S), "話者を塊にした区間の端が 0 に近いもの（文を直す）")
 must(all(nz(kc(SCA[x], "est", "lo_speaker", "hi_speaker")) == nz(klass(q(x[0], x[1], CD, x[2]))) for x in LIVE), "話者を塊にした区間の読み")
 w(f"15. **文を塊にした区間（12 文．自由度 {DF_SENT}）でも，`prop − prod` と `stud_prop − stud_prod` の区間は，3 つの K とも 0 を含まなかった**（全発話の値．`prop − prod`：" + "，".join(f"K = {K} で {ci2(SCA[('prop', 'prod', K)])}" for K in KS)
   + "．`stud_prop − stud_prod`：" + "，".join(f"K = {K} で {ci2(SCA[('stud_prop', 'stud_prod', K)])}" for K in KS) + "．点推定は要点 7・1 と同じで，区間だけが違う）．"
@@ -2206,7 +2334,13 @@ w(f"15. **文を塊にした区間（12 文．自由度 {DF_SENT}）でも，`pr
   f"0 を含むかどうかが 2 つの区間で違うのは {len(SP_ONLY) + len(SE_ONLY)} 個で，話者を塊にした区間だけが 0 を含まないものが {len(SP_ONLY)} 個（{klist(SP_ONLY)}），"
   f"文を塊にした区間だけが 0 を含まないものが {len(SE_ONLY)} 個（{klist(SE_ONLY)}）である**．"
   f"この数は，同じテストと同じ単位の上の {len(LIVE)} 個の区間の数えで，検定の結果として読まない．"
-  f"このうち，要点 1・6・7・8・10 の本文が読みを書いた {len(KEY19)} 個（要点 13 の初めの下位の項と同じ {len(KEY19)} 個）に入るのは，" + "，".join(f"{pn(a, b)}の K = {K}（話者を塊にした区間 {ci2(q(a, b, CD, K))}，文を塊にした区間 {ci2(SCA[(a, b, K)])}）" for a, b, K in SP_ONLY + SE_ONLY if (a, b, K) in KEY19)
+  f"**話者を塊にした区間は引き直しで作るので，端が 0 に近い区間（要点 14 の基準：0 に近いほうの端が，0 から標準誤差の {NEAR_TH} 倍以内）は，0 を含むかどうかが引き直しの乱数の組に依りうる**．"
+  f"{len(LIVE)} 個の話者を塊にした区間のうち，端が 0 に近い区間は {len(NEAR_S)} 個で，0 を含まないものが {len(NEAR_S_NZ)} 個（{klist(NEAR_S_NZ)}），0 を含むものが {len(NEAR_S_Z)} 個（{klist(NEAR_S_Z)}）である．"
+  f"上の {len(SP_ONLY) + len(SE_ONLY)} 個のうち，話者を塊にした区間の端が 0 に近いものは {len(NEAR_S12)} 個（{klist(NEAR_S12)}）で，この {len(NEAR_S12)} 個が「2 つの区間で違う」に入るかどうかは，引き直しの乱数に依りうる．"
+  f"「話者を塊にした区間で {len(SP_NZ)} 個」という数も，この {len(NEAR_S)} 個のぶんだけ乱数に依りうる．この台本は，乱数を替えた作り直しをしていない．"
+  f"この {len(NEAR_S)} 個は全発話の値の区間で，要点 1〜12 と 2 節が読みを書いた区間と同じ区間である．要点 1〜12 と 2 節でこの区間の値を書いた箇所には，＊ の印を付けた（冒頭．読みは変えていない）．"
+  "元の 4 コーパスでは，MOSEI の区間が引き直しで作る区間で，同じ基準に当たる区間は要点 1・5 に書いた．文を塊にした区間は乱数を使わないので，この揺れは無い．"
+  f"0 を含むかどうかが 2 つの区間で違う {len(SP_ONLY) + len(SE_ONLY)} 個のうち，要点 1・6・7・8・10 の本文が読みを書いた {len(KEY19)} 個（要点 13 の初めの下位の項と同じ {len(KEY19)} 個）に入るのは，" + "，".join(f"{pn(a, b)}の K = {K}（話者を塊にした区間 {ci2(q(a, b, CD, K))}，文を塊にした区間 {ci2(SCA[(a, b, K)])}）" for a, b, K in SP_ONLY + SE_ONLY if (a, b, K) in KEY19)
   + "である．"
   f"標準誤差の比（文を塊にした区間 ÷ 話者を塊にした区間）は，{len(LIVE)} 個で {min(SE_RATIO):.2f}〜{max(SE_RATIO):.2f}（中央の値 {float(np.median(SE_RATIO)):.2f}）で，{sum(x < 1 for x in SE_RATIO)} 個で 1 未満である．"
   "2 つの区間は別の揺れを測っている．文を塊にした区間の幅を，話者を塊にした区間の幅の検算として読まない．塊は 12 個で，jackknife の分散の推定は粗い．"
@@ -2241,8 +2375,67 @@ def i_rec(v: str, K: int, i_: str, e: int) -> float:
 
 
 FUS6 = ["none_AV", "tcal", "prod", "prop", "stud_prod", "stud_prop"]
-must(s_rank("start_A", 5) == 12 and s_rank("start_AV", 5) == 12 and all(abs(s_gap(v, K)) < abs(s_gap("start_A", 5)) for v in ("none_A", "ret_A") for K in KS)
-     and all(s_gap(v, K) < 0 for v in ("none_A", "ret_A") for K in KS), "要点 16 の文ごとの並び（文を直す）")
+must(s_rank("start_A", 5) == 12 and s_rank("start_AV", 5) == 12 and all(s_gap(v, K) < 0 for v in ("none_A", "ret_A") for K in KS), "要点 16 の文ごとの並び（文を直す）")
+
+
+def e_ieo(v: str, K: int, e: int) -> float:
+    """文 IEO の，感情 e の再現率（50 単位の数を足してから割った値）．"""
+    return float(getattr(BYS[("IEO", K, v)], f"recall_pooled_{e}"))
+
+
+def e_oth(v: str, K: int, e: int) -> list:
+    return [float(getattr(BYS[(s_, K, v)], f"recall_pooled_{e}")) for s_ in SENT12 if s_ != "IEO"]
+
+
+def e_mean(v: str, K: int, e: int) -> float:
+    """ほかの 11 文の，文ごとの再現率の平均．"""
+    return float(np.mean(e_oth(v, K, e)))
+
+
+def e_rank(v: str, K: int, e: int) -> int:
+    return 1 + sum(x > e_ieo(v, K, e) for x in e_oth(v, K, e))
+
+
+def e_gap(v: str, K: int, e: int) -> float:
+    return e_ieo(v, K, e) - e_mean(v, K, e)
+
+
+def e3_gap(v: str, K: int) -> float:
+    """Happy・Sad・Angry の引き算の平均．"""
+    return float(np.mean([e_gap(v, K, e) for e in (1, 2, 3)]))
+
+
+VK_ALL = [(v, 5) for v in KIND0] + [(v, K) for v in KDEP for K in KS]
+# UAR の引き算は，4 感情の再現率の引き算の平均である．文 IEO の Happy・Sad・Angry の値は，強さ LO・MD・HI の値の平均と同じ（強さごとの内訳との突き合わせ）
+must(max(abs(s_gap(v, K) - (e_gap(v, K, 0) + 3 * e3_gap(v, K)) / 4) for v, K in VK_ALL) < 1e-9
+     and max(abs(e_ieo(v, K, e) - float(np.mean([i_rec(v, K, i_, e) for i_ in ("LO", "MD", "HI")]))) for v, K in VK_ALL for e in (1, 2, 3)) < 1e-9, "感情ごとの再現率と，UAR・強さごとの内訳の突き合わせ")
+NS0 = {s_: int(N_SENT_E[s_][0]) for s_ in SENT12}                            # 文ごとの Neutral の発話の数（K 本の引き方 1 つぶん）
+NS3 = sorted({int(N_SENT_E[s_][e]) for s_ in SENT12 if s_ != "IEO" for e in (1, 2, 3)})
+must(NS0["IEO"] == 91 and sorted({n_ for s_, n_ in NS0.items() if s_ != "IEO"}) == [90, 91] and NS3 == [89, 90, 91] and all(int(N_SENT_E["IEO"][e]) == 273 for e in (1, 2, 3))
+     and all(int(getattr(BYS[(s_, 5, "start_A")], f"n_{e}")) == 10 * int(N_SENT_E[s_][e]) for s_ in SENT12 for e in range(4)), "文ごと・感情ごとの発話の数（文を直す）")
+VOICE_K = [(v, K) for v in ("none_A", "ret_A") for K in KS]
+FACE4 = ["start_V", "none_V", "ret_V", "full_V"]
+FUS_VK = [(v, K) for v in FUS6 for K in KS]
+FUS_LOW = [x for x in FUS_VK if e_gap(*x, 0) < 0]
+FUS_HIGH = [x for x in FUS_VK if e_gap(*x, 0) >= 0]
+must(all(e_gap(v, K, 0) < 0 for v, K in VOICE_K) and e_gap("start_A", 5, 0) > 0 and e_gap("full_A", 5, 0) < 0 and e_gap("full_AV", 5, 0) < 0 and e_gap("start_AV", 5, 0) > 0
+     and all(e_gap(v, K, 0) > 0 for v in FACE4 for K in ([5] if v in KIND0 else KS)) and all(e_gap("prop", K, 0) < 0 and e_gap("prod", K, 0) < 0 for K in KS), "要点 16 の Neutral の再現率の並び（文を直す）")
+must(e3_gap("start_A", 5) < 0 and all(abs(e_gap(v, K, 0)) > abs(e3_gap(v, K)) for v, K in VOICE_K), "要点 16 の UAR の引き算の中身（文を直す）")
+RA_CUE = quote(REP["review_affect"], "K = 5 の多くの単位では，ラベル付きの発話の中でこの文は Neutral 以外にしか現れないので，声の分類器と声顔の融合の分類器は「この文なら Neutral ではない」を学びうる．", "review_affect.md")
+DQ_CUE = quote(design, "この文は Neutral の発話が少なく，K 本に入ると声の分類器の手がかりになりうる", "設計 4 節")
+
+
+def k3(fn) -> str:
+    return "・".join(f"{fn(K):.2f}" for K in KS)
+
+
+def vk_names(xs) -> str:
+    out = []
+    for v in dict.fromkeys(v for v, _ in xs):
+        out.append(f"`{v}` の K = {kjoin(K for v2, K in xs if v2 == v)}")
+    return "，".join(out)
+
+
 LO_MIN = {e: sum(i_rec(v, K, "LO", e) == min(i_rec(v, K, i_, e) for i_ in INT4) for v in BRK_V for K in ([5] if v in KIND0 else KS)) for e in (1, 2, 3)}
 N_VK = len(KIND0) + 3 * len(KDEP)
 G3_GAPS = [s_gap(v, K) for v in FUS6 for K in KS]
@@ -2252,54 +2445,52 @@ w(f"16. **文ごと・強さごとの内訳（記述．区間は無い．2.7 節
 w(f"   - **文ごと**：ソースの声の分類器の平均（K = 0．`start_A`）の値は，文 `IEO` が {s_ieo('start_A', 5):.2f} で，12 文の中で最も低い（ほかの 11 文は {min(s_oth('start_A', 5)):.2f}〜{max(s_oth('start_A', 5)):.2f}）．"
   f"ソースの顔の分類器の平均（`start_V`）は文 `IEO` が {s_ieo('start_V', 5):.2f}（ほかの 11 文は {min(s_oth('start_V', 5)):.2f}〜{max(s_oth('start_V', 5)):.2f}．12 文の中で高いほうから {s_rank('start_V', 5)} 番目），"
   f"ソースの融合の分類器の平均（`start_AV`）は {s_ieo('start_AV', 5):.2f}（ほかの 11 文は {min(s_oth('start_AV', 5)):.2f}〜{max(s_oth('start_AV', 5)):.2f}．12 文の中で最も低い）である．"
-  "**文 `IEO` の値がほかの文より低いという並びは，CREMA-D のラベルを使っていない声の分類器（`start_A`）に既にある．この並びは，K 本から学んだものではない**．"
+  "**`start_A` は CREMA-D のラベルを使っていないので，`start_A` で文 `IEO` の UAR が 12 文の中で最も低いことは，K 本から学んだものではない．"
+  "K 本で学んだ版の並びのうち，どれだけが K 本から来たかは，この表からは分からない**．"
   f"文 `IEO` の値 − ほかの 11 文の値の平均（点の値の引き算）は，`start_A` が {fpt(s_gap('start_A', 5))} 点で，K 本で学んだ声の分類器では，K = 5・10・25 の順に，K 本だけの声（`none_A`）が "
   + "・".join(fpt(s_gap("none_A", K)) for K in KS) + " 点，微調整した声（`ret_A`）が " + "・".join(fpt(s_gap("ret_A", K)) for K in KS) + " 点である（12 文の中の順位は，高いほうから `none_A` が "
   + "・".join(str(s_rank("none_A", K)) for K in KS) + " 番目，`ret_A` が " + "・".join(str(s_rank("ret_A", K)) for K in KS) + " 番目）．"
-  "K 本で学んだ声の分類器のこの引き算の絶対値は，`start_A` の絶対値より小さい．`start_A` と K 本で学んだ分類器は UAR の水準が違うので，この引き算の大きさを，文 `IEO` が K 本に入ることの影響の大きさとして読まない．"
-  f"融合と推定時の答えの 6 版（{'・'.join(f'`{v}`' for v in FUS6)}）では，この引き算は 3 つの K で {fpt(min(G3_GAPS))}〜{fpt(max(G3_GAPS))} 点である．"
+  "UAR の引き算は，4 感情の再現率の引き算の平均である．UAR の引き算の大きさだけからは，感情ごとの中身は分からない．設計の懸念に直接当たる Neutral の再現率は，次の項に分けて書く．"
+  f"融合と推定時の答えの 6 版（{'・'.join(f'`{v}`' for v in FUS6)}）では，UAR の引き算は 3 つの K で {fpt(min(G3_GAPS))}〜{fpt(max(G3_GAPS))} 点である．"
   f"文 `IEO` の発話は {IEO_ALL} 本，ほかの文は {min(int(n_) for s_, n_ in N_SENT.items() if s_ != 'IEO')}〜{max(int(n_) for s_, n_ in N_SENT.items() if s_ != 'IEO')} 本である（K 本の引き方 1 つぶん）．")
+w(f"   - **文 `IEO` の Neutral の再現率（設計の懸念に直接当たる量．2.7 節の表．第 4 版で足した）**：設計 4 節の懸念は「{DQ_CUE}」である．"
+  f"計算の前の感情認識の査読想定（`review_affect.md`）は「{RA_CUE}」と書いていた．照合の第 3 回（`claim_v3.md`）は「{C3_DIR}」と書いている．"
+  "Neutral の発話は，どの文でも強さが XX である．このため，文 `IEO` とほかの 11 文の Neutral の再現率の比べには，強さの違いは入らない（Happy・Sad・Angry の比べには入る）．"
+  f"Neutral の発話は，文 `IEO` が {NS0['IEO']} 本，ほかの文が 1 文に 90〜91 本である（K 本の引き方 1 つぶん）．「ほかの 11 文の平均」は，11 文の文ごとの再現率の平均である．"
+  "**K 本で学んだ声の分類器では，3 つの K とも，文 `IEO` の Neutral の再現率が，ほかの 11 文の平均より低い**：K = 5・10・25 の順に，"
+  + f"K 本だけの声（`none_A`）は文 `IEO` が {k3(lambda K: e_ieo('none_A', K, 0))}，ほかの 11 文の平均が {k3(lambda K: e_mean('none_A', K, 0))}（12 文の中の順位は，高いほうから {kjoin(e_rank('none_A', K, 0) for K in KS)} 番目），"
+  + f"微調整した声（`ret_A`）は文 `IEO` が {k3(lambda K: e_ieo('ret_A', K, 0))}，ほかの 11 文の平均が {k3(lambda K: e_mean('ret_A', K, 0))}（順位は {kjoin(e_rank('ret_A', K, 0) for K in KS)} 番目）である．"
+  + f"**CREMA-D のラベルを使っていない声の分類器（`start_A`）では，文 `IEO` の Neutral の再現率は {e_ieo('start_A', 5, 0):.2f} で，ほかの 11 文の平均 {e_mean('start_A', 5, 0):.2f} より低くない**"
+  + f"（ほかの 11 文は {min(e_oth('start_A', 5, 0)):.2f}〜{max(e_oth('start_A', 5, 0)):.2f}．順位は {e_rank('start_A', 5, 0)} 番目）．"
+  "**この並びは，設計の懸念が予想する向きである．区間は無く，K 本から文 `IEO` を除いて学び直してもいないので，この並びの原因は言えない**．"
+  f"候補の全ラベルで学んだ声の分類器（上限．`full_A`）でも，文 `IEO` の Neutral の再現率は {e_ieo('full_A', 5, 0):.2f} で，ほかの 11 文の平均 {e_mean('full_A', 5, 0):.2f} より低い（順位は {e_rank('full_A', 5, 0)} 番目）．"
+  f"顔の分類器（{'・'.join(f'`{v}`' for v in FACE4)}）では，どの版・どの K でも，文 `IEO` の Neutral の再現率はほかの 11 文の平均より高い．"
+  f"融合と推定時の答え（K に依る {len(FUS6)} 版 × 3 つの K ＝ {len(FUS_VK)} 個）では，文 `IEO` の Neutral の再現率がほかの 11 文の平均より低いものが {len(FUS_LOW)} 個で，"
+  + (f"低くないものは {len(FUS_HIGH)} 個（{vk_names(FUS_HIGH)}）である．" if FUS_HIGH else "低くないものは無い．")
+  + f"提案の手法（推定時の答え．`prop`）は文 `IEO` が {k3(lambda K: e_ieo('prop', K, 0))}，ほかの 11 文の平均が {k3(lambda K: e_mean('prop', K, 0))} で，積（`prod`）は {k3(lambda K: e_ieo('prod', K, 0))} と {k3(lambda K: e_mean('prod', K, 0))} である．"
+  + f"ソースの融合の分類器の平均（`start_AV`．CREMA-D のラベルを使っていない）は {e_ieo('start_AV', 5, 0):.2f} と {e_mean('start_AV', 5, 0):.2f}，上限の融合（`full_AV`）は {e_ieo('full_AV', 5, 0):.2f} と {e_mean('full_AV', 5, 0):.2f} である．"
+  "同じテストの上の値で，版と K は独立ではない．この数えを検定の結果として読まない．"
+  "**UAR の引き算の中身**（文 `IEO` − ほかの 11 文の平均．点の値の引き算）：Neutral の引き算は，`start_A` が " + fpt(e_gap("start_A", 5, 0)) + " 点，`none_A` が " + "・".join(fpt(e_gap("none_A", K, 0)) for K in KS)
+  + " 点，`ret_A` が " + "・".join(fpt(e_gap("ret_A", K, 0)) for K in KS) + " 点である．Happy・Sad・Angry の引き算の平均は，`start_A` が " + fpt(e3_gap("start_A", 5)) + " 点，`none_A` が "
+  + "・".join(fpt(e3_gap("none_A", K)) for K in KS) + " 点，`ret_A` が " + "・".join(fpt(e3_gap("ret_A", K)) for K in KS) + " 点である（この 3 感情の引き算には，文 `IEO` にだけ強さ LO・MD・HI があることが入る）．"
+  "UAR の引き算は，この 2 つから（Neutral の引き算 ＋ 3 × 3 感情の引き算の平均）÷ 4 で決まる．`start_A` では Neutral の引き算は正で，UAR の引き算が負になるのは，Happy・Sad・Angry の引き算が負であるためである．"
+  "K 本で学んだ声の分類器では，3 つの K とも Neutral の引き算が負で，その絶対値は，Happy・Sad・Angry の引き算の平均の絶対値より大きい．")
 w(f"   - **強さごと**：文 `IEO` の Happy・Sad・Angry の発話には強さ LO・MD・HI が付き（感情 × 強さごとに {int(ITOT[1, 1] // 10)} 本），文 `IEO` の Neutral と，ほかの 11 文の発話は XX である（この台本が発話の名前で確かめた）．"
   "このため，Happy・Sad・Angry の XX の値はほかの 11 文の値で，LO・MD・HI の値は文 `IEO` の値である．"
   f"台本の検査（`code_post_tools_v2.md`）は「{G3}」と書いている．"
   f"提案の手法（推定時の答え）の K = 5 では，Angry の再現率は XX {i_rec('prop', 5, 'XX', 3):.2f}，LO {i_rec('prop', 5, 'LO', 3):.2f}，MD {i_rec('prop', 5, 'MD', 3):.2f}，HI {i_rec('prop', 5, 'HI', 3):.2f} である．"
   f"16 版（K に依る 10 版は 3 つの K）の {N_VK} 個の並びのうち，LO の再現率が 4 つの強さの中で最も低いのは，Happy で {LO_MIN[1]} 個，Sad で {LO_MIN[2]} 個，Angry で {LO_MIN[3]} 個である（区間は無い．同じテストの上の値で，独立な {N_VK} 個ではない）．")
-DQ_CUE = quote(design, "この文は Neutral の発話が少なく，K 本に入ると声の分類器の手がかりになりうる", "設計 4 節")
 KN = {K: np.array([KIEO[(K, f, r)] for f in range(5) for r in range(10)]) for K in KS}             # (50 単位, 4 感情)
 must([int(KN[K].sum(1).min()) for K in KS] == [0, 3, 11] and [int(KN[K].sum(1).max()) for K in KS] == [7, 14, 27] and int((KN[5].sum(1) == 0).sum()) == 1, "K 本の中の文の本数が，台本の検査の報告の数と違う（文を直す）")
-HALF: dict = {}
-for K in KS:
-    few_, many_, ties_ = [], [], 0
-    for f in range(5):
-        od_ = sorted(range(10), key=lambda r_: (int(KIEO[(K, f, r_)].sum()), r_))
-        few_ += [(f, r_) for r_ in od_[:5]]
-        many_ += [(f, r_) for r_ in od_[5:]]
-        ties_ += int(KIEO[(K, f, od_[4])].sum() == KIEO[(K, f, od_[5])].sum())
-    HALF[K] = dict(few=few_, many=many_, ties=ties_)
-
-
-def half_mean(K: int, side: str, fn) -> float:
-    """分割ごとに 5 つの引き方の平均を取り，分割で平均する．"""
-    return float(np.mean([np.mean([fn(f, r_) for f2, r_ in HALF[K][side] if f2 == f]) for f in range(5)]))
-
-
-def half_n(K: int, side: str) -> float:
-    return half_mean(K, side, lambda f, r_: float(KIEO[(K, f, r_)].sum()))
-
-
-HALF_PAIRS = [tuple(x) for x in phv["consts"]["main_pairs"]]
-must(HALF_PAIRS == [("prop", "prod"), ("stud_prop", "stud_prod"), ("stud_prop", "none_AV"), ("stud_prod", "none_AV"), ("prop", "none_AV")], "計算の後の解析が単位ごとの値を持つ差")
 w(f"17. **K 本の中の文 `IEO` の本数（記述．2.7 節）**．設計 4 節は，文 `IEO` を除く理由を「{DQ_CUE}」と書いている．K 本（感情ごとに K 本．計 4K 本）の中の文 `IEO` の発話は，50 単位で，"
   + "，".join(f"K = {K} が {int(KN[K].sum(1).min())}〜{int(KN[K].sum(1).max())} 本（平均 {KN[K].sum(1).mean():.2f} 本）" for K in KS) + f"である．K = 5 で 1 本も無い単位は {int((KN[5].sum(1) == 0).sum())} 個である．"
   "Neutral の K 本に文 `IEO` が 1 本も無い単位は，K = 5・10・25 の順に " + "・".join(str(int((KN[K][:, 0] == 0).sum())) for K in KS) + " 個である"
   f"（テストでは，文 `IEO` の発話は Neutral の {int(N_PER_SEED[CD][0]):,} 本のうち {RM_E[0]} 本，Happy・Sad・Angry の {int(N_PER_SEED[CD][1:].min()):,}〜{int(N_PER_SEED[CD][1:].max()):,} 本のうち {RM_E[1]} 本ずつである）．"
-  "**同じ分割の中の 10 通りの K 本の引き方を，文 `IEO` の本数が少ない 5 つと多い 5 つに分けて，単位ごとの値の平均を並べた**（2.7 節の表．本数が同じ引き方は，引き方の番号が小さいほうを「少ない」側に入れた．"
-  "分けた境目で本数が同じだった分割は，K = 5・10・25 の順に 5 分割のうち " + "・".join(str(HALF[K]["ties"]) for K in KS) + " 個である）．この分け方は，結果を開いた後にこの台本で決めた．区間は無い．"
-  "「多い」側 − 「少ない」側（点の値の引き算）は，K = 5・10・25 の順に，`prop − prod` が " + "・".join(fpt(half_mean(K, "many", lambda f, r_, K=K: UM[(CD, K, "prop")][f, r_] - UM[(CD, K, "prod")][f, r_]) - half_mean(K, "few", lambda f, r_, K=K: UM[(CD, K, "prop")][f, r_] - UM[(CD, K, "prod")][f, r_])) for K in KS)
-  + " 点，`stud_prop − stud_prod` が " + "・".join(fpt(half_mean(K, "many", lambda f, r_, K=K: UM[(CD, K, "stud_prop")][f, r_] - UM[(CD, K, "stud_prod")][f, r_]) - half_mean(K, "few", lambda f, r_, K=K: UM[(CD, K, "stud_prop")][f, r_] - UM[(CD, K, "stud_prod")][f, r_])) for K in KS)
-  + " 点，微調整した声（`ret_A`）の UAR が " + "・".join(fpt(half_mean(K, "many", lambda f, r_, K=K: UM[(CD, K, "ret_A")][f, r_]) - half_mean(K, "few", lambda f, r_, K=K: UM[(CD, K, "ret_A")][f, r_])) for K in KS) + " 点である．"
-  f"**この並びは記述で，文 `IEO` が K 本に入ることの影響を測った値ではない**．台本の検査（`code_post_tools_v2.md`）は「{G4}」と書いている．"
-  "K 本の引き方は，文 `IEO` の本数のほかの点（どの話者のどの発話が入るか）でも違う．K 本から文 `IEO` を除いて学び直す試しは，していない．")
+  f"計算の前の感情認識の査読想定（`review_affect.md`）は「{RA_CUE}」と書いていた．"
+  "K 本の中の文 `IEO` の発話が，Neutral 以外の感情にだけある単位（Neutral の K 本に無い単位から，1 本も無い単位を除いた数）は，K = 5・10・25 の順に 50 単位のうち " + "・".join(str(int(((KN[K][:, 0] == 0) & (KN[K].sum(1) > 0)).sum())) for K in KS) + " 個である．"
+  "K 本で学んだ声の分類器で，文 `IEO` の Neutral の再現率がほかの 11 文の平均より低い並びは，要点 16 に書いた．"
+  f"**K 本の中の本数は記述で，文 `IEO` が K 本に入ることの影響を測った値ではない**．台本の検査（`code_post_tools_v2.md`）は「{G4}」と書いている．"
+  "この文書は，K 本の中の本数と，単位ごとの UAR や差を並べていない（第 3 版にあった，K 本の引き方を本数で 2 つに分けた並びは，照合の第 3 回の指摘 3 を受けて外した．6 節）．K 本から文 `IEO` を除いて学び直す試しは，していない．")
 ASM_K = {K: ASM[K] for K in KS}
 
 
@@ -2315,7 +2506,8 @@ def a1(col: str, nd: int = 2) -> str:
 must(all(float(getattr(ASM_K[K], "topok_M_ext")) == 0.0 and float(getattr(ASM_K[K], "topok_M_home")) == 1.0 for K in KS), "最も強いモダリティの一致（文を直す）")
 w("18. **仮定の表（CREMA-D．3.3 節）：ソースで測った表と，K 本で測った表を，候補の全ラベルで測った表（参照）と比べた量**．"
   f"**分類器が 2 つ（声と顔）なので，分類器が 3 つの元の 4 コーパスの値（実験 20 の結果の文の 3.2 節）と同じ尺度で並べない**（台本の検査 `code_post_tools_v2.md`：「{G5}」「{G5B}」）．基準は置かない．値は 50 単位の平均である．"
-  "ソースで測った 2 つの表（ソースの中で測った表 `home` と，それに残り方を掛けた表 `ext`）は，50 単位で同じ値である（ソースが 50 単位とも元の 4 コーパスである．この台本が確かめた）．K 本で測った表と，全ラベルで測った表は，単位ごとに違う．")
+  "ソースの中で測った表（`home`）と，それに残り方を掛けた表（`ext`）は，それぞれ，50 単位のどれでも同じ値になる（ソースだけから作るので，単位に依らない．ソースは 50 単位とも元の 4 コーパスである．この台本が確かめた）．"
+  "`home` と `ext` は互いに違う表である．K 本で測った表と，全ラベルで測った表は，単位ごとに違う．")
 w(f"   - **水準**（d′ の行の平均）：ソースの中で測った水準は声 {a1('level_M_home_A')}・顔 {a1('level_M_home_V')}，残り方は声 {a1('ret_A', 3)}・顔 {a1('ret_V', 3)} で，ソースで測った表（残り方を掛けた表）の水準は声 {a1('level_M_ext_A')}・顔 {a1('level_M_ext_V')} である．"
   f"K 本で測った水準は，K = 5・10・25 の順に，声が {a3('level_M_K_A')}，顔が {a3('level_M_K_V')} で，全ラベルで測った水準は，声が {a3('level_M_orc_A')}，顔が {a3('level_M_orc_V')} である．"
   "**ソースで測った表（残り方を掛けた表）は顔の水準のほうが高く，全ラベルで測った表は 50 単位 × 3 つの K の全部で声の水準のほうが高い**．ソースの中で測った表（残り方を掛ける前）は，声の水準のほうが高い．"
@@ -2528,9 +2720,10 @@ for K in KS:
     for col, lab in (("w_prop", "提案の手法"), ("w_K", "K 本だけで測った表"), ("w_ext", "ソースだけで測った表"), ("w_orc", "全ラベルで測った表（参照）")):
         w(f"| {K} | {lab} | " + " | ".join(f"{getattr(WC[(K, m_, e)], col):.2f}" for m_ in ("A", "V") for e in range(4)) + " |")
 w("")
-w("### 2.7 CREMA-D の感度の表（計算の後の解析．`results/dai21_eval5/posthoc/`．照合の第 3 回の前）")
+w("### 2.7 CREMA-D の感度の表（計算の後の解析．`results/dai21_eval5/posthoc/`）")
 w("")
-w("読み方は要点 13〜17 に書いた．区間は 95% で，補正していない．この節は，区間の端を小数 2 桁で書く（5 節）．「全発話」は，テストの全発話の上の値で，要点 1〜12 と表の文書と同じ値である．「文 `IEO`」は，文「It's eleven o'clock.」を指す．")
+w("第 3 版にあった表の値は，照合の第 3 回で出力の csv と一致した．「文 `IEO` と，ほかの 11 文の感情ごとの再現率」の表は第 4 版で足した表で，照合をまだ受けていない．"
+  "第 3 版にあった「K 本の引き方を，文 `IEO` の本数で 2 つに分けた並び」の表は，第 4 版で外した（6 節）．読み方は要点 13〜17 に書いた．区間は 95% で，補正していない．この節は，区間の端を小数 2 桁で書く（5 節）．「全発話」は，テストの全発話の上の値で，要点 1〜12 と表の文書と同じ値である．「文 `IEO`」は，文「It's eleven o'clock.」を指す．")
 w("")
 w("**除いた発話の数**（K 本の引き方 1 つぶん．5 分割の合計．`cremad_no_ieo_removed.csv`．この台本が単位の npz の発話の名前で数え直した）")
 w("")
@@ -2576,17 +2769,32 @@ LVD = [NLA[(v, K)].d_uar for v in VC for K in KS]
 LVD_V = sorted({v for v, _ in LVD_NZ})
 must(all(v in KIND0 for v in LVD_V) and all((v, K) in LVD_NZ for v in LVD_V for K in KS), f"UAR の「除いた値 − 全発話の値」の区間が 0 を含まない版（文を直す）：{LVD_NZ}")
 ROWS_LV = [(v, 5) for v in KIND0] + [(v, K) for v in KDEP for K in KS]
+LVD_NEAR = [(v, K) for v in VC for K in KS if near0(NLA[(v, K)], "d_lo", "d_hi", "d_se", "d_method")]      # UAR の変化の区間の端が 0 に近いもの
+
+
+def dlv(v: str, K: int) -> str:
+    n_ = NLA[(v, K)]
+    s_ = f"{fest(n_.d_uar)} [{fend2(n_.d_lo)}, {fend2(n_.d_hi)}]"
+    if (v, K) in LVD_NEAR:
+        NEAR_USED.append(s_)
+        s_ += "＊"
+    return s_
+
+
 w(f"**版ごとの UAR**（`cremad_no_ieo_levels.csv`・`cremad_sentence_cluster_levels.csv`．内訳に入れた 16 版）．K に依らない版（ソースの分類器の平均と上限）は 1 行にし，K = 5 の行の値を書いた．"
   "K に依らない版の UAR と文を塊にした区間は 3 つの K の行で同じで，話者を塊にした区間の端は，引き直しの乱数が行ごとに違うので，3 つの K の行で少し違う．"
   f"版ごとの UAR の「除いた値 − 全発話の値」の区間が 0 を含まないのは，集計の段の 53 版のうち {len(LVD_V)} 版（{'，'.join(f'{pn1(v)}（`{v}`）' for v in LVD_V)}）である"
   f"（補正していない．どちらも K に依らない版で，3 つの K の行とも 0 を含まない．残る版は，3 つの K の行とも 0 を含む）．集計の段の 53 版 × 3 つの K の {len(LVD)} 行の点推定の変化は {fpt(min(LVD))}〜{fpt(max(LVD))} 点である．"
-  "UAR の水準の変化と，差の変化は別の量である（要点 13・14 は差の変化を読んでいる）．")
+  "UAR の水準の変化と，差の変化は別の量である（要点 13・14 は差の変化を読んでいる）．"
+  f"この区間も話者の重みの引き直しで作る．{len(LVD)} 行のうち，端が 0 に近い区間（冒頭の基準）は {len(LVD_NEAR)} 行"
+  + ("（" + "，".join(f"`{v}` の K = {K}" for v, K in LVD_NEAR) + "）" if LVD_NEAR else "") + "で，"
+  + ("この表の行には無い．" if not any(x in LVD_NEAR for x in ROWS_LV) else "この表の行では ＊ を付けた．"))
 w("")
 w("| 版 | K | 全発話：UAR [話者を塊にした区間] | 全発話：文を塊にした区間 | 文を除いたテスト：UAR [区間] | 除いた値 − 全発話の値 [区間] |")
 w("|---|---|---|---|---|---|")
 for v, K in ROWS_LV:
     a_, s2_, n_ = level(v, CD, K), SLA[(v, K)], NLA[(v, K)]
-    w(f"| {pn1(v)}（`{v}`） | {'K に依らない' if v in KIND0 else K} | {a_.uar:.2f} [{a_.lo:.2f}, {a_.hi:.2f}] | [{s2_.lo:.2f}, {s2_.hi:.2f}] | {n_.uar:.2f} [{n_.lo:.2f}, {n_.hi:.2f}] | {fest(n_.d_uar)} [{fend2(n_.d_lo)}, {fend2(n_.d_hi)}] |")
+    w(f"| {pn1(v)}（`{v}`） | {'K に依らない' if v in KIND0 else K} | {a_.uar:.2f} [{a_.lo:.2f}, {a_.hi:.2f}] | [{s2_.lo:.2f}, {s2_.hi:.2f}] | {n_.uar:.2f} [{n_.lo:.2f}, {n_.hi:.2f}] | {dlv(v, K)} |")
 w("")
 w("**感情ごとの再現率**（文を除いたテスト．`cremad_no_ieo_per_emotion.csv`．再現率と 95% 区間．丸かっこは全発話の再現率で，2.5 節と同じ値である．差の区間は作っていない）．"
   f"件数は，Neutral {KEEP_E[0]:,} 本，Happy {KEEP_E[1]:,} 本，Sad {KEEP_E[2]:,} 本，Angry {KEEP_E[3]:,} 本である（K 本の引き方 1 つぶん）．")
@@ -2613,6 +2821,18 @@ for s_ in SENT12:
     must(int(BYS[(s_, 5, "start_A")].n_per_seed) == int(N_SENT[s_]), f"文ごとの発話の数 {s_}")
     w(f"| {s_} | {int(N_SENT[s_])} | {float(BYS[(s_, 5, 'start_A')].uar_pooled):.2f} | " + " | ".join(f"{float(BYS[(s_, K, v)].uar_pooled):.2f}" for v in ("none_A", "ret_A") for K in KS) + " |")
 w("")
+w("**文ごとの内訳：文 `IEO` と，ほかの 11 文の感情ごとの再現率**（`cremad_by_sentence.csv` の `recall_pooled_0`〜`recall_pooled_3`．50 単位の正解の数と発話の数を足してから割った再現率．区間は無い．第 4 版で足した）．"
+  "「11 文」は，ほかの 11 文の文ごとの再現率の平均である．Neutral の丸かっこは，11 文の最小〜最大である．「順位」は，12 文の中で Neutral の再現率が高いほうから数えた文 `IEO` の順位である．"
+  f"Neutral の発話は，どの文も強さが XX で，文 `IEO` が {NS0['IEO']} 本，ほかの文が 1 文に 90〜91 本である（K 本の引き方 1 つぶん）．"
+  "Happy・Sad・Angry は，文 `IEO` の発話に強さ LO・MD・HI が付き（感情ごとに 273 本），ほかの文は XX である（1 文に 89〜91 本）．この 3 感情では，文の違いと強さの違いは分けられない．"
+  "区間は無く，K 本から文 `IEO` を除いて学び直してもいないので，この並びの原因は言えない（要点 16）．")
+w("")
+w("| 版 | K | Neutral：文 `IEO` | 11 文（最小〜最大） | 順位 | Happy：文 `IEO` | 11 文 | Sad：文 `IEO` | 11 文 | Angry：文 `IEO` | 11 文 |")
+w("|---|---|---|---|---|---|---|---|---|---|---|")
+for v, K in ROWS_LV:
+    w(f"| {pn1(v)}（`{v}`） | {'K に依らない' if v in KIND0 else K} | {e_ieo(v, K, 0):.2f} | {e_mean(v, K, 0):.2f}（{min(e_oth(v, K, 0)):.2f}〜{max(e_oth(v, K, 0)):.2f}） | {e_rank(v, K, 0)} | "
+      + " | ".join(f"{e_ieo(v, K, e):.2f} | {e_mean(v, K, e):.2f}" for e in (1, 2, 3)) + " |")
+w("")
 w(f"**強さごとの内訳**（`cremad_by_intensity.csv` の `recall_pooled`．50 単位の正解の数と発話の数を足してから割った再現率．区間は無い）．XX は，Neutral では 12 文の発話（{int(ITOT[0, 0] // 10):,} 本），"
   f"Happy・Sad・Angry ではほかの 11 文の発話（{int(ITOT[0, 1] // 10)}・{int(ITOT[0, 2] // 10)}・{int(ITOT[0, 3] // 10)} 本）である．LO・MD・HI は文 `IEO` の発話（感情 × 強さごとに {int(ITOT[1, 1] // 10)} 本）である．")
 w("")
@@ -2628,33 +2848,18 @@ w("|---|---|---|---|---|---|---|")
 for K in KS:
     w(f"| {K} | {4 * K} | {int(KN[K].sum(1).min())}〜{int(KN[K].sum(1).max())} | {KN[K].sum(1).mean():.2f} | " + "・".join(f"{x:.2f}" for x in KN[K].mean(0)) + f" | {int((KN[K].sum(1) == 0).sum())} | {int((KN[K][:, 0] == 0).sum())} |")
 w("")
-w("**K 本の引き方を，文 `IEO` の本数で 2 つに分けた並び**（記述．区間は無い．分け方は要点 17．値は，分割ごとに 5 つの引き方の平均を取り，5 分割で平均した値である．差と UAR はテストの全発話の上の値）．"
-  "差は，計算の後の解析の台本が単位ごとの値を持つ 5 つである．**この並びは，文 `IEO` が K 本に入ることの影響を測った値ではない**（要点 17）．")
-w("")
-w("| K | 量 | 本数が少ない 5 つの引き方 | 本数が多い 5 つの引き方 | 多い − 少ない |")
-w("|---|---|---|---|---|")
-for K in KS:
-    w(f"| {K} | K 本の中の文 `IEO` の本数の平均 | {half_n(K, 'few'):.2f} | {half_n(K, 'many'):.2f} | {fpt(half_n(K, 'many') - half_n(K, 'few'))} |")
-    for a, b in HALF_PAIRS:
-        fn_ = lambda f, r_, K=K, a=a, b=b: UM[(CD, K, a)][f, r_] - UM[(CD, K, b)][f, r_]      # noqa: E731
-        x_, y_ = half_mean(K, "few", fn_), half_mean(K, "many", fn_)
-        must(abs((x_ + y_) / 2 - q(a, b, CD, K).est) < 1e-9, f"2 つに分けた平均が，全部の引き方の値と合わない {a} {b} K={K}")
-        w(f"| {K} | 差：{pn(a, b)} | {fest(x_)} | {fest(y_)} | {fpt(y_ - x_)} |")
-    for v in ("ret_A", "none_A", "none_AV"):
-        fn_ = lambda f, r_, K=K, v=v: UM[(CD, K, v)][f, r_]                                   # noqa: E731
-        x_, y_ = half_mean(K, "few", fn_), half_mean(K, "many", fn_)
-        must(abs((x_ + y_) / 2 - level(v, CD, K).uar) < 1e-9, f"2 つに分けた平均が，全部の引き方の UAR と合わない {v} K={K}")
-        w(f"| {K} | UAR：{pn1(v)}（`{v}`） | {x_:.2f} | {y_:.2f} | {fpt(y_ - x_)} |")
-w("")
 w("### 表の下の注（2 節に共通）")
 w("")
 w(f"- ↑・↓ は，区間が 0 を含まず差が 1.0 点以上の欄に付く（設計 4 節：「{DQ_MARK}」）．CREMA-D の差は 1.0 点未満のものが多く，区間が 0 を含まなくても印が付かない．CREMA-D の行は区間で読む．")
 w(f"- 区間は 95% で，補正していない．集計の差の区間は，K 本の引き方 0〜9 の行が {N_INT['ef_all']} 個，K 本の引き方で分けた行を入れると {N_INT['ef']:,} 個ある．水準の区間（`levels.csv` {N_INT['lv']:,} 個）と，感情ごとの再現率の区間（`per_emotion.csv` {N_INT['pe']:,} 個）は，別に数える．")
 w("- K の 3 つは入れ子の K 本と同じテストの上の値である．K どうしの差の区間は作っていない．K 本の引き方 0・1 の値と 2〜9 の値の違いにも，区間は無い．")
+w(f"- 「＊」は，塊の重みの引き直しで作る区間（MOSEI と CREMA-D）のうち，0 に近いほうの端が 0 から標準誤差の {NEAR_TH} 倍以内にある区間の値に付く（冒頭）．この区間が 0 を含むかどうかは，引き直しの乱数の組に依りうる．"
+  "2.7 節では，全発話の区間，文を除いたテストの区間，「除いた値 − 全発話の値」の区間に付く．")
 w(f"- 「同じ判定」は，2 つの版の判定が全部の単位で同じこと（集計の `same_pred`）を指す．台本の差分の検査（`code_v3.md`）：「{RQ['KW4']}」")
 w("- AFEW の jackknife では分割 0 が除かれる塊があり，IEMOCAP では全部の分割が除かれる（0 節）．MOSEI の区間は実験 21 の集計の値で，実験 20 の集計の値と少し違う（0 節）．")
-w("- 2.7 節の表は，計算の後の解析の値で，照合の第 3 回をまだ受けていない．区間の端は小数 2 桁で書いた．文を除いたテストの区間と「除いた値 − 全発話の値」の区間は話者を塊にした区間で，文を塊にした区間は全発話のテストの上の区間である．"
-  "文ごと・強さごとの内訳は，50 単位の数を足してから割った値で，区間は無い．")
+w("- 2.7 節の表は，計算の後の解析の値である．第 3 版にあった値は照合の第 3 回で出力の csv と一致し，第 4 版で足した感情ごとの再現率の表は照合をまだ受けていない．区間の端は小数 2 桁で書いた．文を除いたテストの区間と「除いた値 − 全発話の値」の区間は話者を塊にした区間で，文を塊にした区間は全発話のテストの上の区間である．"
+  "文ごと・強さごとの内訳は，50 単位の数を足してから割った値で，区間は無い．"
+  "文を除いたテストの区間，「除いた値 − 全発話の値」の区間，話者を塊にした区間は，話者の重みの引き直しで作る．端が 0 に近い区間は，0 を含むかどうかが引き直しの乱数に依りうる（要点 14・15）．")
 w("")
 
 # ---- 3 節
@@ -2722,8 +2927,8 @@ w(D7B)
 w("")
 w("この文書が並べた記述の値のうち，仮定に関わるものは，疑似ラベルの UAR（2.4 節），CREMA-D の重みの表と格子 16 点の UAR，設定の 12 点の UAR（2.6 節）である．")
 w("")
-w("**CREMA-D の仮定の表**（`cremad_assumptions.csv`．計算の後の解析．照合の第 3 回の前．50 単位の平均．基準は置かない）．量の呼び名は，実験 20 の結果の文の 3.2 節と同じである．"
-  "「比べた表」は，候補の全ラベルで測った表（参照）と比べた表である．ソースの中で測った表（`home`）は残り方を掛ける前の表，ソースで測った表（`ext`）は残り方を掛けた表で，どちらも 50 単位で同じ値である．"
+w("**CREMA-D の仮定の表**（`cremad_assumptions.csv`．計算の後の解析．50 単位の平均．基準は置かない）．量の呼び名は，実験 20 の結果の文の 3.2 節と同じである．"
+  "「比べた表」は，候補の全ラベルで測った表（参照）と比べた表である．ソースの中で測った表（`home`）は残り方を掛ける前の表，ソースで測った表（`ext`）は残り方を掛けた表である．`home` と `ext` は互いに違う表で，それぞれ，50 単位のどれでも同じ値になる（単位に依らない）．"
   "**分類器が 2 つ（声と顔）なので，分類器が 3 つの元の 4 コーパスの値（実験 20 の結果の文の 3.2 節）と同じ尺度で並べない**（要点 18）．"
   "「最も強いモダリティの一致」は，でたらめに選んでも 0.5 になる．「成分の相関」「入れ替えの割合」は，自由に動く 2 個の数の上の量である．"
   "「行ごとの相関」「共通の感情の成分の相関」は 4 個の数の相関，「行の中の差の相関」は 8 個の数（自由な値は 6 個）の相関である．「作り直し」は，この台本が単位の npz から作り直して照らした列に ○ を付けた（0 節）．")
@@ -2766,9 +2971,12 @@ w("- CREMA-D の値は，同じ 12 文が学習側とテストの両方に出る
   "CREMA-D のラベルは演者に指示した感情である（実験 18 の設計 8 節）．")
 w("- CREMA-D の感度の表（要点 13〜18，2.7 節，3.3 節）は，テストから文「It's eleven o'clock.」の発話を除いたときの値と，区間の塊を話者から文に替えたときの値である．"
   "**K 本と候補に同じ文が入ることの影響は測っていない．K 本からこの文を除いて学び直す試しは範囲の外で，設計が挙げた懸念（この文が K 本に入ると声の分類器の手がかりになりうる）は，この表では解けていない**．"
+  "K 本で学んだ声の分類器では，この文の Neutral の再現率がほかの 11 文の平均より低く，CREMA-D のラベルを使っていない声の分類器ではそうなっていない．この並びは，懸念が予想する向きである（要点 16，2.7 節．区間は無く，原因は言えない）．"
   "文を塊にした区間は，テストの話者の揺れを含まず，学習に現れない文への区間でもない．話者の揺れと文の揺れを合わせた区間は無い．塊は 12 個で，自由度の決め方は結果を開いた後に決まった．"
-  "文ごと・強さごとの内訳と，K 本の引き方を文の本数で分けた並びには，区間が無い．文の違いと強さの違いは分けられない．仮定の表は分類器が 2 つの上の量で，元の 4 コーパスの値と同じ尺度で並べない．"
-  "設計が計算の前に予告したのは表の種類で，内訳の版と並べ方は結果を開いた後に決まった．感度の表の値は，照合の第 3 回をまだ受けていない．")
+  "文ごと・強さごとの内訳には，区間が無い．文の違いと強さの違いは分けられない．仮定の表は分類器が 2 つの上の量で，元の 4 コーパスの値と同じ尺度で並べない．"
+  "設計が計算の前に予告したのは表の種類で，内訳の版と並べ方は結果を開いた後に決まった．"
+  "文を除いたテストの区間と話者を塊にした区間は引き直しで作るので，端が 0 に近い区間は，0 を含むかどうかが引き直しの乱数に依りうる（要点 14・15）．"
+  "感度の表の値のうち，第 3 版にあった値は，照合の第 3 回で出力の csv と一致した（判定は「直してから通す」）．第 4 版で足した値と直した文は，照合をまだ受けていない．")
 w("- 重みの表を乱数で探す版の値は，種を 1 つに決めて引いた表の組に条件づけた値である．表の引き方の揺れは区間に入っていない．")
 w("- 区間は補正していない．要点 1〜12 の区間は，ソースの取り方，学習側の発話，手法と設定の選び方，重みの表の引き方，CREMA-D の文の取り方の揺れを含まない（CREMA-D の文を塊にした区間は，要点 15 に別に並べた）．IEMOCAP は自由度 3 で区間が広い．CREMA-D の K 本の引き方 0・1 の区間は狭めに出る．K どうしの差の区間は無い．")
 w("- 記述の版（設定を疑似ラベルごとに選んだ点）は，提案の手法の疑似ラベルの点の選択にだけ，評価するコーパスのテストのラベルが間接に入る．記述だけに使う．設定の 12 点の UAR の最大は，テストの上で選んだ値で上に偏る．")
@@ -2782,7 +2990,7 @@ w("")
 NQ_STOP = quote(NOTE_NOW, "**その照合が通るまで，CREMA-D の値を本文に入れない**", "論文のセッションへの伝言")
 w(f"設計 4 節は，計算の後に保存から出す表を予告していた：「{DQ_LATER}」**この 4 種類の表は，CREMA-D について，計算の後の解析で出した**（0 節．要点 13〜18，2.7 節，3.3 節）．"
   f"照合の第 2 回（`DAI/checks/DAI-21/claim_v2.md`）は，表が出る前の版について「{C2_STOP}」と記録していた．感度の表は，その後の {T_PH[:16]} に出した．"
-  f"論文のセッションへの伝言の 0 節の 10 は，この第 3 版の照合について「{NQ_STOP}」と書いている．次の量は，出していない．")
+  f"論文のセッションへの伝言の 0 節の 10 は，第 3 版の照合について「{NQ_STOP}」と書いている．照合の第 3 回の判定は「直してから通す」で，この第 4 版は，その直しを入れた版である．次の量は，出していない．")
 w("")
 w(f"- **K 本と候補から文「It's eleven o'clock.」を除いて学び直した値**．学び直しが要る．範囲の外で，出していない．感度の表は，この文をテストから除いた値である（要点 13・17）．"
   f"感情認識の査読想定（`review_affect.md`）は，この文について「{RQ['RA2']}」と書いている．")
@@ -2806,8 +3014,8 @@ w("")
 w("集計にあるが，この文書で引いていない量：K 本の引き方で分けた値のうち，`stud_prop − stud_prod` と CREMA-D の提案の手法 − 積のほかの差（`effects.csv` の `seeds` が `0-1`・`2-9` の行），K 本の引き方で分けた水準（`levels.csv`），"
   "学び直した融合と CREMA-D の提案の手法・積のほかの版の感情ごとの再現率（`per_emotion.csv`），混同行列（`confusion.csv`），設定の 12 点の点ごとの UAR と判定が一致した割合（`student_grid.csv`）．"
   "計算の後の解析の出力（`results/dai21_eval5/posthoc/`）にあるが，この文書で引いていない量：K 本の引き方で分けた行（`seeds` が `0-1`・`2-9`），自由度 11 の区間（`lo_n12`・`hi_n12`），"
-  "2.7 節の 16 版のほかの版の UAR と感情ごとの再現率，文ごとの感情ごとの再現率と取り違えの数（`cremad_by_sentence.csv`・`cremad_by_sentence_confusion.csv`），"
-  "文を除いたテストの上の単位ごとの値（`cremad_kshot_ieo_units.csv` の `uar_noieo_*`・`d_noieo_*`）．")
+  "2.7 節の 16 版のほかの版の UAR と感情ごとの再現率，ほかの 11 文の 1 文ごとの感情ごとの再現率（`cremad_by_sentence.csv`．この文書は，11 文の平均と，Neutral の最小〜最大を書いた），"
+  "文ごとの取り違えの数（`cremad_by_sentence_confusion.csv`），単位ごとの UAR と差（`cremad_kshot_ieo_units.csv` の `uar_*`・`d_*`・`uar_noieo_*`・`d_noieo_*`）．")
 w("")
 
 # ---- 5 節
@@ -2819,6 +3027,7 @@ w("- 点の値の引き算（区間の無い差．疑似ラベルの UAR の差�
 w("- 読みの 3 つの分け方は，丸める前の値で決めている：区間の下端 > 0（または上端 < 0）で「区間が 0 を含まない」，差の絶対値 ≥ 1.0 で「1.0 点以上」．")
 w("- 2 つの版の判定が全部の単位で同じとき，その差は「0（同じ判定）」と書く．判定は違う発話があるが，塊ごと・感情ごとの正解の数が全部の単位で同じとき，その差は「0（正解の数が同じ）」と書く．")
 w("- 割合は小数 3 桁（一致の割合は小数 6 桁），検算の量は 2 桁の指数の形で書く．")
+w(f"- 引き直しで作る区間（MOSEI と CREMA-D）のうち，0 に近いほうの端が 0 から標準誤差の {NEAR_TH} 倍以内にある区間は，値の後に「＊」を付ける（冒頭）．読みの 3 つの分け方と，区間が 0 を含まない条件の数えは，＊ の有無で変えない．")
 w("- CREMA-D の感度の表（要点 13〜15 と 2.7 節）は，同じ差の区間どうしを並べるので，区間の端を符号つきの小数 2 桁で書く（0.00 に丸まるときは桁を足す）．同じ全発話の値を，要点 1〜12 と表の文書は区間の端を小数 1 桁で書いている．"
   "2.7 節の感情ごとの再現率の区間の端は，2.5 節と同じ小数 1 桁である．仮定の表（3.3 節）は，相関と水準を小数 2 桁，残り方・入れ替えの割合・テストとのずれを小数 3 桁，上限の割合と 0 以下の割合を小数 4 桁で書く．")
 w("")
@@ -2862,8 +3071,10 @@ w("")
 V2B_TEXT = git("show", "3fd9f2a:DAI/docs/実験21_結果の文の下書き_2026-11-15.md")           # 照合済みにした第 2 版（題と冒頭，照合の後の記録 2 つを足した版）
 N_TRI_V2B = len(re.findall(r"[+−]?\d+\.\d+ \[[+−]?\d+\.\d+, [+−]?\d+\.\d+\]", V2B_TEXT))
 must("第 2 版．照合済み：gate-claim 第 2 回 `claim_v2.md` 通す" in V2B_TEXT.split("\n")[0] and N_TRI_V2B == N_TRI_V2, f"照合済みにした第 2 版（コミット 3fd9f2a）の題と，値と区間の組の数：{N_TRI_V2B}")
-w(f"- 第 3 版（2026-11-15）：設計 4 節が予告した CREMA-D の感度の表（計算の後の解析．`results/dai21_eval5/posthoc/`）の値と読み方を足した．照合の第 3 回の前の版である．"
-  f"第 2 版の値と表は変えていない．照合済みにした第 2 版（コミット 3fd9f2a）の「値 [下端, 上端]」の形の {N_TRI_V2B} 組は，この版に全部残っている（台本が確かめた）．この版で増えた組は ＠増えた組＠ 組で，どれも要点 13〜15 と 2.7 節にある（台本が確かめた）．"
+N_TRI_V3 = len(re.findall(r"[+−]?\d+\.\d+ \[[+−]?\d+\.\d+, [+−]?\d+\.\d+\]", V3_TEXT))
+must(N_TRI_V3 == 1617, f"照合の第 3 回が見た第 3 版の「値 [下端, 上端]」の組の数：{N_TRI_V3}")
+w(f"- 第 3 版（2026-11-15．コミット 8187af5）：設計 4 節が予告した CREMA-D の感度の表（計算の後の解析．`results/dai21_eval5/posthoc/`）の値と読み方を足した．照合の第 3 回が見た版である．"
+  f"第 2 版の値と表は変えていない．照合済みにした第 2 版（コミット 3fd9f2a）の「値 [下端, 上端]」の形の {N_TRI_V2B} 組は，第 3 版に全部残っていた．第 3 版で増えた組は {N_TRI_V3 - N_TRI_V2B} 組で，どれも要点 13〜15 と 2.7 節にあった．"
   "増えた組は，文を除いたテストの値，「除いた値 − 全発話の値」，文を塊にした区間と，それらと並べるために区間の端を小数 2 桁で書き直した全発話の値である．")
 w("   1. 題と冒頭を第 3 版にし，足した箇所と，足した値がまだ照合を受けていないことを書いた．")
 w("   2. 0 節に「計算の後の解析」を足した：台本と出力の出どころ，台本の検査の 2 回の判定，台帳の記録，結果を開いた後に決まった点，この台本が単位の npz から作り直して照らした量と，作り直していない量．")
@@ -2873,6 +3084,39 @@ w("   5. 2.7 節を足した（除いた発話の数，78 対の差の表，16 �
 w("   6. 要点 7・10，2.6 節，3.3 節，4 節にあった「感度の表はまだ出していない」という文を直した．4 節の限界に感度の表の限界を足した．4 節の「まだ出していない量」から，出した 4 種類の表を外し，"
   "学び直しが要る試し，話者と文を合わせた区間，仮定の表の作っていない量を足した．0 節の求めの一覧の 2 行（文「It's eleven o'clock.」についての求めと，表の相関についての求め）の対応を直した．")
 w("   7. 2 節の表の下の注と 5 節に，感度の表の区間の端の桁と，内訳に区間が無いことを足した．")
+w("")
+w(f"- 第 4 版（2026-11-15）：照合の第 3 回（`DAI/checks/DAI-21/claim_v3.md`．判定は「直してから通す」．報告は，足した値・数え・区間がすべて出力の csv と一致したと書いている．指摘 {N_CLAIM3} 件．どれも重さは「記録する」）の直しを入れた．"
+  f"第 3 版の値は変えていない．第 3 版（コミット 8187af5）の「値 [下端, 上端]」の形の {N_TRI_V3:,} 組は，この版に全部残っている（台本が確かめた）．＠第4版で増えた組＠")
+w("   1. 要点 16 の太字の文の範囲を狭めた．第 3 版は，UAR（4 感情の平均）の並びについて「この並びは，K 本から学んだものではない」と書いていた．"
+  "第 4 版は，CREMA-D のラベルを使っていない声の分類器（`start_A`）の UAR についてだけそう書き，K 本で学んだ版の並びのどれだけが K 本から来たかは分からないと書いた．"
+  "「K 本で学んだ声の分類器の引き算の絶対値は `start_A` より小さい」という文を外した．"
+  "設計の懸念に直接当たる量として，文「It's eleven o'clock.」の Neutral の再現率を，この文とほかの 11 文に分けて要点 16 に書き，2.7 節に 16 版の表（Happy・Sad・Angry の再現率も並べた）を足した．"
+  "K 本で学んだ声の分類器ではこの文の Neutral の再現率がほかの 11 文の平均より低く，`start_A` ではそうなっていないこと，この並びが懸念の予想する向きであること，区間が無く原因は言えないことを書いた．"
+  "4 節の限界と，0 節の求めの一覧の 1 行にも，この並びを足した．値は出力の csv から取り，単位の npz から作り直した値と照らした（指摘 1）．")
+w("   2. 要点 14 に，「除いた値 − 全発話の値」の区間が 0 を含まない 4 個のうち 1 個（今の提案 − 積の K = 5）は区間の端が 0 に近く，照合の第 3 回の検算では別の乱数で 0 を含んだことを書いた（要点 13 の下位の項にも 1 文足した）．"
+  "区間の端が 0 に近いと数える基準（0 に近いほうの端が，0 から標準誤差の 0.1 倍以内）を決め，要点 15 に，話者を塊にした区間のうち端が 0 に近いものの数と名前，0 を含むかどうかが 2 つの区間で違う 12 個のうちの数を書いた．"
+  "2 節の表の下の注と 4 節の限界にも 1 文ずつ足した（指摘 2）．")
+TIES = []                                                                    # 外した並びの，分けた境目で本数が同じだった分割の数（第 3 版に書いた数を，記録のために数え直す）
+for K in KS:
+    t_ = 0
+    for f in range(5):
+        od_ = sorted(range(10), key=lambda r_: (int(KIEO[(K, f, r_)].sum()), r_))
+        t_ += int(KIEO[(K, f, od_[4])].sum() == KIEO[(K, f, od_[5])].sum())
+    TIES.append(t_)
+must(f"5 分割のうち {kjoin(TIES)} 個である" in V3_TEXT, f"外した並びの，境目で本数が同じ分割の数が第 3 版の文と違う：{TIES}")
+w("   3. 要点 17 と 2.7 節から，K 本の引き方を文の本数で 2 つに分けた並び（文と表）を外した．K 本の中の文の本数の表は残した．"
+  f"外した理由は 4 つである：分け方を結果を開いた後に決めた，区間が無い，分けた境目で本数が同じ分割がある（K = 5・10・25 の順に 5 分割のうち {kjoin(TIES)} 個），"
+  "分ける量（K 本の中の文の総数）が設計の懸念の量（Neutral の K 本にこの文が入るか）と違う（指摘 3）．")
+w("   4. 要点 18 と 3.3 節の「ソースで測った 2 つの表は，50 単位で同じ値である」を，`home` と `ext` のそれぞれが 50 単位のどれでも同じ値になる（互いには違う表である）という文に直した（指摘 4）．")
+w("   5. 0 節の「照合の前に値を使った先」の (5) に，本体の申告（08:00 ごろと 08:40 ごろに研究者へ会話で伝えた中身，要点 16 の読みの訂正を研究者に伝えること，ほかの文書には書いていないこと）を書いた．"
+  "感度の表の値の文字をほかの文書から探した結果も書いた（指摘 5）．")
+w("   6. 題と冒頭，照合の状態を書いた文（要点 13〜18 の前書き，2.7 節の見出しと前書き，2 節の表の下の注，3.3 節の表の見出し，4 節）を第 4 版に合わせた．"
+  "0 節の「計算の後の解析」に照合の第 3 回の項を足し，この解析を見た報告を 3 本にした．")
+w("   7. 第 4 版への追記（本体の指示）：指摘 2 の基準を，引き直しで作る区間の全部（元の 4 コーパスでは MOSEI．CREMA-D は全部）に当てた．基準に当たる区間の値の後に ＊ の印を付け，冒頭，2 節の表の下の注，5 節に印の説明を書いた．"
+  "要点 1 に MOSEI の K = 10（提案の手法の疑似ラベル − 積の疑似ラベル），要点 5 に MOSEI の K = 25（提案の手法の疑似ラベル − K 本だけで測った表の疑似ラベル）と，同じ項の CREMA-D の区間について，"
+  "「区間の端が 0 に近く，引き直しの乱数の組に依りうる」という注を書いた．要点 14 に，文を除いたテストの区間で端が 0 に近いものの数を足した．"
+  "台本は，集計の引き直しの区間のうち基準に当たるものを全部数え，要点 1〜12 が値を書いた箇所の全部に ＊ が付いていること，基準に当たらない区間には付いていないことを確かめる．"
+  "読みと値は変えていない．＊ が付いた箇所は，要点 1〜12 で ＠要点1〜12の＊＠ 箇所，文書の全体で ＠全体の＊＠ 箇所である．")
 w("")
 
 # ---- 書き出す前の検査（句読点，使わないと決めた語，符号の読めない区間の端）
@@ -2888,15 +3132,44 @@ must(len(tri_v2) == N_TRI_V2 and gone2_ == [], f"照合の第 2 回が見た版�
 tri_v2b = TRI.findall(V2B_TEXT)
 gone3_ = [x for x in set(tri_v2b) if tri_v2b.count(x) > tri_new.count(x)]
 must(len(tri_v2b) == N_TRI_V2B and gone3_ == [] and len(tri_new) > len(tri_v2b), f"照合済みにした第 2 版の値と区間の組が減っている：{gone3_[:5]}（{len(tri_v2b)} 組，この版 {len(tri_new)} 組）")
-must(text.count("＠増えた組＠") == 1, "増えた組の数を入れる場所")
+tri_v3 = TRI.findall(V3_TEXT)
+gone4_ = [x for x in set(tri_v3) if tri_v3.count(x) > tri_new.count(x)]
+must(len(tri_v3) == N_TRI_V3 and gone4_ == [], f"照合の第 3 回が見た第 3 版の値と区間の組が減っている：{gone4_[:5]}（{len(tri_v3)} 組，この版 {len(tri_new)} 組）")
+must(text.count("＠第4版で増えた組＠") == 1, "増えた組の数を入れる場所")
 # 増えた組が，要点 13〜18 の節と 2.7 節にだけあること（ほかの節の値と区間の組は，照合済みにした第 2 版と同じ数）
 i13_, i2_, i27_, inote_ = (text.index(x) for x in ("\n### CREMA-D の感度の表（設計 4 節が予告した表．", "\n## 2. 表\n", "\n### 2.7 CREMA-D の感度の表（", "\n### 表の下の注（2 節に共通）\n"))
 must(i13_ < i2_ < i27_ < inote_, "感度の表の節の並び")
 tri_out_ = TRI.findall(text[:i13_] + text[i2_:i27_] + text[inote_:])
-must(len(tri_out_) == len(tri_v2b) and not [x for x in set(tri_v2b) if tri_v2b.count(x) > tri_out_.count(x)], f"感度の表の節のほかに，値と区間の組が増えている：{len(tri_out_)} 組（照合済みにした第 2 版 {len(tri_v2b)} 組）")
+extra_ = sorted(x for x in set(tri_out_) for _ in range(tri_out_.count(x) - tri_v2b.count(x)))      # 感度の表の節のほかで増えた組：0 節の (5) の探した値の文字と，要点 1・5 の ＊ の注に書いた値
+NOTE_STAR = [TRI.search(ci(S_PP(c, K), star=False)).group(0) for c, K in NEAR1] + [TRI.search(ci(q(*mk_(t), c, K), star=False)).group(0) for sel_, mk_ in ((NEAR5P, MK_P), (NEAR5X, MK_X)) for t, c, K in sel_]
+must(extra_ == sorted([PROBE3] + NOTE_STAR) and not [x for x in set(tri_v2b) if tri_v2b.count(x) > tri_out_.count(x)],
+     f"感度の表の節のほかに，値と区間の組が増えている：{len(tri_out_)} 組（照合済みにした第 2 版 {len(tri_v2b)} 組）．増えた組：{extra_}")
+# ＊ の印：値を書いた区間のうち，引き直しで作る区間で端が 0 に近いものの全部に付いていて，ほかには付いていないこと
+STAR = re.compile(r"\][↑↓]?＊")
+must(len(STAR.findall(text)) == len(NEAR_USED) and len(NEAR_USED) > 0, f"＊ の印の数（{len(STAR.findall(text))}）が，＊ を付けて書いた区間の数（{len(NEAR_USED)}）と違う")
+i1_ = text.index("\n## 1. 要点\n")
+must(i1_ < i13_, "要点 1〜12 の範囲")
+R12 = text[i1_:i13_]                                                          # 要点 1〜12（1 節の初めから，感度の表の節の前まで）
+flag_: dict = {}
+for r in list(ef.itertuples()) + list(ef20.itertuples()):                     # 書きうる差の行（実験 21 と実験 20 の集計の全部の行）
+    if klass(r) not in ("same", "cnt"):
+        flag_.setdefault(f"{fest(r.est)} [{fend(r.lo)}, {fend(r.hi)}]", set()).add(near0(r))
+AMB = sorted(s_ for s_, f_ in flag_.items() if len(f_) == 2 and s_ in R12)   # 同じ文字で，基準に当たる行と当たらない行があるもの
+N_STAR_OK = 0
+for s_, f_ in flag_.items():
+    if len(f_) == 2 or s_ not in R12:
+        continue
+    n_all_, n_star_ = R12.count(s_), len(re.findall(re.escape(s_) + r"[↑↓]?＊", R12))
+    must(n_star_ == (n_all_ if f_ == {True} else 0), f"要点 1〜12 の ＊ の印が，基準と合わない：{s_}（書いた箇所 {n_all_}，＊ {n_star_}，基準に当たるか {f_}）")
+    N_STAR_OK += n_star_
+must(AMB == [] and N_STAR_OK == len(STAR.findall(R12)) and N_STAR_OK > 0, f"要点 1〜12 の ＊ の印の照合：文字が重なる行 {AMB}，照合した ＊ {N_STAR_OK}，要点 1〜12 の ＊ {len(STAR.findall(R12))}")
+must(text.count("＠要点1〜12の＊＠") == 2 and text.count("＠全体の＊＠") == 1, "＊ の数を入れる場所")
+text = text.replace("＠要点1〜12の＊＠", str(N_STAR_OK)).replace("＠全体の＊＠", str(len(NEAR_USED)))
 i14_, i16_ = text.index("\n14. **集計の段の差の全部"), text.index("\n16. **文ごと・強さごとの内訳")
 must(i13_ < i14_ < i16_ < i2_ and len(TRI.findall(text[i16_:i2_])) == 0, "要点 16〜18 に，値と区間の組がある（6 節の文を直す）")
-text = text.replace("＠増えた組＠", f"{len(tri_new) - len(tri_v2b)}")
+must(len(tri_new) - len(tri_v3) == 1 + len(NOTE_STAR), f"第 4 版で増えた値と区間の組の数（6 節の文を直す）：{len(tri_new) - len(tri_v3)}")
+text = text.replace("＠第4版で増えた組＠", f"この版で増えた組は {1 + len(NOTE_STAR)} 組で，0 節の (5) に書いた，ほかの文書から探した値の文字の 1 組（要点 13 にある値と同じ値）と，"
+                    f"要点 1・5 の ＊ の注に書いた {len(NOTE_STAR)} 組（集計の値で，読みは変えていない）である．")
 # 感度の表を足す前の行（照合済みにした第 2 版の行）のうち，この版に無い行を数える（直した文の数の確かめ）
 old_lines_, new_set_ = V2B_TEXT.split("\n"), set(text.split("\n"))
 CHANGED_OLD = [x for x in old_lines_ if x not in new_set_]
