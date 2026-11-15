@@ -124,6 +124,7 @@ def corpus_audio(T: str, kind: str) -> tuple[pd.DataFrame, torch.Tensor]:
 
 
 MIN_WORDS_W3 = 3
+KFIX_DEN_MIN = 1.0      # C′ を固定した版の D(A ← V) がこれ未満なら κ_fixC と M3_fixC を出さない（記述だけの量．ML の査読 v2）
 
 
 def words_of(T: str) -> pd.Series:
@@ -407,9 +408,11 @@ def stage_summary(out: Path, targets: list) -> None:
                 # κ_fixC：同じ固定の点で作った A の D の比（R1 の κ を当てると帰無の下でも M3 が 0 にならないため．台本の検査 code_v2 の 1）
                 fa = D14.combo_stats([D14.fixc_cell(U, ic_fix, "A", "single_T", "true", subset), D14.fixc_cell(U, ic_fix, "A", "single_T", "shufcl", subset)], [1, -1], g_eff, rng)
                 fb = D14.combo_stats([D14.fixc_cell(U, ic_fix, "A", "single_V", "true", subset), D14.fixc_cell(U, ic_fix, "A", "single_V", "shufcl", subset)], [1, -1], g_eff, rng)
-                kfix = fa["effect"] / fb["effect"]
+                kfix = fa["effect"] / fb["effect"] if abs(fb["effect"]) >= KFIX_DEN_MIN else np.nan   # 分母が 0 に近いと比が定まらないので M3 を出さない
                 for X in OPS:
                     for q in ("M1", "M2", "M3"):
+                        if q == "M3" and not np.isfinite(kfix):
+                            continue
                         terms = quant(X, kfix)[f"{q}_{X}"]
                         cells = [D14.fixc_cell(U, ic_fix, s_, nm, ver, subset) for s_, nm, ver, _ in terms]
                         e = D14.combo_stats(cells, [t[-1] for t in terms], g_eff, rng)

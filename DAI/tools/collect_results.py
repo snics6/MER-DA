@@ -32,6 +32,8 @@ TEXT = {".csv", ".json", ".jsonl", ".md", ".txt", ".tsv"}
 MAX_MB = 20
 # 論文の本文が直接引く表で，MAX_MB を超えるもの（2026-11-15．GitHub の 1 本 100 MB の上限より小さい）
 PAPER_CITED_LARGE = {"e79/judge/units.csv", "e79_p4/judge/units.csv"}
+# 利用の許諾があるデータ（IEMOCAP など）の発話ごとの書き起こしを持つので git に入れず公開しない表（2026-11-16．DAI-23 の感情認識の査読 a7）
+LICENSED_TEXT = {"dai23/asr_check.csv"}
 
 
 def expand():
@@ -43,6 +45,8 @@ def expand():
 
 def tracked(p: Path, top: Path) -> bool:
     parts = p.relative_to(top).parts[:-1]
+    if p.relative_to(RES).as_posix() in LICENSED_TEXT:
+        return False
     if p.relative_to(RES).as_posix() in PAPER_CITED_LARGE:
         return True
     if any(s in HEAVY for s in parts) or top.name.startswith(OUTSIDE_ONLY):
