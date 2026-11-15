@@ -85,3 +85,6 @@ DAI/checks/*/claim_run*/
 
 # DAI/archive：論文に使わない実験の検査役の試走の出力（2026-11-15 の整理で archive に移した）
 DAI/archive/checks/*/code_run*/
+
+# 2026-11-15：logs は DAI/logs へのリンク
+/logs
