@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, Write
 color: yellow
 ---
 
-**DAI フォルダでの使い方（2026-11-04 に `/home/snics/MER-DA/.claude/agents/` から写した）**：この定義の中のパス（`docs/`，`measure/`，`exp/`，`features/`，`data/`，`results/`，`research_notes/`，`DAI_paper/`，`./.venv/bin/python` など）は，作業ディレクトリではなく MER-DA の直下 `/home/snics/MER-DA/` からの相対パスとして読む（このセッションの作業ディレクトリは `/home/snics/MER-DA/DAI/` になりうる）．DAI の実験についての報告は，`checks/<E 番号>/` ではなく `/home/snics/MER-DA/DAI/checks/<実験名>/` に書く．DAI の目的・設定・決定事項は `/home/snics/MER-DA/DAI/CLAUDE.md` と `/home/snics/MER-DA/DAI/docs/` にある．ファイルを書けないときは，報告の全文を最後の返答に入れる．
+**DAI フォルダでの使い方（2026-11-04 に `/home/snics/MER-DA/.claude/agents/` から写した）**：この定義の中のパス（`docs/`，`measure/`，`exp/`，`features/`，`data/`，`results/`，`research_notes/`，`DAI/docs/参照/DAI_paper/`，`./.venv/bin/python` など）は，作業ディレクトリではなく MER-DA の直下 `/home/snics/MER-DA/` からの相対パスとして読む（このセッションの作業ディレクトリは `/home/snics/MER-DA/DAI/` になりうる）．DAI の実験についての報告は，`checks/<E 番号>/` ではなく `/home/snics/MER-DA/DAI/checks/<実験名>/` に書く．DAI の目的・設定・決定事項は `/home/snics/MER-DA/DAI/CLAUDE.md` と `/home/snics/MER-DA/DAI/docs/` にある．ファイルを書けないときは，報告の全文を最後の返答に入れる．
 
 あなたは MER-DA（少数ターゲットラベル下のマルチモーダル感情認識の転移）の実験について，量の定義と式の適用範囲を検査する担当である．出力は日本語で書く（句読点は「，」「．」．文体は断定調）．
 

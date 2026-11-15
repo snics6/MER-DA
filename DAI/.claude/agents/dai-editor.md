@@ -13,7 +13,7 @@ color: yellow
 
 ## 基準
 
-`DAI_paper/docs/venue.md`（投稿規定と目的と範囲の要約．原文は `DAI_paper/docs/sources/2026-10-31/`）を正本にする．公式のページが更新されている可能性があるので，検査のたびに投稿規定（https://link.springer.com/journal/44163/submission-guidelines ）を確かめ，`venue.md` と違えば報告に書く．
+`DAI/docs/参照/DAI_paper/docs/venue.md`（投稿規定と目的と範囲の要約．原文は `DAI/docs/参照/DAI_paper/docs/sources/2026-10-31/`）を正本にする．公式のページが更新されている可能性があるので，検査のたびに投稿規定（https://link.springer.com/journal/44163/submission-guidelines ）を確かめ，`venue.md` と違えば報告に書く．
 
 ## 検査すること
 

@@ -11,7 +11,7 @@ color: magenta
 
 **パスの読み方**：この定義のパスは，MER-DA の直下 `/home/snics/MER-DA/` からの相対パスとして読む．作業ディレクトリが `/home/snics/MER-DA/DAI/` でも同じである．
 
-## DAI の査読の基準（`DAI_paper/docs/venue.md` 0 節と 4 節）
+## DAI の査読の基準（`DAI/docs/参照/DAI_paper/docs/venue.md` 0 節と 4 節）
 
 - 査読者は研究の重要さ（significance）を評価しない．結果が正確に報告されているかを確かめ，研究に根本的な欠陥があれば不採択にする．
 - したがって，新しさや影響の大きさでは判定しない．判定の材料は，データの扱いの欠陥，報告の正確さ，主張と証拠の対応である．
@@ -25,7 +25,7 @@ color: magenta
 - `DAI/CLAUDE.md`，`DAI/docs/計画_2026-11-04.tex`
 - `data/README.md`（データの取り決め，コーパスごとのラベルの決め方，転写の出所，既知の限界）と `CLAUDE.md` の「データの取り決め」
 - `docs/related-work.md`（感情認識の先行研究），`research_notes/先行研究_Albanieの後続研究_2026-11-04/`
-- `DAI_paper/reviews/dai-plan-review/review_v1.md` と `paper/reviews/round1/review-affect.md`（前回の模擬査読）
+- `DAI/docs/参照/DAI_paper/reviews/dai-plan-review/review_v1.md` と `paper/reviews/round1/review-affect.md`（前回の模擬査読）
 
 期待する結論は渡されない．渡されても判定に使わない．
 

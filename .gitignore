@@ -56,8 +56,8 @@ slides/*/*.pdf
 slides/*/*.pptx
 checks/*/code_run/
 
-# ---- DAI_paper/参照論文 の PDF（arXiv などから落とし直せる．一覧は同じフォルダの README.md） ----
-DAI_paper/参照論文/*.pdf
+# ---- DAI/docs/参照/DAI_paper/参照論文 の PDF（arXiv などから落とし直せる．一覧は同じフォルダの README.md．2026-11-15 に DAI_paper/ から移した） ----
+DAI/docs/参照/DAI_paper/参照論文/*.pdf
 
 # ---- DAI/（LaTeX の中間生成物．PDF は入れる） ----
 DAI/**/*.aux

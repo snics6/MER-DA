@@ -11,3 +11,15 @@ DAI の設計・台本・検査の報告が引く MER-DA の文書を，DAI だ�
 | `exploratory-analyses.md` | 探索的な解析の記録（論文の前半の E75〜E80 の設計と結果） |
 | `results.md` | 各主張の状態，結果の作り方（4 節が旧版の結果の作り方） |
 | `researchvision.md` | 研究の目的・決定事項・更新記録 |
+
+## 旧版の論文の執筆フォルダ `DAI_paper/`（2026-11-15 に移した）
+
+MER-DA の直下にあった `DAI_paper/`（2026-10-31〜11-14 の執筆フォルダ）を，中身を変えずにここへ移した（`git mv`）．MER-DA の直下の `DAI_paper` は，古いパスで書かれた文書のためにここを指すリンクである．読むだけで，書き換えない．
+
+| 場所 | 中身 | 読む役 |
+|---|---|---|
+| `DAI_paper/docs/venue.md`，`DAI_paper/docs/sources/` | 投稿要項の要約と原文 | 査読想定の役（`dai-review-ml`・`dai-review-affect`），`dai-editor`，論文のセッション |
+| `DAI_paper/参照論文/` | 参照論文の要点のノートと PDF（PDF は git に入れない．一覧は同じフォルダの `README.md`） | 論文のセッション，`paper-citations` |
+| `DAI_paper/inventory.md` | 実験の棚卸し | `prior-work-diff` |
+| `DAI_paper/reviews/` | 前回の模擬査読と比較の設計の版 | 査読想定の役，`gate-code` |
+| `DAI_paper/steps/`，`DAI_paper/overview/` | 論文の前半の設計（写しは `docs/設計/前半/`）と旧版の概要 | （記録） |

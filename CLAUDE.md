@@ -4,13 +4,13 @@
 ほかのコーパス（ソース）のラベル付きデータを混ぜると成績がどう変わるかを測り，
 得と損が生じる仕組みを，ドメイン適応（DA）理論と対応づけた数式モデルで説明する研究である．
 **分析の軸は得の仕組みの仮説 MH1〜MH5**（`docs/researchvision.md` 3 節）．その上に，仕組みの式（E15〜E17）と条件の探索（E18〜）を積んでいる．**解析は，合併の C をソースのみの C に固定した地図（`DAI/results/fixc_map/`）を土台にし，論文と発表資料の本文もこの地図だけで書く**（交差検証の地図は付録．同 6.2 節）．
-論文は分析と手法を 1 本に統合する（2026-10-22 決定．数理を前面に）．2026-10-28 に，今の版では IEEE TAC に出さず，教師なしの DA としても半教師ありの DA としても数学的に裏打ちされた手法の新しさを目指して実験を増やすと決めた（`docs/researchvision.md` 6.1 節）．2026-10-31 に投稿先を Discover Artificial Intelligence に決め，論文は `DAI_paper/` で書くことにした．2026-11-14 に，原稿は `DAI/paper/` で書くことにした（規則は `DAI/paper/CLAUDE.md`．`DAI_paper/` は要項・参照論文・棚卸しを読むだけ）．TAC 向けの旧版の `archive/paper/` の内容には従わない．2026-11-04 に，Albanie ほか 2018 とその後続研究を土台に研究を組み直すと決め，設計と実験は `DAI/` で行うことにした（規則は `DAI/CLAUDE.md`，計画は `DAI/docs/計画/計画_2026-11-04.pdf`）．2026-11-08 に，時間が無いので，まず解析論文として結論をまとめ，エンコーダの凍結を解析のための設定にすると決めた（`docs/researchvision.md` 6.1 節．作業の記録は `research_notes/解析論文のストーリー_2026-11-08/`）．
+論文は分析と手法を 1 本に統合する（2026-10-22 決定．数理を前面に）．2026-10-28 に，今の版では IEEE TAC に出さず，教師なしの DA としても半教師ありの DA としても数学的に裏打ちされた手法の新しさを目指して実験を増やすと決めた（`docs/researchvision.md` 6.1 節）．2026-10-31 に投稿先を Discover Artificial Intelligence に決め，論文は `DAI_paper/` で書くことにした．2026-11-14 に，原稿は `DAI/paper/` で書くことにした（規則は `DAI/paper/CLAUDE.md`．旧版の執筆フォルダは 2026-11-15 に `DAI/docs/参照/DAI_paper/` に移し，要項・参照論文・棚卸しを読むだけにする）．TAC 向けの旧版の `archive/paper/` の内容には従わない．2026-11-04 に，Albanie ほか 2018 とその後続研究を土台に研究を組み直すと決め，設計と実験は `DAI/` で行うことにした（規則は `DAI/CLAUDE.md`，計画は `DAI/docs/計画/計画_2026-11-04.pdf`）．2026-11-08 に，時間が無いので，まず解析論文として結論をまとめ，エンコーダの凍結を解析のための設定にすると決めた（`docs/researchvision.md` 6.1 節．作業の記録は `research_notes/解析論文のストーリー_2026-11-08/`）．
 各主張の最新の状態と実験の一覧は `docs/results.md`（3.6 節），分析の層と次の実験の計画は `docs/researchvision.md` 3.6・3.7 節．
 
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
 （コード・環境・文書・設定値のどれも）．要るものはここに置く．
 
-**2026-11-15 から，研究の実体は `DAI/` にある．**論文の実験の台本・部品・データの一覧・結果は DAI の中にあり，DAI だけで再現できる（`DAI/README.md`）．直下に残すのは，DAI が引く共有の文書（`docs/`），論文のセッションが読む `DAI_paper/`・`research_notes/`，Python の環境 `.venv/`，旧版の結果 `results/` だけで，それ以外の旧版の台本・報告・原稿は `archive/` に移した（`archive/README.md`）．
+**2026-11-15 から，研究の実体は `DAI/` にある．**論文の実験の台本・部品・データの一覧・結果は DAI の中にあり，DAI だけで再現できる（`DAI/README.md`）．直下に残すのは，DAI が引く共有の文書（`docs/`），論文のセッションが書く `research_notes/`，Python の環境 `.venv/`，旧版の結果 `results/` だけで，それ以外の旧版の台本・報告・原稿は `archive/` に移した（`archive/README.md`）．
 
 ---
 
@@ -63,7 +63,7 @@
 | `DAI/` | **研究の実体**（2026-11-04〜．2026-11-15 に整理し，データを除けば単独で論文の実験を流し直せる形にした）．入口 `DAI/README.md`，手順 `DAI/docs/再現の手順.md`，規則 `DAI/CLAUDE.md`，台本 `DAI/exp/`（論文の前半の写しを含む），部品 `DAI/measure/`・`DAI/features/`，発話一覧 `DAI/data/metadata/`，特徴 `DAI/data/cache/*.npz`（git の外），重み `DAI/weights/`（git の外），設計 `DAI/docs/設計/`，論文の原稿 `DAI/paper/`，検査の報告 `DAI/checks/`，結果 `DAI/results/`，ログ `DAI/logs/` | ○（結果は集計と記録だけ．特徴・重み・ログ・LaTeX の中間生成物は ×） |
 | `docs/` | 共有の文書 6 本（研究計画 `researchvision.md`，方法 `methods.md`，結果 `results.md`，探索の記録 `exploratory-analyses.md`，先行研究 `related-work.md`，見たデータの台帳 `seen-data.md`）と旧版の主張契約 `paper-claim.md`．検査役の定義と論文のセッションが引く．DAI の中の写しは `DAI/docs/参照/` | ○ |
 | `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`・`gate-code`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節），新しい定理を探す担当（`thm-*`．同 10 節），`story-judge`，`prior-work-diff` | ○ |
-| `DAI_paper/` | DAI の論文の旧版の執筆フォルダ（2026-10-31〜11-14）．要項 `docs/venue.md`・参照論文・棚卸しを論文のセッションが読む．原稿は `DAI/paper/` で書く | ○ |
+| `DAI_paper` | `DAI/docs/参照/DAI_paper/` へのリンク（2026-11-15 に中身を DAI に移した．旧版の執筆フォルダで，要項 `docs/venue.md`・参照論文・棚卸しを論文のセッションと査読役が読む）．古いパスで書かれた文書と論文のセッションの参照のために残す．論文の原稿の参照を書き換えたら消してよい | ○（リンク） |
 | `research_notes/` | 調べ直しのノート，論文の相談のノート（論文のセッションが書く） | ○ |
 | `results/` | 旧版の実験の結果．論文に使う置き場（93 個）は `DAI/results/` へのリンク | × |
 | `logs` | `DAI/logs/` へのリンク | × |
