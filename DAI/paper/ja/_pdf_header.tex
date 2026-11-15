@@ -1,0 +1,6 @@
+% 欠ける文字（𝒦 𝒰 ₀ ⁻ など）を数学の字体と Lato で補う
+\directlua{luaotfload.add_fallback("mdfb",{"DejaVu Math TeX Gyre:mode=harf;","Lato:mode=harf;"})}
+\setmainfont[RawFeature={fallback=mdfb}]{DejaVu Serif}
+\setmonofont[RawFeature={fallback=mdfb},Scale=0.9]{DejaVu Sans Mono}
+\setmainjfont[RawFeature={fallback=mdfb}]{Noto Serif CJK JP}
+\setmonojfont[RawFeature={fallback=mdfb}]{Noto Sans Mono CJK JP}
