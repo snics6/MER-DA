@@ -9,6 +9,10 @@
 
 入力：results/dai1/stats/teacher_margin.csv（teacher = single_m の点．生徒 A・V・T．K = 5・25），
       results/dai14/summary/descriptive.csv（readout = R1（主），subset = all，quantity = R と D_shufcl）．
+主の量：D_nk_R1（margin と同じ K 本を除いた候補の上で，実験 14 の単位の保存の R1 の交差の予測から作った D．`dai14.cell(K_nk)` と同じ作り）．
+候補の全体の R・D（descriptive.csv）と R0 の版（D_nk_R0）は並べるだけ．入力に実験 14 の単位（results/dai14/units/）と
+assumptions.csv（frac_changed．0.40 未満の 12 点に印 frac_low を付け，除いた版の要約も出す）を足した．gain_resid は K ごとに全部の点で
+当てた直線の残り（印の点を除いた版でも同じ直線）．D_nk に区間は付けない．
 出力：results/dai1/stats/teacher_imitability.csv（48 点），teacher_imitability_summary.csv（記述の数え）．
 記述の解析で予言は置かない．点どうしは同じ候補とテストを共有するので，順位相関と数え上げは検定ではない．
 使い方：.venv/bin/python tools/dai1_teacher_imitability.py [--out-dir 一時の置き場]
@@ -59,8 +63,8 @@ def main() -> None:
     for _, r in m.iterrows():
         vals = {ro: [] for ro in ("R1", "R0")}
         for f in range(DD.N_FOLDS):
-            for rr in range(int(frozen[r.T]["n_seeds_eval"])):
-                a = np.load(ROOT / "results" / "dai14" / "units" / f"{r.T}_f{f}_r{rr}.npz", allow_pickle=False)
+            for rr in range(int(frozen[r["T"]]["n_seeds_eval"])):
+                a = np.load(ROOT / "results" / "dai14" / "units" / f"{r['T']}_f{f}_r{rr}.npz", allow_pickle=False)
                 nk = a[f"nk__K{r.K}"].astype(bool)
                 for ro in ("R1", "R0"):
                     def uar(ver):
@@ -104,9 +108,11 @@ def main() -> None:
                          spearman_gain_D=float(st.spearmanr(x.D, x.gain).statistic),
                          spearman_resid_D=float(st.spearmanr(x.D, x.gain_resid).statistic),
                          spearman_margin_D=float(st.spearmanr(x.D, x.margin).statistic),
-                         pos_hurt_n=int((pos.gain_hi < 0).sum()), pos_hurt_D_median=float(pos[pos.gain_hi < 0].D.median()) if (pos.gain_hi < 0).any() else np.nan,
-                         pos_gain_ci_pos_n=int((pos.gain_lo > 0).sum()), pos_gain_ci_pos_D_median=float(pos[pos.gain_lo > 0].D.median()) if (pos.gain_lo > 0).any() else np.nan,
-                         pos_other_D_median=float(pos[(pos.gain_lo <= 0) & (pos.gain_hi >= 0)].D.median()) if ((pos.gain_lo <= 0) & (pos.gain_hi >= 0)).any() else np.nan))
+                         pos_hurt_n=int((pos.gain_hi < 0).sum()),
+                         pos_hurt_Dnk_median=float(pos[pos.gain_hi < 0].D_nk_R1.median()) if (pos.gain_hi < 0).any() else np.nan,
+                         pos_gain_ci_pos_n=int((pos.gain_lo > 0).sum()),
+                         pos_gain_ci_pos_Dnk_median=float(pos[pos.gain_lo > 0].D_nk_R1.median()) if (pos.gain_lo > 0).any() else np.nan,
+                         pos_other_Dnk_median=float(pos[(pos.gain_lo <= 0) & (pos.gain_hi >= 0)].D_nk_R1.median()) if ((pos.gain_lo <= 0) & (pos.gain_hi >= 0)).any() else np.nan))
     pd.DataFrame(rows).assign(commit=cm, dirty=dt).to_csv(sdir / "teacher_imitability_summary.csv", index=False)
     print(f"書いた：{sdir / 'teacher_imitability.csv'}（{len(m)} 点）と要約", flush=True)
 
