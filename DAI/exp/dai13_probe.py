@@ -1,5 +1,5 @@
 """DAI-13 の下調べ（音声の第 1 段）：凍結した WavLM-large の 25 個の隠れ状態の重みつき和の重みを，ほかの 2 つのモダリティの予測
-（`pair`）を目標にラベル無しで学び，最終層だけより出所の予測が読めるようになるか（設計 `DAI/docs/実験13_下調べ_設計.md`）．
+（`pair`）を目標にラベル無しで学び，最終層だけより出所の予測が読めるようになるか（設計 `docs/設計/実験13_下調べ_設計.md`）．
 
 段：
   --stage units      単位ごとの計算（既定は種 r = 0 の 60 単位．`--units` で絞る）
@@ -35,7 +35,7 @@ import dai12_probe as P12  # noqa: E402
 import dai_data as DD  # noqa: E402
 import dai_solver as S  # noqa: E402
 
-ROOT = HERE.parents[1]
+ROOT = HERE.parent
 UD = P11.UD
 FROZEN = P11.FROZEN
 D11 = P12.D11
@@ -57,7 +57,7 @@ KSHOT_WDS, KSHOT_STEPS = (1e-2, 1.0), 500                                # Q5：
 Q3_KS = (0, 25)                                                          # Q3（α を pair の解に固定した全ラベルの分類器）を出す K（試走で lab の段が最も重かったので 2 本に絞った．記述）
 RIDGE_DTYPE = torch.float32                                              # 層ごとのリッジ（記述）の精度．倍精度は試走で 1 単位 38 秒かかった（GPU の倍精度は遅い）
 MAX_NETS = 15                                                            # 束ねて学ぶネットの数の上限（目標 3 × wd 5．MOSEI の試走で 25 本だと GPU 最大 12.0 GB（上限 14.7 GB）だったので余裕を取った．gate-code 第 1 回の 1）
-GPU_MEM_FRAC = 0.6                                                       # GPU のメモリの上限の割合（WSL2 の落とし穴の回避．docs/methods.md の記録）
+GPU_MEM_FRAC = 0.6                                                       # GPU のメモリの上限の割合（WSL2 の落とし穴の回避．docs/参照/methods.md の記録）
 ALPHA_LR = 1e-1                                                          # 層の重みの対数 α の Adam の学習率（W・c は FIXED_LR）．10⁻² だと 500 ステップで 1 つの層に寄り切れない（gate-probe 第 1 回の 1）
 PSI_EPS = 1e-6                                                           # ψ の次元ごとの標準化の下駄（学習の半分の統計．α が one-hot のとき final と同じ尺度になる）
 LAYER_DIFF_STOP = 1e-2                                                   # 添字 24 の生の特徴と既存の音声の特徴の最大の差の許し
@@ -1154,7 +1154,7 @@ def main() -> None:
     out = Path(args.out)
     commit, dirty = dai1.git_commit()
     if dirty and not args.allow_dirty:
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
     prov11 = json.load(open(D11 / "provenance.json")); commit11 = str(prov11["commit"])
     # DAI-12 の rows/*.npz のコミットは単位の段のもの（e9f66c9）．集計の段は別のコミット（d0a2d91）で流し直したので，照合は単位の段の記録のコミットで行う（gate-probe 第 2 回の 3）
     recs12 = [json.loads(l) for l in open(D12 / "provenance_log.jsonl") if l.strip()]
@@ -1176,7 +1176,7 @@ def main() -> None:
                 script_sha256=P12.sha(Path(__file__)), dai12_probe_sha256=P12.sha(HERE / "dai12_probe.py"), dai11_probe_sha256=P12.sha(HERE / "dai11_probe.py"),
                 dai1_sha256=P12.sha(HERE / "dai1.py"), solver_sha256=P12.sha(HERE / "dai_solver.py"), data_sha256=P12.sha(HERE / "dai_data.py"), stats_sha256=P12.sha(HERE / "dai1_stats.py"),
                 frozen_sha256=P12.sha(FROZEN), build_layers_sha256=P12.sha(ROOT / "features" / "build_audio_layers.py"),
-                design_sha256=P12.sha(ROOT / "DAI" / "docs" / "実験13_下調べ_設計.md") if (ROOT / "DAI" / "docs" / "実験13_下調べ_設計.md").exists() else None,
+                design_sha256=P12.sha(ROOT / "docs" / "設計" / "実験13_下調べ_設計.md") if (ROOT / "docs" / "設計" / "実験13_下調べ_設計.md").exists() else None,
                 dai11_commit=commit11, dai12_units_commit=commit12, dai12_summary_commit=str(prov12.get("commit")), dai12_script_sha256=prov12.get("script_sha256"),
                 pseudo_commit={T: json.load(open(FROZEN))[T]["pseudo_commit"] for T in DD.CORPORA},
                 layer_features_sha256={c: P12.sha(ROOT / "data" / "cache" / f"{LAYER_KIND}_{c}.npz") for c in DD.CORPORA if (ROOT / "data" / "cache" / f"{LAYER_KIND}_{c}.npz").exists()},
@@ -1209,7 +1209,7 @@ def main() -> None:
         prov["summary_dir"] = str(sdir)
         prov.update(json.load(open(sdir / "summary_meta.json")))
         json.dump(prov, open(sdir / "provenance.json", "w"), ensure_ascii=False, indent=1)
-        json.dump(prov, open(out / "provenance.json", "w"), ensure_ascii=False, indent=1)                 # 最新の集計の写し（DAI/CLAUDE.md の取り決めの置き場）
+        json.dump(prov, open(out / "provenance.json", "w"), ensure_ascii=False, indent=1)                 # 最新の集計の写し（CLAUDE.md の取り決めの置き場）
 
 
 if __name__ == "__main__":

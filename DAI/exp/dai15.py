@@ -1,5 +1,5 @@
 """実験 15（DAI-15）：疑似ラベルの取り違えを K 本で推して直す（Gold Loss Correction の前向き補正）と，分析の予言は当たるか
-（設計 `DAI/docs/実験15_設計.md` 第 6 版）．
+（設計 `docs/設計/実験15_設計.md` 第 6 版）．
 
 提案（実験 1 の主の版 `one`：学び直した声・顔・言葉の確率の積）の疑似ラベル q を，学び直す分類器に渡すときに，
 疑似ラベルのモデルが本当の感情 i を感情 j と取り違える確率の表 C（C_ij ≈ P(疑似 = j | 本当 = i)）で前向きに補正する：
@@ -46,8 +46,8 @@ import dai_solver as S  # noqa: E402
 ROOT = DD.ROOT
 OUT1 = ROOT / "results" / "dai1"
 OUT_PROD = ROOT / "results" / "dai15"
-DESIGN = ROOT / "DAI" / "docs" / "実験15_設計.md"
-FROZEN = ROOT / "DAI" / "frozen" / "dai15_frozen.json"
+DESIGN = ROOT / "docs" / "設計" / "実験15_設計.md"
+FROZEN = ROOT / "frozen" / "dai15_frozen.json"
 KS = (5, 25)
 K_MAIN = 5
 STU = DD.STUDENTS                       # ("A", "V", "T", "AVT")
@@ -634,7 +634,7 @@ def main() -> None:
     commit, dirty = dai1.git_commit()
     RUN["commit"], RUN["dirty"] = commit, dirty
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
     if prod and not dai1.committed_clean(DESIGN):
         sys.exit("設計の文書がコミットされていない")
     RUN["partial"] = bool(args.allow_partial)

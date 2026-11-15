@@ -1,30 +1,30 @@
-"""DAI 実験 2 の集計（設計 `DAI/docs/実験2_設計.md` 2.3 節・4 節・6 節．比べ方の公平さの関門の指摘 2-I（`DAI/checks/DAI-2_3/compare_v4.md`））。
+"""DAI 実験 2 の集計（設計 `docs/設計/実験2_設計.md` 2.3 節・4 節・6 節．比べ方の公平さの関門の指摘 2-I（`checks/DAI-2_3/compare_v4.md`））。
 
-評価の値を見る前に集計の仕方を固めるための台本である．評価の回の前にコミットし，sha256 を `DAI/frozen/eval_gate.json` の required に
-`"DAI/exp/dai2_stats.py"` の鍵で入れる（無いと eval の段は止まる）．
+評価の値を見る前に集計の仕方を固めるための台本である．評価の回の前にコミットし，sha256 を `frozen/eval_gate.json` の required に
+`"exp/dai2_stats.py"` の鍵で入れる（無いと eval の段は止まる）．
 全部の量を，保存した int8 のテストの判定と，`measure/data.py` の load_group を通したラベルと塊（`dai3.corpus_df` → `dai_data.load_corpus`）から
 作り直す．区間は実験 1 の 9.3 節の規則で，`dai1_stats.effect_stats` をそのまま呼ぶ（書き直さない）．単位の UAR は `dai1_stats.uar_full`
 （テストに現れる感情の再現率の平均．rows.csv と同じ定義），区間の中の塊を除いた値と 2 組の値は `dai1_stats.uar_rows`（30 本未満か感情が
 欠ければ NaN．30 本の規則）．塊ごとの数は `dai1_stats.counts`，θ は `dai1_stats.theta`．p 値は付けない（実験 2 には族を置かない．設計 4 節）．
 
 使い方：
-  python DAI/exp/dai2_stats.py eval   [置き場]   評価の回の出力だけを読む（既定の置き場 results/dai2/stats）．次のときだけ動く：
-        DAI/frozen/dai2_frozen.json と results/dai2/select/frozen.json の sha256 が一致し，DAI/frozen/dai1_frozen.json と
+  python exp/dai2_stats.py eval   [置き場]   評価の回の出力だけを読む（既定の置き場 results/dai2/stats）．次のときだけ動く：
+        frozen/dai2_frozen.json と results/dai2/select/frozen.json の sha256 が一致し，frozen/dai1_frozen.json と
         results/dai1/select/frozen.json が一致し，両方の写しがコミット済みで，実験 2 の固定のファイルが使った実験 1 の固定のファイルの
-        sha256 が今のものと同じで，作業木（DAI/exp，DAI/splits，measure，features，data/metadata．未追跡のファイルを含む）が汚れておらず，
-        この台本がコミット済みで，`DAI/frozen/eval_gate.json` がコミット済みで required にこの台本の今の sha256 があり，
-        results/dai1/stats/families.csv（`python DAI/exp/dai1_stats.py eval` の出力）があり，その行の dirty がすべて偽．
+        sha256 が今のものと同じで，作業木（exp，splits，measure，features，data/metadata．未追跡のファイルを含む）が汚れておらず，
+        この台本がコミット済みで，`frozen/eval_gate.json` がコミット済みで required にこの台本の今の sha256 があり，
+        results/dai1/stats/families.csv（`python exp/dai1_stats.py eval` の出力）があり，その行の dirty がすべて偽．
         単位はすべてそろうことを求める（線形の手法と CORAL は r ∈ {0, …, R−1}，R は実験 1 の固定のファイルの n_seeds_eval．
         勾配法の手法は r ∈ {0, 1, 2}．固定のファイルの grad_seeds_eval）．入力を替える引数（--dai1-dir など）と --targets・--no-null は受け付けない．
         照合の表の CRITICAL（単位の sample_id，引き戻しの鍵，各単位の保存の固定のファイルの sha256，格子，行の重複，未コミットの変更で
-        計算した行，ラベルと DAI/splits）のどれかが 0 でなければ表を書かずに止まる．
-  python DAI/exp/dai2_stats.py pseudo [置き場]   試走．仮のターゲットの回の出力（実験 1 は results/dai1/pseudo/units の p1・p3，実験 2 は
+        計算した行，ラベルと splits）のどれかが 0 でなければ表を書かずに止まる．
+  python exp/dai2_stats.py pseudo [置き場]   試走．仮のターゲットの回の出力（実験 1 は results/dai1/pseudo/units の p1・p3，実験 2 は
         results/dai2/pseudo/units）に同じ集計を当てる（既定の置き場 results/dai2/stats_pseudo．results/dai2/stats には書かない）．
         評価のターゲット T ごとに，仮のターゲット c を 1 つの「コーパス」とし，ソースは残りの 2 つ．提案と手法の設定は T の固定の値．
         族 3 は `dai1_stats.collect`・`effect_stats`・`holm` で (T, c) ごとに作り（families_pseudo.csv），記述に回すセルは実験 1 の固定の
         ファイルの c の detect.descriptive_cells．試走には選んだ点の解き直しが無いので，選んだ点の解き直しを使う量（5・6 の役 selected，
         3 の *_rep）は空になる．--targets，--pseudo-c で絞り，--allow-partial でそろった単位だけを使う（試走だけ）．
-  python DAI/exp/dai2_stats.py selftest   作った数で，退化した場合（2 つの行の判定が同じ）に θ・区間・標準誤差が 0 になること，
+  python exp/dai2_stats.py selftest   作った数で，退化した場合（2 つの行の判定が同じ）に θ・区間・標準誤差が 0 になること，
         分割の符号の反転で区間が 0 について反転すること，Welch–Satterthwaite の自由度の範囲を確かめる．
 成績の値は画面に出さない（行の数，件数，照合の食い違いの数だけ）．
 
@@ -122,7 +122,7 @@ above（下端 > 0．「上回る」），below（上端 < 0．「下回る」�
     食い違い（rows_uar_mismatch / rows_checked），実験 1 の提案・none・重みなしの提案の行の uar との食い違い（d1_rows_mismatch．試走の族 3 は
     `dai1_stats.collect` の照合の数も families_pseudo.csv に残る），dis_ctl・dis_rep の作り直し，単位の sample_id と K 本の一致，格子の点の
     過不足（設計の格子から削り方を引いたもの），行の重複，行の無い判定・判定の無い行，引き戻しの鍵，各単位の保存の固定のファイルの
-    sha256（評価の回），未コミットの変更で計算した行（rows_dirty，d1_rows_dirty），ラベルと DAI/splits の一致（split_mismatch），
+    sha256（評価の回），未コミットの変更で計算した行（rows_dirty，d1_rows_dirty），ラベルと splits の一致（split_mismatch），
     WS の種の項の作り直し（ws_vseed_mismatch），実験 1 の段 1 の引き戻しの格子 14 点の none[K] の行の uar と判定（d1_tether_rows_*．
     12 の相手），12 の曲線のセルの数・欠け・選んだ引き戻しの点と本番の行の判定の食い違い（coral_tether_*），退化したセルの数と，そのうち θ・区間・標準誤差が 0 にならなかった数
     （degenerate_cells，degenerate_interval_nonzero）．行のコミットの一覧（row_commits，d1_row_commits）．meta.json は入力の sha256，
@@ -374,7 +374,7 @@ class Labels:
         self.df = df
         self.y = dict(zip(df["sample_id"].astype(str), df["label_4"].astype(int)))
         self.cl = dict(zip(df["sample_id"].astype(str), df["cluster"].astype(str)))
-        sp = pd.read_csv(ROOT / "DAI" / "splits" / f"{c}.csv", keep_default_na=False)
+        sp = pd.read_csv(ROOT / "splits" / f"{c}.csv", keep_default_na=False)
         m = sp.merge(df[["sample_id", "cluster", "label_4"]].astype(str), on="sample_id", how="outer", suffixes=("_s", "_d"), indicator=True)
         self.split_mismatch = int((m["_merge"] != "both").sum() + (m["cluster_s"].astype(str) != m["cluster_d"].astype(str)).sum()
                                   + (m["label_4_s"].astype(str) != m["label_4_d"].astype(str)).sum())
@@ -1140,10 +1140,10 @@ def make_jobs(args) -> tuple[list, dict]:
     if args.mode == "eval":
         fam_path = d1 / "stats" / "families.csv"
         if not fam_path.exists():
-            sys.exit(f"{fam_path} が無い（`python DAI/exp/dai1_stats.py eval` を先に流す）")
+            sys.exit(f"{fam_path} が無い（`python exp/dai1_stats.py eval` を先に流す）")
         fam = pd.read_csv(fam_path)
         if (fam["dirty"].astype(str) == "True").any():
-            sys.exit(f"{fam_path} は未コミットの変更がある作業木で作られた（`python DAI/exp/dai1_stats.py eval` を汚れていない作業木で流し直す）")
+            sys.exit(f"{fam_path} は未コミットの変更がある作業木で作られた（`python exp/dai1_stats.py eval` を汚れていない作業木で流し直す）")
         info.update(families=str(fam_path), families_sha256=dai1.sha(fam_path), families_commit=sorted(set(fam.commit.astype(str))))
         gseeds = [int(x) for x in fz2["_meta"]["grad_seeds_eval"]]
         seen_commit, seen_gate = set(fam.commit.astype(str)), set()          # 単位・families.csv のコミットと gate_sha256（指摘 2-N）
@@ -1178,7 +1178,7 @@ def make_jobs(args) -> tuple[list, dict]:
                              fz2_sha=info["dai2_frozen_sha256"]))
         if seen_commit != {RUN["commit"]}:
             sys.exit(f"今のコミット {RUN['commit'][:10]} と，評価の回の単位・families.csv のコミット {sorted(x[:10] for x in seen_commit)} が違う．"
-                     "評価の回のコミットの作業木で流す（DAI/run/eval_procedure.md の 8）")
+                     "評価の回のコミットの作業木で流す（run/eval_procedure.md の 8）")
         if seen_gate != {RUN["gate"]}:
             sys.exit(f"単位の gate_sha256 {sorted(x[:10] for x in seen_gate)} が今の eval_gate.json {RUN['gate'][:10]} と違う")
         return jobs, info
@@ -1206,12 +1206,12 @@ def make_jobs(args) -> tuple[list, dict]:
 def eval_guard(args) -> dict:
     """評価の段を流す条件（指摘 2-I．docstring の eval の項）．戻り：照らした sha256。"""
     if Path(args.dai1_dir).resolve() != PROD["dai1"].resolve() or Path(args.dai2_dir).resolve() != PROD["dai2"].resolve() or args.dai2_frozen \
-            or Path(args.dai1_frozen).resolve() != (ROOT / "DAI" / "frozen" / "dai1_frozen.json").resolve() or args.allow_partial or args.pseudo_c:
-        sys.exit("eval は本番の置き場（results/dai1，results/dai2）と DAI/frozen の固定のファイルだけを読む（入力を替える引数は受け付けない）")
+            or Path(args.dai1_frozen).resolve() != (ROOT / "frozen" / "dai1_frozen.json").resolve() or args.allow_partial or args.pseudo_c:
+        sys.exit("eval は本番の置き場（results/dai1，results/dai2）と frozen の固定のファイルだけを読む（入力を替える引数は受け付けない）")
     if RUN["dirty"]:
-        sys.exit("eval は作業木に未コミットの変更があると流さない（DAI/exp，DAI/splits，measure，features，data/metadata）")
-    pairs = {"dai2": (ROOT / "DAI" / "frozen" / "dai2_frozen.json", PROD["dai2"] / "select" / "frozen.json"),
-             "dai1": (ROOT / "DAI" / "frozen" / "dai1_frozen.json", PROD["dai1"] / "select" / "frozen.json")}
+        sys.exit("eval は作業木に未コミットの変更があると流さない（exp，splits，measure，features，data/metadata）")
+    pairs = {"dai2": (ROOT / "frozen" / "dai2_frozen.json", PROD["dai2"] / "select" / "frozen.json"),
+             "dai1": (ROOT / "frozen" / "dai1_frozen.json", PROD["dai1"] / "select" / "frozen.json")}
     out = {}
     for n, (cp, fz) in pairs.items():
         if not cp.exists() or not fz.exists() or dai1.sha(cp) != dai1.sha(fz):
@@ -1221,11 +1221,11 @@ def eval_guard(args) -> dict:
         out[n] = dai1.sha(cp)
     if json.load(open(pairs["dai2"][0]))["_meta"].get("dai1_frozen_sha256") != out["dai1"]:
         sys.exit("実験 2 の固定のファイルが使った実験 1 の固定のファイルが今のものと違う")
-    gp = ROOT / "DAI" / "frozen" / "eval_gate.json"
+    gp = ROOT / "frozen" / "eval_gate.json"
     if not gp.exists() or not dai1.committed_clean(gp):
-        sys.exit("DAI/frozen/eval_gate.json が無いかコミットされていない")
+        sys.exit("frozen/eval_gate.json が無いかコミットされていない")
     me = dai1.sha(Path(__file__))
-    if json.load(open(gp))["required"].get("DAI/exp/dai2_stats.py") != me:
+    if json.load(open(gp))["required"].get("exp/dai2_stats.py") != me:
         sys.exit("eval_gate.json の required にこの台本の今の sha256 が無い（集計の台本は評価の回の前に固定する．指摘 2-I）")
     if not dai1.committed_clean(Path(__file__)):
         sys.exit("この台本がコミットされていない")
@@ -1269,7 +1269,7 @@ def main() -> None:
     ap.add_argument("out", nargs="?", default=None, help="出力の置き場（既定：eval は results/dai2/stats，pseudo は results/dai2/stats_pseudo）")
     ap.add_argument("--dai1-dir", default=str(PROD["dai1"]))
     ap.add_argument("--dai2-dir", default=str(PROD["dai2"]))
-    ap.add_argument("--dai1-frozen", default=str(ROOT / "DAI" / "frozen" / "dai1_frozen.json"))
+    ap.add_argument("--dai1-frozen", default=str(ROOT / "frozen" / "dai1_frozen.json"))
     ap.add_argument("--dai2-frozen", default=None, help="既定は <dai2-dir>/select/frozen.json（pseudo だけ替えられる）")
     ap.add_argument("--targets", nargs="*", default=list(DD.CORPORA))
     ap.add_argument("--pseudo-c", nargs="*", default=None, help="試走だけ：仮のターゲットを絞る")

@@ -1,4 +1,4 @@
-"""DAI 実験 3：説明の解析（設計は `DAI/docs/実験3_設計.md` 第 3.1 版．計画は `DAI/docs/計画_2026-11-04.tex` 8.3 節）．
+"""DAI 実験 3：説明の解析（設計は `docs/設計/実験3_設計.md` 第 3.1 版．計画は `docs/計画/計画_2026-11-04.tex` 8.3 節）．
 
 実験 1 の保存（段 1〜3 の W・b（float32），テストの判定（int8），予測の確率（float16），sample_id）と特徴から，
 位置の誤りと方向の誤り，族 5，再現できる度合い，代わりの説明の表を計算する．学び直す計算は，切片の当て直し
@@ -10,7 +10,7 @@
   detect  ：1.1 節の族 5 の標準誤差の見込み，検出できる差，記述に回すセル（実験 1 の detect と同じ手順）．説明 1・2 の量の
             区間の半幅の見込み（「同じ水準」を出しうるか．統計の検査の 3 回目の記録 4）．1 節の W* の引き戻しの強さ．
             2 組・候補の 2 組・筋書きの対の件数の表（ラベルの件数だけ）．確かめの合否．`frozen.json` に書き，
-            本番の置き場（results/dai3）のときだけ `DAI/frozen/dai3_frozen.json` に写す．
+            本番の置き場（results/dai3）のときだけ `frozen/dai3_frozen.json` に写す．
   eval    ：評価の回の出力から，1〜3 節の全部の量，族 5 の区間と Holm，3 節の判定の規則を機械的に当てた結果，4 節の件数の規則，
             5 節の仮定の表の量を計算する．
 
@@ -109,7 +109,7 @@ def production(out: Path) -> bool:
 
 def frozen_copy(out: Path) -> Path:
     """固定のファイルの写しの置き場（置き場ごとに名前を分ける：dai3_frozen.json，dai3_enc2_frozen.json）．"""
-    return ROOT / "DAI" / "frozen" / f"{out.resolve().name}_frozen.json"
+    return ROOT / "frozen" / f"{out.resolve().name}_frozen.json"
 
 
 def script_shas() -> dict:
@@ -144,7 +144,7 @@ _SUB: dict = {}
 
 def subsets() -> pd.DataFrame:
     if "s" not in _SUB:
-        _SUB["s"] = pd.read_csv(ROOT / "DAI" / "frozen" / "subsets.csv", keep_default_na=False)
+        _SUB["s"] = pd.read_csv(ROOT / "frozen" / "subsets.csv", keep_default_na=False)
     return _SUB["s"]
 
 
@@ -717,7 +717,7 @@ def stage_validate(args, out: Path, out1: Path) -> None:
     d1.assign(**tag).to_csv(vdir / "check1_units.csv", index=False)
     d2.assign(**tag).to_csv(vdir / "check2_units.csv", index=False)
     pd.DataFrame(conv_rows).assign(**tag).to_csv(vdir / "convergence.csv", index=False)
-    summ["_meta"] = dict(tag, time=time.strftime("%Y-%m-%d %H:%M:%S"), targets=list(args.targets), rule="DAI/docs/実験3_設計.md 1.4 節")
+    summ["_meta"] = dict(tag, time=time.strftime("%Y-%m-%d %H:%M:%S"), targets=list(args.targets), rule="docs/設計/実験3_設計.md 1.4 節")
     json.dump(summ, open(vdir / "summary.json", "w"), indent=1, ensure_ascii=False)
     nconv = int(pd.DataFrame(conv_rows)["n_over_tol"].sum()) if conv_rows else 0
     print(f"validate：確かめ 1 の行 {len(d1)}，確かめ 2 の行 {len(d2)}，勾配が 1e-5 を超えた切片の問 {nconv}，"
@@ -1017,7 +1017,7 @@ def stage_detect(args, out: Path, out1: Path) -> None:
     vpath = out / "validate" / "summary.json"
     ep = out / "detect_expected.json"                                   # 台本だけが読む．人は評価の回の前に開かない
     json.dump({"_meta": tag, "expected_effect": expected}, open(ep, "w"), indent=1)
-    frozen = {"_meta": dict(tag, time=time.strftime("%Y-%m-%d %H:%M:%S"), rule="DAI/docs/実験3_設計.md 1 節・1.1 節・1.4 節・9 節",
+    frozen = {"_meta": dict(tag, time=time.strftime("%Y-%m-%d %H:%M:%S"), rule="docs/設計/実験3_設計.md 1 節・1.1 節・1.4 節・9 節",
                             dai1_frozen_sha256=fz1_sha, targets=list(args.targets), encoder=dai1.ENC["enc"],
                             validate_sha256=sha(vpath) if vpath.exists() else None, script_sha256=script_shas(),
                             detect_expected_sha256=sha(ep)),
@@ -1956,7 +1956,7 @@ def stage_eval(args, out: Path, out1: Path) -> None:
     pd.DataFrame(conv).assign(**tag).to_csv(edir / "convergence.csv", index=False)
     vr = rules(summs) if len(summs) == len(DD.CORPORA) or args.allow_partial else {"note": "評価のターゲットが 4 つそろっていない"}
     vr["_meta"] = tag | dict(time=time.strftime("%Y-%m-%d %H:%M:%S"), targets=list(args.targets),
-                             rule="DAI/docs/実験3_設計.md 3 節（判定の規則）．族 5 の外の数に p 値を付けない")
+                             rule="docs/設計/実験3_設計.md 3 節（判定の規則）．族 5 の外の数に p 値を付けない")
     vr["family5"] = {T: summs[T].get("family5") for T in summs}
     vr["notes"] = [                                                    # 設計 3 節の書き方の約束（判定の語と並べて残す）
         "族 5 は「対の切片を当て直した後の UAR の差」を検定している．確かめ 2 が合格でない (コーパス，生徒) では「方向」の語を使わない（wording_direction）",
@@ -1990,7 +1990,7 @@ def main() -> None:
     RUN["commit"], RUN["dirty"] = commit, dirty
     RUN["encoder"] = args.encoder
     if dirty and (production(out) or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
     if production(out):                                                  # 本番の置き場は，読む実験 1 の置き場とエンコーダが決まっている（I8）
         d1name, enc = PROD_OUT[out.resolve().name]
         if out1.resolve() != (ROOT / "results" / d1name).resolve() or args.encoder != enc:
@@ -2001,7 +2001,7 @@ def main() -> None:
                 numpy=np.__version__, pandas=pd.__version__, time=time.strftime("%Y-%m-%d %H:%M:%S"),
                 script_sha256=sha(Path(__file__)), dai1_sha256=sha(HERE / "dai1.py"), stats_sha256=sha(HERE / "dai1_stats.py"),
                 solver_sha256=sha(HERE / "dai_solver.py"), data_sha256=sha(HERE / "dai_data.py"),
-                subsets_sha256=sha(ROOT / "DAI" / "frozen" / "subsets.csv"), dai1_out=str(out1), encoder=dai1.ENC["enc"])
+                subsets_sha256=sha(ROOT / "frozen" / "subsets.csv"), dai1_out=str(out1), encoder=dai1.ENC["enc"])
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
     {"validate": stage_validate, "detect": stage_detect, "eval": stage_eval}[args.stage](args, out, out1)

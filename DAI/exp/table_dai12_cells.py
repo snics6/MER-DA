@@ -1,6 +1,6 @@
 """DAI-12 の全部のセルの値と区間を，結果ファイルから Markdown の表に書き出す（設計 4.5 節の「どの規則も，満たしたかどうかによらず全部のセルの値と区間を表に出す」）。
 
-python DAI/exp/table_dai12_cells.py > "DAI/docs/実験12_下調べ_全セルの表_2026-11-09.md"
+python exp/table_dai12_cells.py > "docs/結果/実験12_下調べ_全セルの表_2026-11-09.md"
 
 読むファイル：results/dai12_probe/diffs.csv，criteria.csv，cells_nl.csv，cells_lab.csv，q2_cells.csv，se_summary.csv，halves_units.csv．
 書き換えはしない．丸めは結果ファイルの値から 1 回だけ行う（A25）。
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 D12 = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "results" / "dai12_probe"
 MODS = ("A", "V", "T")
 MOD_NAME = {"A": "音声 A", "V": "顔 V", "T": "言葉 T"}
@@ -73,7 +73,7 @@ def main():
     Se = pd.read_csv(D12 / "se_summary.csv")
     Hv = pd.read_csv(D12 / "halves_units.csv")
     print("# 実験 12 の下調べ：全部のセルの値と区間（付録．2026-11-09）\n")
-    print("表は `DAI/exp/table_dai12_cells.py` が `results/dai12_probe/diffs.csv`，`criteria.csv`，`cells_nl.csv`，`cells_lab.csv`，`q2_cells.csv`，`se_summary.csv`，`halves_units.csv` から書き出した．"
+    print("表は `exp/table_dai12_cells.py` が `results/dai12_probe/diffs.csv`，`criteria.csv`，`cells_nl.csv`，`cells_lab.csv`，`q2_cells.csv`，`se_summary.csv`，`halves_units.csv` から書き出した．"
           "差の表の値は「a − b」の UAR の差のポイントで，点推定 [95% 区間] である．候補の上の差（「候補の上の差」の節と部分集合の節，Q3 の節）は候補のうち K 本を除いた発話の上の値で，区間は `effect_stats_pool`（分割をまたいで塊の重みを 1 組だけ引く引き直し．AFEW・IEMOCAP・MELD は塊の jackknife）．"
           "テストの差（「テストの差」の節）の区間は `dai1_stats.effect_stats`．どちらも (f, r) を単位にし 3 つの T の数を平均する．値は結果ファイルから 1 回だけ丸めた（小数 2 桁）．\n")
     sec = 1

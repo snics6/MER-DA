@@ -1,4 +1,4 @@
-"""DAI 実験 1 の選ぶ段（設計 `DAI/docs/実験1_設計.md` 8 節）。仮のターゲットの出力だけを読み，固定のファイルを書く。
+"""DAI 実験 1 の選ぶ段（設計 `docs/設計/実験1_設計.md` 8 節）。仮のターゲットの出力だけを読み，固定のファイルを書く。
 
 - 評価のターゲットの出力（`results/dai1/eval/units/`）があれば止まる（漏れの検査 L8）。
 - 段 1〜3 の単位の集合が `<T>_tether_w.json` の単位の一覧と一致しなければ止まる（m60）。
@@ -158,7 +158,7 @@ def main(out: Path, targets=DD.CORPORA) -> None:
     sel_dir.mkdir(parents=True, exist_ok=True)
     commit, dirty = dai1.git_commit()
     frozen = {"_meta": {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "commit": commit, "dirty": dirty,
-                        "rule": "DAI/docs/実験1_設計.md 8 節", "partners": list(PARTNERS)}}
+                        "rule": "docs/設計/実験1_設計.md 8 節", "partners": list(PARTNERS)}}
     if list(targets) != list(DD.CORPORA):
         frozen["_meta"]["partial_targets"] = list(targets)              # 試走だけ．本番は 4 つ全部
     for T in targets:
@@ -194,7 +194,7 @@ def main(out: Path, targets=DD.CORPORA) -> None:
     h = hashlib.sha256(open(sel_dir / "frozen.json", "rb").read()).hexdigest()
     print("書いた:", sel_dir / "frozen.json", "sha256", h)
     if out.resolve().parent == (dai1.ROOT / "results").resolve():          # 本番の置き場のときだけ写しを置く（I8）
-        fz = dai1.ROOT / "DAI" / "frozen"
+        fz = dai1.ROOT / "frozen"
         fz.mkdir(exist_ok=True)
         shutil.copy(sel_dir / "frozen.json", fz / f"{out.name}_frozen.json")
         print("写し:", fz / f"{out.name}_frozen.json")

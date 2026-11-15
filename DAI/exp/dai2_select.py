@@ -1,8 +1,8 @@
-"""DAI 実験 2 の選ぶ段（設計 `DAI/docs/実験2_設計.md` 第 3.2 版の 1 節「選び方」と 4 節）。仮のターゲットの出力だけを読み，固定のファイルを書く。
+"""DAI 実験 2 の選ぶ段（設計 `docs/設計/実験2_設計.md` 第 3.2 版の 1 節「選び方」と 4 節）。仮のターゲットの出力だけを読み，固定のファイルを書く。
 
 - 規則は実験 1 の 8 節の 1 と同じ（`dai1_select.pick` をそのまま使う）：(T, 生徒, K, 手法) ごとに，格子の点を T の仮のターゲットの単位の UAR の平均で
   選び，最良との差が δ_sel 以内の点が複数なら，選択なしの値に最も近い点（各つまみの格子の番号の差の和．それも同じなら格子の並びで先）．
-- δ_sel は実験 1 の固定のファイル（既定 `DAI/frozen/dai1_frozen.json`．試走では引数で与えた置き場の frozen.json）の (T, 生徒, K) の値．
+- δ_sel は実験 1 の固定のファイル（既定 `frozen/dai1_frozen.json`．試走では引数で与えた置き場の frozen.json）の (T, 生徒, K) の値．
   δ_sel は K 本の抜き方の揺れだけを含み，勾配法の手法の初期化の揺れ（s = r）を含まない（表の注に書く）．
 - 選択なしの値が無い xMUDA 型は，δ_sel の中の点のうち格子の並び（学習率，反復，κ，μ の順の辞書順）で先の点を選ぶ．
 - 選択なしの値（`dai2.DEFAULTS`・`dai2_grad.DEFAULTS`）は，固定のファイルの _meta に写す．格子の点を持たない saerens は平均だけを書く．
@@ -15,7 +15,7 @@
   が無い，のどれでも止まる（試走の置き場では --allow-dirty で進め，_meta に残す）．
 - 順序：実験 1 の `dai1_stats.py detect` は実験 1 の固定のファイルに n_seeds_eval と detect を書き足す．その前に実験 2 の選ぶ段を流すと，
   評価の段が実験 1 の固定のファイルの sha256 の違いで止まる（選び直しとコミットのやり直しになる）．本番の置き場では detect の前には動かない．
-- 書き出し：`<out>/select/frozen.json`．本番の置き場のときだけ写しを `DAI/frozen/dai2_frozen.json` に置く（コミットは人が行う）．
+- 書き出し：`<out>/select/frozen.json`．本番の置き場のときだけ写しを `frozen/dai2_frozen.json` に置く（コミットは人が行う）．
   _meta に台本の sha256（評価の段が照らす．ML の査読者の m72），実験 1 の固定のファイルの sha256，勾配法の削り方，選択なしの値と格子を書く．
 """
 
@@ -145,7 +145,7 @@ def select_T(T: str, d: pd.DataFrame, fz1: dict, n_units: int, cut: dict) -> dic
                 delta_sel={f"{s}|{K}": v for (s, K), v in dsel.items()})
 
 
-def main(out: Path, targets=DD.CORPORA, dai1_frozen: Path = ROOT / "DAI" / "frozen" / "dai1_frozen.json", allow_dirty: bool = False) -> None:
+def main(out: Path, targets=DD.CORPORA, dai1_frozen: Path = ROOT / "frozen" / "dai1_frozen.json", allow_dirty: bool = False) -> None:
     grad = _grad_module()
     GRIDS.update(grad.GRIDS)
     DEFAULTS.update(grad.DEFAULTS)
@@ -180,7 +180,7 @@ def main(out: Path, targets=DD.CORPORA, dai1_frozen: Path = ROOT / "DAI" / "froz
     sel_dir = out / "select"
     sel_dir.mkdir(parents=True, exist_ok=True)
     frozen = {"_meta": {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "commit": commit, "dirty": dirty, "trial": not prod,
-                        "rule": "DAI/docs/実験2_設計.md 1 節・4 節（実験 1 の 8 節の 1）",
+                        "rule": "docs/設計/実験2_設計.md 1 節・4 節（実験 1 の 8 節の 1）",
                         "dai1_frozen": str(dai1_frozen), "dai1_frozen_sha256": dai2.sha(dai1_frozen),
                         "script_sha256": {n: dai2.sha(HERE / n) for n in dai2.SCRIPTS},
                         "grids": {m: [(k, list(v)) for k, v in gr] for m, gr in GRIDS.items()}, "defaults": DEFAULTS,
@@ -223,7 +223,7 @@ def main(out: Path, targets=DD.CORPORA, dai1_frozen: Path = ROOT / "DAI" / "froz
     h = hashlib.sha256(open(sel_dir / "frozen.json", "rb").read()).hexdigest()
     print("書いた:", sel_dir / "frozen.json", "sha256", h)
     if prod:                                                               # 本番の置き場のときだけ写しを置く（I8）
-        fz = ROOT / "DAI" / "frozen"
+        fz = ROOT / "frozen"
         fz.mkdir(exist_ok=True)
         shutil.copy(sel_dir / "frozen.json", fz / "dai2_frozen.json")
         print("写し:", fz / "dai2_frozen.json")
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out-dir", default=str(ROOT / "results" / "dai2"))
     ap.add_argument("--targets", nargs="*", default=list(DD.CORPORA))
-    ap.add_argument("--dai1-frozen", default=str(ROOT / "DAI" / "frozen" / "dai1_frozen.json"))
+    ap.add_argument("--dai1-frozen", default=str(ROOT / "frozen" / "dai1_frozen.json"))
     ap.add_argument("--allow-dirty", action="store_true")
     a = ap.parse_args()
     main(Path(a.out_dir), a.targets, Path(a.dai1_frozen), a.allow_dirty)

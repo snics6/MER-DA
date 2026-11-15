@@ -1,0 +1,1157 @@
+sample_id,transcript_asr,duration_sec,compression_ratio,asr_model
+train_000046280,But I say this to our citizenry.,3.888,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000223480,Yaaaaaah!,2.976,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000429620,Turn it!,1.128,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000450454,"All right, everyone, gird your loins.",2.424,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000505440,You are not dancing. You are not dancing in the,2.76,1.205,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000550480,But I defended you. I said no.,2.664,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000746734,You're never gonna see those freaky friends of yours again. Never!,4.944,0.957,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000800760,"Paul, there is someone up there.",2.04,0.889,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000846120,Unhand me!,2.088,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000947327,Just think of the numbers it would get.,2.016,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001419640,"Only that you're all tough, undiluted motherfuckers!",2.856,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001454480,And what the fuck is wrong with you?,1.776,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001549894,"Oh, my God.",1.776,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001809774,I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about.,1.488,13.943,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001940720,"Fuck off, you bitch.",1.368,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001943720,Hey! Hey!,3.096,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002014840,You tossers! You had one job to do!,3.408,0.875,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002137000,He's going to try and have a kid with stalker Becky. He's spitting it out.,3.168,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002338014,"She's not happy unless everyone around her is panicked, nauseous, or suicidal.",3.984,1.04,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002338414,Perhaps this will show you why.,2.496,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002350040,Shut the fuck up and hand me the keys.,2.808,0.95,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002421200,You will sell him cheap.,3.144,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002453040,Hey! Piss off! We're closed!,4.056,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002547360,"You're looking for a coroner, shit for brains?",2.52,0.902,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002613894,Avada Kedavra!,2.136,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002639600,is home free!,1.968,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002757160,"Bullshit, forget it. Say what you mean.",3.36,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002921240,I'm not fat anymore!,1.464,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003021680,And I stabbed her in the face!,1.968,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003042640,"You're gonna die tonight, Taco Clay.",2.568,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003050760,and it will then take me time to get back to where,3.36,0.962,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003108520,"Whether you don't hear me typing, whether the fuck you hear me typing,",2.904,1.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003124480,Your fucking whining isn't helping right now.,2.088,0.938,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003210247,"He's full of shit, man. How do you know that?",2.688,0.882,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003319680,You can fuck this up even further.,1.488,0.85,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003345000,"You are so weak. No, I am not happy anymore.",3.048,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003415240,Leave him be!,1.56,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003446574,I must ask you not to scream.,2.088,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003453680,"I like the way you die, boy.",2.256,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003618000,is a masterpiece.,2.976,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003805880,Why do you think you came here?,1.896,0.886,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003858520,You little fuck.,1.896,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003921207,"The American people, they loved him for it.",2.28,0.843,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003948807,"No, I want to hire the Sopranos to beat the shit out of him",3.0,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004108160,Here's what I wrote.,1.488,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004113320,Now fill it up!,1.56,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004219680,"Healy, think about it. He never even looked her up down there.",2.928,0.939,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004329400,No! Look away!,0.888,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004417200,And I wanted the motel because you almost killed me.,3.048,0.881,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004423640,And then you pissed off firemen and almost,3.216,0.894,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004508680,You're gonna see I'm not acting like a crazy person. That this is the right reason,3.264,1.051,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004510640,We'll talk after what happened to you.,1.536,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004519160,He just voted. It was ten to nine.,1.848,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004556920,"Arrangement. Fuck, I've told you a hundred fucking times.",2.28,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004559600,I'm sorry that we weren't good enough for you.,2.616,0.885,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004708240,And maybe you're not such a big shotty.,3.048,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004805814,What's happening to her?,1.488,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004924334,I want to follow her.,0.768,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005006800,What does this mean? I'm sure of it.,2.688,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005007120,Any fucking thing for him.,2.76,0.839,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005014360,It is in my dream. They cannot kill me.,3.408,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005015240,You have to admit there is a bit of a conflict of interest when you give me advice about my life,3.888,1.185,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005044400,And it was three goddamn years ago!,3.36,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005047920,My little fucker had thrown all my papers,2.736,0.837,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005110000,Will you shut the fuck up?,1.68,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005138840,Are you out of your fucking mind?,2.328,0.868,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005221760,Why did you try to kill me?,1.896,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005234720,Look at me! Meet the dummy!,3.504,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005419880,"Yeah, we're in deep shit.",2.136,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005436800,Dominos. Basher.,1.608,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005445120,Where did you get this?,2.52,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005718367,I can't take it anymore! Chicken hogs don't eat this much chicken!,4.344,0.985,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005737640,We're going to pull together and we're gonna find a way to get out of here,4.2,1.072,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005846280,I got it. Moose focus in this game for one second. I said I got it. Somebody gets hurt.,3.168,1.074,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005924840,and you're saying this is just a fucking automobile?,2.136,0.929,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005937200,Fuck! Really?,1.56,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010129600,This is when I finally have a chance to accomplish something.,2.496,0.938,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010132240,But I am really into my work.,2.496,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010244174,I can't believe it. She's done it again.,2.496,0.889,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010431280,No! Can I do this?,3.168,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010511560,The D is silent.,1.536,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010519417,It's called privacy. I'm not 12 anymore.,2.184,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010618600,It still doesn't mean that it's gonna work!,2.208,0.843,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010619400,"Mr. Bank, first round of betting, next, dominoes.",4.344,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010620475,Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh. Sigh,1.248,21.053,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010805120,"All right, you got it?",1.56,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010806840,All right? You got it? Get that in your fucking head!,3.168,0.914,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010854560,"Man, she really fucked him up.",3.096,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011010680,Get out of me fucking ass!,3.264,0.812,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011115200,He is a very willful boy.,3.0,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011145880,"and that money can't buy love,",1.608,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011326080,You insolent little... Professor!,2.52,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011345040,"I told you everything Gumbledore told me,",2.616,0.911,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011419080,My $14! Go get my money!,1.728,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011432160,who had me kill another man in front of his son.,3.024,0.906,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011456040,You're a selfish piece of shit!,2.448,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011457120,"Wait, I want you to know something right here and now.",2.088,0.885,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011458520,Can't more about getting yourself,2.256,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011500040,I ain't no little kid! You sit down! I ain't no little kid!,3.288,1.229,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011506440,Then butt out. That would make me happy.,2.208,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011817120,for her to eat and rub in her fucking face.,1.464,0.896,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011823160,You stenographer!,1.728,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011824880,You introduced me as your stenographer?,3.216,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011833280,"Whoa, Linus Caldwell Jr. Varsity, you are not following",2.808,0.873,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012012320,"I don't know what I've done, but I am so sorry.",3.696,0.94,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012048128,I'm gonna make those motherfuckers choke!,3.936,0.837,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012051160,until that fucking thing in my heart exploded.,2.52,0.92,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012131040,I don't give a damn if he's sick or well or dead or alive.,3.744,0.967,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012134720,He should keep his fucking opinion!,1.776,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012136400,in the fucking insane asylum where they belong!,3.528,0.887,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012317840,It's all her fault.,0.936,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012332520,"salon with her, and I got my ass",1.968,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012335760,Don't you dare!,1.176,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012404000,She does not get a dog!,1.896,0.793,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012421760,Shut up!,0.96,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012713400,"You want me to scream again, Frankie?",1.608,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012715000,Because I will! I mean it!,2.28,0.812,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012731760,I got my son. I was here all the time. We were here.,2.496,0.945,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012738600,I'm a goddamn American icon.,2.904,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012830960,In Azkaban!,2.376,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012917728,You're in New York. I'm in New York riding subways 14 hours a day trying to,3.84,1.056,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012943150,I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again. I'm going to do it again.,0.624,15.829,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013224647,"Everybody else, we don't crash.",1.128,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013836768,Mark!,1.224,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013847328,24 million new shares of stock.,1.776,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013925520,I never want to speak to you again! Ever!,3.456,0.911,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013946567,Along with my hoodie and my fucking flip-flops.,2.208,0.922,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013959520,"I mean, you stole all of my shoes!",2.328,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015020000,Sons of bitches!,1.464,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015256413,"I've got to mean it, Harry.",3.696,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015441400,I will admit you are pretty clever.,2.328,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_020913240,"Stop shooting, god damn it!",1.704,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_021913080,"$10,000 for a smitty bag. That's a shit lot.",2.424,0.88,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000236840,I'm hurt.,1.464,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000519240,"Come on, you fucking freeloaders!",2.28,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000628840,Is that okay? No.,1.8,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000633160,Annie. I'm sorry.,1.536,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000707320,He killed his family with an axe.,1.968,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000745280,It's still hard for me to believe it actually happened here.,3.336,0.909,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001228240,"I'm so sorry, Matt.",2.52,0.76,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001229360,What happens with a small percentage of,1.728,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001604560,"Oh, Jesus Christ.",1.128,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001604640,THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANKS FOR JOINING US. THANK,1.416,14.194,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001629720,"I'm thinking to myself, what the fuck am I doing here anyway?",5.04,0.924,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001637640,Now he's gonna blow it up next month to make way for some gaudy monstrosity.,5.208,1.013,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001744640,How do I fix this? Are you fucking kidding?,2.088,0.878,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001809000,Food cutlets? Mm-hmm.,2.496,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001934160,"Or maybe they'll, like, totally shit and be really, really mad.",3.096,1.033,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002006160,I'm right.,2.28,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002010400,"Oh, leave it out.",2.256,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002123400,That's way too creepy.,2.616,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002138680,Sometimes they can see things that happened a long time ago.,4.2,0.968,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002226280,She's not a stalker. She's my girlfriend.,1.728,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002303560,So you don't trust me now? Whatever. I don't care.,4.896,0.943,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002516934,I missed that.,0.744,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002739520,"STILL REALLY SHITTY, ELLIE.",2.568,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002811160,This is crazy to me that you're still defending him.,2.136,0.897,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002850840,"Whatever. I'm just saying. I mean, we...",3.0,0.851,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003210880,"I'm sorry. Can we, um... Can we just forget this happened?",4.488,0.983,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003236644,"Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God!",2.088,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003307280,"Oh, I'm sure Rita Skeeter thought it...",2.76,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003321880,Are you... What? Punk volume number one. You're crazy.,2.976,0.885,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003330000,"When we die, we go up there.",3.168,0.848,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003638840,You just want me to fuck him with us?,3.336,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003648600,My brain just shuts down whenever I feel like I'm close to getting something.,4.488,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003815934,"What happens to me when I'm provoked is that I get tongue-tied, my mind goes",4.368,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003845440,I'm still digesting Margot telling Claude. What a fucking nutjob.,3.84,0.97,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003936120,"Oh, I... I don't... I don't have her number anymore.",3.096,1.061,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004256680,I don't know. I hate that question.,2.52,0.854,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004424374,"Go, Corbett!",1.296,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004507280,I am so sorry that your grandmother died.,3.696,0.872,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004523000,We were just shitting in the street.,1.656,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004540160,"Oh, please.",1.728,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004541880,You have. I do not have it in for a fictional movie.,2.904,0.929,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004949960,I am sorry.,1.344,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005153760,I'm sorry.,1.896,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005217360,"Dad, you've got way bigger fish to fry than confronting fucking Brian Spear.",4.536,0.962,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005742240,And then suddenly I realized that it was actually right.,5.04,0.933,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005923627,Asian women.,1.488,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005941880,"Anyway, I hope you don't think I'm being meddlesome.",3.456,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010102200,It was mean what he did. I think it was really shitty.,3.528,0.931,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010206973,I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about. I don't know what I'm talking about.,2.736,13.943,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010300163,Not. Love's not.,2.928,0.727,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010626240,And Vanessa's gonna be so happy. You just...,3.744,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010939560,I'm just saying that this is... This is something that's never gonna happen.,4.896,1.056,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010942127,.,1.176,0.111,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011055560,"You know, don't start all that friendship.",2.976,0.84,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011148120,"Please, please, they pull at you, they smile at you.",2.664,1.182,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011152200,They'll literally fucking kill you to take your place.,2.28,0.931,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011158480,"Hey, what's going on in Ben's mind?",3.288,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011304200,Shit.,1.8,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011346520,Let us shower Lillian with gifts and love.,4.416,0.84,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011616600,Whatever you say.,2.664,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011743763,Only 11. I don't think...,4.944,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011745280,"I'm sorry for all of it. Look, pal, I'm not here",3.168,0.873,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011756043,Maybe I was wrong.,3.288,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011833760,And I'm sorry I was such a huge bitch to you. You don't deserve it.,4.08,0.944,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012024040,"Man, I love Wilsonville.",1.224,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012424200,Don't get her out of here!,3.576,0.839,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012456720,I think I'll scream.,1.92,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012801400,Dan! I can't get him!,2.208,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013317360,"And for whatever bullshit reason, I'm the trustee.",3.816,0.862,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013606640,Sorry.,1.416,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014129160,SIGHS,1.128,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014403887,"And I know you're saying it is, but he's still in love with you.",4.296,0.914,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014429160,And they are people who really know how to hurt.,3.84,0.889,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014824160,Them motherfuckers ain't here to buy no mandingos.,4.896,0.877,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000331374,Avada Kedavra!,1.848,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000340094,Ari!,1.68,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000359934,"Come on, Ron! Your mother says breakfast's ready.",3.288,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000436000,Please help me!,2.016,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000540800,"Oh, no, Danny. What is it?",2.976,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000552400,Hang up.,1.56,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000852880,You told him about the Elder Wand and where he could go looking for it.,5.328,0.973,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001055020,.,1.296,0.111,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001058600,I'm sorry.,1.176,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001113440,I'm in the dark.,0.768,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001114600,Fuck!,0.816,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001143440,"Don't leave me with her, man! She's dangerous!",4.128,0.852,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001602760,What the fuck is that?,1.8,0.786,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001846440,Ron and Tom should have already been back.,2.376,0.84,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002021400,"Hello, how are you? What's up?",1.896,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002241000,But someone was screaming.,2.208,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002414574,Hold on!,1.848,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002551440,"Okay, I don't even understand what happened in there. What did I say?",4.128,0.932,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002616840,Detour your jeans.,1.56,0.783,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002828240,"Shit, they have.",1.464,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002910000,"I'm the fastest, but I've got this fucking arrow in my bed.",2.808,0.894,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002941400,"No, man.",1.488,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003314854,You're not even 17 yet.,2.52,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003316894,How did it work?,0.696,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003439750,Harry?,2.016,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003556960,"Hello, everyone.",1.104,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003639560,"Hi, this is Helen. I'm out of town till Sunday.",2.256,0.887,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003701120,Hold up a minute.,2.376,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003714360,"Do this, and none shall be harmed.",4.008,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003839880,Ah!,1.8,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003858160,"Hey, Eugene.",1.296,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004039720,He follows you everywhere.,2.184,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004050280,What does that mean exactly? I couldn't get details. It's just shut down.,3.456,0.973,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004118480,I-I won't. I promise. I'm sorry.,2.688,0.842,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004242574,Another Weasley. I know just what to do with you.,4.896,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004305440,I'm going in this area. I'm trying to get their mark. I'm trying to get their mark. I'm trying to get their mark.,3.216,1.948,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004313680,How do you mean?,1.248,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004331934,Not Slytherin. Not Slytherin.,2.496,1.115,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004432000,Aaaaaaah!,1.464,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004441414,"Come on, Dad!",2.088,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004442200,"Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God!",1.104,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004448480,No! Come on! Quickly!,3.0,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004545894,I thought perhaps you want to cover I thought perhaps,3.648,1.128,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004643374,"If you get fired, that might jeopardize Paris for me.",3.12,0.869,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004653400,No! I already told you.,2.04,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004722480,He's here! Somewhere in the castle!,2.448,0.875,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004853480,No! No! No!,2.136,0.786,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005159337,I didn't.,0.96,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005558720,Ah!,1.68,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005814360,"Just ate him, Christ.",1.896,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005924440,Oh!,1.104,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010046200,Stop it!,2.208,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010226800,I'll remember him. Never let Jameson serious.,1.848,0.882,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010251320,"Christ, April, the fact that you even put it that way.",3.096,0.982,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010340320,Connor!,1.176,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010543574,Turn around in the dungeon!,2.208,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010839487,How's your eyesight? Is it clear?,2.904,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010845040,But in vain. In vain.,2.664,0.913,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010924040,I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry.,2.616,21.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010930760,"Finish this, okay? That's half a million for you.",2.808,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010932520,If you do not do this...,2.52,0.828,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011029550,Spiders. Spiders. They want me dead.,3.816,0.973,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011034640,Welcome to End Any Doubt.,2.976,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011418880,"And I for one don't intend to die in Chickasaw County, Mississippi, USA.",4.584,0.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011613697,I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about.,1.608,14.268,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011634360,"You sure as hell can't outrun them, fuckers.",3.168,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011752520,What happened?,1.536,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011845760,Promise you as much as you can.,1.488,0.912,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011847320,I promise he didn't hurt.,2.256,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011855880,The job is finished. He misses you like crazy.,1.488,0.852,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012430040,"Harry, I'm hiding!",1.128,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012910320,Get out of there!,1.68,0.739,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012948087,and unfortunate oversight.,1.896,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013016270,"Oh, my God.",1.488,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013152487,"Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God!",1.296,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013645920,Least loved by the girl who prefers your friend.,4.896,0.857,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013736360,I was following her.,2.208,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013746920,We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll,1.104,19.389,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013925480,I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry.,1.56,21.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013949200,You pretentious douchebag!,1.488,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015610480,Put your hands flat on that table. Shut your mouth!,3.408,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000059880,You know what to do.,1.92,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000143240,"You don't love it, do you?",1.728,0.812,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000201320,They absolutely love Americans.,2.424,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000231280,I'll leave it alone. Thank you.,3.984,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000247920,Yeah!,1.464,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000257240,Set the time and place.,1.416,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000326680,One day.,1.104,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000416200,Great.,2.448,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000422800,"And, uh, you know, I love art, obviously, and paint.",4.464,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000456960,The reason why I can...,3.0,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000513320,Happy 30th!,1.776,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000534800,"Well, that just happens to be exactly what I'm looking for.",4.488,0.908,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000548800,I fell in love. It didn't work out.,2.688,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000606080,They'll love it.,1.176,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000608400,Sarah. Hi.,1.848,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000654320,That's us.,1.92,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000724480,"Yeah, he's great. I have a lot of fun with him. Yeah.",3.816,0.883,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000808160,by the idea of staying alone in a place where something like that actually happened.,3.984,1.105,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000812280,"Well, you can rest assured, Mr. Ullman, that's not gonna happen with me.",4.728,0.973,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000812598,yourself and get down here.,1.344,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000853240,"Oh, no wonder.",1.464,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000901567,Hello.,1.344,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001138040,"Is it wet, sorry? Oh, just, I'm sorry.",1.92,0.95,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001215160,Not really. I just love to eat out.,2.664,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001255040,I'm planning a wedding.,2.328,0.793,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001305160,I don't know what you're talking about.,1.488,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001335200,"Ha, ha, ha, ha, ha, ha, ha.",1.896,1.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001340000,Thank you.,2.088,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001345207,"Oh, my God.",1.416,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001414094,I get the lovely task of waiting around for the book.,2.184,0.914,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001454240,"Oh, well, I can scarcely imagine a greater endorsement.",3.696,0.873,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001555320,"Um, I was just wondering if you need any help in here with anything?",3.048,0.958,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001719520,Who wants a ride?,1.656,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001734840,"Well, we'd love to meet him.",2.136,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001742240,I was 25.,1.776,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001748527,THANKS FOR JOINING US.,1.56,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001805320,No!,1.128,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001807000,I guess I was wrong. You do love your wife.,3.576,0.843,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001815600,"You loved him, didn't you?",1.68,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001834160,God appreciates your miracle!,2.616,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001846360,"Woodstock 99. Captain, so you wanna fuck with me?",3.168,0.875,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001941000,"Him spark, because he stuck a knife",1.896,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001954560,"You're so cute. Oh, you're so cute.",2.736,1.129,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002148094,Ha!,1.104,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002240480,"Um, sorry, I just assumed that all lighthouses were automated now.",4.776,0.943,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002252017,I'm going to be the new Swan Queen.,3.528,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002324880,You like that?,1.608,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002327480,Ya hot shit! You look fuckin' pisser!,3.264,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002400680,"When I get back, I'm still unpacking boxes.",2.424,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002459400,This is just a little something to say that it's been a great 13 months.,3.816,0.973,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002503000,"I love her, but don't tell your sister.",1.68,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002504480,"Becky! Becky, I've been a total fuckstick.",2.568,0.894,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002522600,"Oh, shit.",1.176,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002604920,See you later.,2.28,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002629654,Hold that.,0.96,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002644680,To love somebody,2.52,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002647240,The way I love you,2.208,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002723534,Voila! Best $12 I ever spent.,3.336,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002818854,Yeah! Yeah!,1.92,0.688,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002830120,"Oh, my God.",1.128,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002952120,Yes.,1.536,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002953600,"So, yes.",1.656,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003029120,Killshaw.,3.0,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003125000,Why don't you start right now and get the fuck out of here?,3.264,0.922,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003140160,What's the number for a taxi I need to get to the Ginny?,3.216,0.949,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003141960,What's wrong with you?,2.184,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003142087,I loved you.,1.536,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003229280,She loved it out here at first.,1.848,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003239520,"Be gone, daddies.",1.776,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003322120,"Love, I must be patient.",2.568,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003507880,I really enjoyed that today. Hi.,3.048,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003539527,How is it French of us?,3.216,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003605560,I'm so happy to be here.,1.128,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003646520,"I'm sorry, sir. I can't accommodate you.",2.496,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003722087,"Wait, wait, wait, wait, wait. Hold on.",2.256,1.407,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003729254,"I don't know. This bag is $1,900. I cannot take this from you.",4.776,0.939,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003813480,"I'm sorry, man. I was just laughing.",3.096,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003907774,And we'd both be happy.,1.296,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003910920,"Oh, yes, sir. Man, that would be lovely. They told me to come.",2.448,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003917840,"Okay, I got a great idea.",1.656,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004004880,"I mean, most of the time it's disastrous, or quietly crashing.",4.56,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004026600,"Oh, my God.",1.656,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004157440,All right. Sit.,1.608,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004212680,I hope so.,1.248,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004248054,Gryffindor!,2.28,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004312720,"Hey, it was great.",1.68,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004355094,Pindar!,1.968,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004411160,Hockey game.,1.488,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004425334,Watch out for the dumbbells though!,1.92,0.854,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004558800,It's so cool.,2.088,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004612800,"Yeah. Yeah, sorry.",1.848,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004630654,"Well,",1.296,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004712280,"Now, what I would love to do...",2.28,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004713360,"I HOLD A STAIR, MAN.",1.488,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004720600,I'd love to go.,1.608,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004850214,I'd hate you to curse someone when their back is turned.,2.136,0.903,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004910007,HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE HE,1.296,35.235,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004959680,I love the little son of a bitch.,3.096,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005109000,"I'll be still. Fare you well, darling.",3.84,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005143680,Thank you. Thank you.,3.216,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005149560,Eddie!,1.176,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005332407,"Man, it's just the way she's shaping. You see her skin? You saw her. I mean, it's just smooth.",5.736,1.133,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005542400,See? Hooked!,1.488,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005543160,Diamonds indeed. Yes.,3.36,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005626200,It's just because I hate you so much.,1.8,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005912080,Yeah.,2.016,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005927000,"Yeah. Good speech, sir.",2.328,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005933120,Very good idea. It's not the same.,1.368,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010003880,"And, dude, everyone's allowed, like, a nerdy",2.928,0.898,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010028014,Ha ha!,1.776,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010102537,And she needs love to break the spell.,3.36,0.844,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010114657,"So, happy honeymoon.",2.688,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010128697,I don't know what you're talking about.,1.128,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010148720,Heh.,1.776,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010156083,Wait a minute.,2.496,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010229040,"It's so forced, I'm sorry.",1.416,0.812,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010232120,"I'm sorry, I'm sorry.",3.216,0.955,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010258723,She loves me.,1.368,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010310407,"You know, I'd really love to,",2.688,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010401800,It's great.,1.464,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010404607,"Ha, ha.",1.128,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010623160,"No, no, no. He's a poser.",1.92,0.862,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010659200,I'm excited. That's great.,2.256,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010702094,I laughed so hard at that.,2.328,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010907120,Thank you. Thank you. Thanks.,4.128,1.208,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011016120,You look great. You look really good.,2.664,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011058967,I have no idea what happened,1.416,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011109560,"I'm fucking with you, Ted.",2.328,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011230520,I love you so much.,1.56,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011340288,Ha ha ha ha ha ha ha!,1.68,1.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011526007,I would have fun.,1.536,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011714960,"And when you get a good one, you don't want to fuck it up.",2.856,0.921,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011720723,I love you.,1.968,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012056680,My boss looks a little green around the gills for a blood sport like that.,3.048,1.042,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012131600,Follow me.,1.536,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012135560,"Hey, there he is.",1.368,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012155840,It was a pleasure.,2.664,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012236960,You changed. You're awake.,3.36,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012256040,Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much.,1.344,22.079,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012257440,Daddy!,1.248,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012347000,I love you. I've always loved you.,3.936,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012447680,Like a new mom. Scared shitless.,3.6,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012559640,This didn't happen because of,1.848,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012633640,Good puppy!,1.464,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012904560,"Jesus, when I'm in love, I drink rosé and watch Remains of the Day, so...",5.976,0.914,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013327047,I just thought perhaps you might want to talk later.,3.6,0.929,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013557320,I'm sorry.,1.656,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014140967,"Speaking of flowers, I'm putting together a party after the party at Cafe Eta Sigma.",4.536,1.063,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014923560,AND I HOPE THERE'S MORE MILLIONS,2.136,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015407880,"Precautia. My father, Demeter, is a great grave.",5.088,0.923,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000029301,SCREAMING,2.448,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000217360,Obliviate.,1.536,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000427934,Now that's a real love story.,2.424,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000444054,Don't you love New York in the fall?,1.8,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000452240,I need to get into Gringotts. Into one of the vaults.,3.288,0.946,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000506080,Why should I help you?,1.464,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000509960,"Hey, Russ. Rusty. What's up?",3.504,0.848,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000531367,Our hero Jonathan goes out in search of black gloves.,2.664,0.883,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000620800,No more Krakosia.,2.76,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000645280,This belonged to Bellatrix Lestrange.,4.08,0.841,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000705360,They hope you don't sell. You don't say.,3.264,1.026,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000734640,Look.,1.968,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000804120,Come on!,1.536,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000909960,"No, unfortunately,",2.04,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001030280,That's what happens when our moms and teachers get pregnant.,3.648,0.952,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001030334,"No blasted lettuce today! No, sir!",3.84,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001343200,"It will be like this in Uganda, now!",3.408,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001346600,"Together, we will make this country better.",4.128,0.843,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001522614,"As it so happens, I'm aware of your situation.",3.648,0.852,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001538520,I track that man. I find that man. I kill that man.,2.784,1.275,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001541240,"After I've killed him, I transport that man's corpse back to the authorities.",3.936,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001648934,Cap.,1.344,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001656240,Really? Yeah.,2.088,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001817760,"So, you haven't allowed",2.568,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001819890,Okay.,1.68,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001910760,...feeling is a kind of numbness.,1.656,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002020400,Next!,1.536,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002051680,Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much.,2.088,22.079,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002117120,Why would he do that? Perhaps he's in love with her.,3.048,0.912,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002118640,Maybe things that happen leave other kind of traces behind.,4.608,0.922,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002144977,Hey!,1.128,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002150080,I hope you don't feel pleasure at this.,2.376,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002215207,Many people out there you could easily be happy with.,1.968,0.898,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002232880,"I have unreturned phone calls,",1.536,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002249887,"Yeah, we'd love for you to work with us.",1.416,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002443480,Some of it's going to be,1.296,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002601134,Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah! Hyah,1.68,21.053,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002614174,"Oh, my hands are very hot.",2.016,0.812,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002616120,This is what I imagine love to be.,2.664,0.85,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002631560,It made me sick to see here near you.,3.168,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002640847,And try to remember when you first fell in love.,2.568,0.857,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002802360,"Not just to me. That doesn't matter. To yourself, as well.",3.648,0.892,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002852720,And I need parents.,2.664,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002901240,Give my boy and my sick mother a better life.,2.976,0.918,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002905934,Absolutely wonderful. They play Rachmaninoff.,2.256,0.849,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002913374,What happened to... to you-know-who?,3.576,0.857,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002927520,Dumbledore left you a second bequest.,5.304,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003012143,I give you my word. This is what he said. I give you my word.,2.76,1.22,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003044960,"Ha, ha, ha, ha, ha.",1.968,1.267,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003056160,Oxen will buy us a couple of hours.,1.224,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003132520,I love it out here.,1.848,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003139560,Isn't that what you love about writing? The solitude.,3.456,0.93,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003140960,Why? Because he was into some scary shit.,2.376,0.837,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003219120,Does she love him?,1.92,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003315480,"Okay, Godric's Hollow.",1.848,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003322280,2lovers.night,1.92,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003349414,This is all that we get. This is what we love.,2.256,1.095,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003358400,"No, I didn't.",1.56,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003423394,Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you,1.416,28.269,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003443400,People get hurt in books. People get hurt in real life.,3.0,1.17,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003653680,It hasn't happened in my income stream as...,3.936,0.917,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003732200,Something is following me.,1.464,0.839,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003733080,PAYAS A LITTLE MORE TOO MUCH.,1.296,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003753360,They're fearful of each other.,1.464,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003800240,The e-mail rumor mill goes into overdrive,1.656,0.837,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003801920,It goes into overdrive and suddenly people are seeing strange things.,2.328,1.015,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003853320,"Plus, I get a reaction from the cancer. So I really don't get into the traditional remedies, you know?",5.328,1.097,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003934614,I can make bad things happen to people who are mean to me.,3.504,0.951,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004034294,And make sure you're alone.,1.8,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004159320,This world may lose its motion light,4.368,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004206880,We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll be right back. We'll,2.76,19.389,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004245040,What's the other one?,1.728,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004309120,Fair. I certainly hope not. So what about the information?,4.344,0.892,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004311280,The most evil object.,2.328,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004438447,Love that story. Finally save it for the book.,1.92,0.902,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004540360,"Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God!",1.368,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004552400,. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .,2.664,26.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004607000,Although it had hidden something inside it.,2.184,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004614520,"Look what happened to me, you know all of my",1.896,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004619560,"Okay, I'll be right back.",3.408,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004619614,Is it about love?,1.656,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004628560,"They are just breaking down doors for the sheer joy of it, aren't they?",3.6,0.973,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004723374,Twins want to know what happens next.,2.664,0.841,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004818054,Fight to the death.,1.248,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004850694,No such chamber has been found.,3.408,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004951200,"Rachel, who are the flowers from?",2.088,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005040480,"We move now with the cash, or we all wait here.",4.608,0.855,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005234320,"Airports are shut down, stranding thousands of passengers.",2.904,0.921,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005243400,At least three people have been killed by exposure to freezing winds.,3.456,0.986,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005250600,I'll see you guys forever. I know.,2.496,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005355200,but not sorry enough to do something about it.,2.208,0.885,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005402480,"I really do. Whatever the majority decides after the poll,",3.216,0.983,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005533800,I don't believe you. Did something happen this morning?,2.76,0.917,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005540120,I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know.,1.416,19.964,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005733200,So we're not going to fight anymore!,4.128,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005744520,It's great. It's huge. Great stuff. Thanks.,1.68,0.935,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010037480,"Once you rule out his version of what happened,",3.528,0.87,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010121000,It's all happening to me.,1.92,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010155840,"And for God's sake, whatever you do, don't, under any circumstances,",3.096,0.944,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010217640,You get carsick?,1.68,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010224243,"The answer lies within you, Gabriel,",3.744,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010247814,Cedric... Cedric did know this stuff.,2.688,0.902,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010306120,We deal with our shit by talking about other stuff.,2.496,0.879,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010419920,"Dumbledore sends you off to find all these Horcruxes, but doesn't tell you how to destroy them.",3.696,1.118,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010431760,"God, wait till you see this house.",2.016,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010505920,"Now, I cannot actually allow you to accompany the briefcase into the vault.",3.336,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010605600,"You've been a good and faithful servant, Severus.",3.6,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010622160,I'm curious what makes you so curious.,2.256,0.95,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010623080,I fucking warned you.,2.496,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010630520,I fucking warned you.,2.28,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010658723,I must marry her.,2.616,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011359760,"to help me, Greyer's been very, very, very kind.",2.736,1.043,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011559400,It's possible that two people can stay happy together forever.,3.216,0.954,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011622200,Find a person who loves you for exactly what you are.,4.56,0.946,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011730883,and hang.,2.376,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011754720,I hope everything's okay. Yes.,3.048,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011758680,"This will make management happy. You see, it's a job.",3.696,0.898,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011915720,"If you're lucky, that's what happens.",1.536,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011917200,I accept it's biological. I just don't accept that it happened to me.,3.36,1.015,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011937240,And the kids would love to see you.,2.184,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012019363,"Ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha, ha,",2.568,23.471,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012028960,Do you love her?,1.92,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012037520,You don't love her.,2.016,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012039560,You don't love her. You were just using her to get to me.,3.048,0.966,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012046880,THANK YOU SO MUCH FOR JOINING US.,2.016,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012054280,I love my family.,1.608,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012115800,And I'd be happy to drive you back to New York City.,5.568,0.897,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012135680,"Wait a minute, so when did this happen that you were like,",3.36,0.921,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012724800,And boom.,1.416,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012743760,Perhaps you should.,1.776,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012908280,You can have whatever you want.,2.616,0.816,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013042560,"Other than the holdouts who don't want to sell at all, it's Don.",3.096,0.955,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013244600,"All right, ladies and gentlemen,",2.256,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013542000,What we saw on the monitor wasn't actually happening.,4.056,0.869,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013547000,I don't understand. What happened to all that money?,3.816,0.897,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013607568,I've also fallen in love.,3.408,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013837440,"You didn't love her, just so you know.",1.92,0.844,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013952880,Let go of his hand.,1.608,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014103760,"No, I'm sorry I hurt you.",2.52,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015159640,Till he up in Kildova one day.,2.784,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_020127800,And I was wondering what Dumas would make of all this.,3.456,0.915,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_020950800,We won't kill him.,1.344,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_021437680,"Hey, what's coming up with all kinds of ways to kill your ass.",2.928,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_023340360,"Oh, my God, you're black ass. Oh, my God.",3.096,0.976,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000141494,"Just about everything I know about women, love,",3.048,0.94,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000150854,Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary! Rosemary,1.728,26.72,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000207560,I'm just not strong enough.,1.728,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000317144,I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry.,3.744,21.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000341040,And you're lying to me about Shelly.,2.736,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000343800,"She'll die, isn't she?",3.168,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000427294,"No, no, no!",1.464,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000451774,"No, before all this, I was happy.",2.184,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000510760,I'm sorry to you.,2.424,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000746480,I had this spiritual antenna other people didn't have.,3.456,0.885,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001035680,Kill yourself to never ever stop.,4.464,0.892,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001301520,Just whatever it takes for me to finish this book.,2.52,0.877,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001305880,Give me the fork.,1.056,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001425880,"I want to take you away now. Yes, it's all very touching.",2.928,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001544320,"Oh, my God! Oh, my God!",1.536,1.045,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001644720,"Hey, let's do something.",2.28,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001703120,I love you.,1.464,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001821420,Oh.,0.528,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002020680,Take your hands off me!,1.92,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002206014,"the happiness had gone from the world. Now look,",3.36,0.906,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002251800,He's hit. Childhood's over in a moment. You know you're gonna die.,4.056,0.93,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002255200,I'm sorry.,1.92,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002300417,"I love you, too.",1.68,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002302057,"Hi, how are you?",1.248,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002410291,I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do.,2.04,16.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002525560,"I love you, Daddy. I love you, too.",2.904,1.029,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002643280,"And then the accident happened, and...",2.976,0.884,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002712960,with Brandy and suddenly I see mom and some douchebag walking into,4.296,0.971,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002739720,I'm sorry. I don't know what's wrong with me.,3.408,0.849,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003221880,How can you ask about him?,2.424,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003224360,"to die. Who cares? Yes, she loves him. Loved him",4.056,0.923,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003228440,She was crazy about him. She was gonna...,2.688,0.932,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003334640,I'm sorry. I am. I know. I fucked up.,3.096,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003354480,I'm sorry.,1.56,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003708960,"So, you've decided?",3.408,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003716120,I've seen two people kill themselves.,2.76,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003716360,I left her with unexpected sorrow.,2.28,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003724280,"Rachel, I'm sorry.",2.016,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003849000,I'm sorry.,1.104,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003934640,Something's happening to me.,2.184,0.824,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004023160,I hope that you're in a better mood when I come back.,3.0,0.869,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004117920,"There was rain, and it...",4.56,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004141880,Let's say there was something you wanted.,3.096,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004235880,"I'm sorry, Daddy. It was all my fault.",4.008,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004259720,"Like I said, this never would have happened.",3.84,0.88,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004418334,Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah! Yeah!,1.728,29.95,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004513880,IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT HAPPENED. IT H,1.68,16.654,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004530480,Rock!,1.368,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004531880,"Oh, but she said that you were lovely, that, you know, she said...",3.264,1.1,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004617440,I'm sorry as hell for what happened to you and your girl.,2.808,0.919,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004711640,You stupid bitch!,2.28,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004742120,I start to think that maybe... maybe this could happen.,4.728,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005143000,"It's the truth, really. I swear it. Daddy told me.",4.128,0.862,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005206720,You're so smart. You're brilliant. You're funny.,3.408,1.116,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005207737,Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry. Sorry.,0.96,31.773,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005231565,I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry.,4.344,21.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005239072,And he's... different.,5.016,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005255120,I hate this. I can't even call it Kareem legally.,2.376,0.907,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005352720,I'm sorry to hear that.,1.536,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005431160,You bit me because you couldn't keep your fat mouth shut.,3.048,0.95,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005534800,I'm so sorry.,1.68,0.684,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005608760,I wanted to tell you that I'm... I'm really sorry.,4.344,0.909,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005624720,"Oh, no. God.",3.504,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005629320,I'm gonna be sick.,2.496,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005834360,Is he?,1.464,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005917560,"Look, I'm... I'm sorry.",4.464,0.821,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005948120,I'm sorry.,2.28,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005959600,"Just... Ash, just...",2.208,0.87,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010154280,"I gotta pass this fucking bench three times a day, you know?",3.264,0.896,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010205440,"I knew once he'd seen where we were, we couldn't stay.",3.0,0.947,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010223767,Don't you ever do any shit like this to me again. Do you hear me?,5.256,0.942,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010233480,I'm sorry.,2.664,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010239320,I miss you. And Shelly.,2.76,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010242118,They killed you.,2.088,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010258160,"I love my children, Frank!",2.136,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010331720,No!,1.656,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010438843,.,2.424,0.111,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010512120,Okay. I'm sorry.,2.448,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010516320,I really hope so.,1.776,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010553167,What the hell happened? We just...,2.208,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010646720,What a fucking disaster.,2.496,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010651000,I'm sorry if I'm saying the wrong things.,2.088,0.976,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010727800,Take them.,1.848,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010730723,Ha ha!,4.68,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010745800,"Ali, please! What's up, dad?",1.92,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010805360,You have your mother's eyes.,2.664,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010915080,"Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God.",2.256,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011004800,And now for the names of missing witches and wizards.,3.816,0.898,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011206040,So you know how shitty it was for me to get that response,2.808,0.966,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011435400,Are you coming or are you staying?,1.128,0.971,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011437680,Hide her. Hide them all. I beg you.,4.344,0.875,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011441497,Oops.,1.104,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011450480,"Ron, there's... there's nothing.",2.424,0.97,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011752200,I'm such a fucking idiot. Please don't take me seriously.,3.888,0.877,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011801040,I love you so much. Please marry me.,2.76,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011849680,I miss you. I love our little baby.,3.408,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011956240,Of course you are!,1.968,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012325488,I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know.,2.136,19.964,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012336688,I'm sorry that you and mom had to fly all the way out here to see that.,2.016,1.029,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012528560,"I mean, what the hell are you doing in my house if you hate me so much?",4.08,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012701000,"set off to win back the heart of his true love. Yes, Paul.",4.128,0.906,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012921760,"The question is, if... if you love...",4.656,0.881,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012949160,"Well then, I'm sorry!",2.28,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013211760,What do you mean? I ain't drinking.,2.736,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013610680,I'm sorry.,1.68,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013720600,But I'm just so sorry.,2.76,0.786,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013820200,People like me have sons who hate them.,4.656,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013827920,"And I've screamed, I've screamed horrible things to him.",4.776,1.077,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013839760,He didn't really love her.,2.016,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013844800,"I hate him, Dennis.",3.048,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014310160,"When y'all are at peace, y'all be in heaven.",4.248,0.936,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014427000,"It's, it's been shitty.",2.976,0.793,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014525280,You know how much I love my mom?,1.896,0.842,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014611480,But what about you? What's going on?,2.664,0.878,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014643120,Hi.,0.768,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014709480,I'm the happiest with you.,2.28,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015653680,that I could give Lucy the kind of love she never had.,4.656,0.915,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000102534,Goodest? She touched me!,2.496,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000157760,Gross. Gross.,1.368,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000252168,"I see me, I see you. Why do they love me so much?",4.368,0.961,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000311160,"Come on, focus and breathe.",2.568,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000353800,I don't know. That's why I said call me up.,3.456,0.843,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000455174,It's a plot. A plot to make most terrible things happen.,5.04,0.949,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000643974,Action!,1.896,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000652814,"We're all hungry. Yeah, get out of the kitchen, right?",2.496,0.9,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000749320,"Are you sure? Paul, we gotta get out of here.",2.496,0.882,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000851240,You're a nanny.,1.968,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_000945960,"Oh, it's very funny.",3.0,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001545760,Oh. Josh!,3.288,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001548120,"What? I'm sorry, I don't know what's going on.",2.976,0.868,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001549320,"Oh, young, just like you.",2.688,0.806,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001610960,I don't know what you're talking about.,1.416,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001759754,I watched her get into that van and I knew something,4.56,0.929,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001905680,"Oh, yeah.",1.848,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001913160,Happy birthday. Thank you.,2.184,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_001947263,"Oh, Jesus.",2.208,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002315574,Oh no! The invisibility booster must be folded!,3.264,0.855,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002518734,Ah!,1.248,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002519000,You got me the black billiard.,2.256,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002523280,It's okay. I can still...,3.576,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002652360,"Come on, I'll be experimenting.",1.68,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002712120,"It got vandalized, of course.",2.904,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002728760,"You owe. I owe. We owe. Now, the good news is that Matsui gave us the system's",4.296,1.068,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_002730440,"Oh, my God. Wait, wait. Oh.",2.328,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003118400,"Oh, I also do ballroom.",3.648,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003133720,I'm sorry.,1.8,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003150857,Hey!,1.656,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003256320,I'm sorry.,1.296,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003314534,"So, so is it true?",2.04,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003343120,"And that's if we win. $15,000!",3.288,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003403857,"Oh, my God.",1.128,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003420687,"I can't believe I'm hearing this shit from you, of all people.",4.536,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003421880,What? Yeah!,1.896,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003440294,"Hey, he's gone.",1.56,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003609600,Right now because I'm out hunting down my piece of shit boyfriend,3.648,0.956,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003637840,You have to.,2.016,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003707080,"The last time I saw my mom, she told me she was happy.",4.896,0.947,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003715767,Dude.,1.224,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_003723054,This is sold out everywhere. Where did you get it?,2.904,0.926,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004029240,"Oh, my God, you don't know.",2.448,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004319360,"Oh, no, I guess I see a lot of him.",3.288,0.854,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004407487,"Ha, ha, ha, ha, ha, ha.",1.896,1.533,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004545840,"I'm telling you, there's an ingredient in tequila",2.448,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004601560,You son of a bitch!,2.04,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004603760,You did this one!,1.848,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_004605760,Did you?,1.488,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005014520,I would agree with,2.568,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005242000,"Come on, Tim!",1.8,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005409240,"Oh, my God.",2.664,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005841913,"Oh, man.",2.04,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_005913697,"Oh, my God.",1.296,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010123320,"Holy shit, what did you get for me?",2.424,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010340280,I'm really sorry. But you know something?,2.664,0.854,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010615240,Alex. How you doing?,1.968,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_010620040,You love me.,2.328,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011018537,Oh my god. Oh my god!,3.096,0.955,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011549760,Thank you.,1.296,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011603080,Woo!,0.96,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011603980,Oh!,0.408,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011631117,Low Shoulders!,2.376,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011737720,"I'm sorry, I never thought",2.376,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_011809840,Is it supposed to make me fall in love,2.04,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012101720,That's awesome.,1.344,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012341120,As if you know anything about my life.,2.856,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012554740,Harry!,1.224,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_012726680,"Boom! What's up, fuck buddy?",2.376,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_013437680,I'm just changing.,1.56,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014003120,What are you talking about?,2.424,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_014012360,"Oh, Abby. Abby, okay, I'm sorry. I'm sorry.",2.52,1.162,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015143720,I would love that.,1.776,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+train_015337240,M-Murphy.,1.416,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000149120,That's all that fucker does is cry.,2.688,0.854,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000316560,He is the Sheryl Crow of our generation.,2.016,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000551374,I need happy. I need romantic. I need love.,3.768,1.103,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000929080,It's fucking hard enough as it is.,1.968,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001108440,All right.,1.368,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001247040,"I mean, it's fucky, fucky rough.",1.224,0.914,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001702480,"Oh, my God!",1.344,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001855040,and we were pissin' in that fuckin' fountain,1.56,0.917,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002033320,"I'm asking you out, I swear to God.",1.104,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002336640,So try! Don't be disappointed with me!,2.568,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003123200,Let the whole neighborhood wake up!,2.04,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003207280,I don't know if it's that good.,1.368,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003314000,I'll take that fucking camera and I'm gonna break,2.256,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003314887,"Next time you laugh, I want you to think of Pa Pa Lay, the Burmese stand-up comedian.",3.504,1.012,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003323120,What happened to you? You shut up.,1.656,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003326254,I know. What the fuck? I don't think I've ever been this hungover.,2.808,0.971,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003353294,11.05 for $800! I am so fucked!,6.216,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003400720,My shit wins. That's all your shit.,2.208,0.875,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003812174,"Wayne is thinking about shutting us down, and everybody's looking to me to fix it.",3.576,1.038,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004056050,Why wouldn't you just shut the fuck up?,2.184,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004238120,"Bitch, how many women have you fucked in your mind, huh?",2.28,0.933,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004417618,"Oh, my God! Calvin, you ass!",1.896,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004512014,"I hate you, but we're fucking",0.768,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004514600,Get the fuck out of this room! What if I die tomorrow?,2.208,0.9,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004521040,It's going to happen you don't know anything,1.848,0.863,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004532760,The lungs of millions of people around New York who breathe in every time,2.976,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004540840,He might even be part of the dog shit,2.28,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004556200,You're just stupid! It's completely nonsense!,2.928,0.882,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004601840,Fox! I know it's an empty box!,2.904,0.811,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004635847,Except she shouted it.,1.68,0.786,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004713680,Can I just explain myself?,1.92,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004737840,Asshole! You are an asshole!,1.776,0.903,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004739560,Calm down. Get off me! Get off your head!,2.328,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004743240,Shut up!,1.176,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004912374,I can't talk right now! I'll have to call you later!,3.096,0.912,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005020720,Are you gonna be one sorry?,2.328,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005150814,I was eloquent.,1.656,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005618320,"And I pray God, your wretched soul will burn in hell!",3.408,0.869,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005646000,Maybe she spoke to a different government.,1.488,0.894,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005730814,"All right, what the fuck, man? We gotta get this shit together, guys.",3.744,0.958,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005806334,You gonna fuck on me? Nobody's gonna fuck on you!,2.928,1.114,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005828120,"You know, you two make me sick.",2.904,0.838,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005948960,"Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary, Gary,",1.104,29.95,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010220693,Is that why you,2.688,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010233320,Shut up.,1.968,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011000040,"You pedal down here on your bike, for Christ's sake!",2.208,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011256120,Let's go!,1.608,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011302920,and laugh at them and criticize what they're doing.,3.0,0.962,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011504520,Don't talk down on me.,2.28,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011506880,Down to me. Don't you ever talk down to me. You are a movie star.,2.976,1.032,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012215600,You shut your mouth.,1.416,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012224880,Let me make one thing clear to you. I am not your father.,3.096,0.919,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012239520,I have made you so much more than what I just saw!,1.896,0.909,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012246400,You didn't do your job. You weren't counting. You were gambling.,3.84,1.103,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012532520,He's spying for Tripp. That shitheel knew all about the goddamn buttons.,3.336,0.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012553854,Stew? Stew!,2.184,0.647,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013037520,I asked you to save some part of me.,2.736,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013159920,Better. I'm too mad. Get her!,1.848,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013507254,"Oh, my God. What happened to your tooth?",2.688,0.87,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013508360,You just got this shit kicked out of you and you won't let this go.,3.528,1.031,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013602654,"Since you fucked that waiter on your cruise last June, BOOM!",4.464,0.909,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014127400,Get back here! Get back here!,1.176,1.115,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014928240,That car is there for your protection!,1.8,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_021837840,Airways had the sacred right to fly to Atlanta. We're not here to make,3.096,0.959,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000247600,"Ass, huh?",1.224,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000359540,"Jesus, Danny, what's going on?",1.344,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000543360,I just wrote a summary of the chapter.,1.416,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000738334,Except for herpes. That shit will come back with you.,3.168,0.898,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001019207,I don't know if I can sort of love you or love you a little.,5.52,1.017,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001214360,Simon? Simon?,2.136,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001354580,I pissed away my 20s. Right now it's too late.,2.808,0.852,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001416520,"Blacks, browns, yellows.",3.696,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001611720,"I'm sorry. I'm just, I'm being terrible.",2.448,0.93,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001809040,"What I'm trying to say is you can't make it happen, you know?",3.096,0.924,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002326760,He worries a lot.,2.016,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002500440,I won't put anything into you. I just want to do look great. All right. I love,3.168,1.026,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002647200,"Ah, shit! I forgot to take out the trash.",3.36,0.872,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002751240,You run yourself down. Why do you do that?,1.68,0.955,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003110680,"Oh, Steve.",1.728,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003249934,"You don't even like it. No. No, I love it. I can't wait.",4.56,1.037,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003339560,"Oh, my God!",1.8,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003357920,"Oh, you didn't know? You didn't know? We'll work on one of those.",2.688,1.14,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003445440,Disgusting?,1.104,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003845400,"No, no, no.",1.608,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003940835,This is home.,2.904,0.684,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003943094,I do. It's at the corner of Get a Map and Fuck Off.,3.768,0.864,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003945480,So when you get your heart splatted all over hell and you're feeling really low,4.008,1.097,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004009360,I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you. I want you.,3.6,22.185,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004509838,Holy shit.,1.776,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004957047,Can't shut life out. No man is an island.,3.048,0.911,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005344800,through my company. I've made donations.,2.688,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010046254,"Oh, fuck. I keep forgetting about the goddamn tiger.",4.56,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010330280,"Oh, he just didn't like the subject.",2.088,0.837,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010940087,It would have happened to anyone.,2.184,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011118960,"Yeah, that, um, that can never happen.",3.12,0.927,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012126048,"Please, just shut up. You're wounding my soul.",2.568,0.852,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012157440,What? Are you pissed off at me because I didn't,2.928,0.855,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012212720,"Come on, Mickey. It can happen.",1.368,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012427760,"Well, that happens.",2.184,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012436647,My mama wants me to sing it.,2.28,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012455047,I'm not just making myself happy. She's trying to make herself happy.,3.84,1.078,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012616675,"Really? Yeah, I have a car.",1.656,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013049047,Meryl.,1.68,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014430680,Do you have any reaction at all to my telling you,3.096,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000142325,I WON'T.,1.128,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000322047,"Oh, my God.",0.696,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000333887,Give me out of here!,1.416,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000405847,You're a fool.,1.488,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000459400,"Okay, look, I can see you're upset.",1.656,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000502567,"Oh, fuck!",0.936,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000606007,Go!,1.344,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000633000,"Dad, can you slow down, please? Dad!",1.92,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000647080,"All right, all right.",2.04,0.955,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001016054,into a number to count.,1.128,0.793,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001411927,"Oh, my God!",1.848,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001731150,"Oh, my God!",0.96,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002218360,Holy shit.,1.608,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003219247,Mommy! What's going on? What's going on?,4.2,1.212,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003243160,I'm happy now. It's where I'm supposed to be.,3.816,0.865,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003322327,I'm grateful it happened to me.,2.448,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003411560,"Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God. Oh, my God.",1.8,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003635200,"Hire fucking border jumpers, you n-",1.8,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003641614,"Come on now, extortionists just don't leave their name and number and then go away.",3.744,1.038,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003648800,"Please, please, no!",1.344,0.905,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003731807,"Oh, shit.",2.52,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004043174,"Okay, it's okay. I've heard the word before.",2.856,0.898,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004051134,"No, no, please, do not come any closer.",1.464,0.886,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004115287,Help! Help!,2.208,0.688,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004526520,Now! Now!,2.256,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004540080,"Mikey, what are you doing out of your room?",3.216,0.878,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004606320,"Oh, shit.",1.68,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004744334,"They've got one for each of us. Come on, set!",3.12,0.865,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004827807,Ah!,1.248,0.273,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004955240,"Holy fuck! Whoa, whoa, whoa!",1.416,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005010280,Holy shit!,1.488,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005532334,"Oh, shit, the flowers. Well, I'll deliver them. You go.",2.976,0.902,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005842000,I know this has happened before.,2.088,0.865,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005901880,OF THEM. YOUR LIFE WILL NO LONGER,1.8,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005912000,"Go, go, go, go!",2.016,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010024680,"Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God! Oh, my God!",1.416,19.16,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010135638,That!,1.56,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010625040,I'm sorry.,1.656,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010805134,"Oh, my God!",1.296,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010904207,"Oh, my God.",1.296,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011627480,Come on!,1.488,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012152480,I don't know what happened.,2.04,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012433520,Ava!,1.56,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012814528,What's happening? I can't see.,1.896,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012847920,Aaaaaaah!,1.8,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_015145521,He's good with numbers too. He works for the IRS.,4.056,0.86,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000147200,Yeah!,1.368,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000322600,"Ha, ha, ha, ha, ha.",1.92,1.267,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000329320,He rocks.,1.128,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000403327,"Oh, he's lovely.",0.624,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000404000,Yeah.,1.488,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000423127,"Thank you to Jimmy, my waiter, at table number two. Yes, you.",3.936,0.91,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000423240,"I like the way you had it before, by the way.",1.8,0.957,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000451280,Did I get you?,1.104,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000752320,Carlos opened some great shit. We just had this potty-eyed stuff.,3.12,0.942,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001001280,"We throw in makeup, you know, toiletries, cell phone charger, camp numbers.",4.2,1.014,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001010160,THANK YOU.,1.176,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001100640,Oh. Bingo!,1.416,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001130680,"Hey, hey, look at that.",0.696,0.821,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001422600,"He says, Ben, do you want to stay with door number one?",2.376,0.887,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001537920,"Why is it every time I get happy,",2.496,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001703120,CAM.,0.768,0.333,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001748200,He's back!,1.464,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001949614,"Okay. Wait, wait, wait. I love you. Okay. Bye.",4.176,1.07,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002100360,"Oh, fuck you, bitch!",1.248,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002137920,"Oh, well, but if you'd like...",1.224,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002441440,Music composed in your honor and they will be nothing to you.,5.04,0.938,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002512120,I think that's just a picture of the sky.,2.28,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002607280,"Dearly beloved, we're gathered here today",2.664,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002730640,Yeah.,1.104,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002809954,What happens next in the dream?,3.648,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003033040,Oh! Get rusty!,1.56,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003318600,"What are you, my fucking therapist?",1.608,0.814,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003555207,It'd be weeks and it would be cold!,1.656,0.875,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003636440,. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .,3.12,26.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004104894,"I love these guys. Zoraya, what are you doing?",3.12,0.852,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004415287,"Oh, right. I know.",1.104,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004436174,"Oh, I just hope she doesn't get pregnant and fuck up that body.",3.768,0.94,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005112360,THANKS FOR JOINING US.,1.728,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005122167,"You see, that's quite comforting to hear, because you two seem so happy.",3.288,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005242454,"Ha, ha, ha, ha, ha, ha.",1.896,1.533,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005421560,"Sorry. Yeah, great.",2.256,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005450438,"Goddammit, you listen to me!",1.344,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005457920,"I know you're into that girly shit, so...",3.048,0.837,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005602326,"Ha, ha, ha, ha, ha, ha, ha, ha. Ha, ha, ha, ha.",3.576,2.474,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005805120,Holy shit!,2.04,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005814807,Every session.,2.088,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005817960,I just did that. Don't apologize.,1.248,0.805,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010158520,"Christ, there's nothing like that many.",3.096,0.848,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010212354,"I loved it. You were terribly funny, but... Oh.",3.6,0.855,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010316167,"For a moment, I loved him.",1.896,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010318047,Loved it.,1.488,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010527560,I'M NOT GOING TO DO THAT.,1.248,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010732287,Your refusal to condone animal slaughter.,2.976,0.854,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011111488,I'm so looking forward to this.,1.488,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011309840,I don't know what you're talking about.,1.296,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011409414,You know what?,1.848,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011411334,Fuck you.,1.176,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011434920,determined to sacrifice my own happiness for the welfare of my people.,4.08,1.045,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011810688,"We were separated. You're an adult. These things happen, so... There it is.",4.368,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011959447,I'd love to know the name of the bloke in the Essex Road because...,3.0,0.985,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012439174,"Wow, you are the world's shittiest drug dealer.",4.176,0.855,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012949687,🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵 🎵,1.896,45.409,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013036534,THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK YOU FOR JOINING US. THANK,1.728,14.073,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013418800,I would pretend I was a princess,1.968,0.842,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013818854,Ha ha!,2.088,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014135480,"I love you, Homer Eisenhower Graham.",4.656,0.857,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014206395,Asking him to love her.,2.568,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014246120,"Winner, winner, chicken dinner. There it is.",2.184,1.023,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000215738,"Hey, hey, hey, hey, hey. Come give me a kiss.",1.8,1.25,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000439654,"Whatever happens tonight, I will never, ever, ever speak",4.2,1.057,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000446654,"Seriously, I don't care what happens.",2.928,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000505720,Holy fu-,1.464,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000543854,But I shut down my player.,2.904,0.812,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000613480,"him, okay? Don't insult",1.56,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000750480,and shit the bed with it. Excuse the expression.,2.688,0.906,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000753440,"Well, then don't be the guy who shit the bed. Excuse the expression.",2.616,1.03,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000800640,Who are the Swedes?,1.344,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000803520,"I'm sorry, not Carl.",1.224,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000831400,Then second left.,2.448,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000919327,And then something happened.,1.104,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000946654,Just let them talk to the FBI.,2.52,0.857,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001201800,Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you. Thank you,1.128,28.269,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001446480,"Variable change, but he just asked you a simple question.",2.208,0.891,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001507520,"So, yeah.",1.176,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001727400,Okay.,2.208,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001802800,"I mean, you can love Andy, but that doesn't mean she's gonna love you.",3.288,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001817054,I hope he doesn't mind me calling him.,1.176,0.826,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001912000,"You chew up men, spit them out, and love it.",3.168,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002145120,"Lie number five, except for the be back later part.",3.984,0.911,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002655360,"Words were numbers, and numbers were words.",3.096,1.132,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002709240,I mean organised at the level of government.,2.448,0.846,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002801320,"Whatever happens, we stay friends.",2.496,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002938280,You are good with machines.,1.896,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003443960,I'd like to have,0.888,0.667,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003502854,The heart-shaped candy. Another.,3.336,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003652360,"They are so paralyzed with fear, they turn around boldly.",2.208,0.919,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003814280,"This crazy, sad shit, as you call it, made you happy.",3.36,0.964,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003904000,Have fun. I think this is great.,1.104,0.889,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004008240,Huh. Look.,1.608,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004017880,Then you may have just sunk to a point so low that you will never recover.,3.648,1.014,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004643134,We need some specific number.,2.28,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004650278,Dad. I just wanted to tell you,1.656,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004840160,The woman is nine months pregnant.,1.92,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005510400,"Kit's always saying to me, don't get emotional when you turn tricks.",4.608,0.971,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005513240,Lies the future happiness of my people.,4.056,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005936774,"I don't know. If you love her,",2.688,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010517640,This was devised. There is reason behind it.,4.128,0.863,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010730200,It is a great joy to see Your Majesty is not hurt.,3.12,0.893,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010911400,I love that.,1.368,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010944320,The only thing your mom loves is George.,1.416,0.833,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010958154,Happiness isn't happiness without a violin playing goat.,3.096,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011018760,I just love that scene in Vegas when the retard wins at blackjack.,5.088,0.957,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011323560,"I've met someone, I've fallen in love, and I'm moving out.",4.128,0.951,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011547000,.,3.744,0.111,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011957400,Who said something was happening but didn't say what?,2.328,0.93,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012255920,"I mean, we take all the risks.",1.56,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012331168,"Singing Roberta Flack's Beloved, Killing Me Softly.",3.336,0.927,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012651280,It's going to be a mouth breather for about a week and a half.,2.448,0.939,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012715354,Perfect.,1.608,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012751395,Tongue's going up and down your...,3.648,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012910760,You are in the greatest danger.,2.256,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013335080,That really wouldn't be like that.,1.488,0.829,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013338000,it be.,0.84,0.429,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013431600,Draw his sword.,1.104,0.652,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013432750,I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do. I don't know what to do.,0.888,16.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013745000,"Edward asked me if I wanted to see him again,",2.808,0.882,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014013000,"Gentlemen, I'd like to speak to Mr. Morris alone.",2.328,0.907,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014017760,Thank you.,2.808,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014029720,"I mean, I would like to speak to Mr. Morrison.",2.664,0.902,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014622680,It is no easy thing to be loved by the queen.,5.52,0.882,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014936360,I'm gonna call Cab.,1.56,0.704,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000647360,I am not,2.208,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000941320,"Uh, no. No, um...",2.328,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000943680,"It was just kids, Chuck said.",2.136,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001013367,Do you still love me at all?,1.848,0.778,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001103160,"Sorry, I was hoping you would be home. I don't know if you heard about what",4.368,0.974,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001444527,I just sat there and screamed.,3.408,0.789,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001713280,"They say this cancer will make you queen, but they are wrong!",3.36,0.924,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002239440,"You know, my dad lost his pension. I'm sorry.",1.968,0.849,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002259807,He's handicapped parking at the damn,3.36,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002916200,"I'm sorry, I don't know anything about the key or your father.",3.504,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003024767,Joyce! No!,2.688,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004039607,Fucking hell.,1.776,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004041920,A shell. A bag of shells.,3.264,0.893,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005023200,I absolutely love you.,2.568,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005026400,I absolutely love you.,2.424,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005307640,I don't know what happened.,2.376,0.771,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005329500,What is happening to me?,1.68,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005405240,I want you to call that number.,1.608,0.795,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005437600,Get married to somebody who's incapable of being happy.,2.616,0.873,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005700400,When did she die?,1.128,0.739,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005711000,"We were just too late, and then...",2.76,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005859040,Everything you do will be in the service of them.,2.808,0.907,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010010080,THANK YOU FOR JOINING US.,1.176,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010025312,You never listen to me!,3.816,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010320007,I knew you'd find me.,0.696,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010507927,I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about. I don't know what you're talking about.,3.408,14.268,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010552367,"Ha, ha, ha, ha.",1.68,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010622447,Love is not love which alters when it alteration finds.,3.528,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010715720,You don't understand.,2.256,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010741680,"Fuck I do, it'll do.",2.088,0.769,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010854607,I love you.,2.568,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010948367,"Bobby, I love you.",2.016,0.692,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011005340,You're a kid!,1.416,0.619,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011006040,"I loved her too, you know.",2.136,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011131080,"But, um... I really love my husband.",5.016,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011312320,I think she's the greatest.,2.664,0.818,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011341440,I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry. I'm sorry.,0.96,21.96,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011401160,I don't need to go to the doctor. I'm taking you.,2.328,0.925,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011403440,"Oh, for God's sake, I can get myself to the doctor.",3.696,0.864,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011440640,If I...,1.68,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011535834,Thank you.,2.928,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011538834,"Look, can I ask you a question? Just woman to woman.",4.416,0.963,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011543240,I'm sorry.,2.04,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011553514,Just full-on married to a woman named Pamela.,3.168,0.9,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011602240,Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much. Thank you very much.,1.56,22.079,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011616534,What are we gonna do? We are so fucked.,1.848,0.886,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011823760,"Would I blow your mind? No, it's not...",3.0,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011901800,"Okay, what did he say?",2.28,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011928240,I'm not sure that family is really the right word.,2.208,0.893,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012401520,I thought that love would last forever.,3.216,0.867,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012705800,9-1-1. I needed him!,2.28,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013104000,"I love you too, Fred.",2.088,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013139640,I'm sorry. I'm sorry.,1.896,1.0,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013523600,I don't understand what he just said.,1.56,0.822,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013609600,EVERYTHING THAT'S HAPPENING,1.488,0.794,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013714720,Because I'm in love with her.,1.776,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_013852920,I love you.,1.368,0.579,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014424874,Asking him to love me.,2.448,0.733,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014735000,I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know.,0.48,19.964,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_015238600,Patsy. Makeup.,2.928,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_015626280,"I loved when you thought we were too broke, you know?",3.096,0.946,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000123880,Corazon!,1.296,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000256440,"Oh, fuck!",2.568,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000407350,for her and cause it.,1.104,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000419314,"Yeah, well, there again, she might not think you had true love on your mind.",3.888,1.027,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_000758680,"Wow. Wow. That's great, Warren. Thank you. Thank you.",4.656,1.178,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001012520,What? What?,1.176,0.688,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001134360,"I knew, Officer Appellian Madam, you were party to me.",3.048,0.871,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001404920,Uh...,1.056,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001635160,Right there.,1.224,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001636600,Hey. They're tacked off.,1.8,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001641600,I fucking nailed it.,1.656,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001653480,What the fuck?,2.184,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001802480,"Jesus Christ, what the fuck is this?",3.048,0.857,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001817880,"Since he resurfaced within weeks, come on. God!",2.976,0.855,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_001850640,"Oh, shit.",1.968,0.529,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002221960,I'm pretty good with numbers.,2.256,0.784,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002408334,Shouldn't happen.,1.56,0.68,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002516320,Why do we have this flag?,2.088,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002631920,"Uh, no.",1.68,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002650134,"Orange, blue, and yellow too, but no poison wings.",3.888,0.909,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002842814,Holy fuck!,2.616,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_002934807,Why don't you come on in?,1.848,0.758,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003127040,Shut up.,1.464,0.5,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003634414,Ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha,2.256,35.235,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_003902287,Oh my God! I can't see!,2.448,0.742,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004020574,Hold it! Ow!,1.104,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004025454,I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm... I'm,3.456,23.25,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004141320,How are you? I'll be better in a minute after I fuck you raw.,3.36,0.968,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004406878,Holy shit.,1.464,0.556,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004438800,"Holy Spirit,",1.224,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004511694,WORKSHOP. SOME PEOPLE LOVE,1.656,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004524480,I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know. I don't know.,0.624,19.964,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_004944560,Robert?,1.776,0.467,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005013327,I'm going to show you how to make,2.256,0.892,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005153760,What?,1.224,0.385,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005515200,will be blessed with eternal salvation.,1.896,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005826400,Hey! Hey!,1.728,0.6,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_005951680,"Well, seems a rather high strung",2.664,0.8,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010255520,"No, I can't take a journey",1.608,0.765,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_010301054,"What happened, Omar?",1.176,0.714,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011306940,fucking world and I'm one of them.,1.56,0.81,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_011329120,"My God, he was right!",1.56,0.724,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012246840,"Uh, I'm sorry.",1.224,0.636,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_012535447,I don't know what you're talking about.,1.344,0.83,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_014527960,"Though, let's face fact, I mean,",3.504,0.865,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1
+val_015646720,I know that you love me.,2.04,0.75,openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1

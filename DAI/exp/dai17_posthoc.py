@@ -6,7 +6,7 @@
 4. students_cond_sel.csv：生徒の段の 3 つの条件の量を，選び直した点（students_sel.csv）で出したもの．
 5. speakers_top20.csv：上位 20 本の別々の話者と塊の数（neighbors.csv から．でたらめに引いたときの値と並べる）．
 
-使い方：CUDA_VISIBLE_DEVICES="" .venv/bin/python DAI/exp/dai17_posthoc.py [--out-dir results/dai17_probe]
+使い方：CUDA_VISIBLE_DEVICES="" .venv/bin/python exp/dai17_posthoc.py [--out-dir results/dai17_probe]
 """
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path("/home/snics/MER-DA")
+ROOT = Path(__file__).resolve().parents[1]
 MODS = "AVT"
-# AFEW と MELD の両方に出る俳優（`DAI/checks/DAI-17/review_affect.md` A2・`review_affect_v3.md` b1．MELD の側は役名と話の番号で決める）
+# AFEW と MELD の両方に出る俳優（`checks/DAI-17/review_affect.md` A2・`review_affect_v3.md` b1．MELD の側は役名と話の番号で決める）
 ACTORS = {"Elliott Gould": ("AFEW_Elliott_Gould", ["Mr._Geller"], None), "Ben Stiller": ("AFEW_Ben_Stiller", ["Tommy"], [(3, 22)]),
           "Susan Sarandon": ("AFEW_Susan_Sarandon", ["Cecilia", "Jessica_Lockhart"], [(7, 15)]), "Sean Penn": ("AFEW_Sean_Penn", ["Eric"], [(8, 7)]),
           "Gary Oldman": ("AFEW_Gary_Oldman", ["Richard"], [(7, 23), (7, 24)]), "Jason Alexander": ("AFEW_Jason_Alexander", ["Earl"], [(7, 13)])}
@@ -50,11 +50,11 @@ def actor_of_sid() -> dict:
 
 
 def dependency_table(out: Path, pdir: Path) -> None:
-    """設計 3.9 節「選択を通した依存」の表（gate-code の点検の台本 DAI/checks/DAI-17/code_run_post/dependency_table.py と同じ規則）．
+    """設計 3.9 節「選択を通した依存」の表（gate-code の点検の台本 checks/DAI-17/code_run_post/dependency_table.py と同じ規則）．
     評価するコーパス c の生徒の設定は，c を評価のターゲットにした単位（仮のターゲット c′ ≠ c）で選ぶ．その単位の疑似ラベルの版は，T = c′ の 30 単位
     （仮のターゲットに c を含む）で選んだ点である．c′ の点を，仮のターゲットが c の単位を除いた 20 単位で選び直し，元の点と比べる．"""
     import sys
-    sys.path.insert(0, str(ROOT / "DAI" / "exp"))
+    sys.path.insert(0, str(ROOT / "exp"))
     import dai17_probe as P
     units = pd.concat([pd.read_csv(q) for q in sorted((out / "units").glob("*.csv"))], ignore_index=True)
     v = units[~units.version.astype(str).str.startswith("_")]
@@ -164,7 +164,7 @@ def run(out: Path) -> None:
     nb_ = pd.read_csv(out / "summary" / "neighbors.csv")
     nb_[nb_.by.isin(["distinct_speakers_top20", "distinct_clusters_top20"])].to_csv(pdir / "speakers_top20.csv", index=False)
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = bool(subprocess.run(["git", "status", "--porcelain", "DAI/exp"], cwd=ROOT, capture_output=True, text=True).stdout.strip())
+    dirty = bool(subprocess.run(["git", "status", "--porcelain", "exp"], cwd=ROOT, capture_output=True, text=True).stdout.strip())
     with open(pdir / "posthoc_provenance.json", "w") as fh:
         json.dump(dict(time=time.strftime("%Y-%m-%d %H:%M:%S"), commit=commit, dirty=dirty, script_sha256=sha(Path(__file__).resolve()),
                        n_units_r0=len([q for q in files if q.stem.endswith("_r0")]), actors={k: [v[0], v[1], v[2]] for k, v in ACTORS.items()},

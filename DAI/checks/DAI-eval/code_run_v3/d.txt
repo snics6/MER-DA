@@ -1,2 +1,0 @@
-== new
-./x.sh: line 3: nvidia-smi: command not found

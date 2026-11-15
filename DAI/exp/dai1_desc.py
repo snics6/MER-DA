@@ -1,20 +1,20 @@
-"""DAI 実験 1 の族の外の数（記述の数）を，区間と単位の数つきで作る集計（設計 `DAI/docs/実験1_設計.md` 7.2・9.1〜9.4・9.6・14 節）。
+"""DAI 実験 1 の族の外の数（記述の数）を，区間と単位の数つきで作る集計（設計 `docs/設計/実験1_設計.md` 7.2・9.1〜9.4・9.6・14 節）。
 
 族 1〜4 の検定は `dai1_stats.py evaluate` が作る（`stats/families.csv`）．この台本はそれを作り直さず，設計が
 「区間と単位の数を添え，p 値を付けない」と決めた数（9.3 節の S5）と，結果の表の注に要る数を作る．評価の値を見る前に
 集計の仕方を固めるため，評価の回の前にコミットする（定義の 5 回目の D1，比較の 5 回目 2-I）。
 
 使い方：
-  python DAI/exp/dai1_desc.py eval   [置き場]   評価の回の出力 <置き場>/eval/units/<T>_ALL_f<f>_r<r>_p{1,2,3}.{npz,csv} から作る．
-      動く条件：<置き場>/select/frozen.json と DAI/frozen/<置き場の名前>_frozen.json の sha256 が一致し，写しがコミット済みで，
-      作業木（`dai1.git_commit` が見る DAI/exp・DAI/splits・measure・features・data/metadata．未追跡のファイルを含む）が汚れていない．
+  python exp/dai1_desc.py eval   [置き場]   評価の回の出力 <置き場>/eval/units/<T>_ALL_f<f>_r<r>_p{1,2,3}.{npz,csv} から作る．
+      動く条件：<置き場>/select/frozen.json と frozen/<置き場の名前>_frozen.json の sha256 が一致し，写しがコミット済みで，
+      作業木（`dai1.git_commit` が見る exp・splits・measure・features・data/metadata．未追跡のファイルを含む）が汚れていない．
       さらに，全部の T で 5 分割 × 種 n_seeds_eval の単位の段 1〜3 がそろい，単位の frozen_sha256 が固定のファイルと一致し，
-      単位のコミットが 1 つで，そのコミットの DAI/exp/dai1_desc.py と dai1_stats.py が今のファイルと同じであること（集計の仕方を
+      単位のコミットが 1 つで，そのコミットの exp/dai1_desc.py と dai1_stats.py が今のファイルと同じであること（集計の仕方を
       評価の回の前に固定したことの確かめ．定義の 5 回目の D1）．出力は <置き場>/stats/desc/（すでに中身があれば止まる）．
       評価の回の数は評価の回の単位だけから作る．仮のターゲットの行を読むのは，設計がそれと比べると決めた 2 つの量だけ
       （regret.csv の rank_spearman と，9.4 節の 3 の選び直し）で，読む行の単位の一覧とコミットが固定のファイルの units と
       pseudo_commit に一致しなければ止まる。
-  python DAI/exp/dai1_desc.py pseudo [置き場]   試走．仮のターゲットの回の出力 <置き場>/pseudo/units/<T>_<c>_f<f>_r<r>_*（c はソースの
+  python exp/dai1_desc.py pseudo [置き場]   試走．仮のターゲットの回の出力 <置き場>/pseudo/units/<T>_<c>_f<f>_r<r>_*（c はソースの
       名前，種 0・1）に同じ集計を (T, c) ごとに当てる．単位のコミットが固定のファイルの pseudo_commit と違えば止まる．
       出力は <置き場>/stats/desc_pseudo/（--out-dir で替える）．仮のターゲットの回には引き戻しの曲線の問が無いので，
       tether_curve.csv と tether_sign.csv は書かれない（marker_only.csv などの部分集合の表も，そのコーパスが c に無ければ書かれない）。
@@ -1330,14 +1330,14 @@ def run_pair(job: dict) -> dict:
 
 def guard_eval(out: Path, targets) -> tuple[str, str]:
     fzp = out / "select" / "frozen.json"
-    cp = ROOT / "DAI" / "frozen" / f"{out.name}_frozen.json"
+    cp = ROOT / "frozen" / f"{out.name}_frozen.json"
     if not fzp.exists() or not cp.exists() or dai1.sha(fzp) != dai1.sha(cp):
         sys.exit(f"固定のファイルが無いか，{cp.relative_to(ROOT)} と一致しない")
     if not dai1.committed_clean(cp):
         sys.exit("固定のファイルの写しがコミットされていない")
     commit, dirty = dai1.git_commit()
     if dirty:
-        sys.exit("作業木に未コミットの変更がある（DAI/exp・DAI/splits・measure・features・data/metadata）．評価の段は流さない")
+        sys.exit("作業木に未コミットの変更がある（exp・splits・measure・features・data/metadata）．評価の段は流さない")
     fz = json.load(open(fzp))
     h = dai1.sha(fzp)
     commits = set()
@@ -1358,11 +1358,11 @@ def guard_eval(out: Path, targets) -> tuple[str, str]:
         sys.exit(f"評価の回の単位のコミットが 1 つでない：{sorted(commits)}")
     ucommit = commits.pop()
     if commit != ucommit:                                              # 集計の値が依るほかのファイル（dai3・dai1_select・dai1・dai_data・measure・分割の表）も固定する（gate-code の 5 回目の 1）
-        sys.exit(f"今のコミット {commit[:10]} が評価の回の単位のコミット {ucommit[:10]} と違う．評価の回のコミットの作業木で流す（DAI/run/eval_procedure.md の 8）")
+        sys.exit(f"今のコミット {commit[:10]} が評価の回の単位のコミット {ucommit[:10]} と違う．評価の回のコミットの作業木で流す（run/eval_procedure.md の 8）")
     for name in FIXED_SCRIPTS:                                          # 集計の仕方は評価の回の前に固定した（D1，比較の 5 回目 2-I）
         same = script_at(ucommit, name)
         if same is not True:
-            sys.exit(f"DAI/exp/{name} が評価の回の単位のコミット {ucommit[:10]} の版と違う（{same}）．評価の値を見た後に集計を変えない")
+            sys.exit(f"exp/{name} が評価の回の単位のコミット {ucommit[:10]} の版と違う（{same}）．評価の値を見た後に集計を変えない")
     return h, ucommit
 
 
@@ -1371,10 +1371,10 @@ RECORDED_SCRIPTS = ("dai1_desc.py", "dai1_stats.py", "dai1_select.py", "dai1.py"
 
 
 def script_at(commit: str, name: str):
-    """DAI/exp/<name> の，コミット commit の版が今のファイルと同じなら True，違えば理由の文字列。"""
+    """exp/<name> の，コミット commit の版が今のファイルと同じなら True，違えば理由の文字列。"""
     if not commit:
         return "コミットが無い"
-    r = subprocess.run(["git", "show", f"{commit}:DAI/exp/{name}"], cwd=ROOT, capture_output=True)
+    r = subprocess.run(["git", "show", f"{commit}:./exp/{name}"], cwd=ROOT, capture_output=True)
     if r.returncode != 0:
         return "そのコミットに無い"
     return True if hashlib.sha256(r.stdout).hexdigest() == dai1.sha(HERE / name) else "sha256 が違う"

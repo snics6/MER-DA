@@ -1,5 +1,5 @@
 """実験 18 の下調べ（DAI-18）：6 コーパス（4 コーパス＋CREMA-D＋RAVDESS）で，実験 16・17 の主な版を K = 5・10・25 で流し直す．
-設計：DAI/docs/実験18_下調べ_設計.md．仮のターゲットの回だけを作る（評価の回は作らない）．各コーパスにあるモダリティだけを使う．
+設計：docs/設計/実験18_下調べ_設計.md．仮のターゲットの回だけを作る（評価の回は作らない）．各コーパスにあるモダリティだけを使う．
 
 段：
   selftest   人工の数での検算
@@ -10,7 +10,7 @@
   students   格子の点を選んで固定し（frozen_sel.json），疑似ラベルで生徒を学び直す
   summary    c × K ごとの UAR，差と区間，数え
 
-使い方：.venv/bin/python DAI/exp/dai18_probe.py --stage {selftest,source,base,tether,units,students,summary}
+使い方：.venv/bin/python exp/dai18_probe.py --stage {selftest,source,base,tether,units,students,summary}
 試走：--out-dir <一時の置き場> --allow-dirty --allow-partial --targets AFEW CREMA-D --folds 0 --seeds 0
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ import torch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dai1  # noqa: E402
 import dai1_stats as ST  # noqa: E402
 import dai12_probe as P12  # noqa: E402
@@ -46,7 +46,7 @@ import dai_solver as S  # noqa: E402
 ROOT = DD.ROOT
 OUT1 = ROOT / "results" / "dai1"
 OUT_PROD = ROOT / "results" / "dai18_probe"
-DESIGN = ROOT / "DAI" / "docs" / "実験18_下調べ_設計.md"
+DESIGN = ROOT / "docs" / "設計" / "実験18_下調べ_設計.md"
 CORP6 = ("AFEW", "IEMOCAP", "MOSEI", "MELD", "CREMA-D", "RAVDESS")
 NEW = ("CREMA-D", "RAVDESS")
 MODS_OF = {**{c: "AVT" for c in DD.CORPORA}, "CREMA-D": "AV", "RAVDESS": "A"}
@@ -940,7 +940,7 @@ def main() -> None:
     commit, dirty = dai1.git_commit()
     RUN["commit"], RUN["dirty"] = commit, dirty
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある")
+        sys.exit("exp・measure・features に未コミットの変更がある")
     if prod and not dai1.committed_clean(DESIGN):
         sys.exit("設計の文書がコミットされていない")
     if prod and (args.targets or args.folds is not None or args.seeds is not None or args.allow_partial):
@@ -952,7 +952,7 @@ def main() -> None:
                 pandas=pd.__version__, python=platform.python_version(), this_script_sha256=dai15.sha(Path(__file__).resolve()),
                 scripts={n: dai15.sha(HERE / n) for n in SCRIPTS if (HERE / n).exists()}, design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""),
                 inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
-                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "splits").glob("*.csv"))},
                                **{f"out/{q.name}": dai15.sha(q) for q in (out / "tether.json", out / "frozen_sel.json", out / "splits_new.csv") if q.exists()},
                                **{f"out/source/{q.name}": dai15.sha(q) for q in sorted((out / "source").glob("*")) if q.is_file()},
                                **{f"metadata/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "metadata").glob("*.csv"))},

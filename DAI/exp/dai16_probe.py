@@ -1,6 +1,6 @@
 """実験 16 の下調べ（DAI-16．第 3 版）：ソースで測った「感情ごとの信頼度」と，ターゲットの K 本で測った水準を使って，
 声・顔・言葉の分類器の答えを発話ごとにまとめる．まとめた答えが，等しい重みの積（今の提案の主の版の疑似ラベル）より当たるかを，
-実験 1 の仮のターゲットの回の保存だけで測る．設計：DAI/docs/実験16_下調べ_設計.md．評価の回の保存は開かない．
+実験 1 の仮のターゲットの回の保存だけで測る．設計：docs/設計/実験16_下調べ_設計.md．評価の回の保存は開かない．
 
 信頼度：分類器ごと・感情ごとの数．その感情の発話に，ほかの感情の発話より高い点を付ける割合（感情の対ごとの AUC の平均）を d′ に直したもの．
 出どころ：home（ソースの中の交差検証），ext（home × 外での残り方），away（別のソースに当てた値），K（ターゲットの K 本），
@@ -15,9 +15,9 @@
   summary   メタ学習の選択（評価するコーパスを含まない単位で格子の点を選ぶ），c × K ごとの UAR，差と区間，判定の数え，見積もりの当たり方
 
 使い方：
-  .venv/bin/python DAI/exp/dai16_probe.py --stage selftest
-  .venv/bin/python DAI/exp/dai16_probe.py --stage units
-  .venv/bin/python DAI/exp/dai16_probe.py --stage summary
+  .venv/bin/python exp/dai16_probe.py --stage selftest
+  .venv/bin/python exp/dai16_probe.py --stage units
+  .venv/bin/python exp/dai16_probe.py --stage summary
 試走：--out-dir <一時の置き場> --allow-dirty --allow-partial --targets AFEW --folds 0 --seeds 0
 """
 from __future__ import annotations
@@ -53,8 +53,8 @@ import dai_solver as S  # noqa: E402
 ROOT = DD.ROOT
 OUT1 = ROOT / "results" / "dai1"
 OUT_PROD = ROOT / "results" / "dai16_probe"
-ADDENDUM = ROOT / "DAI" / "docs" / "実験16・17_下調べ_K10_追補.md"
-DESIGN = ROOT / "DAI" / "docs" / "実験16_下調べ_設計.md"
+ADDENDUM = ROOT / "docs" / "設計" / "実験16・17_下調べ_K10_追補.md"
+DESIGN = ROOT / "docs" / "設計" / "実験16_下調べ_設計.md"
 KS = (5, 25)
 K_MAIN = 5
 NF = dai15.NF                           # K 本を感情ごとに分ける組の数（5）
@@ -1143,7 +1143,7 @@ def main() -> None:
     commit, dirty = dai1.git_commit()
     RUN["commit"], RUN["dirty"] = commit, dirty
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
     if prod and not dai1.committed_clean(DESIGN):
         sys.exit("設計の文書がコミットされていない")
     if prod and (args.folds is not None or args.seeds is not None or set(args.targets) != set(DD.CORPORA) or args.allow_partial):
@@ -1155,7 +1155,7 @@ def main() -> None:
                 scipy=scipy.__version__, python=platform.python_version(), pandas=pd.__version__,
                 scripts={n: dai15.sha(HERE / n) for n in SCRIPTS}, design_sha256=dai15.sha(DESIGN), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 inputs_sha256={**{f"source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
-                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))}},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "splits").glob("*.csv"))}},
                 KS=KS, NF=NF, D_MIN=D_MIN, EPS=EPS, AUC_CLIP=AUC_CLIP, TAU=TAU, TAU_F8=TAU_F8, W_MAX=W_MAX, N_ITER=N_ITER, GRID=[list(map(str, g)) for g in GRID],
                 LAMS=LAMS, ADJ_TOL=ADJ_TOL, CHECK_TEACHER=CHECK_TEACHER, GRAD_TOL=GRAD_TOL, FLOOR=FLOOR, ASSUME_FLAG=ASSUME_FLAG, n_versions=len(BASE),
                 EST=EST, MIXSEL={k: len(v) for k, v in MIXSEL.items()}, rng_seed=SEED)

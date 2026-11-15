@@ -1,11 +1,11 @@
-"""DAI 実験 2：残りの比較手法のうち線形の手法（設計は `DAI/docs/実験2_設計.md` 第 3.2 版の 1 節・2.1 節・4 節）。
+"""DAI 実験 2：残りの比較手法のうち線形の手法（設計は `docs/設計/実験2_設計.md` 第 3.2 版の 1 節・2.1 節・4 節）。
 
 段（--stage）：
   pseudo：評価のターゲット T ごとに，ソース 3 つの 1 つずつを仮のターゲット c にし（残り 2 つがソース），2.1 節の手法を格子の全部の点で解く．
           単位は（T, c, 分割 f, K 本の抜き方の種 r）で，r ∈ {0, 1}（実験 1 と同じ 120 単位）．
   select：`dai2_select.py` を呼ぶ（`dai2_grad.py` の出力と合わせて選ぶ）．
   eval  ：評価のターゲット T をソース 3 つで回す．r ∈ {0, …, R−1}（R は実験 1 の固定のファイルの n_seeds_eval）．
-          `DAI/frozen/dai2_frozen.json` がコミット済みで `<out>/select/frozen.json` と sha256 が一致し，`dai1.check_eval_gate` が通り
+          `frozen/dai2_frozen.json` がコミット済みで `<out>/select/frozen.json` と sha256 が一致し，`dai1.check_eval_gate` が通り
           （設計 4 節の m85），実験 2 の台本 3 本が選ぶ段のときの sha256 と一致し（m72），実験 1 の固定のファイルがコミット済みで
           選ぶ段で使ったものと同じときだけ動く（`check_eval_frozen`）．
 
@@ -14,7 +14,7 @@
 記録されたエンコーダが 1 つも無いか，第 1 のエンコーダと違えば止まる（`check_encoder`．gate-code の R7．次元が同じなので確かめないと落ちない）．
 `--students` は試走だけ（本番の置き場 `results/dai2` では受け付けない．絞った単位は extra_tag で区別する．I10）．
 引き戻し (C′, C_b) は，仮のターゲットの回は `<dai1-dir>/pseudo/<T>_tether_w.json`，評価の回は `--dai1-frozen`（既定
-`DAI/frozen/dai1_frozen.json`）の値．K=0 の手法は K=1 の値（実験 1 と同じ）．ρ は候補 1 本あたりの重み（重みの合計 ÷ 候補の本数 n）．
+`frozen/dai1_frozen.json`）の値．K=0 の手法は K=1 の値（実験 1 と同じ）．ρ は候補 1 本あたりの重み（重みの合計 ÷ 候補の本数 n）．
 
 手法（行の method）．目的関数は実験 1 の設計 4 節の形 [損失の和 ＋ ‖W − W0‖²/(2C′) ＋ ‖b − b0‖²/(2C_b)] / S（S は重みの和）：
   none   ：比較の基準 none[K]．実験 1 の段 1 と同じ問を解き直す（他の手法の出発点．選ばない）．dai1 の段 1 の保存があり，テストと K 本の
@@ -158,7 +158,7 @@ def provenance(out: Path, args, script: str, extra: dict | None = None) -> dict:
                                  if p.stem.split("_")[-1] in DD.CORPORA and any(p.stem.startswith(k + "_") for k in DD.ENC1.values())},
                 encoder=ENCODER, afew_transcript_sha256=sha(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv"),
                 metadata_sha256={p.name: sha(p) for p in sorted((ROOT / "data" / "metadata").glob("*.csv"))},
-                splits_sha256={p.name: sha(p) for p in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
+                splits_sha256={p.name: sha(p) for p in sorted((ROOT / "splits").glob("*.csv"))},
                 gpu_fraction=os.environ.get("MERDA_GPU_FRACTION", "0.6"), **(extra or {}))
     with open(out / "provenance_log.jsonl", "a") as fh:
         fh.write(json.dumps(prov, ensure_ascii=False) + "\n")
@@ -167,12 +167,12 @@ def provenance(out: Path, args, script: str, extra: dict | None = None) -> dict:
 
 
 def check_eval_frozen(out: Path, dai1_frozen: Path) -> tuple[dict, dict]:
-    """実験 2 の評価の段を流す条件（設計 4 節）：(1) `<out>/select/frozen.json` と写し `DAI/frozen/<out の名前>_frozen.json` が一致し，写しが
+    """実験 2 の評価の段を流す条件（設計 4 節）：(1) `<out>/select/frozen.json` と写し `frozen/<out の名前>_frozen.json` が一致し，写しが
     コミット済み（実験 1 の eval と同じ確かめ），(2) 実験 1 の `dai1.check_eval_gate` が通る（m85．必須の一覧と台本の sha256，査読と関門の OK），
     (3) 実験 2 の台本 3 本が選ぶ段のときから変わっていない（m72．評価の値を見た後に台本を変えない），(4) 実験 1 の固定のファイルが選ぶ段で
     使ったものと同じでコミット済み．戻り：(実験 2 の固定, 実験 1 の固定)。"""
     fz = out / "select" / "frozen.json"
-    cp = ROOT / "DAI" / "frozen" / f"{out.name}_frozen.json"
+    cp = ROOT / "frozen" / f"{out.name}_frozen.json"
     if not fz.exists() or not cp.exists() or sha(fz) != sha(cp):
         sys.exit(f"固定のファイルが無いか，{cp.relative_to(ROOT)} と一致しない")
     if not dai1.committed_clean(cp):
@@ -635,7 +635,7 @@ def pass_lin(u, store: dict, rows: list, tether: dict, pseudo: bool, students=DD
 def common_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--out-dir", default=str(ROOT / "results" / "dai2"))
     ap.add_argument("--dai1-dir", default=str(ROOT / "results" / "dai1"), help="実験 1 の置き場（source/ と pseudo/<T>_tether_w.json）")
-    ap.add_argument("--dai1-frozen", default=str(ROOT / "DAI" / "frozen" / "dai1_frozen.json"),
+    ap.add_argument("--dai1-frozen", default=str(ROOT / "frozen" / "dai1_frozen.json"),
                     help="実験 1 の固定のファイル（評価の回の引き戻しと R，選ぶ段の δ_sel．試走では一時の置き場の frozen.json）")
     ap.add_argument("--targets", nargs="*", default=list(DD.CORPORA))
     ap.add_argument("--folds", nargs="*", type=int, default=list(range(DD.N_FOLDS)))
@@ -681,7 +681,7 @@ def setup_run(args, script: str) -> Path:
     if dirty and args.stage == "eval":
         sys.exit("評価の段は未コミットの変更があると流さない（--allow-dirty も受け付けない）")
     if dirty and not args.allow_dirty:
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試しは --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試しは --allow-dirty）")
     RUN.update(commit=commit, dirty=dirty, gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
                dai1_dir=str(Path(args.dai1_dir)), out=str(out))
     return out
@@ -715,7 +715,7 @@ def main() -> None:
         for T in args.targets:
             teth, tpath = tether_pseudo(Path(args.dai1_dir), T, args.allow_partial_tether)
             RUN["tether_key"] = tether_key(teth)
-            provenance(out, args, "DAI/exp/dai2.py", dict(stage="pseudo", T=T, tether_file=str(tpath), tether_file_sha256=sha(tpath),
+            provenance(out, args, "exp/dai2.py", dict(stage="pseudo", T=T, tether_file=str(tpath), tether_file_sha256=sha(tpath),
                                                          tether_key=RUN["tether_key"], self_rounds=SELF_ROUNDS, lp_gamma=LP_GAMMA,
                                                          lp_cg_iters=LP_CG_ITERS, saerens_iters=SAERENS_ITERS))
             seeds = args.seeds if args.seeds is not None else [0, 1]
@@ -728,7 +728,7 @@ def main() -> None:
         RUN["tether_key"] = tether_key(teth)
         R = int(fz1[T]["n_seeds_eval"])
         seeds = args.seeds if args.seeds is not None else list(range(R))
-        provenance(out, args, "DAI/exp/dai2.py", dict(stage="eval", T=T, frozen_sha256=RUN["frozen_sha256"], gate_sha256=RUN["gate_sha256"],
+        provenance(out, args, "exp/dai2.py", dict(stage="eval", T=T, frozen_sha256=RUN["frozen_sha256"], gate_sha256=RUN["gate_sha256"],
                                                      dai1_frozen_sha256=sha(Path(args.dai1_frozen)), tether_key=RUN["tether_key"], R=R))
         for c, srcs, f, r in units_of(args, T, "eval", seeds):
             run_unit(out, "eval", T, c, srcs, f, r, "lin", lambda u, st, rw: pass_lin(u, st, rw, teth, False, studs), teth, extra_tag=stag)

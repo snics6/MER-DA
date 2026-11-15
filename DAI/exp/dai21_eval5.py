@@ -1,16 +1,16 @@
 """実験 21（DAI-21）：提案の評価の回の続き．(1) 提案の答えを疑似ラベルにして融合の分類器を学び直す（5 コーパス），(2) CREMA-D を評価のターゲットにする．
-設計：DAI/docs/実験21_設計.md．
+設計：docs/設計/実験21_設計.md．
 
 段：
   selftest   人工の数での検算
   check3     まとめ方の計算（combine_all）を，実験 16 の下調べの保存（3 つの分類器）に当てて保存の判定と照らす（読むだけ）
   check18    CREMA-D の単位の計算を，実験 18 の単位（RAVDESS を除いた回）と同じ設定で流して保存の判定と照らす
-  freeze     固定のファイル DAI/frozen/dai21_frozen.json を作る（実験 20 の計算の後．コミットしてから計算する）
+  freeze     固定のファイル frozen/dai21_frozen.json を作る（実験 20 の計算の後．コミットしてから計算する）
   students4  4 コーパス：実験 20 の単位の出力から疑似ラベルを作り，融合の分類器を学び直す
   cremad     CREMA-D：土台（K 本だけの分類器，微調整した声・顔）→ まとめ方 → 学び直し
   summary    UAR と区間，差と区間
 
-実験 20 の計算のあいだは DAI/exp に置かない（DAI/docs/tools_pending/ に置き，計算の後に DAI/exp へ移す）．
+実験 20 の計算のあいだは exp に置かない（tools/ に置き，計算の後に exp へ移す）．
 使い方：.venv/bin/python <この台本> --stage cremad
 """
 from __future__ import annotations
@@ -32,7 +32,7 @@ import scipy
 import torch
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dai1  # noqa: E402
 import dai1_stats as ST  # noqa: E402
 import dai12_probe as P12  # noqa: E402
@@ -49,9 +49,9 @@ OUT1 = ROOT / "results" / "dai1"
 OUT18 = ROOT / "results" / "dai18_probe"
 OUT20 = ROOT / "results" / "dai20_eval"
 OUT_PROD = ROOT / "results" / "dai21_eval5"
-DESIGN = ROOT / "DAI" / "docs" / "実験21_設計.md"
-FROZEN = ROOT / "DAI" / "frozen" / "dai21_frozen.json"
-FROZEN20 = ROOT / "DAI" / "frozen" / "dai20_frozen.json"
+DESIGN = ROOT / "docs" / "設計" / "実験21_設計.md"
+FROZEN = ROOT / "frozen" / "dai21_frozen.json"
+FROZEN20 = ROOT / "frozen" / "dai20_frozen.json"
 C4 = tuple(DD.CORPORA)
 CD, HOLD = "CREMA-D", "RAVDESS"          # CREMA-D の単位は，実験 18 の単位の作り（Unit6）で RAVDESS を除く側に置く．ソースは 4 コーパスになる
 KS = (5, 10, 25)
@@ -75,9 +75,9 @@ A2 = ("prod", "avg", "conf", "M_F2_K", "M_F6_K", "cf_D_l05", "tcal", "temp", "te
 SCRIPTS = ("dai20_eval.py", "dai18_probe.py", "dai17_probe.py", "dai16_probe.py", "dai15.py", "dai14.py", "dai12_probe.py", "dai11_probe.py", "dai3.py", "dai1.py",
            "dai1_stats.py", "dai_solver.py", "dai_data.py")
 RUN = {"commit": "", "dirty": True}
-WATCH = tuple(f"DAI/exp/{n}" for n in SCRIPTS) + ("DAI/exp/dai21_eval5.py", "DAI/frozen/dai21_frozen.json", "DAI/frozen/dai20_frozen.json", "DAI/splits", "measure", "features",
-                                                  "data/metadata", "requirements.txt", "DAI/docs/実験21_設計.md")
-FIXED = ("DAI/frozen/dai21_frozen.json", "DAI/frozen/dai20_frozen.json", "DAI/exp/dai16_probe.py", "DAI/exp/dai18_probe.py")   # 集計の段が，単位を作った後に変わっていないことを確かめるもの（選んだ点と格子）
+WATCH = tuple(f"exp/{n}" for n in SCRIPTS) + ("exp/dai21_eval5.py", "frozen/dai21_frozen.json", "frozen/dai20_frozen.json", "splits", "measure", "features",
+                                                  "data/metadata", "requirements.txt", "docs/設計/実験21_設計.md")
+FIXED = ("frozen/dai21_frozen.json", "frozen/dai20_frozen.json", "exp/dai16_probe.py", "exp/dai18_probe.py")   # 集計の段が，単位を作った後に変わっていないことを確かめるもの（選んだ点と格子）
 
 
 def same_code(commit: str, other: str = "HEAD", paths=WATCH) -> bool:
@@ -330,6 +330,7 @@ def stage_freeze() -> None:
 def load_frozen() -> dict:
     fz = json.load(open(FROZEN))
     for p, h in fz["source_sha256"].items():
+        p = p.removeprefix("DAI/")                                       # 整理（2026-11-15）の前の鍵は MER-DA の直下から書いてある
         if (ROOT / p).exists() and dai15.sha(ROOT / p) != h:
             raise SystemExit(f"固定のファイルの元（{p}）が変わっている")
     if fz["sgrid"] != [[r, a] for r, a in SGRID] or fz["wf_tables2_sha256"] != hashlib.sha256(tables_of(2).tobytes()).hexdigest():
@@ -875,7 +876,7 @@ def main() -> None:
         stage_freeze()
         return
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある")
+        sys.exit("exp・measure・features に未コミットの変更がある")
     if prod and not (dai1.committed_clean(DESIGN) and dai1.committed_clean(FROZEN) and dai1.committed_clean(Path(__file__).resolve())):
         sys.exit("設計の文書・固定のファイル・この台本のどれかがコミットされていない")
     if prod and (args.folds is not None or args.seeds is not None or args.targets is not None or args.allow_partial):
@@ -888,10 +889,10 @@ def main() -> None:
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"), host=platform.node(),
                 gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__, scipy=scipy.__version__,
                 pandas=pd.__version__, python=platform.python_version(), this_script_sha256=dai15.sha(Path(__file__).resolve()),
-                scripts={n: dai15.sha(ROOT / "DAI" / "exp" / n) for n in SCRIPTS}, design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""),
+                scripts={n: dai15.sha(ROOT / "exp" / n) for n in SCRIPTS}, design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""),
                 frozen_sha256=dai15.sha(FROZEN), frozen20_sha256=dai15.sha(FROZEN20),
                 inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
-                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "splits").glob("*.csv"))},
                                "dai18_splits_new.csv": dai15.sha(OUT18 / "splits_new.csv"),
                                **{f"metadata/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "metadata").glob("*.csv"))},
                                **{f"cache/{q.name}": dai15.sha(q) for q in sorted((ROOT / "data" / "cache").glob("*.npz"))}},

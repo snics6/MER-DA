@@ -1,16 +1,16 @@
 """実験 20（DAI-20）：提案の手法（感情ごとの信頼度の表で声・顔・言葉の答えをまとめる．水準は K 本，相性はソース）の評価の回．
-設計：DAI/docs/実験20_設計.md．単位の計算は実験 16 の台本（dai16_probe.run_unit）をそのまま呼び，実験 1 の評価の回の保存に当てる．
+設計：docs/設計/実験20_設計.md．単位の計算は実験 16 の台本（dai16_probe.run_unit）をそのまま呼び，実験 1 の評価の回の保存に当てる．
 この台本が足すのは，比べる相手（確率の平均，確信度で重みづける平均，K 本で合わせたモダリティごとの重み，K 本で重みの表を探す版），
 提案の部品を外した版（相性をソースの中の値から取る版），実験 1 の 5 つの比較手法の融合の分類器の判定の写し，である．
 足す版は，単位の保存の確率（float32）だけから作る（学び直さない．後から同じ値を作り直せる）．
 
 段：
   selftest   人工の数での検算
-  freeze     下調べが選んだ設定（n0・β・戻し先）と比べる相手の設定を DAI/frozen/dai20_frozen.json に写す（コミットしてから units を流す）
+  freeze     下調べが選んだ設定（n0・β・戻し先）と比べる相手の設定を frozen/dai20_frozen.json に写す（コミットしてから units を流す）
   units      単位ごとの判定
   summary    UAR と区間，差と区間，格子の全点の UAR と 3 通りの選び方，感情ごとの再現率，仮定の表，実験 1・2 から写す値
 
-使い方：.venv/bin/python DAI/exp/dai20_eval.py --stage units [--targets AFEW]
+使い方：.venv/bin/python exp/dai20_eval.py --stage units [--targets AFEW]
 台本の検査：--tag pseudo --out-dir <一時の置き場> --allow-dirty --allow-partial --targets AFEW --folds 0 --seeds 0
             （仮のターゲットの回に同じ計算を当てる．実験 16 の保存と同じ判定になるはず．評価の回の出力には触れない）
 """
@@ -34,7 +34,7 @@ import torch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dai1  # noqa: E402
 import dai1_stats as ST  # noqa: E402
 import dai12_probe as P12  # noqa: E402
@@ -47,8 +47,8 @@ import dai_solver as S  # noqa: E402
 ROOT = DD.ROOT
 OUT1 = ROOT / "results" / "dai1"
 OUT_PROD = ROOT / "results" / "dai20_eval"
-DESIGN = ROOT / "DAI" / "docs" / "実験20_設計.md"
-FROZEN = ROOT / "DAI" / "frozen" / "dai20_frozen.json"
+DESIGN = ROOT / "docs" / "設計" / "実験20_設計.md"
+FROZEN = ROOT / "frozen" / "dai20_frozen.json"
 PROBE = {5: ROOT / "results" / "dai16_probe", 25: ROOT / "results" / "dai16_probe", 10: ROOT / "results" / "dai16_probe_k10"}
 B_SRC = ROOT / "results" / "dai1" / "stats" / "desc" / "levels.csv"
 C_SRC = ROOT / "results" / "dai2" / "stats" / "prop_minus_method.csv"
@@ -74,10 +74,10 @@ B_ROWS = {"none": "none_AVT", "joint|one|main": "joint_AVT", "cand:kd|one": "b_k
           "cand:cotrain|ct": "b_cotrain", "cand:coreg|cr": "b_coreg"}   # 実験 1 の集計の行の名前 → この台本の版
 SEED_SETS = {"all": None, "0-1": (0, 1), "2-9": tuple(range(2, 10)), "0-2": (0, 1, 2)}
 SCRIPTS = ("dai20_eval.py", "dai16_probe.py", "dai15.py", "dai14.py", "dai12_probe.py", "dai11_probe.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py",
-           "dai_data.py")                                                  # この台本が読み込む DAI/exp の台本の全部（dai14・dai11_probe は読み込まれるだけで，計算の道では呼ばれない）
+           "dai_data.py")                                                  # この台本が読み込む exp の台本の全部（dai14・dai11_probe は読み込まれるだけで，計算の道では呼ばれない）
 RUN = {"commit": "", "dirty": True}
-WATCH = tuple(f"DAI/exp/{n}" for n in SCRIPTS) + ("DAI/frozen/dai20_frozen.json", "DAI/splits", "measure", "features", "data/metadata", "requirements.txt",
-                                                  "DAI/docs/実験20_設計.md")
+WATCH = tuple(f"exp/{n}" for n in SCRIPTS) + ("frozen/dai20_frozen.json", "splits", "measure", "features", "data/metadata", "requirements.txt",
+                                                  "docs/設計/実験20_設計.md")
 
 
 def same_code(commit: str, other: str = "HEAD") -> bool:
@@ -692,7 +692,7 @@ def main() -> None:
         stage_freeze()
         return
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある")
+        sys.exit("exp・measure・features に未コミットの変更がある")
     if prod and args.tag != "eval":
         sys.exit("本番の置き場は評価の回だけ")
     if not prod and args.tag == "eval":
@@ -710,7 +710,7 @@ def main() -> None:
                 scripts={n: dai15.sha(HERE / n) for n in SCRIPTS if (HERE / n).exists()}, design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""),
                 frozen_sha256=(dai15.sha(FROZEN) if FROZEN.exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 inputs_sha256={**{f"dai1_source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
-                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))}},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "splits").glob("*.csv"))}},
                 KS=KS, GRID=[list(map(str, g_)) for g_ in GRID], rng_seed=SEED, settings=SETTINGS, wf_tables_sha256=hashlib.sha256(WS.tobytes()).hexdigest(),
                 consts=dict(D_MIN=P16.D_MIN, EPS=P16.EPS, AUC_CLIP=P16.AUC_CLIP, TAU=P16.TAU, TAU_F8=P16.TAU_F8, W_MAX=P16.W_MAX, ADJ_ITERS=P16.ADJ_ITERS, ADJ_TOL=P16.ADJ_TOL,
                             CHECK_TEACHER=P16.CHECK_TEACHER, GRAD_TOL=P16.GRAD_TOL, NF=NF))

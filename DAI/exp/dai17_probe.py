@@ -3,7 +3,7 @@ A（主．発話ごと）：ターゲットの発話ごとに，「特徴が近�
    これを分類器として，微調整した声・顔・言葉の分類器の答えとまとめる（実験 16 のまとめ方）．どのソースの発話が役に立つかを，近い発話のラベルが当たる割合で記述する．
 B（コーパスごと）：ターゲットの候補からよく引かれるソースの発話と，信頼度の高いソースの発話に重みを付けてソースの分類器を学び直し，出発点と K 本だけの分類器の UAR を比べる．
 C（生徒）：A でまとめた答えを疑似ラベルにして，声・顔・言葉・融合の分類器を提案と同じ手順で学び直し，提案（積の疑似ラベル）と比べる．
-設計：DAI/docs/実験17_下調べ_設計.md．実験 1 の仮のターゲットの回の保存だけを使う．評価の回の保存は開かない．
+設計：docs/設計/実験17_下調べ_設計.md．実験 1 の仮のターゲットの回の保存だけを使う．評価の回の保存は開かない．
 
 段：
   selftest   人工の数での検算
@@ -12,7 +12,7 @@ C（生徒）：A でまとめた答えを疑似ラベルにして，声・顔�
   students   C：120 単位．units の出力から格子の点を選んで固定し（<out>/frozen_sel.json），疑似ラベルを作り直して生徒を学ぶ．<out>/students/
   summary    格子の点の選択（評価するコーパスを含まない単位），c × K ごとの UAR，差と区間，数え，近い発話の表
 
-使い方：.venv/bin/python DAI/exp/dai17_probe.py --stage {selftest,units,reweight,students,summary}
+使い方：.venv/bin/python exp/dai17_probe.py --stage {selftest,units,reweight,students,summary}
 試走：--out-dir <一時の置き場> --allow-dirty --allow-partial --targets AFEW IEMOCAP --folds 0 --seeds 0
 """
 from __future__ import annotations
@@ -34,7 +34,7 @@ import torch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")                       # 試走で台本を別の置き場に置いたときのため
+sys.path.insert(0, str(Path(__file__).resolve().parent))                       # 試走で台本を別の置き場に置いたときのため
 import dai1  # noqa: E402
 import dai1_stats as ST  # noqa: E402
 import dai3  # noqa: E402
@@ -47,8 +47,8 @@ import dai_solver as S  # noqa: E402
 ROOT = DD.ROOT
 OUT1 = ROOT / "results" / "dai1"
 OUT_PROD = ROOT / "results" / "dai17_probe"
-ADDENDUM = ROOT / "DAI" / "docs" / "実験16・17_下調べ_K10_追補.md"
-DESIGN = ROOT / "DAI" / "docs" / "実験17_下調べ_設計.md"
+ADDENDUM = ROOT / "docs" / "設計" / "実験16・17_下調べ_K10_追補.md"
+DESIGN = ROOT / "docs" / "設計" / "実験17_下調べ_設計.md"
 KS = (5, 25)
 K_MAIN = 5
 NF = dai15.NF
@@ -1282,21 +1282,21 @@ def main() -> None:
     commit, dirty = dai1.git_commit()
     RUN["commit"], RUN["dirty"] = commit, dirty
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
     if prod and not dai1.committed_clean(DESIGN):
         sys.exit("設計の文書がコミットされていない")
     if prod and (args.folds is not None or args.seeds is not None or set(args.targets) != set(DD.CORPORA) or args.allow_partial):
         sys.exit("本番の置き場では対象を絞らない")
     dai1.ENC["enc"] = DD.ENC1
     out.mkdir(parents=True, exist_ok=True)
-    src_dir = Path("/home/snics/MER-DA/DAI/exp")
+    src_dir = Path(__file__).resolve().parent
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"), host=platform.node(),
                 gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""), torch=torch.__version__, numpy=np.__version__, scipy=scipy.__version__,
                 python=platform.python_version(), pandas=pd.__version__, this_script_sha256=dai15.sha(Path(__file__).resolve()),
                 scripts={n: dai15.sha(src_dir / n) for n in SCRIPTS if (src_dir / n).exists()},
                 design_sha256=(dai15.sha(DESIGN) if DESIGN.exists() else ""), dai1_frozen_sha256=dai3.load_fz1(OUT1)[1],
                 inputs_sha256={**{f"source/{q.name}": dai15.sha(q) for q in sorted((OUT1 / "source").glob("*.npz"))},
-                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "DAI" / "splits").glob("*.csv"))}},
+                               **{f"splits/{q.name}": dai15.sha(q) for q in sorted((ROOT / "splits").glob("*.csv"))}},
                 KS=KS, KMAX=KMAX, CFGS=[list(map(str, c)) for c in CFGS], NMAIN=NMAIN, LAMS=LAMS, ALPHA=ALPHA, N0_LEVEL=N0_LEVEL, RANKS=RANKS, ARMS=ARMS, TEACH=TEACH,
                 TETH=TETH, SGRID=SGRID, HUB_C=HUB_C, FLOOR=FLOOR, BASE_TOL=BASE_TOL, NONE_AGREE=NONE_AGREE, D_MIN_PT=D_MIN_PT, TAU=P16.TAU, GRAD_TOL=P16.GRAD_TOL,
                 n_versions=len(BASE), rng_seed=SEED)
