@@ -61,12 +61,12 @@ def main() -> None:
             q = y[y.teacher == "main_q"]
             ax.scatter(q.margin, q.gain, s=46, marker=m, facecolors="none", edgecolors="#D55E00", linewidths=0.9, zorder=4)
         ax.set_xlim(-lim, lim)
-        ax.set_xlabel("Teacher UAR − own K-label baseline UAR (candidates, points)")
+        ax.set_xlabel("Pseudo-label source UAR − own K-label baseline UAR (candidates, points)")
         ax.set_title(f"K = {K}")
     axes[0].set_ylabel("Retraining − K-label baseline (test, points)")
     handles = [Line2D([], [], marker=m, color=c, ls="", label=lab, markersize=4) for c, m, lab in STYLE.values()]
     handles += [Line2D([], [], marker="o", color="0.3", ls="", markerfacecolor="none", label="95% CI includes 0", markersize=4),
-                Line2D([], [], marker="o", color="#D55E00", ls="", markerfacecolor="none", label="Main teacher (product)", markersize=6)]
+                Line2D([], [], marker="o", color="#D55E00", ls="", markerfacecolor="none", label="Product (main pseudo-label)", markersize=6)]
     fig.legend(handles=handles, loc="lower center", ncol=6, bbox_to_anchor=(0.5, -0.02))
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     for ext in ("pdf", "png"):
