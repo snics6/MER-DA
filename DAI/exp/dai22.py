@@ -1,4 +1,4 @@
-"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 1 版）．
+"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 2 版）．
 
 本番の評価の回（実験 1．results/dai1/eval）の保存から，融合の生徒 AVT について，K 本だけの分類器の判定 J_none と
 提案の主の版の疑似ラベル J_prop（prop_one）を候補の上で作り直し，J_prop を目標にした線形の識別器の交差の予測を 2 つの読み出しで作る．
@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import scipy
 import torch
 
 HERE = Path(__file__).resolve().parent
@@ -49,8 +50,10 @@ DESIGN = ROOT / "docs" / "設計" / "実験22_設計.md"
 REPRO_SAVED = ROOT / "results" / "dai3" / "eval" / "repro_units.csv"
 COND14 = OUT14 / "summary" / "conditions.csv"
 TOL_REPRO = 1e-3
+TOL_RESOLVE = (1e-8, 1e-10)                    # 照合が外れた問を 1 問だけで解き直す勾配の基準（実験 14 の 10.1 節と同じ手順．第 2 版．gate-code の I14）
+CLAMP = 1e-12                                  # dai1.product が確率を切る値
 TOL_PSEUDO = 1e-9
-QUANT = ("uar_none", "uar_pseudo", "delta", "uar_imitation_R0", "imitable_R0", "uar_imitation_R1", "imitable_R1")
+QUANT = ("uar_none", "uar_pseudo", "delta", "uar_imitation_R0", "imitable_R0", "uar_imitation_R1", "imitable_R1", "uar_start")
 RUN = {"commit": "", "dirty": True}
 
 
@@ -59,6 +62,33 @@ def script_shas() -> dict:
 
 
 # ------------------------------------------------------------------ 段 units
+
+def kappa(a: np.ndarray, b: np.ndarray) -> float:
+    """Cohen の κ（4 クラス）．"""
+    a = np.asarray(a, int); b = np.asarray(b, int)
+    po = float((a == b).mean())
+    pe = float(sum((a == c).mean() * (b == c).mean() for c in range(4)))
+    return (po - pe) / (1 - pe) if pe < 1 else float("nan")
+
+
+def resolve_r0(sv, K: int, qy: np.ndarray, halves, unit_pred: np.ndarray) -> dict:
+    """照合が外れた R0 の問を，止める勾配の基準を TOL_RESOLVE にして 1 問だけで解き直し，単位の予測と比べる（実験 14 の 10.1 節）．"""
+    u = sv.u
+    n = u.n
+    G = torch.stack([S.balanced_onehot(qy, halves[hh], n) for hh in (0, 1)])
+    W0, b0 = u.start[STU]
+    cw, cb = sv.teth[(STU, K)]
+    out = {}
+    for tol in TOL_RESOLVE:
+        res = S.fit(u.Xp[STU], G, W0, b0, Cw=cw, Cb=cb, tol=tol, max_iter=200000)
+        pr = S.logits(u.Xp[STU], res["W"], res["b"]).argmax(2).cpu().numpy()
+        full = np.empty(n, int)
+        for hh in (0, 1):
+            full[halves[1 - hh]] = pr[hh][halves[1 - hh]]
+        out[f"n_pred_diff_tol{tol:g}"] = int((full != unit_pred).sum())
+        out[f"grad_tol{tol:g}"] = float(res["grad_p"].max())
+    return out
+
 
 def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame) -> pd.DataFrame | None:
     base = out / "units" / f"{T}_f{f}_r{r}"
@@ -79,12 +109,19 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
     a14 = np.load(OUT14 / "units" / f"{T}_f{f}_r{r}.npz", allow_pickle=False)
     if not (a14["sid"].astype(str) == sv.sid_pool.astype(str)).all() or not (a14["half"].astype(int) == h).all():
         raise SystemExit(f"{base.name}：候補の並びか 2 組の分け方が実験 14 の保存と違う")
-    arr = dict(y=y.astype(np.int8), cl=cl, sid=sv.sid_pool.astype(str), half=h.astype(np.int8))
+    arr = dict(y=y.astype(np.int8), cl=cl, sid=sv.sid_pool.astype(str), half=h.astype(np.int8),
+               nonshared=a14["nonshared"], marker=a14["marker"], sex=a14["sex"])   # 実験 14 の保存から（並びは上で照合した．第 2 版．R11）
     Z, pca = D14.aligned_features(u.Xp[STU])
+    arr["pca"] = np.array([pca["pca_kept"], pca["eff_rank"], pca["dim_in"]], float)
+    arr["start"] = S.logits(u.Xp[STU], *u.start[STU]).argmax(1).cpu().numpy().astype(np.int8)   # 出発点の判定（第 2 版．gate-define の 3）
+    xcat = torch.cat([S.t(u.Xp[m]) for m in "AVT"], 1)                 # 融合の特徴が 3 つの特徴を横につないだものと同じか（第 2 版．A1）
+    cat_diff = float((S.t(u.Xp[STU]) - xcat).abs().max())
     rows, tg_true = [], {}
     for K in KS:
         main = "prop_" + fz1T["main"][str(K)]
         nk = np.ones(n, bool); nk[u.kpos[K]] = False
+        if not (a14[f"nk__K{K}"].astype(bool) == nk).all():
+            raise SystemExit(f"{base.name}：K={K} の K 本の印が実験 14 の保存と違う")
         arr[f"nk__K{K}"] = nk
         arr[f"none__K{K}"] = S.logits(u.Xp[STU], *sv.none(STU, K)).argmax(1).cpu().numpy().astype(np.int8)
         Q = dai3.pool_teachers(sv, TK[K], STU, K, [main])
@@ -94,6 +131,14 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         arr[f"tgt__K{K}"] = qy.astype(np.int8)
         arr[f"maxp__K{K}"] = Q[main].max(1).values.cpu().numpy().astype(np.float16)
         tg_true[f"K{K}"] = qy
+        # q が融合の特徴の線形の判定と同じか（第 2 版．A1）：学び直した 3 つの識別器の W・b を横につないだ識別器の判定と比べる
+        Wc = torch.cat([S.t(sv.p2[f"p2_K{K}_ret_{m}_W"]) for m in "AVT"], 1)
+        bc = sum(S.t(sv.p2[f"p2_K{K}_ret_{m}_b"]) for m in "AVT")
+        lin = S.logits(u.Xp[STU], Wc, bc).argmax(1).cpu().numpy()
+        clamped = np.zeros(n, bool)
+        for m in "AVT":
+            clamped |= (TK[K][f"ret_{m}"][0] < CLAMP).any(1).cpu().numpy()
+        arr[f"clamped__K{K}"] = clamped
         res0 = D14.fit_r0(sv, STU, K, {f"K{K}": qy}, halves)
         full, ag, info = res0[f"K{K}"]
         arr[f"K{K}__R0"] = full
@@ -101,9 +146,19 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         sv_row = repro[(repro["T"] == T) & (repro.fold == f) & (repro.seed == r) & (repro.K == K) & (repro.teacher == main)]
         if len(sv_row) != 1:
             raise SystemExit(f"{base.name}：実験 3 の保存に K={K} の行が {len(sv_row)} 行")
+        diff = abs(ag - float(sv_row.agree.iloc[0]))
+        extra = dict(tol_resolved=False)
+        if diff > TOL_REPRO:                                          # 解き直して単位の予測と同じなら，ずれは保存の側とみなして続ける
+            extra = resolve_r0(sv, K, qy, halves, full)
+            extra["tol_resolved"] = all(extra[f"n_pred_diff_tol{t:g}"] == 0 for t in TOL_RESOLVE)
+            print(f"{base.name}：K={K} の R0 が実験 3 の保存と {diff:.4f} 違う．解き直しの予測の違い "
+                  + "，".join(f"{t:g}: {extra[f'n_pred_diff_tol{t:g}']}" for t in TOL_RESOLVE), flush=True)
         rows.append(dict(T=T, fold=f, seed=r, K=K, readout="R0", target=main, agree_halfmean=ag, agree_saved=float(sv_row.agree.iloc[0]),
-                         abs_diff=abs(ag - float(sv_row.agree.iloc[0])), n_cand=n, n_nk=int(nk.sum()), n_half0=len(halves[0]),
-                         n_half1=len(halves[1]), dim=info["dim"], Cw=info["Cw"], Cb=info["Cb"], grad=info["grad"], stalled=info["stalled"]))
+                         abs_diff=diff, n_cand=n, n_nk=int(nk.sum()), n_half0=len(halves[0]),
+                         n_half1=len(halves[1]), dim=info["dim"], Cw=info["Cw"], Cb=info["Cb"], grad=info["grad"], stalled=info["stalled"],
+                         agree_linear=float((lin == qy).mean()), n_clamped=int(clamped.sum()),
+                         agree_linear_unclamped=float((lin[~clamped] == qy[~clamped]).mean()) if (~clamped).any() else np.nan,
+                         kappa_pseudo_none=kappa(qy[nk], arr[f"none__K{K}"].astype(int)[nk]), cat_max_abs_diff=cat_diff, **extra))
     # R1：K = 5 と 25 の問を 1 回の束で解く（実験 14 と同じ）
     tg_all = {(k, "true"): v for k, v in tg_true.items()}
     res1, curves, _ = D14.fit_r1(Z, cl, halves, tg_true, tg_all)
@@ -125,6 +180,8 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
     df = pd.DataFrame(rows)
     df["commit"], df["dirty"], df["sec"] = RUN["commit"], RUN["dirty"], time.time() - t0
     df["dai1_commits"] = ",".join(sorted(sv.commits))
+    df["dai14_npz_sha256"] = D14.sha(OUT14 / "units" / f"{T}_f{f}_r{r}.npz")
+    df["dai1_unit_sha256"] = ",".join(D14.sha(q)[:16] for q in sorted((OUT1 / "eval" / "units").glob(f"{T}_ALL_f{f}_r{r}_p*.npz")))
     np.savez_compressed(f"{base}.npz", **arr)
     df.to_csv(f"{base}.csv", index=False)
     return df
@@ -140,18 +197,29 @@ def load_units(out: Path, T: str) -> dict:
     return U
 
 
-def cells_of(U: dict, K: int) -> dict:
-    """K 本を除いた候補の上の，本当の感情に対する塊ごとの数．J_none，J_prop，R0，R1 の 4 つ．"""
+def cells_of(U: dict, K: int, subset: str = "all", U14: dict | None = None) -> dict:
+    """K 本を除いた候補（subset = nonshared なら MELD の 2 組が共有する対話の発話も除く）の上の，本当の感情に対する塊ごとの数．
+    J_none，J_prop，R0，R1，出発点．U14 を渡すと，実験 14 の声・顔・言葉の K 本だけの分類器の数も作る（行どうしの差の区間．第 2 版．gate-stats の 1）．"""
+    def m_of(a):
+        m = a[f"nk__K{K}"].astype(bool)
+        return m & a["nonshared"].astype(bool) if subset == "nonshared" else m
     out = {}
-    for nm, key in (("none", f"none__K{K}"), ("pseudo", f"tgt__K{K}"), ("R0", f"K{K}__R0"), ("R1", f"K{K}__R1")):
-        out[nm] = {k: D14.counts(a["y"][a[f"nk__K{K}"]], a[key][a[f"nk__K{K}"]], a["cl"][a[f"nk__K{K}"]]) for k, a in U.items()}
+    for nm, key in (("none", f"none__K{K}"), ("pseudo", f"tgt__K{K}"), ("R0", f"K{K}__R0"), ("R1", f"K{K}__R1"), ("start", "start")):
+        out[nm] = {k: D14.counts(a["y"][m_of(a)], a[key][m_of(a)], a["cl"][m_of(a)]) for k, a in U.items()}
+    if U14 is not None:
+        for s in "AVT":
+            out[f"none_{s}"] = {k: D14.counts(a["y"][m_of(a)], U14[k][f"none__K{K}__{s}"][m_of(a)], a["cl"][m_of(a)]) for k, a in U.items()}
     return out
 
 
 def quantities(c: dict) -> list:
-    return [("uar_none", [c["none"]], [1]), ("uar_pseudo", [c["pseudo"]], [1]), ("delta", [c["pseudo"], c["none"]], [1, -1]),
-            ("uar_imitation_R0", [c["R0"]], [1]), ("imitable_R0", [c["R0"], c["none"]], [1, -1]),
-            ("uar_imitation_R1", [c["R1"]], [1]), ("imitable_R1", [c["R1"], c["none"]], [1, -1])]
+    q = [("uar_none", [c["none"]], [1]), ("uar_pseudo", [c["pseudo"]], [1]), ("delta", [c["pseudo"], c["none"]], [1, -1]),
+         ("uar_imitation_R0", [c["R0"]], [1]), ("imitable_R0", [c["R0"], c["none"]], [1, -1]),
+         ("uar_imitation_R1", [c["R1"]], [1]), ("imitable_R1", [c["R1"], c["none"]], [1, -1]), ("uar_start", [c["start"]], [1])]
+    for s in "AVT":                                                   # Δ_AVT − Δ_s = UAR(J_none,s) − UAR(J_none,AVT)（q は共通）
+        if f"none_{s}" in c:
+            q.append((f"delta_minus_delta_{s}", [c[f"none_{s}"], c["none"]], [1, -1]))
+    return q
 
 
 def stage_summary(out: Path, targets: list) -> None:
@@ -182,12 +250,17 @@ def stage_summary(out: Path, targets: list) -> None:
                                         low_plateau=bool(j == 0 and abs(cur[hh][0] - cur[hh][1]) < 1e-9)))
         g_eff, _ = ST.g_eff_of(T)
         rng = np.random.default_rng([RNG_SEED, DD.CORPUS_ID[T]])
+        U14 = {k: dict(np.load(OUT14 / "units" / f"{T}_f{k[0]}_r{k[1]}.npz", allow_pickle=False)) for k in U}
+        for k, a in U.items():
+            if not (U14[k]["sid"].astype(str) == a["sid"].astype(str)).all():
+                raise SystemExit(f"{T}_f{k[0]}_r{k[1]}：実験 14 の保存と候補の並びが違う")
         for K in KS:
-            for qn, cells_, co in quantities(cells_of(U, K)):
-                e = D14.combo_stats(cells_, co, g_eff, rng)
-                cond.append(dict(T=T, K=K, student=STU, quantity=qn) | e | dict(verdict=D14.verdict(e["lo"], e["hi"])))
+            for subset in (["all", "nonshared"] if T == "MELD" else ["all"]):
+                for qn, cells_, co in quantities(cells_of(U, K, subset, U14)):
+                    e = D14.combo_stats(cells_, co, g_eff, rng)
+                    cond.append(dict(T=T, K=K, student=STU, subset=subset, quantity=qn) | e | dict(verdict=D14.verdict(e["lo"], e["hi"])))
             ref = c14[(c14["T"] == T) & (c14.K == K) & (c14.quantity == "uar_pseudo")].effect.unique()
-            got = [x["effect"] for x in cond if x["T"] == T and x["K"] == K and x["quantity"] == "uar_pseudo"][0]
+            got = [x["effect"] for x in cond if x["T"] == T and x["K"] == K and x["subset"] == "all" and x["quantity"] == "uar_pseudo"][0]
             if not RUN.get("partial") and (len(ref) == 0 or np.max(np.abs(ref - got)) > TOL_PSEUDO):
                 raise SystemExit(f"{T} K={K}：uar_pseudo が実験 14 の conditions.csv と合わない")
         dai1.Corpus.cache.pop(T, None)
@@ -205,13 +278,20 @@ def stage_summary(out: Path, targets: list) -> None:
         asm.append(dict(kind="pca", T=T, pca_kept_mean=float(x.pca_kept.mean()), pca_kept_min=float(x.pca_kept.min()),
                         eff_rank_mean=float(x.eff_rank.mean()), dim_in=int(x.dim_in.iloc[0])))
     for (T, ro), x in CV.groupby(["T", "readout"]):
-        asm.append(dict(kind="n_per_dim", T=T, readout=ro, half_over_dim_min=float((x[["n_half0", "n_half1"]].min(1) / x.dim).min())))
+        asm.append(dict(kind="n_per_dim", T=T, readout=ro, half_over_dim_min=float((x[["n_half0", "n_half1"]].min(axis=1) / x.dim).min())))
+    for (T, K), x in CV[CV.readout == "R0"].groupby(["T", "K"]):     # q が融合の特徴の線形の判定と同じか，q と J_none の依存（第 2 版．A1，gate-define の 2）
+        asm.append(dict(kind="linear_identity", T=T, K=K, agree_linear_min=float(x.agree_linear.min()), agree_linear_mean=float(x.agree_linear.mean()),
+                        agree_linear_unclamped_min=float(x.agree_linear_unclamped.min()), n_clamped_max=int(x.n_clamped.max()),
+                        cat_max_abs_diff=float(x.cat_max_abs_diff.max())))
+        asm.append(dict(kind="kappa_pseudo_none", T=T, K=K, kappa_mean=float(x.kappa_pseudo_none.mean()),
+                        kappa_min=float(x.kappa_pseudo_none.min()), kappa_max=float(x.kappa_pseudo_none.max())))
     pd.DataFrame(asm).assign(**tag).to_csv(sdir / "assumptions.csv", index=False)
     r0 = CV[CV.readout == "R0"]
     conv_s = dict(n_rows=len(CV), n_units=int(CV[["T", "fold", "seed"]].drop_duplicates().shape[0]), grad_max=float(CV.grad.max()),
                   n_stalled=int(CV.stalled.astype(str).eq("True").sum()), inner_grad_max=float(r1.inner_grad.max()),
                   inner_stalled_max=int(r1.inner_stalled.max()), r0_saved_abs_diff_max=float(r0.abs_diff.max()),
-                  r0_saved_n_over_tol=int((r0.abs_diff > TOL_REPRO).sum()),
+                  r0_saved_n_over_tol=int((r0.abs_diff > TOL_REPRO).sum()), r0_n_resolved=int(r0.tol_resolved.astype(str).eq("True").sum()),
+                  inner_grad_ok=bool(float(r1.inner_grad.max()) <= 1e-5), grad_ok=bool(float(CV.grad.max()) <= 1e-5),
                   C_chosen_counts={str(k): int(v) for k, v in pd.concat([r1.C0, r1.C1]).value_counts().items()},
                   sec_total=float(CV.drop_duplicates(["T", "fold", "seed"]).sec.sum()))
     json.dump(conv_s, open(sdir / "convergence.json", "w"), ensure_ascii=False, indent=1)
@@ -228,7 +308,7 @@ def selftest() -> None:
         for r in range(2):
             n = 300
             y = rng.integers(0, 4, n)
-            a = dict(y=y, cl=np.array([f"g{i % 11}" for i in range(n)]))
+            a = dict(y=y, cl=np.array([f"g{i % 11}" for i in range(n)]), start=rng.integers(0, 4, n), nonshared=rng.random(n) < 0.7)
             for K in KS:
                 nk = np.ones(n, bool); nk[rng.choice(n, 4 * K // 5, replace=False)] = False
                 a[f"nk__K{K}"] = nk
@@ -237,15 +317,21 @@ def selftest() -> None:
                 a[f"K{K}__R0"] = np.where(rng.random(n) < 0.8, a[f"tgt__K{K}"], rng.integers(0, 4, n))
                 a[f"K{K}__R1"] = a[f"tgt__K{K}"].copy()
             U[(f, r)] = a
+    U14 = {k: {f"none__K{K}__{s_}": rng.integers(0, 4, len(a["y"])) for K in KS for s_ in "AVT"} for k, a in U.items()}
     for g in (8.0, 30.0):
         for K in KS:
-            q = {qn: D14.combo_stats(c, co, g, np.random.default_rng(1)) for qn, c, co in quantities(cells_of(U, K))}
-            assert abs(q["delta"]["effect"] - (q["uar_pseudo"]["effect"] - q["uar_none"]["effect"])) < 1e-9
-            assert abs(q["imitable_R0"]["effect"] - (q["uar_imitation_R0"]["effect"] - q["uar_none"]["effect"])) < 1e-9
-            assert abs(q["uar_imitation_R1"]["effect"] - q["uar_pseudo"]["effect"]) < 1e-9          # R1 の予測 = 目標なら UAR は同じ
-            assert abs(q["imitable_R1"]["effect"] - q["delta"]["effect"]) < 1e-9
-            assert q["delta"]["lo"] <= q["delta"]["effect"] <= q["delta"]["hi"]
-    print("selftest（実験 22）：差の量 4 項目と区間の順序がすべて通った")
+            for subset in ("all", "nonshared"):
+                q = {qn: D14.combo_stats(c, co, g, np.random.default_rng(1)) for qn, c, co in quantities(cells_of(U, K, subset, U14))}
+                u14 = {s_: D14.combo_stats([cells_of(U, K, subset, U14)[f"none_{s_}"]], [1], g, np.random.default_rng(1))["effect"] for s_ in "AVT"}
+                for s_ in "AVT":                                           # Δ_AVT − Δ_s = UAR(J_none,s) − UAR(J_none,AVT)
+                    assert abs(q[f"delta_minus_delta_{s_}"]["effect"] - (u14[s_] - q["uar_none"]["effect"])) < 1e-9
+                assert abs(q["delta"]["effect"] - (q["uar_pseudo"]["effect"] - q["uar_none"]["effect"])) < 1e-9
+                assert abs(q["imitable_R0"]["effect"] - (q["uar_imitation_R0"]["effect"] - q["uar_none"]["effect"])) < 1e-9
+                assert abs(q["uar_imitation_R1"]["effect"] - q["uar_pseudo"]["effect"]) < 1e-9          # R1 の予測 = 目標なら UAR は同じ
+                assert abs(q["imitable_R1"]["effect"] - q["delta"]["effect"]) < 1e-9
+                assert q["delta"]["lo"] <= q["delta"]["effect"] <= q["delta"]["hi"]
+    assert abs(kappa(np.array([0, 1, 2, 3] * 25), np.array([0, 1, 2, 3] * 25)) - 1) < 1e-12
+    print("selftest（実験 22）：差の量 5 項目，区間の順序，κ がすべて通った")
 
 
 # ------------------------------------------------------------------ main
@@ -284,9 +370,9 @@ def main() -> None:
     (out / "units").mkdir(exist_ok=True)
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"),
                 host=platform.node(), gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""),
-                python=platform.python_version(), torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__,
+                python=platform.python_version(), torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, scipy=scipy.__version__,
                 scripts=script_shas(), design_sha256=D14.sha(DESIGN), dai1_frozen_sha256=fz1_sha, repro_saved_sha256=D14.sha(REPRO_SAVED),
-                cond14_sha256=D14.sha(COND14), tol_repro=TOL_REPRO, tol_pseudo=TOL_PSEUDO, mem_frac=MEM_FRAC, encoder=dai1.ENC["enc"],
+                cond14_sha256=D14.sha(COND14), dai14_provenance_sha256=D14.sha(OUT14 / "provenance.json"), tol_repro=TOL_REPRO, tol_resolve=TOL_RESOLVE, clamp=CLAMP, tol_pseudo=TOL_PSEUDO, mem_frac=MEM_FRAC, encoder=dai1.ENC["enc"],
                 KS=KS, student=STU, grid_c=GRID_C, cb_r1=D14.CB_R1, dim_r1=D14.DIM_R1, edge_share=EDGE_SHARE, rng_seed=RNG_SEED,
                 n_boot=ST.N_BOOT, min_n=ST.MIN_TEST)
     with open(out / "provenance_log.jsonl", "a") as fh:
@@ -306,12 +392,12 @@ def main() -> None:
                         print(f"{T}_f{f}_r{r}：済み（飛ばす）", flush=True)
                         continue
                     chk = df[df.readout == "R0"]
-                    bad = chk[chk.abs_diff.isna() | (chk.abs_diff > TOL_REPRO)]
+                    bad = chk[chk.abs_diff.isna() | ((chk.abs_diff > TOL_REPRO) & ~chk.tol_resolved.astype(bool))]
                     print(f"{T}_f{f}_r{r}：{df.sec.iloc[0]:.0f} 秒．実験 3 の保存との照合 {len(chk)} 行，最大差 {chk.abs_diff.max():.2e}，"
-                          f"許しの外 {len(bad)}", flush=True)
+                          f"解き直しで同じ予測 {int(chk.tol_resolved.astype(bool).sum())}，止める行 {len(bad)}", flush=True)
                     if len(bad):
                         bad.to_csv(out / f"check_fail_{T}_f{f}_r{r}.csv", index=False)
-                        sys.exit(f"{T}_f{f}_r{r}：実験 3 の保存の一致と {TOL_REPRO} を超えて違う行がある")
+                        sys.exit(f"{T}_f{f}_r{r}：実験 3 の保存の一致と {TOL_REPRO} を超えて違い，解き直すと予測が変わる行がある")
                     allrows.append(chk)
             dai1.Corpus.cache.pop(T, None)
             if torch.cuda.is_available():
