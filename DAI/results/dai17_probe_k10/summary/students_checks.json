@@ -1,0 +1,8 @@
+{
+ "n_units": 120,
+ "prop_agree_min": 0.9986320734024048,
+ "grad_max": 9.999975030367762e-07,
+ "stalled": 0,
+ "teacher_agree_min": 1.0,
+ "gpu_max_mb": 4070.69775390625
+}

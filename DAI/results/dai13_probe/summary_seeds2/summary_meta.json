@@ -1,0 +1,11 @@
+{
+ "v_init_applied": false,
+ "n_seeds": 2,
+ "n_units": 120,
+ "row_commits": [
+  "4932d6ce2a6962aa80416b8c08654e89c00b717d",
+  "7edef9c34f1bc797a027a7a20605c787094ca626"
+ ],
+ "script_sha_rows": "19960ba6b4257a27b0e9ef757bda776dd7d9e68229e8a69b133877fd210a7b1f",
+ "script_sha_summarize": "19960ba6b4257a27b0e9ef757bda776dd7d9e68229e8a69b133877fd210a7b1f"
+}

@@ -1,0 +1,96 @@
+{
+ "time": "2026-11-14 10:21:16",
+ "commit": "dff7b953b02a52093fc833a3f76baea237989bd3",
+ "dirty": false,
+ "script_sha256": "4301835e6a2d59a2bf8f4e48a9abe6810771859416c9878f84c7037e7996f340",
+ "n_units_r0": 60,
+ "actors": {
+  "Elliott Gould": [
+   "AFEW_Elliott_Gould",
+   [
+    "Mr._Geller"
+   ],
+   null
+  ],
+  "Ben Stiller": [
+   "AFEW_Ben_Stiller",
+   [
+    "Tommy"
+   ],
+   [
+    [
+     3,
+     22
+    ]
+   ]
+  ],
+  "Susan Sarandon": [
+   "AFEW_Susan_Sarandon",
+   [
+    "Cecilia",
+    "Jessica_Lockhart"
+   ],
+   [
+    [
+     7,
+     15
+    ]
+   ]
+  ],
+  "Sean Penn": [
+   "AFEW_Sean_Penn",
+   [
+    "Eric"
+   ],
+   [
+    [
+     8,
+     7
+    ]
+   ]
+  ],
+  "Gary Oldman": [
+   "AFEW_Gary_Oldman",
+   [
+    "Richard"
+   ],
+   [
+    [
+     7,
+     23
+    ],
+    [
+     7,
+     24
+    ]
+   ]
+  ],
+  "Jason Alexander": [
+   "AFEW_Jason_Alexander",
+   [
+    "Earl"
+   ],
+   [
+    [
+     7,
+     13
+    ]
+   ]
+  ]
+ },
+ "n_actor_sids": 99,
+ "n_actor_in_db": {
+  "AFEW": 11,
+  "MELD": 62
+ },
+ "inputs_sha256": {
+  "students_sel.csv": "0dc8987fe5669fb84dc5de3dffaf2e467aa0c473c98e25224d6cd620005fda72",
+  "neighbors.csv": "e7d7120b92710dd75bf09dda8f0276d9390ec08c6640882704de29806a6e59ac",
+  "frozen_sel.json": "dc2dca12fd5d5fcf529f86afc13104d269ec881600e56761c77fedd5570215af",
+  "afew_utterance_manifest.csv": "cedab9d0f0b2d187d293b86db6da78d241cb8d9786e4d03c77792a24dbb02b38",
+  "meld_utterance_manifest.csv": "aa989eeeaae122c83614290caabf4c546c72997072d248c652f6d51e47199f05"
+ },
+ "units_commit": [
+  "dff7b953b02a52093fc833a3f76baea237989bd3"
+ ]
+}

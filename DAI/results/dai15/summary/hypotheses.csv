@@ -1,0 +1,9 @@
+K,hypothesis,n,need,hit,corpora,off,raw_only,adj_only,rejudge,rejudge_any,oracle_adj_lam0_adj,lam0_adj_I_adj,oracle_adj_I_adj,n_skip_units,base,commit
+5,H1,0,3,False,,"AFEW,IEMOCAP,MELD,MOSEI",,,,,,,,,,14e99f080de43c4900c7c265d1e87e805191f8b2
+5,H2,0,2,False,,"AFEW,IEMOCAP",,,,,,,,,,14e99f080de43c4900c7c265d1e87e805191f8b2
+5,H3,1,1,True,MOSEI,,,,,,上回る,下回る,上回る,2.0,,14e99f080de43c4900c7c265d1e87e805191f8b2
+5,C1,0,3,False,,,,,,,,,,,,14e99f080de43c4900c7c265d1e87e805191f8b2
+25,H1,0,3,False,,"AFEW,IEMOCAP,MELD",,,,,,,,,,14e99f080de43c4900c7c265d1e87e805191f8b2
+25,H2,0,2,False,,IEMOCAP,,,,,,,,,,14e99f080de43c4900c7c265d1e87e805191f8b2
+25,H3,0,1,False,,,,,,,上回る,下回る,判定できない,0.0,,14e99f080de43c4900c7c265d1e87e805191f8b2
+25,C1,0,3,False,,,,,,,,,,,,14e99f080de43c4900c7c265d1e87e805191f8b2

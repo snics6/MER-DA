@@ -1,0 +1,144 @@
+{
+ "stage": "summarize",
+ "argv": [
+  "DAI/exp/dai13_probe.py",
+  "--out",
+  "results/dai13_probe",
+  "--stage",
+  "summarize"
+ ],
+ "commit": "7edef9c34f1bc797a027a7a20605c787094ca626",
+ "dirty": false,
+ "host": "okadalabws",
+ "python": "3.12.3",
+ "gpu": "NVIDIA RTX A5000",
+ "torch": "2.11.0+cu126",
+ "numpy": "2.5.2",
+ "pandas": "3.0.6",
+ "scipy": "1.18.1",
+ "sklearn": "1.9.1",
+ "time": "2026-11-09 23:12:25",
+ "script_sha256": "19960ba6b4257a27b0e9ef757bda776dd7d9e68229e8a69b133877fd210a7b1f",
+ "dai12_probe_sha256": "bd287f689ba53839bab20aa4476711c307be28e976bc79c20c58253a99eb5a02",
+ "dai11_probe_sha256": "ae18a59bcb79afbb05fbdf8bf65a69021a901b197c11c9a3a2995df137475d03",
+ "dai1_sha256": "54ad8f921cc676b156c4984073b2e787c4ba2a9bc9798b7e5c78c3244cb1796d",
+ "solver_sha256": "e26d60fb439325330508c9441cc723a6afcfcd65d394398d525250a32bf6a71f",
+ "data_sha256": "f228e73baceb90e57f9f792492534d3c1199327796b3a13cb700eb8ee2dbe937",
+ "stats_sha256": "221d5187864569100a44e6bf283cadf981754f15250a97003ea9a32f0e2ae8b0",
+ "frozen_sha256": "6926fb3e12638dd946ddfda8a260a33f089a400094ebdefdf37132fa1329dfdc",
+ "build_layers_sha256": "da372f2fff485e4647991358767885e221ae634734aeb6ac09c9df8ac3c5a431",
+ "design_sha256": "54d8245c38def3631f044c2a124a8ea446e1c2b9983e929ced08c23a018aad7f",
+ "dai11_commit": "67e3553b4a7935940ef73d0df920b550f6aebf3f",
+ "dai12_units_commit": "e9f66c9e87fd8a0a556c63017bdf4e16e2a845f3",
+ "dai12_summary_commit": "d0a2d91c5ab79970ca1d03b00989fefa9b408d8d",
+ "dai12_script_sha256": "bd287f689ba53839bab20aa4476711c307be28e976bc79c20c58253a99eb5a02",
+ "pseudo_commit": {
+  "AFEW": "896136c9d00b404409aaed2c7b625a1f2ea8a8f0",
+  "IEMOCAP": "896136c9d00b404409aaed2c7b625a1f2ea8a8f0",
+  "MOSEI": "896136c9d00b404409aaed2c7b625a1f2ea8a8f0",
+  "MELD": "896136c9d00b404409aaed2c7b625a1f2ea8a8f0"
+ },
+ "layer_features_sha256": {
+  "AFEW": "bb5b65e4514501a8f6cb4c305be02464770f9c3017d6e132cc39608e84fc7415",
+  "IEMOCAP": "178b2d7fbc70c8af0e8913737e4a1ea8b31fd9171923abd7f1890ba6728b6492",
+  "MOSEI": "8e3ca47f2038e7b219a9ed19cb1b181062e6337a7814d6dfb4d0a16fc2b367fe",
+  "MELD": "3a5834e90d37dd3343453c71c0e06317bb8b0978c385764d1089f934503b7017"
+ },
+ "constants": {
+  "KS_ALL": [
+   0,
+   1,
+   5,
+   10,
+   25
+  ],
+  "KS_RULE": [
+   1,
+   5,
+   10,
+   25
+  ],
+  "TEACHERS": [
+   "pair",
+   "pair_shuf",
+   "self"
+  ],
+  "N_LAYERS": 25,
+  "FINAL_IDX": 24,
+  "WDS": [
+   0.0001,
+   0.01,
+   0.1,
+   1.0,
+   10.0
+  ],
+  "CKPTS": [
+   10,
+   25,
+   50,
+   100,
+   200,
+   300,
+   400,
+   500
+  ],
+  "STEPS": 500,
+  "LRS": [
+   0.01
+  ],
+  "FIXED_WD": 0.0001,
+  "FIXED_STEP": 500,
+  "LAB_CKPTS": [
+   10,
+   25,
+   50,
+   100,
+   200,
+   300,
+   400,
+   500,
+   1000,
+   2000
+  ],
+  "LAB_STEPS": 2000,
+  "READ_WDS": [
+   0.01,
+   0.1,
+   1.0
+  ],
+  "READ_STEPS": 500,
+  "KSHOT_WDS": [
+   0.01,
+   1.0
+  ],
+  "KSHOT_STEPS": 500,
+  "Q3_KS": [
+   0,
+   25
+  ],
+  "RIDGE_DTYPE": "torch.float32",
+  "CONV_REL": 0.005,
+  "LAYER_DIFF_STOP": 0.01,
+  "FINAL_MISMATCH_STOP": 0.25,
+  "FINAL_UAR_STOP": 5.0,
+  "ALPHA_LR": 0.1,
+  "PSI_EPS": 1e-06,
+  "ALPHA_FAR": 0.2,
+  "FLOOR_POOL": 1.0,
+  "SELF_TOL": 0.5,
+  "ALPHA_MAX_NOTE": 0.4,
+  "ALPHA_FINAL_NOTE": 0.3,
+  "SEED": 0,
+  "N_BOOT": 2000,
+  "MISMATCH_FRAC": 0.001
+ },
+ "summary_dir": "/home/snics/MER-DA/results/dai13_probe/summary_seeds1",
+ "v_init_applied": true,
+ "n_seeds": 1,
+ "n_units": 60,
+ "row_commits": [
+  "4932d6ce2a6962aa80416b8c08654e89c00b717d"
+ ],
+ "script_sha_rows": "19960ba6b4257a27b0e9ef757bda776dd7d9e68229e8a69b133877fd210a7b1f",
+ "script_sha_summarize": "19960ba6b4257a27b0e9ef757bda776dd7d9e68229e8a69b133877fd210a7b1f"
+}

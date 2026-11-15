@@ -82,3 +82,6 @@ DAI/checks/DAI-eval/code_run_post/*.pkl
 DAI/checks/*/code_run*/
 DAI/checks/*/review_*_run*/
 DAI/checks/*/claim_run*/
+
+# DAI/archive：論文に使わない実験の検査役の試走の出力（2026-11-15 の整理で archive に移した）
+DAI/archive/checks/*/code_run*/

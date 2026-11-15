@@ -3,7 +3,7 @@
 __pycache__/
 *.py[cod]
 *:Zone.Identifier
-logs/
+logs
 weights
 data/cache/*
 !data/cache/faces_*.csv.gz
@@ -12,6 +12,7 @@ data/cache/*
 results/*
 !results/MANIFEST.tsv
 !results/MANIFEST_outside_git.tsv
+!results/MOVED_FROM_MERDA_RESULTS.txt
 
 # LaTeX の中間生成物
 **/*.aux

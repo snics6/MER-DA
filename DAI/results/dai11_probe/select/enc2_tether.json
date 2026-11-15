@@ -1,0 +1,408 @@
+{
+ "commit": "67e3553b4a7935940ef73d0df920b550f6aebf3f",
+ "rule": "dai1.select_tether と同じ（T の単位のテストの UAR の平均が最大．同点は小さい Cw・Cb）",
+ "AFEW": {
+  "tether": {
+   "A|1": [
+    0.001,
+    1.0
+   ],
+   "A|5": [
+    0.001,
+    1.0
+   ],
+   "A|10": [
+    0.001,
+    10.0
+   ],
+   "A|25": [
+    0.003,
+    1.0
+   ],
+   "AVT|1": [
+    0.001,
+    1.0
+   ],
+   "AVT|5": [
+    0.001,
+    1.0
+   ],
+   "AVT|10": [
+    0.001,
+    1.0
+   ],
+   "AVT|25": [
+    0.001,
+    1.0
+   ],
+   "T|1": [
+    0.001,
+    1.0
+   ],
+   "T|5": [
+    0.001,
+    1.0
+   ],
+   "T|10": [
+    0.001,
+    1.0
+   ],
+   "T|25": [
+    0.001,
+    1.0
+   ],
+   "V|1": [
+    0.001,
+    1.0
+   ],
+   "V|5": [
+    0.001,
+    1.0
+   ],
+   "V|10": [
+    0.001,
+    1.0
+   ],
+   "V|25": [
+    0.001,
+    10.0
+   ]
+  },
+  "units": [
+   "AFEW_IEMOCAP_f0_r0",
+   "AFEW_IEMOCAP_f0_r1",
+   "AFEW_IEMOCAP_f1_r0",
+   "AFEW_IEMOCAP_f1_r1",
+   "AFEW_IEMOCAP_f2_r0",
+   "AFEW_IEMOCAP_f2_r1",
+   "AFEW_IEMOCAP_f3_r0",
+   "AFEW_IEMOCAP_f3_r1",
+   "AFEW_IEMOCAP_f4_r0",
+   "AFEW_IEMOCAP_f4_r1",
+   "AFEW_MELD_f0_r0",
+   "AFEW_MELD_f0_r1",
+   "AFEW_MELD_f1_r0",
+   "AFEW_MELD_f1_r1",
+   "AFEW_MELD_f2_r0",
+   "AFEW_MELD_f2_r1",
+   "AFEW_MELD_f3_r0",
+   "AFEW_MELD_f3_r1",
+   "AFEW_MELD_f4_r0",
+   "AFEW_MELD_f4_r1",
+   "AFEW_MOSEI_f0_r0",
+   "AFEW_MOSEI_f0_r1",
+   "AFEW_MOSEI_f1_r0",
+   "AFEW_MOSEI_f1_r1",
+   "AFEW_MOSEI_f2_r0",
+   "AFEW_MOSEI_f2_r1",
+   "AFEW_MOSEI_f3_r0",
+   "AFEW_MOSEI_f3_r1",
+   "AFEW_MOSEI_f4_r0",
+   "AFEW_MOSEI_f4_r1"
+  ],
+  "n_units": 30
+ },
+ "IEMOCAP": {
+  "tether": {
+   "A|1": [
+    0.001,
+    1.0
+   ],
+   "A|5": [
+    0.001,
+    1.0
+   ],
+   "A|10": [
+    0.001,
+    1.0
+   ],
+   "A|25": [
+    0.003,
+    1.0
+   ],
+   "AVT|1": [
+    0.003,
+    1.0
+   ],
+   "AVT|5": [
+    0.001,
+    1.0
+   ],
+   "AVT|10": [
+    0.001,
+    1.0
+   ],
+   "AVT|25": [
+    0.001,
+    1.0
+   ],
+   "T|1": [
+    0.001,
+    1.0
+   ],
+   "T|5": [
+    0.001,
+    1.0
+   ],
+   "T|10": [
+    0.001,
+    1.0
+   ],
+   "T|25": [
+    0.001,
+    1.0
+   ],
+   "V|1": [
+    0.003,
+    1.0
+   ],
+   "V|5": [
+    0.001,
+    1.0
+   ],
+   "V|10": [
+    0.001,
+    1.0
+   ],
+   "V|25": [
+    0.001,
+    1.0
+   ]
+  },
+  "units": [
+   "IEMOCAP_AFEW_f0_r0",
+   "IEMOCAP_AFEW_f0_r1",
+   "IEMOCAP_AFEW_f1_r0",
+   "IEMOCAP_AFEW_f1_r1",
+   "IEMOCAP_AFEW_f2_r0",
+   "IEMOCAP_AFEW_f2_r1",
+   "IEMOCAP_AFEW_f3_r0",
+   "IEMOCAP_AFEW_f3_r1",
+   "IEMOCAP_AFEW_f4_r0",
+   "IEMOCAP_AFEW_f4_r1",
+   "IEMOCAP_MELD_f0_r0",
+   "IEMOCAP_MELD_f0_r1",
+   "IEMOCAP_MELD_f1_r0",
+   "IEMOCAP_MELD_f1_r1",
+   "IEMOCAP_MELD_f2_r0",
+   "IEMOCAP_MELD_f2_r1",
+   "IEMOCAP_MELD_f3_r0",
+   "IEMOCAP_MELD_f3_r1",
+   "IEMOCAP_MELD_f4_r0",
+   "IEMOCAP_MELD_f4_r1",
+   "IEMOCAP_MOSEI_f0_r0",
+   "IEMOCAP_MOSEI_f0_r1",
+   "IEMOCAP_MOSEI_f1_r0",
+   "IEMOCAP_MOSEI_f1_r1",
+   "IEMOCAP_MOSEI_f2_r0",
+   "IEMOCAP_MOSEI_f2_r1",
+   "IEMOCAP_MOSEI_f3_r0",
+   "IEMOCAP_MOSEI_f3_r1",
+   "IEMOCAP_MOSEI_f4_r0",
+   "IEMOCAP_MOSEI_f4_r1"
+  ],
+  "n_units": 30
+ },
+ "MELD": {
+  "tether": {
+   "A|1": [
+    0.001,
+    1.0
+   ],
+   "A|5": [
+    0.001,
+    1.0
+   ],
+   "A|10": [
+    0.001,
+    1.0
+   ],
+   "A|25": [
+    0.003,
+    1.0
+   ],
+   "AVT|1": [
+    0.01,
+    1.0
+   ],
+   "AVT|5": [
+    0.001,
+    1.0
+   ],
+   "AVT|10": [
+    0.001,
+    1.0
+   ],
+   "AVT|25": [
+    0.003,
+    1.0
+   ],
+   "T|1": [
+    0.001,
+    1.0
+   ],
+   "T|5": [
+    0.001,
+    1.0
+   ],
+   "T|10": [
+    0.001,
+    1.0
+   ],
+   "T|25": [
+    0.001,
+    1.0
+   ],
+   "V|1": [
+    0.003,
+    1.0
+   ],
+   "V|5": [
+    0.001,
+    1.0
+   ],
+   "V|10": [
+    0.001,
+    10.0
+   ],
+   "V|25": [
+    0.001,
+    10.0
+   ]
+  },
+  "units": [
+   "MELD_AFEW_f0_r0",
+   "MELD_AFEW_f0_r1",
+   "MELD_AFEW_f1_r0",
+   "MELD_AFEW_f1_r1",
+   "MELD_AFEW_f2_r0",
+   "MELD_AFEW_f2_r1",
+   "MELD_AFEW_f3_r0",
+   "MELD_AFEW_f3_r1",
+   "MELD_AFEW_f4_r0",
+   "MELD_AFEW_f4_r1",
+   "MELD_IEMOCAP_f0_r0",
+   "MELD_IEMOCAP_f0_r1",
+   "MELD_IEMOCAP_f1_r0",
+   "MELD_IEMOCAP_f1_r1",
+   "MELD_IEMOCAP_f2_r0",
+   "MELD_IEMOCAP_f2_r1",
+   "MELD_IEMOCAP_f3_r0",
+   "MELD_IEMOCAP_f3_r1",
+   "MELD_IEMOCAP_f4_r0",
+   "MELD_IEMOCAP_f4_r1",
+   "MELD_MOSEI_f0_r0",
+   "MELD_MOSEI_f0_r1",
+   "MELD_MOSEI_f1_r0",
+   "MELD_MOSEI_f1_r1",
+   "MELD_MOSEI_f2_r0",
+   "MELD_MOSEI_f2_r1",
+   "MELD_MOSEI_f3_r0",
+   "MELD_MOSEI_f3_r1",
+   "MELD_MOSEI_f4_r0",
+   "MELD_MOSEI_f4_r1"
+  ],
+  "n_units": 30
+ },
+ "MOSEI": {
+  "tether": {
+   "A|1": [
+    0.001,
+    1.0
+   ],
+   "A|5": [
+    0.001,
+    1.0
+   ],
+   "A|10": [
+    0.001,
+    10.0
+   ],
+   "A|25": [
+    0.001,
+    1.0
+   ],
+   "AVT|1": [
+    0.03,
+    10.0
+   ],
+   "AVT|5": [
+    0.001,
+    1.0
+   ],
+   "AVT|10": [
+    0.003,
+    1.0
+   ],
+   "AVT|25": [
+    0.003,
+    1.0
+   ],
+   "T|1": [
+    0.001,
+    1.0
+   ],
+   "T|5": [
+    0.001,
+    1.0
+   ],
+   "T|10": [
+    0.001,
+    1.0
+   ],
+   "T|25": [
+    0.001,
+    10.0
+   ],
+   "V|1": [
+    0.003,
+    1.0
+   ],
+   "V|5": [
+    0.001,
+    1.0
+   ],
+   "V|10": [
+    0.001,
+    1.0
+   ],
+   "V|25": [
+    0.001,
+    1.0
+   ]
+  },
+  "units": [
+   "MOSEI_AFEW_f0_r0",
+   "MOSEI_AFEW_f0_r1",
+   "MOSEI_AFEW_f1_r0",
+   "MOSEI_AFEW_f1_r1",
+   "MOSEI_AFEW_f2_r0",
+   "MOSEI_AFEW_f2_r1",
+   "MOSEI_AFEW_f3_r0",
+   "MOSEI_AFEW_f3_r1",
+   "MOSEI_AFEW_f4_r0",
+   "MOSEI_AFEW_f4_r1",
+   "MOSEI_IEMOCAP_f0_r0",
+   "MOSEI_IEMOCAP_f0_r1",
+   "MOSEI_IEMOCAP_f1_r0",
+   "MOSEI_IEMOCAP_f1_r1",
+   "MOSEI_IEMOCAP_f2_r0",
+   "MOSEI_IEMOCAP_f2_r1",
+   "MOSEI_IEMOCAP_f3_r0",
+   "MOSEI_IEMOCAP_f3_r1",
+   "MOSEI_IEMOCAP_f4_r0",
+   "MOSEI_IEMOCAP_f4_r1",
+   "MOSEI_MELD_f0_r0",
+   "MOSEI_MELD_f0_r1",
+   "MOSEI_MELD_f1_r0",
+   "MOSEI_MELD_f1_r1",
+   "MOSEI_MELD_f2_r0",
+   "MOSEI_MELD_f2_r1",
+   "MOSEI_MELD_f3_r0",
+   "MOSEI_MELD_f3_r1",
+   "MOSEI_MELD_f4_r0",
+   "MOSEI_MELD_f4_r1"
+  ],
+  "n_units": 30
+ }
+}
