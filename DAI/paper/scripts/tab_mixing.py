@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "results/e76_analysis/e76a_1_kind.csv"
 OUT = Path(__file__).resolve().parents[1] / "sections/tab_mixing.tex"
 

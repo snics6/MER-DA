@@ -1,6 +1,6 @@
 #!/bin/bash
 # E77（DAI 論文の比較実験の第 1 波）．2 本の流れを GPU に並べて回す（各 GPU メモリの 40%）．
-# 設計：docs/参照/exploratory-analyses.md E77．終わると logs/e77.done を書く．
+# 設計：docs/exploratory-analyses.md E77．終わると logs/e77.done を書く．
 set -u
 cd "$(dirname "$0")/.."
 mkdir -p logs

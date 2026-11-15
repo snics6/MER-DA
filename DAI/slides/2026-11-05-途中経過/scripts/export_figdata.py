@@ -3,7 +3,7 @@
 出どころ：評価の回（コミット ba98974，4 コーパス × 50 単位）の集計 results/dai1/stats/families.csv，results/dai2/stats/prop_minus_method.csv，
 results/dai3/eval/{decomp.csv, expl4_corpus_restored.csv}，評価の回の後の探索 results/explore_consensus/*.csv，results/explore_fusion/*.csv，
 今日の AFEW の途中の値 results/explore_fusion/peek_select_units_AFEW.csv（本番の台本 explore_fusion_select.py の出力がそろったら select_cells.csv に替える）．
-使い方：cd DAI/slides/2026-11-05-途中経過 && ../../../.venv/bin/python scripts/export_figdata.py
+使い方：cd DAI/slides/2026-11-05-途中経過 && ../../.venv/bin/python scripts/export_figdata.py
 """
 import re
 from pathlib import Path

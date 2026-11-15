@@ -10,13 +10,13 @@
 **このディレクトリは自己完結させる．`~/MER` など他のディレクトリは一切参照しない**
 （コード・環境・文書・設定値のどれも）．要るものはここに置く．
 
-**2026-11-15 から，研究の実体は `DAI/` にある．**論文の実験の台本・部品・データの一覧・結果は DAI の中にあり，DAI だけで再現できる（`DAI/README.md`）．直下に残すのは，DAI が引く共有の文書（`docs/`），論文のセッションが書く `research_notes/`，Python の環境 `.venv/`，旧版の結果 `results/` だけで，それ以外の旧版の台本・報告・原稿は `archive/` に移した（`archive/README.md`）．
+**2026-11-15 から，研究の実体は `DAI/` にある．**論文の実験の台本・部品・データの一覧・結果は DAI の中にあり，DAI だけで再現できる（`DAI/README.md`）．共有の文書 `docs/`・ノート `research_notes/`・旧版の執筆フォルダ `DAI_paper/` も同じ日に DAI の中に移し，直下の同じ名前はそこへのリンクにした（古いパスで書かれた文書と定義のため）．直下に実体があるのは Python の環境 `.venv/` と旧版の結果 `results/` だけで，それ以外の旧版の台本・報告・原稿は `archive/` に移した（`archive/README.md`）．
 
 ---
 
 ## 正本と優先順位
 
-文書は役割ごとに 8 本ある（2026-10-08 に統合，2026-10-28 に台帳を足した．`CLAUDE.md` と `DAI/data/README.md` 以外は `docs/` の下）．
+文書は役割ごとに 8 本ある（2026-10-08 に統合，2026-10-28 に台帳を足した．`CLAUDE.md` と `DAI/data/README.md` 以外は `docs/` の下．`docs/` は 2026-11-15 から `DAI/docs/` へのリンク）．
 
 | 対象 | 正本 |
 |---|---|
@@ -61,10 +61,10 @@
 | 場所 | 中身 | git |
 |---|---|---|
 | `DAI/` | **研究の実体**（2026-11-04〜．2026-11-15 に整理し，データを除けば単独で論文の実験を流し直せる形にした）．入口 `DAI/README.md`，手順 `DAI/docs/再現の手順.md`，規則 `DAI/CLAUDE.md`，台本 `DAI/exp/`（論文の前半の写しを含む），部品 `DAI/measure/`・`DAI/features/`，発話一覧 `DAI/data/metadata/`，特徴 `DAI/data/cache/*.npz`（git の外），重み `DAI/weights/`（git の外），設計 `DAI/docs/設計/`，論文の原稿 `DAI/paper/`，検査の報告 `DAI/checks/`，結果 `DAI/results/`，ログ `DAI/logs/` | ○（結果は集計と記録だけ．特徴・重み・ログ・LaTeX の中間生成物は ×） |
-| `docs/` | 共有の文書 6 本（研究計画 `researchvision.md`，方法 `methods.md`，結果 `results.md`，探索の記録 `exploratory-analyses.md`，先行研究 `related-work.md`，見たデータの台帳 `seen-data.md`）と旧版の主張契約 `paper-claim.md`．検査役の定義と論文のセッションが引く．DAI の中の写しは `DAI/docs/参照/` | ○ |
+| `docs` | `DAI/docs/` へのリンク（2026-11-15 に実体を DAI に移した）．共有の文書 6 本（研究計画 `researchvision.md`，方法 `methods.md`，結果 `results.md`，探索の記録 `exploratory-analyses.md`，先行研究 `related-work.md`，見たデータの台帳 `seen-data.md`）と旧版の主張契約 `paper-claim.md`．は `DAI/docs/` の直下にある．検査役の定義と論文のセッションが引く．中のパスは MER-DA の直下から書いてある | ○（実体は `DAI/docs/`） |
 | `.claude/agents/` | 実験の検査役の定義（関門 1 の `gate-stats`・`gate-leak`・`gate-compare`・`gate-define`・`gate-probe`・`gate-code`，関門 2 の `gate-claim`．手順は `docs/methods.md` 9 節），新しい定理を探す担当（`thm-*`．同 10 節），`story-judge`，`prior-work-diff` | ○ |
 | `DAI_paper` | `DAI/docs/参照/DAI_paper/` へのリンク（2026-11-15 に中身を DAI に移した．旧版の執筆フォルダで，要項 `docs/venue.md`・参照論文・棚卸しを論文のセッションと査読役が読む）．古いパスで書かれた文書と論文のセッションの参照のために残す．論文の原稿の参照を書き換えたら消してよい | ○（リンク） |
-| `research_notes/` | 調べ直しのノート，論文の相談のノート（論文のセッションが書く） | ○ |
+| `research_notes` | `DAI/research_notes/` へのリンク（2026-11-15 に実体を DAI に移した）．調べ直しのノート，論文の相談のノート（論文のセッションが書く） | ○（実体は `DAI/research_notes/`） |
 | `results/` | 旧版の実験の結果．論文に使う置き場（93 個）は `DAI/results/` へのリンク | × |
 | `logs` | `DAI/logs/` へのリンク | × |
 | `archive/` | 使わなくなった旧版のもの（2026-11-15 に移した）：台本 `exp/`・`run/`，部品 `measure/`・`features/`，データの旧い写し `data/`（波形のファイルなど DAI に要らないものを含む），検査の報告 `checks/`（E1〜E87），TAC 向けの原稿 `paper/`，発表資料 `slides/`，`paper_code/`，`reports/`，`requirements.txt`，中核の理論の PDF．`archive/README.md` | ○（元から git に入っていたものだけ） |

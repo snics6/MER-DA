@@ -5,8 +5,8 @@ DAI に出す研究（`DAI/CLAUDE.md`）の途中経過や発表の資料を作�
 
 ## 自己完結
 
-- 見た目の設定 `common/`（`preamble.tex`・`theme.tex`・`macros.tex`・`merda.tex`）は 2026-11-05 に `../../slides/common/` から 1 回だけ写した．以後は同期しない．直すならここを直す
-- 親の `../../slides/` の資料（TAC 向け）とは語も台帳も共有しない．DAI の語は `DAI/docs/` の設計の文書に合わせる
+- 見た目の設定 `common/`（`preamble.tex`・`theme.tex`・`macros.tex`・`merda.tex`）は 2026-11-05 に MER-DA の直下の `slides/common/`（今は MER-DA の `archive/slides/common/`）から 1 回だけ写した．以後は同期しない．直すならここを直す
+- MER-DA の旧版の `slides/`（今は MER-DA の `archive/slides/`）の資料（TAC 向け）とは語も台帳も共有しない．DAI の語は `docs/設計/` の設計の文書に合わせる
 
 ## 組み方
 

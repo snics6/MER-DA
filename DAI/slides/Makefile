@@ -13,7 +13,7 @@ ifeq ($(origin DECK),command line)
 else
 DECK := $(lastword $(DECKS))
 endif
-PY := ../../../.venv/bin/python
+PY := ../../.venv/bin/python
 LATEXMK := latexmk -lualatex -interaction=nonstopmode -file-line-error -outdir=build
 LANGS := ja en
 

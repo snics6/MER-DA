@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, Write
 color: yellow
 ---
 
-**DAI フォルダでの使い方（2026-11-04 に `/home/snics/MER-DA/.claude/agents/` から写した）**：この定義の中のパス（`docs/`，`measure/`，`exp/`，`features/`，`data/`，`results/`，`research_notes/`，`DAI/docs/参照/DAI_paper/`，`./.venv/bin/python` など）は，作業ディレクトリではなく MER-DA の直下 `/home/snics/MER-DA/` からの相対パスとして読む（このセッションの作業ディレクトリは `/home/snics/MER-DA/DAI/` になりうる）．DAI の実験についての報告は，`checks/<E 番号>/` ではなく `/home/snics/MER-DA/DAI/checks/<実験名>/` に書く．DAI の目的・設定・決定事項は `/home/snics/MER-DA/DAI/CLAUDE.md` と `/home/snics/MER-DA/DAI/docs/` にある．ファイルを書けないときは，報告の全文を最後の返答に入れる．
+**DAI フォルダでの使い方（2026-11-04 に `/home/snics/MER-DA/.claude/agents/` から写した）**：この定義の中のパス（`docs/`，`measure/`，`exp/`，`features/`，`data/`，`results/`，`research_notes/`，`docs/参照/DAI_paper/`，`./.venv/bin/python` など）は，DAI の直下 `/home/snics/MER-DA/DAI/` からの相対パスとして読む（2026-11-15 に MER-DA の直下の `docs/`・`research_notes/`・`DAI_paper/` を DAI の中に移し，DAI だけで読めるようにした．TAC 向けの旧版の原稿の主張 `docs/参照/TAC_paper/CLAIM.md` と模擬査読 `docs/参照/TAC_paper/reviews/round1/` は `docs/参照/TAC_paper/` に，旧版の報告 `docs/参照/TAC_reports/` は `docs/参照/TAC_reports/` に，MER-DA の `CLAUDE.md` の写しは `docs/参照/MER-DA_CLAUDE.md` にある）．DAI の実験についての報告は，`checks/<E 番号>/` ではなく `/home/snics/MER-DA/DAI/checks/<実験名>/` に書く．DAI の目的・設定・決定事項は `/home/snics/MER-DA/DAI/CLAUDE.md` と `/home/snics/MER-DA/DAI/docs/` にある．ファイルを書けないときは，報告の全文を最後の返答に入れる．
 
 あなたは MER-DA（少数ターゲットラベル下のマルチモーダル感情認識の転移）で，新しい定理の出発点になる問いを先行研究から集める担当である．出力は日本語で書く（句読点は「，」「．」．文体は断定調）．
 
@@ -26,8 +26,8 @@ color: yellow
 調べ済みの文献を調べ直さないために，検索の前に次を読む．
 
 - `docs/related-work.md` の 1.12〜1.18 節（新しい節が足されていれば，それも）
-- `research_notes/` の各フォルダと `reports/` の報告の見出しと要約
-- `paper/reviews/round1/citation-audit.md`（あれば）
+- `research_notes/` の各フォルダと `docs/参照/TAC_reports/` の報告の見出しと要約
+- `docs/参照/TAC_paper/reviews/round1/citation-audit.md`（あれば）
 
 ## MER-DA の設定
 

@@ -1,25 +1,17 @@
-# MER-DA の直下の文書の写し（2026-11-15）
+# 読むだけの資料（2026-11-15）
 
-DAI の設計・台本・検査の報告が引く MER-DA の文書を，DAI だけで読めるように写した．写した時点のコミットは整理のブランチの元（`8fd53fd`）である．
-正本は MER-DA の `docs/` にあり，ここは書き換えない（`seen-data.md` の台帳に行を足すときも MER-DA の `docs/seen-data.md` に足す）．
-
-| 写し | 中身 |
-|---|---|
-| `methods.md` | 実験の手順（9 節が実験の関門と不備の目録） |
-| `seen-data.md` | 設計の判断のために見たデータの台帳 |
-| `related-work.md` | 先行研究と位置づけ |
-| `exploratory-analyses.md` | 探索的な解析の記録（論文の前半の E75〜E80 の設計と結果） |
-| `results.md` | 各主張の状態，結果の作り方（4 節が旧版の結果の作り方） |
-| `researchvision.md` | 研究の目的・決定事項・更新記録 |
-
-## 旧版の論文の執筆フォルダ `DAI_paper/`（2026-11-15 に移した）
-
-MER-DA の直下にあった `DAI_paper/`（2026-10-31〜11-14 の執筆フォルダ）を，中身を変えずにここへ移した（`git mv`）．MER-DA の直下の `DAI_paper` は，古いパスで書かれた文書のためにここを指すリンクである．読むだけで，書き換えない．
+DAI の設計・台本・検査の報告・論文の原稿が引く資料のうち，今は書き足さないものを置く．どれも書き換えない．
 
 | 場所 | 中身 | 読む役 |
 |---|---|---|
+| `DAI_paper/` | 旧版の論文の執筆フォルダ（2026-10-31〜11-14）．MER-DA の直下から中身を変えずに移した（`git mv`）．MER-DA の直下の `DAI_paper` はここへのリンク | |
 | `DAI_paper/docs/venue.md`，`DAI_paper/docs/sources/` | 投稿要項の要約と原文 | 査読想定の役（`dai-review-ml`・`dai-review-affect`），`dai-editor`，論文のセッション |
-| `DAI_paper/参照論文/` | 参照論文の要点のノートと PDF（PDF は git に入れない．一覧は同じフォルダの `README.md`） | 論文のセッション，`paper-citations` |
+| `DAI_paper/参照論文/` | 参照論文の要点のノートと PDF（PDF は出版社に著作権があるので git に入れない．一覧は同じフォルダの `README.md`） | 論文のセッション，`paper-citations` |
 | `DAI_paper/inventory.md` | 実験の棚卸し | `prior-work-diff` |
 | `DAI_paper/reviews/` | 前回の模擬査読と比較の設計の版 | 査読想定の役，`gate-code` |
 | `DAI_paper/steps/`，`DAI_paper/overview/` | 論文の前半の設計（写しは `docs/設計/前半/`）と旧版の概要 | （記録） |
+| `TAC_paper/` | IEEE TAC 向けの旧版の原稿の主張 `CLAIM.md` と模擬査読 `reviews/round1/`（MER-DA の `archive/paper/` から写した．原稿の全体はそちら） | `gate-code`，`dai-review-affect`，`thm-*` |
+| `TAC_reports/` | 旧版の報告（MER-DA の `archive/reports/` から写した） | `thm-*` |
+| `MER-DA_CLAUDE.md` | MER-DA の `CLAUDE.md` の写し（データの取り決め，実験の関門，進め方）．正本は MER-DA の側 | DAI だけを取り出したとき |
+
+2026-11-15 の朝から夕方までここに置いていた MER-DA の文書の写し 6 本（`methods.md`・`seen-data.md`・`related-work.md`・`exploratory-analyses.md`・`results.md`・`researchvision.md`）は，同じ日に正本を `docs/` の直下に移したので消した（写しの中身は正本の古い版で，`researchvision.md` の更新記録の 1 行だけが違った）．
