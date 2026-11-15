@@ -1,0 +1,26 @@
+{
+ "n_rows": 800,
+ "n_units": 200,
+ "grad_max": 9.997577976692418e-07,
+ "n_stalled": 0,
+ "inner_grad_max": 9.99940296640689e-07,
+ "inner_stalled_max": 0,
+ "r0_saved_abs_diff_max": 0.0202593192868789,
+ "r0_saved_n_over_tol": 7,
+ "r0_n_resolved": 7,
+ "r0_uar_diff_tight_abs_max": 0.0093475415965613,
+ "r0_n_near_tie": 4,
+ "r0_near_tie_pred_diff_max": 2,
+ "r0_resolved_abs_diff_max": 0.0202593192868789,
+ "cat_ok": true,
+ "inner_grad_ok": true,
+ "grad_ok": true,
+ "C_chosen_counts": {
+  "0.01": 444,
+  "0.1": 232,
+  "1.0": 74,
+  "10.0": 32,
+  "0.001": 18
+ },
+ "sec_total": 4443.89576292038
+}

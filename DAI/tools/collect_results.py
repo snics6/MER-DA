@@ -19,7 +19,8 @@ DIRS = ["dai1", "dai2", "dai3", "dai11_probe", "dai12_probe", "dai13_probe", "da
         "fixc_map", "fixc_analysis", "fixc_text", "explore_relation", "text30", "map_*", "shift_*", "tgt_scores_*", "transfer_scores_*",
         "mech_*", "interventions_*", "compare_*", "multisource_scores_*",
         # 2026-11-15 夜に MER-DA の直下の results/ から移した，DAI の文書・台本が引く置き場（実験 21 の検算，評価の回の探索，前半の台本 text_cond2 の出力）
-        "dai21_eval5_check18", "explore_fusion", "explore_consensus", "explore_depfusion", "text_cond2_text_roberta"]
+        "dai21_eval5_check18", "explore_fusion", "explore_consensus", "explore_depfusion", "text_cond2_text_roberta",
+        "dai22"]
 HEAVY = {"units", "rows", "rowsA", "students", "reweight", "srcdb", "base", "measure", "code"}
 # 候補ごとの行の大きい表しか無い置き場（E79 の入力）．集計は e79・e79_p4 に入る．git には入れない
 OUTSIDE_ONLY = ("e77_", "e78_", "e80c_")
