@@ -1,0 +1,5 @@
+alone tol=1e-06: |alone-saved|=0.0076 |alone-unit|=0.0000 n_pred_diff_vs_unit=0 grad=8.5e-07
+alone tol=1e-08: |alone-saved|=0.0065 |alone-unit|=0.0141 n_pred_diff_vs_unit=2 grad=1.0e-08
+alone tol=1e-10: |alone-saved|=0.0065 |alone-unit|=0.0141 n_pred_diff_vs_unit=2 grad=9.9e-11
+batch(dai3 names 4) tol=1e-6: |batch-saved|=0.0011 |batch-unit|=0.0065 n_pred_diff_vs_unit=1
+|unit-saved|=0.0076  n_candidates=14907

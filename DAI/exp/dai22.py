@@ -1,4 +1,4 @@
-"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 4 版）．
+"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 5 版）．
 
 本番の評価の回（実験 1．results/dai1/eval）の保存から，融合の生徒 AVT について，K 本だけの分類器の判定 J_none と
 提案の主の版の疑似ラベル J_prop（prop_one）を候補の上で作り直し，J_prop を目標にした線形の識別器の交差の予測を 2 つの読み出しで作る．
@@ -60,6 +60,7 @@ CAT_TOL = 1e-10                                # 融合の特徴と 3 つをつ�
 TOL_DAI1 = 1e-6                                # J_none・J_prop の UAR と実験 1 の p2.csv・p3.csv の uar_pool の差の許し（第 3 版．gate-code の R15．J_prop は第 4 版で p3.csv も見る）
 RESOLVED_SHARE = 0.25                          # コーパスごとに，解き直しで通した R0 の行の割合がこれを超えたら止める（入力の系統的なずれを素通りさせないため．第 3 版．第 4 版でコーパスごと）
 RESOLVED_MIN = 4
+NEAR_TIE_SHARE = 1e-3                          # 厳しくした 2 つの解が互いに同じ予測で，本番の解との違いが候補のこの割合以下なら「境目の発話の入れ替わり」として続ける（第 5 版．本番の 1 回目の MOSEI_f1_r3 で 14,907 本のうち 2 本）
 TOL_PSEUDO = 1e-9
 PROP = "prop_one"                              # 主の版（固定のファイルの main は K = 5・25 とも one．要約の段で確かめる）
 QUANT = ("uar_none", "uar_pseudo", "delta", "uar_imitation_R0", "imitable_R0", "uar_imitation_R1", "imitable_R1", "uar_start")
@@ -87,7 +88,7 @@ def resolve_r0(sv, K: int, qy: np.ndarray, halves, unit_pred: np.ndarray) -> dic
     G = torch.stack([S.balanced_onehot(qy, halves[hh], n) for hh in (0, 1)])
     W0, b0 = u.start[STU]
     cw, cb = sv.teth[(STU, K)]
-    out = {}
+    out, preds = {}, {}
     for tol in TOL_RESOLVE:
         res = S.fit(u.Xp[STU], G, W0, b0, Cw=cw, Cb=cb, tol=tol, max_iter=200000)
         out[f"n_iter_tol{tol:g}"] = int(res["n_iter"]); out[f"stalled_tol{tol:g}"] = int(np.sum(res["stalled_p"]))
@@ -97,6 +98,8 @@ def resolve_r0(sv, K: int, qy: np.ndarray, halves, unit_pred: np.ndarray) -> dic
             full[halves[1 - hh]] = pr[hh][halves[1 - hh]]
         out[f"n_pred_diff_tol{tol:g}"] = int((full != unit_pred).sum())
         out[f"grad_tol{tol:g}"] = float(res["grad_p"].max())
+        preds[tol] = full
+    out["n_pred_diff_tight"] = int((preds[TOL_RESOLVE[0]] != preds[TOL_RESOLVE[1]]).sum())   # 厳しくした 2 つの解どうしの違い
     return out
 
 
@@ -178,7 +181,10 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         extra = dict(tol_resolved=False)
         if diff > TOL_REPRO:                                          # 解き直して単位の予測と同じなら，ずれは保存の側とみなして続ける
             extra = resolve_r0(sv, K, qy, halves, full)
-            extra["tol_resolved"] = all(extra[f"n_pred_diff_tol{t:g}"] == 0 for t in TOL_RESOLVE)
+            same = all(extra[f"n_pred_diff_tol{t:g}"] == 0 for t in TOL_RESOLVE)
+            near = (extra["n_pred_diff_tight"] == 0 and max(extra[f"n_pred_diff_tol{t:g}"] for t in TOL_RESOLVE) <= NEAR_TIE_SHARE * n)
+            extra["tol_resolved"] = bool(same or near)
+            extra["resolve_kind"] = "same" if same else ("near_tie" if near else "differ")
             print(f"{base.name}：K={K} の R0 が実験 3 の保存と {diff:.4f} 違う．解き直しの予測の違い "
                   + "，".join(f"{t:g}: {extra[f'n_pred_diff_tol{t:g}']}" for t in TOL_RESOLVE), flush=True)
         rows.append(dict(T=T, fold=f, seed=r, K=K, readout="R0", target=main, agree_halfmean=ag, agree_saved=float(sv_row.agree.iloc[0]),
@@ -365,6 +371,9 @@ def stage_summary(out: Path, targets: list) -> None:
                   n_stalled=int(CV.stalled.astype(str).eq("True").sum()), inner_grad_max=float(r1.inner_grad.max()),
                   inner_stalled_max=int(r1.inner_stalled.max()), r0_saved_abs_diff_max=float(r0.abs_diff.max()),
                   r0_saved_n_over_tol=int((r0.abs_diff > TOL_REPRO).sum()), r0_n_resolved=n_res,
+                  r0_n_near_tie=(int(r0.resolve_kind.astype(str).eq("near_tie").sum()) if "resolve_kind" in r0 else 0),
+                  r0_near_tie_pred_diff_max=(int(r0[r0.resolve_kind.astype(str).eq("near_tie")][[f"n_pred_diff_tol{t:g}" for t in TOL_RESOLVE]].max().max())
+                                             if "resolve_kind" in r0 and r0.resolve_kind.astype(str).eq("near_tie").any() else 0),
                   r0_resolved_abs_diff_max=(float(r0[r0.tol_resolved.astype(str).eq("True")].abs_diff.max()) if n_res else 0.0),
                   cat_ok=bool(float(r0.cat_max_abs_diff.max()) <= CAT_TOL),
                   inner_grad_ok=bool(float(r1.inner_grad.max()) <= 1e-5), grad_ok=bool(float(CV.grad.max()) <= 1e-5),
@@ -453,7 +462,7 @@ def main() -> None:
                 host=platform.node(), gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""),
                 python=platform.python_version(), torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, scipy=scipy.__version__,
                 scripts=script_shas(), design_sha256=D14.sha(DESIGN), dai1_frozen_sha256=fz1_sha, repro_saved_sha256=D14.sha(REPRO_SAVED),
-                cond14_sha256=D14.sha(COND14), dai14_provenance_sha256=D14.sha(OUT14 / "provenance.json"), tol_repro=TOL_REPRO, tol_resolve=TOL_RESOLVE, clamp=CLAMP, tie=TIE, cat_tol=CAT_TOL, tol_dai1=TOL_DAI1,
+                cond14_sha256=D14.sha(COND14), dai14_provenance_sha256=D14.sha(OUT14 / "provenance.json"), tol_repro=TOL_REPRO, tol_resolve=TOL_RESOLVE, clamp=CLAMP, tie=TIE, near_tie_share=NEAR_TIE_SHARE, cat_tol=CAT_TOL, tol_dai1=TOL_DAI1,
                 resolved_share=RESOLVED_SHARE, resolved_min=RESOLVED_MIN, tol_pseudo=TOL_PSEUDO, mem_frac=MEM_FRAC, encoder=dai1.ENC["enc"],
                 KS=KS, student=STU, grid_c=GRID_C, cb_r1=D14.CB_R1, dim_r1=D14.DIM_R1, edge_share=EDGE_SHARE, rng_seed=RNG_SEED,
                 n_boot=ST.N_BOOT, min_n=ST.MIN_TEST)
