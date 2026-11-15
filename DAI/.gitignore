@@ -1,10 +1,10 @@
 # DAI の直下を git の根にしたとき（GitHub に DAI だけを上げたとき）の除外．MER-DA の中では MER-DA の .gitignore も効く．
-.venv/
+.venv
 __pycache__/
 *.py[cod]
 *:Zone.Identifier
 logs/
-weights/
+weights
 data/cache/*
 !data/cache/faces_*.csv.gz
 
