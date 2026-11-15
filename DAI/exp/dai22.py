@@ -99,6 +99,7 @@ def resolve_r0(sv, K: int, qy: np.ndarray, halves, unit_pred: np.ndarray) -> dic
         out[f"n_pred_diff_tol{tol:g}"] = int((full != unit_pred).sum())
         out[f"grad_tol{tol:g}"] = float(res["grad_p"].max())
         preds[tol] = full
+    out["_pred_tight"] = preds[TOL_RESOLVE[0]]                         # 10⁻⁸ の解の交差の予測（npz に残す．第 5 版の 2 回目．review_ml_v5 の m2）
     out["n_pred_diff_tight"] = int((preds[TOL_RESOLVE[0]] != preds[TOL_RESOLVE[1]]).sum())   # 厳しくした 2 つの解どうしの違い
     return out
 
@@ -182,7 +183,11 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         if diff > TOL_REPRO:                                          # 解き直して単位の予測と同じなら，ずれは保存の側とみなして続ける
             extra = resolve_r0(sv, K, qy, halves, full)
             same = all(extra[f"n_pred_diff_tol{t:g}"] == 0 for t in TOL_RESOLVE)
-            near = (extra["n_pred_diff_tight"] == 0 and max(extra[f"n_pred_diff_tol{t:g}"] for t in TOL_RESOLVE) <= NEAR_TIE_SHARE * n)
+            near = (extra["n_pred_diff_tight"] == 0 and max(extra[f"n_pred_diff_tol{t:g}"] for t in TOL_RESOLVE) <= NEAR_TIE_SHARE * n
+                    and diff * n / 100 <= max(2, NEAR_TIE_SHARE * n))         # 保存との差も判定数本ぶんまで（review_ml_v5 の m1）
+            pt = extra.pop("_pred_tight")
+            arr[f"K{K}__R0_tight"] = pt.astype(np.int8)
+            extra["uar_diff_tight_vs_unit"] = float(100 * S.uar(y[nk], pt[nk]) - 100 * S.uar(y[nk], full[nk]))   # 基準の選び方で UAR が動いた幅（K 本を除いた候補）
             extra["tol_resolved"] = bool(same or near)
             extra["resolve_kind"] = "same" if same else ("near_tie" if near else "differ")
             print(f"{base.name}：K={K} の R0 が実験 3 の保存と {diff:.4f} 違う．解き直しの予測の違い "
@@ -371,6 +376,7 @@ def stage_summary(out: Path, targets: list) -> None:
                   n_stalled=int(CV.stalled.astype(str).eq("True").sum()), inner_grad_max=float(r1.inner_grad.max()),
                   inner_stalled_max=int(r1.inner_stalled.max()), r0_saved_abs_diff_max=float(r0.abs_diff.max()),
                   r0_saved_n_over_tol=int((r0.abs_diff > TOL_REPRO).sum()), r0_n_resolved=n_res,
+                  r0_uar_diff_tight_abs_max=(float(r0.uar_diff_tight_vs_unit.abs().max()) if "uar_diff_tight_vs_unit" in r0 and r0.uar_diff_tight_vs_unit.notna().any() else 0.0),
                   r0_n_near_tie=(int(r0.resolve_kind.astype(str).eq("near_tie").sum()) if "resolve_kind" in r0 else 0),
                   r0_near_tie_pred_diff_max=(int(r0[r0.resolve_kind.astype(str).eq("near_tie")][[f"n_pred_diff_tol{t:g}" for t in TOL_RESOLVE]].max().max())
                                              if "resolve_kind" in r0 and r0.resolve_kind.astype(str).eq("near_tie").any() else 0),
