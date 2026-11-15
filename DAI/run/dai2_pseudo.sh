@@ -4,7 +4,7 @@
 # 実験 1 の置き場に source/，pseudo/<T>_tether_w.json，pseudo/units/<T>_*_p1.npz があること．
 # 線形の手法（dai2.py）と勾配法の手法・CORAL（dai2_grad.py）を分割ごとに並べる．どれかが失敗したら logs/dai2_<T>.failed を書く．
 set -u
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 T=$1
 OUT=${2:-results/dai2}
 D1=${3:-results/dai1}

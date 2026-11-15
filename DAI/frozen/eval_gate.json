@@ -163,7 +163,7 @@
     "path": "run/dai_eval.sh",
     "old_path": "DAI/run/dai_eval.sh",
     "old_sha256": "0a4ff6fc7016e1538860b45f4538ccb1ae494700550c418cf750559c43b1c552",
-    "new_sha256": "ae17710a88884b4d599bad7fed6cca5ba96f8fc431673bed77901797360f45db"
+    "new_sha256": "7bc0bf6bfd71ea854d457ce855003637ef547e3db4dcfd9d1b17b2058d69c397"
    },
    {
     "path": "run/eval_procedure.md",
@@ -198,7 +198,7 @@
   "frozen/dai1_frozen.json": "6926fb3e12638dd946ddfda8a260a33f089a400094ebdefdf37132fa1329dfdc",
   "exp/dai2_stats.py": "102ef1d492051055706b2c5b009b96bdfdf2a8aeadd14d0fafbe3354f2098a5a",
   "exp/dai1_desc.py": "446d5121bc7d968bbad59e2d34f4617a81b07f012710faef842270e5acb1e50a",
-  "run/dai_eval.sh": "ae17710a88884b4d599bad7fed6cca5ba96f8fc431673bed77901797360f45db",
+  "run/dai_eval.sh": "7bc0bf6bfd71ea854d457ce855003637ef547e3db4dcfd9d1b17b2058d69c397",
   "run/eval_procedure.md": "947d92c2ab4f838f1a62ae76c02f677d499ed6e7e992767262132aa425a89360",
   "checks/DAI-1/code_v6.md": "96b60cfa038cd289a91dd9da44dbde8d2d5e9818c8595b679f05379d1eaf79fd",
   "checks/DAI-1/compare_v5.md": "8b339bd85ddb3a3f763b90a0a967ec925bf7971a7273fb7ffb535bf9045d823e",

@@ -26,11 +26,27 @@ results/*
 slides/*/build/
 slides/*/*.pdf
 
-# 検査役の試走の出力（報告の md は checks/<実験>/ の直下）
-checks/*/code_run*/
-checks/*/review_*_run*/
-checks/*/review_*_sim*/
-checks/*/claim_run*/
-checks/*/post_run*/
-checks/*/post_tools_run*/
-archive/checks/*/code_run*/
+# 検査役の試走の出力：データ（npz・csv など）は git に入れない．試走の台本と報告（.py・.md・.sh・.diff）は入れる
+checks/**/*.npz
+checks/**/*.npy
+checks/**/*.pkl
+checks/**/*.pt
+checks/**/*.gz
+archive/checks/**/*.npz
+archive/checks/**/*.npy
+archive/checks/**/*.pkl
+checks/*/code_run*/**/*.csv
+checks/*/code_run*/**/*.json
+checks/*/code_run*/**/*.txt
+checks/*/code_run*/**/*.log
+checks/*/*_sim*/**/*.csv
+checks/*/*_sim*/**/*.json
+checks/*/*_sim*/**/*.txt
+checks/*/post_run*/**/*.csv
+checks/*/post_run*/**/*.json
+checks/*/post_run*/**/*.txt
+checks/*/post_tools_run*/**/*.csv
+checks/*/post_tools_run*/**/*.json
+checks/*/post_tools_run*/**/*.txt
+# 計算の後の解析の台本が照合に読む小さい表（tools/dai21_posthoc_cremad_sentence.py）
+!checks/DAI-21/post_tools_run/kshot_ieo_counts.csv

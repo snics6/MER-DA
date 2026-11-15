@@ -16,7 +16,7 @@
 # 起動のたびに前の .done・.failed を消す．ログは追記する（前の失敗の記録を残す）．
 set -u
 [ "${BASH_VERSINFO[0]}${BASH_VERSINFO[1]}" -ge 51 ] 2>/dev/null || { echo "bash 5.1 以上が要る（wait -n -p）．今は $BASH_VERSION"; exit 1; }
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 E=$1
 T=$2
 PY=${PY:-python}

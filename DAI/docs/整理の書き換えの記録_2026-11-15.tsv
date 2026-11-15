@@ -212,3 +212,15 @@ DAI/tools/extract_dai18_text.py	restored to original (historical tool; reads git
 DAI/tools/extract_dai20_text.py	restored to original (historical tool; reads git history at old placement)	1
 DAI/tools/extract_dai21_text.py	restored to original (historical tool; reads git history at old placement)	1
 DAI/tools/rebuild_explain_pdf_2026-11-14.py	restored to original (historical tool; reads git history at old placement)	1
+DAI/run/dai1_pseudo.sh	manual: cd "$(dirname "$0")/../.." -> cd "$(dirname "$0")/.." (DAI root; gate-code code_static 1)	1
+DAI/run/dai2_pseudo.sh	manual: cd "$(dirname "$0")/../.." -> cd "$(dirname "$0")/.." (DAI root; gate-code code_static 1)	1
+DAI/run/dai_eval.sh	manual: cd "$(dirname "$0")/../.." -> cd "$(dirname "$0")/.." (DAI root; gate-code code_static 1)	1
+DAI/run/e77.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/e77b.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/e77h.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/e78.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/e78b.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/e78h.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/dai14_run.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/run/dai15_run.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
+DAI/tools/latex_tables_dai16_17.py	manual: docstring path docs/説明/ (gate-code code_static 14)	1

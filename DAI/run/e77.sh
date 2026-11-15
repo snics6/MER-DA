@@ -3,6 +3,7 @@
 # 設計：docs/参照/exploratory-analyses.md E77．終わると logs/e77.done を書く．
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=./.venv/bin/python
 stream1() {
   $PY exp/compare_dai.py --world fuse-audio-video-text --gpu-fraction 0.4 >> logs/e77_avt.log 2>&1 || echo "失敗 AVT $?" >> logs/e77_fail.log

@@ -1,5 +1,5 @@
 """実験 16・17 の K = 5・10・25 の結果を，研究者が示した形の LaTeX の表に書き出す（結果ファイルを読むだけ）．
-出力：docs/説明_実験16・17_結果の表.tex（説明の資料から \\input する）"""
+出力：docs/説明/説明_実験16・17_結果の表.tex（説明の資料から \\input する）"""
 import re
 import pandas as pd
 _ROOT = str(__import__("pathlib").Path(__file__).resolve().parents[1])   # DAI の直下（整理 2026-11-15）

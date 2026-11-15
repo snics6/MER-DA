@@ -1,5 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=.venv/bin/python
 $PY exp/dai15.py --stage pseudo > logs/dai15_pseudo.log 2>&1 || { echo FAIL_PSEUDO > logs/dai15.fail; exit 1; }
 $PY exp/dai15.py --stage select > logs/dai15_select.log 2>&1 || { echo FAIL_SELECT > logs/dai15.fail; exit 1; }

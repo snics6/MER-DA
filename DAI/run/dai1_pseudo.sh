@@ -4,7 +4,7 @@
 # 段 1（分割ごとに 5 本並べる）→ 段 2（全単位．引き戻しと指数を選んで tether_w.json）→ 段 3（分割ごとに 5 本）．
 # どれかの処理が失敗したら止まり，logs/dai1_<T>.failed を書く．
 set -u
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 T=$1
 OUT=${2:-results/dai1}
 PY=${PY:-python}

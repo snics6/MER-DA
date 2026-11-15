@@ -3,6 +3,7 @@
 # run/e78.sh の 2 本並列は，E77 で GPU のメモリの合計が上限に近づき遅くなったので使わない（2026-11-01）．終わると logs/e78.done を書く．
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=./.venv/bin/python
 until [ -f logs/e77.done ]; do sleep 300; done
 date "+開始 %F %T" > logs/e78b.started

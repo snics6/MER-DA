@@ -3,6 +3,7 @@
 # 引数は流れの番号 1〜3．AVT・AV の世界を先に，種類を後に回す．終わると logs/e78h_<番号>.done を書く．
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=./.venv/bin/python
 F="--ks 0 5 25 --copy-pseudo --methods dann mme mapctl xmuda coral --gpu-fraction 0.22"
 run() { name=$1; shift; $PY exp/compare_dai2.py "$@" $F >> logs/e78h_${name}.log 2>&1 || echo "失敗 $name $* $?" >> logs/e78h_fail.log; }

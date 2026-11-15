@@ -3,6 +3,7 @@
 # 引数は流れの番号 1〜3．比べの中心の AVT・AV の世界を先に，筋 4 の判定に使う種類を後に回す．終わると logs/e77h_<番号>.done を書く．
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=./.venv/bin/python
 F="--ks 0 5 25 --copy-pseudo --coreg-eval-only --nc-seeds 1 2 --gpu-fraction 0.22"
 run() { name=$1; shift; $PY exp/compare_dai.py "$@" $F >> logs/e77h_${name}.log 2>&1 || echo "失敗 $name $* $?" >> logs/e77h_fail.log; }

@@ -3,6 +3,7 @@
 # 設計：docs/参照/exploratory-analyses.md E78．終わると logs/e78.done を書く．
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=./.venv/bin/python
 until [ -f logs/e77.done ]; do sleep 120; done
 stream1() {

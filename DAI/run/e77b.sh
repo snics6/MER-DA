@@ -3,6 +3,7 @@
 # GPU のメモリの合計が上限の 24 GB に近づき，WSL2 で 5〜10 倍遅くなっていたため．各 GPU メモリの 50%）．終わると logs/e77.done を書く．
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p logs
 PY=./.venv/bin/python
 date "+開始 %F %T" > logs/e77b.started
 for arg in "--world fuse-audio-video-text" "--world fuse-audio-video" "--kind text_roberta" "--kind video" "--kind audio_wavlm"; do

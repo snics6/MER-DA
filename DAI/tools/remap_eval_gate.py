@@ -20,8 +20,9 @@ def sha(p: Path) -> str:
 
 def main():
     old = json.load(open(GATE, encoding="utf-8"))
-    if "before_reorg" in old.get("_meta", {}):
-        raise SystemExit("既に作り直してある")
+    if "before_reorg" in old.get("_meta", {}):                       # 作り直した後に台本を直したときは，元の鍵から作り直す
+        meta0 = {k: v for k, v in old["_meta"].items() if k not in ("before_reorg", "changed_after_gate", "reorg_note")}
+        old = {"_meta": meta0, **old["_meta"]["before_reorg"]}
     m = {}
     with open(MAP, encoding="utf-8") as fh:
         for r in csv.DictReader(fh, delimiter="\t"):
