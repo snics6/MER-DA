@@ -26,6 +26,8 @@ from scipy import stats as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "exp"))
 import dai1  # noqa: E402
+import dai_data as DD  # noqa: E402
+import dai_solver as S  # noqa: E402
 
 TM = ROOT / "results" / "dai1" / "stats" / "teacher_margin.csv"
 DESC14 = ROOT / "results" / "dai14" / "summary" / "descriptive.csv"
@@ -50,6 +52,30 @@ def main() -> None:
     m = tm.merge(w, on=["T", "K", "student", "teacher"], how="left")
     if m[["R", "D"]].isna().any().any() or len(m) != 48:
         raise SystemExit(f"結びつけられない点がある（{len(m)} 点，欠け {int(m[['R', 'D']].isna().any(axis=1).sum())}）")
+    # 検査の 2：margin と同じ K 本を除いた候補の上で R と D を作り直す（実験 14 の単位の保存の予測から．学び直さない）．R1 と R0 の両方
+    import json
+    frozen = json.load(open(ROOT / "results" / "dai1" / "select" / "frozen.json"))
+    nk_vals = []
+    for _, r in m.iterrows():
+        vals = {ro: [] for ro in ("R1", "R0")}
+        for f in range(DD.N_FOLDS):
+            for rr in range(int(frozen[r.T]["n_seeds_eval"])):
+                a = np.load(ROOT / "results" / "dai14" / "units" / f"{r.T}_f{f}_r{rr}.npz", allow_pickle=False)
+                nk = a[f"nk__K{r.K}"].astype(bool)
+                for ro in ("R1", "R0"):
+                    def uar(ver):
+                        tg = a[f"tgt__K{r.K}__{r.teacher}__{ver}"][nk].astype(int)
+                        pr = a[f"K{r.K}__main__{ro}__{r.student}__{r.teacher}__{ver}"][nk].astype(int)
+                        return 100.0 * S.uar(tg, pr)
+                    vals[ro].append((uar("true"), uar("true") - uar("shufcl")))
+        nk_vals.append({f"R_nk_{ro}": float(np.mean([v[0] for v in vals[ro]])) for ro in vals} |
+                       {f"D_nk_{ro}": float(np.mean([v[1] for v in vals[ro]])) for ro in vals})
+    m = pd.concat([m.reset_index(drop=True), pd.DataFrame(nk_vals)], axis=1)
+    # 検査の 1：入れ替えで目標が変わった割合の平均が 0.40 未満の点（D が作りの上で 0 に寄る．実験 14 の assumptions.csv）
+    asm = pd.read_csv(ROOT / "results" / "dai14" / "summary" / "assumptions.csv")
+    fr = asm[(asm.kind == "frac_changed") & (asm.version == "shufcl")][["T", "K", "target", "frac_mean"]].rename(columns={"target": "teacher"})
+    m = m.merge(fr, on=["T", "K", "teacher"], how="left")
+    m["frac_low"] = m.frac_mean < 0.40
     # margin で説明しきれない gain の部分（K ごとの最小二乗の残り．記述）
     m["gain_resid"] = np.nan
     for K, x in m.groupby("K"):
@@ -58,9 +84,22 @@ def main() -> None:
     cm, dt = dai1.git_commit()
     m.assign(commit=cm, dirty=dt).to_csv(sdir / "teacher_imitability.csv", index=False)
     rows = []
-    for K, x in list(m.groupby("K")) + [("all", m)]:
+    sets = [(K, "all_points", x) for K, x in list(m.groupby("K")) + [("all", m)]] + \
+           [(K, "frac_ok", x[~x.frac_low]) for K, x in list(m.groupby("K")) + [("all", m)]]
+    for K, sub, x in sets:
         pos = x[x.margin > 0]
-        rows.append(dict(K=K, n=len(x), n_margin_pos=len(pos),
+        # 検査の 3：（コーパス，K，生徒）の中で 2 つの先生を比べる（D_nk_R1 の大小と gain・残りの大小がそろうか）
+        agree_gain = agree_resid = npair = 0
+        for _, g in x.groupby(["T", "K", "student"]):
+            if len(g) != 2:
+                continue
+            npair += 1
+            dD = g.D_nk_R1.iloc[0] - g.D_nk_R1.iloc[1]
+            agree_gain += int(np.sign(dD) == np.sign(g.gain.iloc[0] - g.gain.iloc[1]))
+            agree_resid += int(np.sign(dD) == np.sign(g.gain_resid.iloc[0] - g.gain_resid.iloc[1]))
+        rows.append(dict(K=K, subset=sub, n=len(x), n_margin_pos=len(pos), n_pairs=npair, pairs_D_gain_agree=agree_gain, pairs_D_resid_agree=agree_resid,
+                         spearman_gain_Dnk=float(st.spearmanr(x.D_nk_R1, x.gain).statistic) if len(x) > 2 else np.nan,
+                         spearman_resid_Dnk=float(st.spearmanr(x.D_nk_R1, x.gain_resid).statistic) if len(x) > 2 else np.nan,
                          spearman_gain_margin=float(st.spearmanr(x.margin, x.gain).statistic),
                          spearman_gain_D=float(st.spearmanr(x.D, x.gain).statistic),
                          spearman_resid_D=float(st.spearmanr(x.D, x.gain_resid).statistic),
