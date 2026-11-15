@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "results"
 DIRS = ["dai1", "dai2", "dai3", "dai11_probe", "dai12_probe", "dai13_probe", "dai14", "dai15", "dai16_probe", "dai16_probe_k10",
-        "dai17_probe", "dai17_probe_k10", "dai18_probe", "dai20_eval", "dai21_eval5",
+        "dai17_probe", "dai17_probe_k10", "dai18_probe", "dai20_eval", "dai21_eval5", "dai23",
         "e75", "e76", "e76_analysis", "e77_audio_wavlm", "e77_video", "e77_text_roberta", "e77_fuse-audio-video", "e77_fuse-audio-video-text",
         "e78_audio_wavlm", "e78_video", "e78_text_roberta", "e78_fuse-audio-video", "e78_fuse-audio-video-text", "e80",
         "e80c_fuse-audio-video", "e80c_fuse-audio-video-text", "e79", "e79_p4",
