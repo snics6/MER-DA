@@ -1,7 +1,7 @@
 """【再解析】E75（DAI 論文のステップ 1）：TAC 版の模擬査読 1 回目の指摘のうち，筋 1〜3 について保存済みの結果から
 学び直しをせずに CPU で出せるものをまとめて計算する。新しい学習はしない（GPU は使わない）。
 
-設計は `docs/参照/exploratory-analyses.md` の「## E75．」の節（関門 1 の指摘を受けて直した版）。
+設計は `docs/exploratory-analyses.md` の「## E75．」の節（関門 1 の指摘を受けて直した版）。
 項目（括弧は答える指摘．ML = `paper/reviews/round1/review-ml.md`，感 = `review-affect.md`）
 
   1  地図の区間を依存に合わせて作り直す：補正した resampled t と，IEMOCAP の話者でつないだテストの単位の t（ML Major-1，感 Minor-1）
@@ -1819,7 +1819,7 @@ def main() -> int:
     ctx = Ctx(a)
     started = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     gs = git_state()
-    code_dir = M.snapshot_code(out, started)                      # 台本と部品の写しと git diff HEAD（docs/参照/methods.md 6.3 節）
+    code_dir = M.snapshot_code(out, started)                      # 台本と部品の写しと git diff HEAD（docs/methods.md 6.3 節）
     ctx.header = {"script": "exp/reanalysis_e75.py", "started": started, "commit": gs["commit"], "dirty": gs["dirty"],
                   "script_status": gs["script_status"], "script_sha256": gs["script_sha256"], "argv": sys.argv[1:],
                   "seed": a.seed}

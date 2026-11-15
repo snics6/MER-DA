@@ -27,7 +27,7 @@ RESULTS = ROOT / "results"                                   # 入力はここ�
 OUT_ROOT = Path(os.environ["MERDA_OUT_ROOT"]) if os.environ.get("MERDA_OUT_ROOT") else RESULTS
 OUT = OUT_ROOT / "explore_relation"
 # 地図の場所．既定は results/map_<kind>/．MERDA_MAP_ROOT を指定すると <MERDA_MAP_ROOT>/<kind>/
-# （C を固定した地図 results/fixc_map など．`docs/参照/researchvision.md` 6.2 節，2026-10-09）
+# （C を固定した地図 results/fixc_map など．`docs/researchvision.md` 6.2 節，2026-10-09）
 MAP_ROOT = Path(os.environ["MERDA_MAP_ROOT"]) if os.environ.get("MERDA_MAP_ROOT") else None
 
 

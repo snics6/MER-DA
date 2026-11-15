@@ -1,6 +1,6 @@
 """【本番の追加】E80 段 c（GPU）：kept.csv で残した教師のうち，E77 に行が無い教師の dist・kd・kdh・teacher の行を，E77 と同じ形で足す。
 
-設計の正本は `docs/参照/exploratory-analyses.md` の E80 の節の「関門（gate-probe…）を受けた書き直し」（段 c の作り方，P5-1 の情報をそろえる）と
+設計の正本は `docs/exploratory-analyses.md` の E80 の節の「関門（gate-probe…）を受けた書き直し」（段 c の作り方，P5-1 の情報をそろえる）と
 「E80 の段 c の設計」．関門の求めは `checks/E79/compare.md` の追記の指摘 4，`checks/E80/code.md`・`checks/E80/probe.md` の段 c の項。
 
 対象：kept.csv（--kept）で keep が真の（世界, T, 生徒, 教師, K）のうち，

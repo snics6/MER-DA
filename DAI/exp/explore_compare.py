@@ -1,6 +1,6 @@
 """【探索的】E31：論文 2 の比較実験の解析（設定の選び方 3 規則，主な比較，予言 R1〜R11 のうち段 1 で判定できるもの）。新しい学習なし。
 
-規則は `docs/参照/exploratory-analyses.md` E31「段 1 の解析の細部」。入力は `results/compare_<kind>/*.csv`，
+規則は `docs/exploratory-analyses.md` E31「段 1 の解析の細部」。入力は `results/compare_<kind>/*.csv`，
 地図（`results/map_<kind>/`：ターゲットのみ・ソースのみ・合併の C の交差検証，`results/fixc_map/<kind>/`：C を固定した合併）。
 
     ./.venv/bin/python exp/explore_compare.py [--kinds …]

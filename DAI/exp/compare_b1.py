@@ -1,4 +1,4 @@
-"""E31 段 1：論文 2 の比較実験（GPU）。設計は `docs/参照/researchvision.md` 3.8 節，実装の細部は `docs/参照/exploratory-analyses.md` E31。
+"""E31 段 1：論文 2 の比較実験（GPU）。設計は `docs/researchvision.md` 3.8 節，実装の細部は `docs/exploratory-analyses.md` E31。
 
 手法：P1〜P3（1 ソースの仮説転移．中心合わせ 2 × 罰則 C′ 4 × 切片 3），P4（全ソースの下書きの仮説転移．同じ 24 設定），
 H3（帰納の中心合わせ＋合併），O1（重みつき合併．α 5 通り），O6（最近傍セントロイド．3 通り），O7（メタ初期値）。

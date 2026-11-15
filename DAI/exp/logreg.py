@@ -1,4 +1,4 @@
-"""多クラスのロジスティック回帰を GPU で解く（`exp/map.py` の学習器。`docs/参照/methods.md` 1.2）。
+"""多クラスのロジスティック回帰を GPU で解く（`exp/map.py` の学習器。`docs/methods.md` 1.2）。
 
 sklearn の `LogisticRegression(C=C, class_weight="balanced")`（lbfgs，多クラス，L2，切片あり）
 と**同じ目的関数**を，学習データで標準化した特徴の上で解く：
@@ -19,7 +19,7 @@ b は全クラスに同じ数を足しても出力が変わらないので，そ
 - `fit`：1 問ずつ torch の L-BFGS で解く。**比べる相手**（`exp/test_map.py`）
 - `fit_batch`：同じ特徴行列の上の多数の問（学習に使う行の組 × C）を**束ねて一度に解く**。
   1 反復の時間がデータの大きさにほぼ依らず，GPU を呼ぶ手間が支配的だったため
-  （`docs/参照/researchvision.md` 6.3 の計測）。各問は自分の履歴・歩幅・止める判定を持ち，
+  （`docs/researchvision.md` 6.3 の計測）。各問は自分の履歴・歩幅・止める判定を持ち，
   **互いに影響しない**。止まった問は動かさない。直線探索は Armijo 条件の後退法
 """
 

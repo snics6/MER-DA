@@ -7,13 +7,13 @@
 
 - `pairs.csv`：組（ターゲット，ソース）× K ごとに，終わった反復の数，UAR の平均と 95% 区間
   （ターゲットのみ・ソースのみ・合併），合併 − ターゲットのみ の差の平均と 95% 区間。
-  区間は**同じ反復どうしの対の差の t 区間**（`docs/参照/researchvision.md` 6.2）。
+  区間は**同じ反復どうしの対の差の t 区間**（`docs/researchvision.md` 6.2）。
   反復ごとの UAR の t 区間は「抽出と分割の揺れ」だけを表す（話者を集め直す揺れは含まない）
-- `kstar.csv`：組ごとの K*＝差の 95% 区間の下端が 0 を上回る**最大の** K（`docs/参照/methods.md` 2.4）。
+- `kstar.csv`：組ごとの K*＝差の 95% 区間の下端が 0 を上回る**最大の** K（`docs/methods.md` 2.4）。
   どの K でも上回らなければ `none`。**反復が 30 回そろっていない組は `provisional`**。
   **反復が 2 回未満の組は区間が作れないので `na`（状態 `single_rep`）**。
   **IEMOCAP がターゲットの組は区間の計算法が未決**（テスト話者の組み合わせが 5・7 通りしかなく，
-  30 回は独立でない。`docs/参照/researchvision.md` 7 節）なので `iemocap_interval_undecided` と書く
+  30 回は独立でない。`docs/researchvision.md` 7 節）なので `iemocap_interval_undecided` と書く
 - `c_rule.csv`：作り方 × K ごとの，C の決まり方（cv / tie / fixed）の割合
 - `fig_<ターゲット>.png`：ソースごとの小さな図。横軸 K，縦軸 UAR（誤差棒は 95% 区間）
 - `fig_gain.png`：合併 − ターゲットのみ の差（UAR の点．行＝ターゲット，列＝ソース，K ごと）。

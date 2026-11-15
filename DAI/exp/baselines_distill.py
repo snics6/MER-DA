@@ -1,6 +1,6 @@
 """【探索的】E61（GPU）：E59・E60 の比べる相手——標準の半教師あり学習・蒸留・共訓練・出力の補正を，同じ生徒・同じ K・同じ仮のターゲットの選び方で測る。
 
-規則は `docs/参照/exploratory-analyses.md` E61（設計と予言は計算の前に書いた）。生徒・K ∈ {0, 1, 5, 10, 25}・反復 0〜9・候補・中心は，
+規則は `docs/exploratory-analyses.md` E61（設計と予言は計算の前に書いた）。生徒・K ∈ {0, 1, 5, 10, 25}・反復 0〜9・候補・中心は，
 --kind（同じモダリティ．A・V・T）では E59 の追加，--world（融合の 4 世界）では E60 と同じ．相手のつまみは K ごとに，T のソースを 1 つずつ
 仮のターゲットにして選ぶ（反復 0〜4．「none（何もしない）」も候補）．固定版（文献の既定値）とオラクル（テストで最良）は判定で出す．
   none    ：E39（K 本だけで学び直す．K=0 は出発点）
@@ -543,7 +543,7 @@ def analyze(names=None, results=None, out_rel=None, suffix="") -> int:
     r = R.set_index(["setting", "student", "K"])
     for c in ("B1", "B2", "B3", "B4", "B5", "B7"):
         R[c] = pd.Series(np.nan, index=R.index, dtype=object)                    # 真偽と NaN を混ぜるので object にしておく
-    for name in names:                                                            # 予言 B1〜B7（docs/参照/exploratory-analyses.md E61）
+    for name in names:                                                            # 予言 B1〜B7（docs/exploratory-analyses.md E61）
         if name in WORLDS:
             for student in WORLDS[name] + [name]:
                 if (name, student, "5") not in r.index:

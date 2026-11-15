@@ -1,4 +1,4 @@
-"""【本番】E77（GPU）：DAI 論文の比較実験の第 1 波（`docs/設計/前半/proposal_v8.md`．設計は `docs/参照/exploratory-analyses.md` E77）。
+"""【本番】E77（GPU）：DAI 論文の比較実験の第 1 波（`DAI_paper/reviews/comparison-design/proposal_v8.md`．設計は `docs/exploratory-analyses.md` E77）。
 
 第 1 波は，E39 の学習器（`baselines_distill.Prob`）の束ねた解き方で解ける手法と，学習しない手法を回す．確率的な勾配法の手法
 （DANN・MME・xMUDA 型・Co-teaching）と CORAL は第 2 波（別の台本）で回す．選択（仮のターゲットで K ごとに選ぶ）と判定は

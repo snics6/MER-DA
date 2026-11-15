@@ -1,7 +1,7 @@
 """【本番】E79（CPU）：DAI 論文の比較実験の判定の解析（ステップ 4）。
 
-設計は `docs/設計/前半/step4_design.md`（関門 1 の後に `docs/参照/exploratory-analyses.md` の E79 に写す）．正本の比較の設計は
-`docs/設計/前半/proposal_v8.md`．入力は E77（`exp/compare_dai.py`）と E78（`exp/compare_dai2.py`）の出力で，
+設計は `DAI_paper/steps/step4_design.md`（関門 1 の後に `docs/exploratory-analyses.md` の E79 に写す）．正本の比較の設計は
+`DAI_paper/reviews/comparison-design/proposal_v8.md`．入力は E77（`exp/compare_dai.py`）と E78（`exp/compare_dai2.py`）の出力で，
 この台本は学び直しをしない．GPU を使わない（起動の最初に CUDA_VISIBLE_DEVICES を空にする）。
 
 段（--stage．この順に流す．各段の出力は `--out/<段>/` に書き，既にあれば止まる）

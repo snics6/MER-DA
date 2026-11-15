@@ -1,6 +1,6 @@
 """E76（DAI 論文のステップ 2）：筋 1〜3 の学び直し。テストの発話ごとの点数と分類器の係数を保存する（GPU）。
 
-設計は `docs/設計/前半/step2_design.md`（関門 1 を通した後に `docs/参照/exploratory-analyses.md` の E76 の節へ写す）。
+設計は `DAI_paper/steps/step2_design.md`（関門 1 を通した後に `docs/exploratory-analyses.md` の E76 の節へ写す）。
 TAC 版の模擬査読の指摘のうち，保存済みの結果からは出せないもの（話者を単位にした区間，性別ごとの値，
 ターゲットのみの C の別の規則，q の当てはめ直しと言葉系の q，主張 1 の中心合わせの手の内訳）を，
 1 回の計算で答えられるようにする。新しい手法は無い。すべて既存の台本の学習を同じ条件で解き直し，
@@ -76,7 +76,7 @@ MEM_FRACTION = 0.6
 E25_NAMES = {2: "2 中心合わせ＋ソースのみ", 3: "3 中心合わせ＋合併", 4: "4 ソースのみ＋切片直し",
              5: "5 中心合わせ＋ソースのみ＋切片直し", 6: "6 ターゲット専用の切片つき合併", 7: "7 仮説転移",
              8: "8 CORAL＋合併", 9: "9 AUGMENT", 10: "10 WEIGHTED", 11: "11 中心合わせ＋仮説転移"}
-# 手ごとの設定（結果ファイルの settings に書く．`docs/参照/methods.md` 9.3 節 C6．関門 1 の compare の指摘）
+# 手ごとの設定（結果ファイルの settings に書く．`docs/methods.md` 9.3 節 C6．関門 1 の compare の指摘）
 HAND_SPEC = {
     "common": "C ＝ 同じ反復の ② の C．学習データで標準化（手 9 はソースの統計），感情を均等にする重み（手 10 は下）．"
               "中心合わせはターゲットの全発話（テストを含む．ラベルは使わない）の平均と，使うソースの行の平均を引く",
@@ -250,7 +250,7 @@ class Recorder:
 
 
 def compare_old(rec: Recorder, old: dict, key: str, L_new: np.ndarray, what: str) -> None:
-    """前に保存した同じ分類器の点数と比べる（`docs/参照/methods.md` 9.3 節 I14）。"""
+    """前に保存した同じ分類器の点数と比べる（`docs/methods.md` 9.3 節 I14）。"""
     if not old or key not in old["z"].files:
         return
     L_old = old["z"][key]

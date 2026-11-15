@@ -1,4 +1,4 @@
-"""【本番】E78（GPU）：DAI 論文の比較実験の第 2 波（`docs/設計/前半/proposal_v8.md` 3.2 節．設計は `docs/参照/exploratory-analyses.md` E78）。
+"""【本番】E78（GPU）：DAI 論文の比較実験の第 2 波（`DAI_paper/reviews/comparison-design/proposal_v8.md` 3.2 節．設計は `docs/exploratory-analyses.md` E78）。
 
 第 1 波（E77．`exp/compare_dai.py`）で回さなかった手法を，同じ生徒・同じ分割・同じ K 本で回し，同じ形で保存する．
   dann    ：DANN（Ganin ほか 2016）の目的を，特徴の線形の写像 A（恒等で初期化，‖A − I‖² の罰則）と E39 の頭に当てた版．仮説転移の形

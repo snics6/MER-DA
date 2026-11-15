@@ -1,19 +1,4 @@
 file	rule	count
-DAI/exp/analyze_e76.py	front_design	1
-DAI/exp/analyze_e76.py	mer_docs	1
-DAI/exp/analyze_e79.py	front_design	2
-DAI/exp/analyze_e79.py	mer_docs	1
-DAI/exp/baselines_distill.py	mer_docs	2
-DAI/exp/belief_check.py	mer_docs	1
-DAI/exp/belief_correct.py	mer_docs	1
-DAI/exp/check_lll_cues.py	mer_docs	1
-DAI/exp/combine_drafts.py	mer_docs	1
-DAI/exp/committee.py	mer_docs	1
-DAI/exp/compare_b1.py	mer_docs	2
-DAI/exp/compare_dai.py	front_design	1
-DAI/exp/compare_dai.py	mer_docs	1
-DAI/exp/compare_dai2.py	front_design	1
-DAI/exp/compare_dai2.py	mer_docs	1
 DAI/exp/dai1.py	/ "DAI" / "frozen"	2
 DAI/exp/dai1.py	/ "DAI" / "splits"	1
 DAI/exp/dai1.py	front_design	1
@@ -87,40 +72,12 @@ DAI/exp/dai_data.py	DAI/ prefix	1
 DAI/exp/dai_subsets.py	/ "DAI" / "frozen"	1
 DAI/exp/dai_subsets.py	/ "DAI" / "splits"	3
 DAI/exp/dai_subsets.py	DAI/ prefix	1
-DAI/exp/distill_belief.py	mer_docs	1
-DAI/exp/e80_stage_c.py	mer_docs	1
-DAI/exp/e80_teacher_j.py	mer_docs	1
-DAI/exp/explore_compare.py	mer_docs	1
-DAI/exp/explore_mechanism.py	mer_docs	1
-DAI/exp/explore_source_value.py	mer_docs	1
-DAI/exp/explore_source_value30.py	mer_docs	1
-DAI/exp/explore_synergy.py	mer_docs	1
-DAI/exp/geom_e0.py	mer_docs	1
-DAI/exp/interventions.py	mer_docs	1
-DAI/exp/logreg.py	mer_docs	2
-DAI/exp/map.py	mer_docs	7
-DAI/exp/meta5.py	mer_docs	1
-DAI/exp/multimodal_distill.py	mer_docs	1
-DAI/exp/pair_table.py	mer_docs	1
-DAI/exp/reanalysis_e75.py	mer_docs	2
-DAI/exp/relearn_e76.py	front_design	1
-DAI/exp/relearn_e76.py	mer_docs	3
-DAI/exp/select_baselines.py	mer_docs	1
-DAI/exp/select_herding.py	mer_docs	1
-DAI/exp/select_kshot.py	mer_docs	1
-DAI/exp/select_labelfree.py	mer_docs	1
-DAI/exp/select_teach.py	mer_docs	1
-DAI/exp/summarize_map.py	mer_docs	3
 DAI/exp/table_dai11_cells.py	Path(__file__).resolve().parents[2]	1
 DAI/exp/table_dai11_cells.py	DAI/ prefix	3
 DAI/exp/table_dai12_cells.py	Path(__file__).resolve().parents[2]	1
 DAI/exp/table_dai12_cells.py	DAI/ prefix	3
 DAI/exp/table_dai13_cells.py	Path(__file__).resolve().parents[2]	1
 DAI/exp/table_dai13_cells.py	DAI/ prefix	3
-DAI/exp/teach_ablate.py	mer_docs	1
-DAI/exp/teach_stack.py	mer_docs	1
-DAI/exp/teach_student39.py	mer_docs	1
-DAI/exp/text_cond2.py	mer_docs	1
 DAI/run/dai11_probe.sh	cd /home/snics/MER-DA
 	1
 DAI/run/dai11_probe.sh	DAI/ prefix	8
@@ -224,3 +181,4 @@ DAI/run/e78h.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
 DAI/run/dai14_run.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
 DAI/run/dai15_run.sh	manual: add mkdir -p logs after cd (gate-code code_static 7)	1
 DAI/tools/latex_tables_dai16_17.py	manual: docstring path docs/説明/ (gate-code code_static 14)	1
+DAI/exp/(front-half copies, 44 files)	restored byte-identical to MER-DA exp/ at 8fd53fd (rewrites were docstrings/argparse text only; keeps script sha256 for E76 code_hash and E79 stage checks; gate-code code_repro_early 2-3)	44

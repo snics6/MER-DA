@@ -1,6 +1,6 @@
 """【本番の解析】E76（DAI 論文のステップ 4）：筋 1〜3 の学び直しの出力（`results/e76/`）から，設計 2.4 節の解析をすべて CPU で計算する。
 
-設計は `docs/参照/exploratory-analyses.md` の「## E76．」の節（2.4.0〜2.4.6．関門 1 の直しを含む版．`docs/設計/前半/step2_design.md`
+設計は `docs/exploratory-analyses.md` の「## E76．」の節（2.4.0〜2.4.6．関門 1 の直しを含む版．`DAI_paper/steps/step2_design.md`
 の 2.4 節と食い違うところは前者に従う）。判定と書き方の決まりは値を見る前に書かれたもので，この台本はそれを機械的に当てる。
 学び直しはしない（GPU を使わない．起動の最初に CUDA_VISIBLE_DEVICES を空にする）。
 

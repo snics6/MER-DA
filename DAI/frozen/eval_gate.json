@@ -136,18 +136,6 @@
     "new_sha256": "28d774df7f0629f96521fc4a19470beec677707c3cb7acf11a8da03576a195d2"
    },
    {
-    "path": "exp/compare_dai.py",
-    "old_path": "exp/compare_dai.py",
-    "old_sha256": "ae673f9ac4daf9614f047a57aab14701db1cfcc9bd74bc028834bcfd14123fda",
-    "new_sha256": "7becc6efd735b468d7f21d0ec439e910bb28115839a21138fbb5422a41a48604"
-   },
-   {
-    "path": "exp/compare_dai2.py",
-    "old_path": "exp/compare_dai2.py",
-    "old_sha256": "84af8c1384e5753ee2b43b09ff547e38c8ba0b4fbe10bdcab65828855ccdc07e",
-    "new_sha256": "e43c70f0171e9efb7827a68b4fe6c2d4cbabb252c3ca3b920d2ce6e038f4c142"
-   },
-   {
     "path": "exp/dai2_stats.py",
     "old_path": "DAI/exp/dai2_stats.py",
     "old_sha256": "94a4b92e312b169b4b00498fa371f6796f8f926fc76059e524a18e80e688df21",
@@ -193,8 +181,8 @@
   "exp/dai2_select.py": "32eb4a3cd36c38d9f8bb2e1879ab753769df9ac20bc378f8bce9daee031a84f6",
   "exp/dai3.py": "28d774df7f0629f96521fc4a19470beec677707c3cb7acf11a8da03576a195d2",
   "docs/設計/前半/proposal_v8.md": "673a3a8124e6f8629956e394cb826b23cf145b2a6db8a1740803e1762854924d",
-  "exp/compare_dai.py": "7becc6efd735b468d7f21d0ec439e910bb28115839a21138fbb5422a41a48604",
-  "exp/compare_dai2.py": "e43c70f0171e9efb7827a68b4fe6c2d4cbabb252c3ca3b920d2ce6e038f4c142",
+  "exp/compare_dai.py": "ae673f9ac4daf9614f047a57aab14701db1cfcc9bd74bc028834bcfd14123fda",
+  "exp/compare_dai2.py": "84af8c1384e5753ee2b43b09ff547e38c8ba0b4fbe10bdcab65828855ccdc07e",
   "frozen/dai1_frozen.json": "6926fb3e12638dd946ddfda8a260a33f089a400094ebdefdf37132fa1329dfdc",
   "exp/dai2_stats.py": "102ef1d492051055706b2c5b009b96bdfdf2a8aeadd14d0fafbe3354f2098a5a",
   "exp/dai1_desc.py": "446d5121bc7d968bbad59e2d34f4617a81b07f012710faef842270e5acb1e50a",
