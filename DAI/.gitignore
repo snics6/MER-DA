@@ -48,5 +48,9 @@ checks/*/post_run*/**/*.txt
 checks/*/post_tools_run*/**/*.csv
 checks/*/post_tools_run*/**/*.json
 checks/*/post_tools_run*/**/*.txt
+archive/checks/*/code_run*/**/*.csv
+archive/checks/*/code_run*/**/*.json
+archive/checks/*/code_run*/**/*.txt
+archive/checks/*/code_run*/**/*.log
 # 計算の後の解析の台本が照合に読む小さい表（tools/dai21_posthoc_cremad_sentence.py）
 !checks/DAI-21/post_tools_run/kshot_ieo_counts.csv

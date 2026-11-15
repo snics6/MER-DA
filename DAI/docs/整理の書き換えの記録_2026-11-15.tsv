@@ -183,3 +183,4 @@ DAI/run/dai15_run.sh	manual: add mkdir -p logs after cd (gate-code code_static 7
 DAI/tools/latex_tables_dai16_17.py	manual: docstring path docs/説明/ (gate-code code_static 14)	1
 DAI/exp/(front-half copies, 44 files)	restored byte-identical to MER-DA exp/ at 8fd53fd (rewrites were docstrings/argparse text only; keeps script sha256 for E76 code_hash and E79 stage checks; gate-code code_repro_early 2-3)	44
 DAI/exp/dai21_eval5.py	manual: load_frozen strips leading DAI/ from frozen keys written before the reorganization (gate-code code_repro_late 3)	1
+DAI/tools/latex_tables_dai16_17.py	manual: path text in generated tex sentence docs/結果/ (gate-code code_static_v2)	1
