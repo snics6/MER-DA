@@ -1,10 +1,10 @@
-"""DAI 実験 1 の区間・p 値・Holm（設計 `DAI/docs/実験1_設計.md` 9 節，計画 8.2 節）。
+"""DAI 実験 1 の区間・p 値・Holm（設計 `docs/設計/実験1_設計.md` 9 節，計画 8.2 節）。
 
 2 つの使い方がある．
-  python DAI/exp/dai1_stats.py detect  ：選ぶ段の後・評価の回の前に，仮のターゲットの出力に 9 節の区間の規則を当て，
+  python exp/dai1_stats.py detect  ：選ぶ段の後・評価の回の前に，仮のターゲットの出力に 9 節の区間の規則を当て，
                                         評価のターゲットごとの標準誤差の見込み，検出できる差，種の数，同じ水準の δ を書く（統計の検査 S2）。
-                                        固定のファイル（frozen.json と DAI/frozen/<置き場の名前>_frozen.json）に足す。
-  python DAI/exp/dai1_stats.py eval    ：評価の回の出力から族 1〜4 を計算する（評価の回の後）。
+                                        固定のファイル（frozen.json と frozen/<置き場の名前>_frozen.json）に足す。
+  python exp/dai1_stats.py eval    ：評価の回の出力から族 1〜4 を計算する（評価の回の後）。
 
 族（コーパスごと．族 5 は実験 3）：
   族 1：提案（同時に解く版．主の版．選んだ設定）− 比較の基準（K 本だけ．K=0 は出発点）．生徒 4 × K 3（0，5，25）
@@ -64,7 +64,7 @@ def norm(v) -> str:
 
 
 def g_eff_of(T: str) -> tuple[float, pd.DataFrame]:
-    df = pd.read_csv(DD.ROOT / "DAI" / "splits" / f"{T}.csv", keep_default_na=False)
+    df = pd.read_csv(DD.ROOT / "splits" / f"{T}.csv", keep_default_na=False)
     n = df["cluster"].value_counts().to_numpy()
     return float(n.sum() ** 2 / (n ** 2).sum()), df
 
@@ -384,7 +384,7 @@ def detect(out: Path, targets=DD.CORPORA) -> None:
     frozen["_meta"]["detect_commit"], frozen["_meta"]["detect_dirty"] = dai1.git_commit()      # M6
     json.dump(frozen, open(fzp, "w"), indent=1, ensure_ascii=False)
     if out.resolve().parent == (dai1.ROOT / "results").resolve():
-        shutil.copy(fzp, dai1.ROOT / "DAI" / "frozen" / f"{out.name}_frozen.json")
+        shutil.copy(fzp, dai1.ROOT / "frozen" / f"{out.name}_frozen.json")
     print("書いた:", fzp, hashlib.sha256(open(fzp, "rb").read()).hexdigest())
 
 

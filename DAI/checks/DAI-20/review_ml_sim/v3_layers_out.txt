@@ -1,5 +1,0 @@
-       prod  avg_raw  avg_adj  conf_raw  conf_adj
-skew                                             
-0     76.94    76.09    69.74     75.03     70.70
-1     76.92    75.81    63.80     74.89     67.06
-adj − raw の範囲：avg -32.97 1.95 conf -26.82 2.76

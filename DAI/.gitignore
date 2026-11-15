@@ -1,0 +1,36 @@
+# DAI の直下を git の根にしたとき（GitHub に DAI だけを上げたとき）の除外．MER-DA の中では MER-DA の .gitignore も効く．
+.venv/
+__pycache__/
+*.py[cod]
+*:Zone.Identifier
+logs/
+weights/
+data/cache/*
+!data/cache/faces_*.csv.gz
+
+# 結果：集計と記録だけを git に入れる（一覧は results/MANIFEST.tsv．tools/collect_results.py が選び，git add -f で入れる）
+results/*
+!results/MANIFEST.tsv
+!results/MANIFEST_outside_git.tsv
+
+# LaTeX の中間生成物
+**/*.aux
+**/*.log
+**/*.out
+**/*.toc
+**/*.synctex.gz
+**/*.fls
+**/*.fdb_latexmk
+**/*.bbl
+**/*.blg
+slides/*/build/
+slides/*/*.pdf
+
+# 検査役の試走の出力（報告の md は checks/<実験>/ の直下）
+checks/*/code_run*/
+checks/*/review_*_run*/
+checks/*/review_*_sim*/
+checks/*/claim_run*/
+checks/*/post_run*/
+checks/*/post_tools_run*/
+archive/checks/*/code_run*/

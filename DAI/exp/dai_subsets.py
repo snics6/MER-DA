@@ -7,7 +7,7 @@
     超える発話を「競る」とする．確信度 0.5 以上の顔が 1 つも無い発話は「判定できない」として，競らない部分集合に入れない．
   IEMOCAP 即興のマーカーの側（9.4 節の 2，A2）：発話者の性別（sample_id の話者の F/M）が `marker_side` と同じなら「付けた側」。
 
-出力：`DAI/frozen/subsets.csv`（sample_id，corpus，subset，value）。
+出力：`frozen/subsets.csv`（sample_id，corpus，subset，value）。
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ ROOT = DD.ROOT
 
 
 def afew_asr() -> pd.DataFrame:
-    sp = pd.read_csv(ROOT / "DAI" / "splits" / "AFEW.csv", keep_default_na=False)
+    sp = pd.read_csv(ROOT / "splits" / "AFEW.csv", keep_default_na=False)
     t = pd.read_csv(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv", keep_default_na=False)
     t = t[t.sample_id.isin(sp.sample_id)].copy()
     rep = t.compression_ratio.astype(float) > 2.4
@@ -38,7 +38,7 @@ def afew_asr() -> pd.DataFrame:
 
 
 def meld_faces() -> pd.DataFrame:
-    sp = pd.read_csv(ROOT / "DAI" / "splits" / "MELD.csv", keep_default_na=False)
+    sp = pd.read_csv(ROOT / "splits" / "MELD.csv", keep_default_na=False)
     f = pd.read_csv(ROOT / "data" / "cache" / "faces_MELD.csv.gz")
     f = f[(f.score >= 0.5) & f.sample_id.isin(sp.sample_id)].copy()
     f["area"] = (f.x2 - f.x1).clip(lower=0) * (f.y2 - f.y1).clip(lower=0)
@@ -52,7 +52,7 @@ def meld_faces() -> pd.DataFrame:
 
 
 def iemocap_marker() -> pd.DataFrame:
-    sp = pd.read_csv(ROOT / "DAI" / "splits" / "IEMOCAP.csv", keep_default_na=False)
+    sp = pd.read_csv(ROOT / "splits" / "IEMOCAP.csv", keep_default_na=False)
     man = pd.read_csv(ROOT / "data" / "metadata" / "iemocap_utterance_manifest.csv", dtype=str, keep_default_na=False)
     man = man[man.sample_id.isin(sp.sample_id)]
     spk = man.sample_id.str.split("_").str[-1].str[0]                  # 例：Ses01F_impro01_F000 → F
@@ -63,6 +63,6 @@ def iemocap_marker() -> pd.DataFrame:
 
 if __name__ == "__main__":
     df = pd.concat([afew_asr(), meld_faces(), iemocap_marker()])[["sample_id", "corpus", "subset", "value"]]
-    p = ROOT / "DAI" / "frozen" / "subsets.csv"
+    p = ROOT / "frozen" / "subsets.csv"
     df.to_csv(p, index=False)
     print(df.groupby(["corpus", "subset", "value"]).size())

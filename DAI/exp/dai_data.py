@@ -1,4 +1,4 @@
-"""DAI 実験の共通の読み込み：3 モダリティがそろう発話，塊，5 分割，K 本の抜き方，標準化（計画 `DAI/docs/計画_2026-11-04.tex` 8.5 節）。
+"""DAI 実験の共通の読み込み：3 モダリティがそろう発話，塊，5 分割，K 本の抜き方，標準化（計画 `docs/計画/計画_2026-11-04.tex` 8.5 節）。
 
 - コーパス：AFEW，IEMOCAP（即興だけ），MOSEI，MELD。特徴は必ず `measure/data.py` の `load_group` を通して読む（データの取り決め 1〜6）。
 - 発話の集合：第 1 エンコーダの音声・顔・言葉の 3 つすべての特徴がある発話（M7）。
@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "measure"))
 sys.path.insert(0, str(ROOT / "features"))
 import common  # noqa: E402
@@ -149,4 +149,4 @@ def save_splits(out_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    save_splits(ROOT / "DAI" / "splits")
+    save_splits(ROOT / "splits")

@@ -1,6 +1,6 @@
 """DAI-13 の全部のセルの値と区間を，集計の出力から Markdown の表に書き出す（設計 4.5 節の「どの規則も，満たしたかどうかによらず全部のセルの値を付録に出す」のため）．
 
-python DAI/exp/table_dai13_cells.py results/dai13_probe/summary_seeds2 > "DAI/docs/実験13_下調べ_全セルの表_2026-11-10.md"
+python exp/table_dai13_cells.py results/dai13_probe/summary_seeds2 > "docs/結果/実験13_下調べ_全セルの表_2026-11-10.md"
 
 読むファイル（引数の集計のフォルダの下）：diffs.csv，criteria.csv，cells_lw.csv，cells_lab.csv，cells_layers.csv，alpha_summary.csv，v_init.csv，se_summary.csv，summary_meta.json．
 書き換えはしない．丸めは結果ファイルの値から 1 回だけ行う（A25）．DAI-12 の `table_dai12_cells.py` と同じ形．
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 S = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "results" / "dai13_probe" / "summary_seeds2"
 KS_ALL = (0, 1, 5, 10, 25)
 TEACHERS = ("pair", "pair_shuf", "self", "labels")
@@ -123,7 +123,7 @@ def main():
     meta = json.loads((S / "summary_meta.json").read_text(encoding="utf-8"))
     n_seeds = meta.get("n_seeds", meta.get("seeds", ""))
     print("# 実験 13 の下調べ：全部のセルの値と区間（付録）\n")
-    print(f"表は `DAI/exp/table_dai13_cells.py` が `{S.relative_to(ROOT) if S.is_relative_to(ROOT) else S}/` の `diffs.csv`，`criteria.csv`，`cells_lw.csv`，`cells_lab.csv`，`cells_layers.csv`，"
+    print(f"表は `exp/table_dai13_cells.py` が `{S.relative_to(ROOT) if S.is_relative_to(ROOT) else S}/` の `diffs.csv`，`criteria.csv`，`cells_lw.csv`，`cells_lab.csv`，`cells_layers.csv`，"
           f"`alpha_summary.csv`，`v_init.csv`，`se_summary.csv` から書き出した（種の数 {n_seeds}，行の台本の sha256 {str(meta.get('script_sha_rows', ''))[:8]}…，集計の台本 {str(meta.get('script_sha_summarize', ''))[:8]}…，単位 {meta.get('n_units', '')}）．"
           "差の表の値は「a − b」の候補の上の UAR の差のポイントで，点推定 [95% 区間] である．候補の上の差の区間は `effect_stats_pool`（候補のうち K 本を除いた発話を塊で数える引き直し）に，"
           "層の重みの量については v_init（初期値の揺れの見積もり）を足したもの（設計 4.1 節．`v_init_applied` の列が真の行）．テストの差（「テストの差」の節）の区間は `effect_stats`．"

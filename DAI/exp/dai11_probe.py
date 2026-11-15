@@ -1,16 +1,16 @@
 """DAI-11 の下調べ：同じモダリティの別のエンコーダの予測を疑似ラベルにすると，凍結した特徴の上の分類器は上がるか．
 新しい情報源の 3 つの要件（出所が学び直す分類器より当たるか，誤りの重なり，特徴で表せる分）を測る
-（設計 DAI/docs/実験11_下調べ_設計.md 第 3 版）。
+（設計 docs/設計/実験11_下調べ_設計.md 第 3 版）。
 
 DAI-1 の仮のターゲットの回の保存（results/dai1/pseudo/units/）と特徴だけを読む．新しく学ぶのは，第 2 エンコーダのソースの分類器と
 K 本だけの版，疑似ラベルで学び直した第 1 エンコーダの分類器，表せる分のリッジ回帰である．評価の回の保存は読まない．
 
-第 2 エンコーダのソースの段：python DAI/exp/dai11_probe.py --out results/dai11_probe --stage source2
-段 A（引き戻しの格子）：      python DAI/exp/dai11_probe.py --out results/dai11_probe --stage enc2k [--units AFEW_IEMOCAP_f0_r0]
-選ぶ段：                      python DAI/exp/dai11_probe.py --out results/dai11_probe --stage select [--allow-partial]
-段 B（単位）：                python DAI/exp/dai11_probe.py --out results/dai11_probe --stage units [--units AFEW_IEMOCAP_f0_r0]
-集計の段：                    python DAI/exp/dai11_probe.py --out results/dai11_probe --stage summarize [--allow-partial]
-自己検査：                    python DAI/exp/dai11_probe.py --stage selftest
+第 2 エンコーダのソースの段：python exp/dai11_probe.py --out results/dai11_probe --stage source2
+段 A（引き戻しの格子）：      python exp/dai11_probe.py --out results/dai11_probe --stage enc2k [--units AFEW_IEMOCAP_f0_r0]
+選ぶ段：                      python exp/dai11_probe.py --out results/dai11_probe --stage select [--allow-partial]
+段 B（単位）：                python exp/dai11_probe.py --out results/dai11_probe --stage units [--units AFEW_IEMOCAP_f0_r0]
+集計の段：                    python exp/dai11_probe.py --out results/dai11_probe --stage summarize [--allow-partial]
+自己検査：                    python exp/dai11_probe.py --stage selftest
 """
 from __future__ import annotations
 
@@ -38,10 +38,10 @@ import dai3  # noqa: E402   subset_masks（MOSEI の channel，AFEW の asr_ok�
 import dai_data as DD  # noqa: E402
 import dai_solver as S  # noqa: E402
 
-ROOT = HERE.parents[1]
+ROOT = HERE.parent
 UD = ROOT / "results" / "dai1" / "pseudo" / "units"
 SRC1 = ROOT / "results" / "dai1"                      # 第 1 エンコーダのソースの分類器（dai1.load_source が out/source/ を読む）
-FROZEN = ROOT / "DAI" / "frozen" / "dai1_frozen.json"
+FROZEN = ROOT / "frozen" / "dai1_frozen.json"
 KS_ALL = (0, 1, 5, 10, 25)
 KS_RULE = (1, 5, 10, 25)
 STUDENTS = ("A", "V", "T", "AVT")
@@ -883,7 +883,7 @@ def main() -> None:
     out = Path(args.out)
     commit, dirty = dai1.git_commit()
     if dirty and not args.allow_dirty:
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
     out.mkdir(parents=True, exist_ok=True)
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, host=platform.node(), python=platform.python_version(),
                 gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", torch=torch.__version__,

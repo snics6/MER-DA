@@ -1,3 +1,0 @@
-K>0 matched 3200 of 3200 max |diff| 0.0
-K=0 matched 800 of 800 max |diff| 0.0
-sample_test equal True sample_K5 equal True

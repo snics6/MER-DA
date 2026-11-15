@@ -1,3 +1,0 @@
-c,fold,r_clean_A,r_clean_V,r_clean_T,stab_ok,fold_ok,inseparable_a,inseparable,inseparable_rule,n_folds_ok,n_insep,predict_pass,inseparable_corpus,pass,agree,commit,dirty,unit_commits
-AFEW,0,4,1,8,False,False,False,False,-,0,0,False,False,False,True,421944695e9e6393a4dfc6e6d349da570aad49a6,False,b0f858a1e68112a3bcbd48dbc8dcbdc9d83939d3
-IEMOCAP,0,24,2,38,False,False,False,True,c,0,1,False,False,False,True,421944695e9e6393a4dfc6e6d349da570aad49a6,False,b0f858a1e68112a3bcbd48dbc8dcbdc9d83939d3

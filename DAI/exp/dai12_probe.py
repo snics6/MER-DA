@@ -1,14 +1,14 @@
 """DAI-12 の下調べ：疑似ラベルの出所の予測を，学び直す分類器の凍結した特徴から「非線形に読める分」（隠れ層 1 つのネット nl）は
-「線形に読める分」（同じ損失・同じ格子で隠れ層だけを外した線形のネット lince）よりどれだけ大きいか（設計 DAI/docs/実験12_下調べ_設計.md 第 6 版）。
+「線形に読める分」（同じ損失・同じ格子で隠れ層だけを外した線形のネット lince）よりどれだけ大きいか（設計 docs/設計/実験12_下調べ_設計.md 第 6 版）。
 nl は線形の項を持ち（点数 = Wl x + c + W2 relu(W1 x + c1)，W2 の初期値 0），選択は lince の選んだ版を候補に含む入れ子の形である（3.3 節）。
 
 DAI-1 の仮のターゲットの回の保存（results/dai1/pseudo/units/），DAI-11 の保存（results/dai11_probe/rows/，enc2/source/）と特徴だけを読む．
 新しく学ぶのは，出所の確率を目標にしたネット（ラベルを使わない），候補の全ラベルの分類器と 4×4 の読み出し（記述），リッジ回帰である．
 評価の回の保存は読まない．
 
-単位の段：  python DAI/exp/dai12_probe.py --out results/dai12_probe --stage units [--units AFEW_IEMOCAP_f0_r0]
-集計の段：  python DAI/exp/dai12_probe.py --out results/dai12_probe --stage summarize [--allow-partial]
-自己検査：  python DAI/exp/dai12_probe.py --stage selftest
+単位の段：  python exp/dai12_probe.py --out results/dai12_probe --stage units [--units AFEW_IEMOCAP_f0_r0]
+集計の段：  python exp/dai12_probe.py --out results/dai12_probe --stage summarize [--allow-partial]
+自己検査：  python exp/dai12_probe.py --stage selftest
 """
 from __future__ import annotations
 
@@ -35,10 +35,10 @@ import dai11_probe as P11  # noqa: E402   Unit2（6 つの特徴の標準化）�
 import dai_data as DD  # noqa: E402
 import dai_solver as S  # noqa: E402
 
-ROOT = HERE.parents[1]
+ROOT = HERE.parent
 UD = ROOT / "results" / "dai1" / "pseudo" / "units"
 D11 = ROOT / "results" / "dai11_probe"
-FROZEN = ROOT / "DAI" / "frozen" / "dai1_frozen.json"
+FROZEN = ROOT / "frozen" / "dai1_frozen.json"
 KS_ALL = (0, 1, 5, 10, 25)
 KS_RULE = (1, 5, 10, 25)
 MODS = ("A", "V", "T")                                                    # 学び直す分類器（融合 AVT は対象にしない．設計 2 節）
@@ -1081,7 +1081,7 @@ def main() -> None:
     out = Path(args.out)
     commit, dirty = dai1.git_commit()
     if dirty and not args.allow_dirty:
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は --allow-dirty）")
     prov11 = json.load(open(D11 / "provenance.json"))
     commit11 = str(prov11["commit"])
     out.mkdir(parents=True, exist_ok=True)

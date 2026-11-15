@@ -1,9 +1,0 @@
-dai3_frozen sha 22efe108ce44
-200
-<class 'dict'> ['meta', 'keys', 'sizes', 'refit', 'sub', 'counts', 'counts_sub', 'preds', 'repro', 'scen', 'checks', 'conv', 'tstats', 'oracle', 'rowsum', 'oracle_grid', 'dis_meta', 'refit_dis', '_run']
-{'commit': 'ba98974583dfee3504d54f31a5d303ff5394562e', 'dirty': False, 'frozen3': '22efe108ce44cf244c2e872fd7c6cf50972912793cc76041c24e4824e3a5319a', 'sec': 14.687095165252686}
-{'meta': ('dict', 7), 'keys': ('list', 4), 'sizes': ('Counter', 3), 'refit': ('dict', 98), 'sub': ('dict', 1), 'counts': ('dict', 332), 'counts_sub': ('dict', 0), 'preds': ('dict', 24), 'repro': ('list', 140), 'scen': ('dict', 0), 'checks': ('list', 111), 'conv': ('list', 202), 'tstats': ('list', 450), 'oracle': ('list', 4), 'rowsum': ('list', 98), 'oracle_grid': ('dict', 56), 'dis_meta': ('dict', 3), 'refit_dis': ('dict', 44), '_run': ('dict', 4)}
-names missing 0 extra 0
-Counter({'ba98974': 200, 'dai1_commits:ba98974': 200}) Counter({'22efe108ce44': 200}) Counter({False: 200})
-1 key sets
-sec min/med/max 11.679125547409058 17.86615753173828 47.47004985809326

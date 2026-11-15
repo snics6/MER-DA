@@ -1,4 +1,4 @@
-"""実験 14（DAI-14）：どのモダリティの特徴が，ほかのモダリティの判断を再現できるか（設計 `DAI/docs/実験14_設計.md` 第 5 版）．
+"""実験 14（DAI-14）：どのモダリティの特徴が，ほかのモダリティの判断を再現できるか（設計 `docs/設計/実験14_設計.md` 第 5 版）．
 
 本番の評価の回（実験 1．results/dai1/eval）の保存から，各モダリティの K 本だけの分類器の判断 J_m と，提案の主の版の疑似ラベル
 J_prop（prop_one）を候補の上で作り直し，生徒 s（A・V・T）の特徴から線形に再現できる度合い R(s ← m) を 2 つの読み出しで測る．
@@ -58,7 +58,7 @@ MEM_FRAC = 0.6
 RNG_SEED = 20261112
 VERS = ("true", "shuf", "shufcl", "shuffine", "shufage")
 SCRIPTS = ("dai14.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
-DESIGN = ROOT / "DAI" / "docs" / "実験14_設計.md"
+DESIGN = ROOT / "docs" / "設計" / "実験14_設計.md"
 REPRO_SAVED = ROOT / "results" / "dai3" / "eval" / "repro_units.csv"
 TOL_REPRO = 1e-3
 RUN = {"commit": "", "dirty": True}
@@ -206,7 +206,7 @@ def corpus_meta(T: str) -> pd.DataFrame:
     MELD・MOSEI は空），書き起こしの記号の有無 marker．"""
     if T in _META:
         return _META[T]
-    sp = pd.read_csv(ROOT / "DAI" / "splits" / f"{T}.csv", keep_default_na=False, usecols=["sample_id"])
+    sp = pd.read_csv(ROOT / "splits" / f"{T}.csv", keep_default_na=False, usecols=["sample_id"])
     fn = {"IEMOCAP": "iemocap", "MOSEI": "mosei", "MELD": "meld", "AFEW": "afew"}[T]
     m = pd.read_csv(ROOT / "data" / "metadata" / f"{fn}_utterance_manifest.csv", keep_default_na=False)
     m = m[m.sample_id.isin(sp.sample_id)].set_index("sample_id")
@@ -983,7 +983,7 @@ def main() -> None:
     RUN["commit"], RUN["dirty"] = commit, dirty
     RUN["partial"] = bool(args.allow_partial)
     if dirty and (prod or not args.allow_dirty):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試走は一時の置き場で --allow-dirty）")
     if prod and not dai1.committed_clean(DESIGN):
         sys.exit("設計の文書がコミットされていない")
     if prod and (args.folds is not None or args.seeds is not None or args.allow_partial):

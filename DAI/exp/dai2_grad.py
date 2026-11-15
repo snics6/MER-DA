@@ -1,4 +1,4 @@
-"""DAI 実験 2：勾配法の手法（xMUDA 型，DANN，MME，その同じ形の対照）と CORAL（設計は `DAI/docs/実験2_設計.md` 第 3.2 版の 1 節・2.2 節・2.3 節）。
+"""DAI 実験 2：勾配法の手法（xMUDA 型，DANN，MME，その同じ形の対照）と CORAL（設計は `docs/設計/実験2_設計.md` 第 3.2 版の 1 節・2.2 節・2.3 節）。
 
 段（--stage）：
   pseudo：`dai2.py` と同じ単位（T, c, 分割 f, K 本の抜き方の種 r），r ∈ {0, 1}．
@@ -701,7 +701,7 @@ def main() -> None:
         for T in args.targets:
             teth, tpath = dai2.tether_pseudo(Path(args.dai1_dir), T, args.allow_partial_tether)
             R["tether_key"] = dai2.tether_key(teth)
-            dai2.provenance(out, args, "DAI/exp/dai2_grad.py", dict(stage="pseudo", T=T, tether_file=str(tpath), tether_file_sha256=dai2.sha(tpath),
+            dai2.provenance(out, args, "exp/dai2_grad.py", dict(stage="pseudo", T=T, tether_file=str(tpath), tether_file_sha256=dai2.sha(tpath),
                                                                   tether_key=R["tether_key"], parts=args.parts, cut_mme_sw01=cut_sw,
                                                                   cut_iter200=cut_it, settings=SETTINGS))
             seeds = args.seeds if args.seeds is not None else [0, 1]
@@ -719,7 +719,7 @@ def main() -> None:
         fsel = {(s, K): fz2[T]["select"][f"{s}|{K}|coral"]["r"] for s in DD.STUDENTS for K in DD.KS}
         sel = {(s, K, m_): fz2[T]["select"][f"{s}|{K}|{m_}"] for s in DD.STUDENTS for K in KS_ALL for m_ in ("dann", "mme", "mapctl")}
         sel.update({(m, K, "xmuda"): fz2[T]["select"][f"{m}|{K}|xmuda"] for m in "AVT" for K in KS_ALL})   # 解き直しに使う選んだ点（I7・R4）
-        dai2.provenance(out, args, "DAI/exp/dai2_grad.py", dict(stage="eval", T=T, frozen_sha256=R["frozen_sha256"], tether_key=R["tether_key"],
+        dai2.provenance(out, args, "exp/dai2_grad.py", dict(stage="eval", T=T, frozen_sha256=R["frozen_sha256"], tether_key=R["tether_key"],
                                                               parts=args.parts, grad_cut=cut, settings=SETTINGS, R=Rs))
         grad_parts = [p for p in args.parts if p != "coral"]
         if grad_parts:

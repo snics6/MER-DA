@@ -1,5 +1,0 @@
-selftest：通った
-
-real	0m7.579s
-user	0m20.746s
-sys	0m2.238s

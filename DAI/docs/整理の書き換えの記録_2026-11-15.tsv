@@ -1,0 +1,214 @@
+file	rule	count
+DAI/exp/analyze_e76.py	front_design	1
+DAI/exp/analyze_e76.py	mer_docs	1
+DAI/exp/analyze_e79.py	front_design	2
+DAI/exp/analyze_e79.py	mer_docs	1
+DAI/exp/baselines_distill.py	mer_docs	2
+DAI/exp/belief_check.py	mer_docs	1
+DAI/exp/belief_correct.py	mer_docs	1
+DAI/exp/check_lll_cues.py	mer_docs	1
+DAI/exp/combine_drafts.py	mer_docs	1
+DAI/exp/committee.py	mer_docs	1
+DAI/exp/compare_b1.py	mer_docs	2
+DAI/exp/compare_dai.py	front_design	1
+DAI/exp/compare_dai.py	mer_docs	1
+DAI/exp/compare_dai2.py	front_design	1
+DAI/exp/compare_dai2.py	mer_docs	1
+DAI/exp/dai1.py	/ "DAI" / "frozen"	2
+DAI/exp/dai1.py	/ "DAI" / "splits"	1
+DAI/exp/dai1.py	front_design	1
+DAI/exp/dai1.py	DAI/ prefix	32
+DAI/exp/dai11_probe.py	/ "DAI" / "frozen"	1
+DAI/exp/dai11_probe.py	HERE.parents[1]	1
+DAI/exp/dai11_probe.py	DAI/ prefix	8
+DAI/exp/dai12_probe.py	/ "DAI" / "frozen"	1
+DAI/exp/dai12_probe.py	HERE.parents[1]	1
+DAI/exp/dai12_probe.py	DAI/ prefix	5
+DAI/exp/dai13_probe.py	seg_docs	2
+DAI/exp/dai13_probe.py	HERE.parents[1]	1
+DAI/exp/dai13_probe.py	mer_docs	1
+DAI/exp/dai13_probe.py	DAI/ prefix	3
+DAI/exp/dai14.py	seg_docs	1
+DAI/exp/dai14.py	/ "DAI" / "splits"	1
+DAI/exp/dai14.py	DAI/ prefix	2
+DAI/exp/dai15.py	seg_docs	1
+DAI/exp/dai15.py	/ "DAI" / "frozen"	1
+DAI/exp/dai15.py	DAI/ prefix	2
+DAI/exp/dai16_posthoc.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/exp/dai16_posthoc.py	DAI/ prefix	1
+DAI/exp/dai16_probe.py	seg_docs	2
+DAI/exp/dai16_probe.py	/ "DAI" / "splits"	1
+DAI/exp/dai16_probe.py	DAI/ prefix	5
+DAI/exp/dai17_posthoc.py	/ "DAI" / "exp"	1
+DAI/exp/dai17_posthoc.py	Path("/home/snics/MER-DA")	1
+DAI/exp/dai17_posthoc.py	DAI/ prefix	4
+DAI/exp/dai17_probe.py	seg_docs	2
+DAI/exp/dai17_probe.py	/ "DAI" / "splits"	1
+DAI/exp/dai17_probe.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/exp/dai17_probe.py	Path("/home/snics/MER-DA/DAI/exp")	1
+DAI/exp/dai17_probe.py	DAI/ prefix	3
+DAI/exp/dai18_probe.py	seg_docs	1
+DAI/exp/dai18_probe.py	/ "DAI" / "splits"	1
+DAI/exp/dai18_probe.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/exp/dai18_probe.py	DAI/ prefix	3
+DAI/exp/dai1_desc.py	/ "DAI" / "frozen"	1
+DAI/exp/dai1_desc.py	:DAI/exp/ -> :./exp/	1
+DAI/exp/dai1_desc.py	DAI/ prefix	12
+DAI/exp/dai1_select.py	/ "DAI" / "frozen"	1
+DAI/exp/dai1_select.py	DAI/ prefix	2
+DAI/exp/dai1_stats.py	/ "DAI" / "frozen"	1
+DAI/exp/dai1_stats.py	/ "DAI" / "splits"	1
+DAI/exp/dai1_stats.py	DAI/ prefix	4
+DAI/exp/dai2.py	/ "DAI" / "frozen"	2
+DAI/exp/dai2.py	/ "DAI" / "splits"	1
+DAI/exp/dai2.py	DAI/ prefix	7
+DAI/exp/dai20_eval.py	seg_docs	1
+DAI/exp/dai20_eval.py	/ "DAI" / "frozen"	1
+DAI/exp/dai20_eval.py	/ "DAI" / "splits"	1
+DAI/exp/dai20_eval.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/exp/dai20_eval.py	DAI/ prefix	9
+DAI/exp/dai21_eval5.py	seg_docs	1
+DAI/exp/dai21_eval5.py	/ "DAI" / "frozen"	2
+DAI/exp/dai21_eval5.py	/ "DAI" / "splits"	1
+DAI/exp/dai21_eval5.py	/ "DAI" / "exp"	1
+DAI/exp/dai21_eval5.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/exp/dai21_eval5.py	DAI/ prefix	16
+DAI/exp/dai2_grad.py	DAI/ prefix	3
+DAI/exp/dai2_select.py	/ "DAI" / "frozen"	3
+DAI/exp/dai2_select.py	DAI/ prefix	4
+DAI/exp/dai2_stats.py	/ "DAI" / "frozen"	5
+DAI/exp/dai2_stats.py	/ "DAI" / "splits"	1
+DAI/exp/dai2_stats.py	DAI/ prefix	23
+DAI/exp/dai3.py	/ "DAI" / "frozen"	3
+DAI/exp/dai3.py	DAI/ prefix	7
+DAI/exp/dai_data.py	/ "DAI" / "splits"	1
+DAI/exp/dai_data.py	Path(__file__).resolve().parents[2]	1
+DAI/exp/dai_data.py	DAI/ prefix	1
+DAI/exp/dai_subsets.py	/ "DAI" / "frozen"	1
+DAI/exp/dai_subsets.py	/ "DAI" / "splits"	3
+DAI/exp/dai_subsets.py	DAI/ prefix	1
+DAI/exp/distill_belief.py	mer_docs	1
+DAI/exp/e80_stage_c.py	mer_docs	1
+DAI/exp/e80_teacher_j.py	mer_docs	1
+DAI/exp/explore_compare.py	mer_docs	1
+DAI/exp/explore_mechanism.py	mer_docs	1
+DAI/exp/explore_source_value.py	mer_docs	1
+DAI/exp/explore_source_value30.py	mer_docs	1
+DAI/exp/explore_synergy.py	mer_docs	1
+DAI/exp/geom_e0.py	mer_docs	1
+DAI/exp/interventions.py	mer_docs	1
+DAI/exp/logreg.py	mer_docs	2
+DAI/exp/map.py	mer_docs	7
+DAI/exp/meta5.py	mer_docs	1
+DAI/exp/multimodal_distill.py	mer_docs	1
+DAI/exp/pair_table.py	mer_docs	1
+DAI/exp/reanalysis_e75.py	mer_docs	2
+DAI/exp/relearn_e76.py	front_design	1
+DAI/exp/relearn_e76.py	mer_docs	3
+DAI/exp/select_baselines.py	mer_docs	1
+DAI/exp/select_herding.py	mer_docs	1
+DAI/exp/select_kshot.py	mer_docs	1
+DAI/exp/select_labelfree.py	mer_docs	1
+DAI/exp/select_teach.py	mer_docs	1
+DAI/exp/summarize_map.py	mer_docs	3
+DAI/exp/table_dai11_cells.py	Path(__file__).resolve().parents[2]	1
+DAI/exp/table_dai11_cells.py	DAI/ prefix	3
+DAI/exp/table_dai12_cells.py	Path(__file__).resolve().parents[2]	1
+DAI/exp/table_dai12_cells.py	DAI/ prefix	3
+DAI/exp/table_dai13_cells.py	Path(__file__).resolve().parents[2]	1
+DAI/exp/table_dai13_cells.py	DAI/ prefix	3
+DAI/exp/teach_ablate.py	mer_docs	1
+DAI/exp/teach_stack.py	mer_docs	1
+DAI/exp/teach_student39.py	mer_docs	1
+DAI/exp/text_cond2.py	mer_docs	1
+DAI/run/dai11_probe.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai11_probe.sh	DAI/ prefix	8
+DAI/run/dai12_probe.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai12_probe.sh	DAI/ prefix	5
+DAI/run/dai13_probe.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai13_probe.sh	DAI/ prefix	10
+DAI/run/dai13_probe_r1.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai13_probe_r1.sh	DAI/ prefix	3
+DAI/run/dai14_run.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai14_run.sh	DAI/ prefix	2
+DAI/run/dai15_run.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai15_run.sh	DAI/ prefix	6
+DAI/run/dai17_probe.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai17_probe.sh	DAI/ prefix	4
+DAI/run/dai18_probe.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai18_probe.sh	DAI/ prefix	5
+DAI/run/dai1_pseudo.sh	DAI/ prefix	3
+DAI/run/dai20_eval.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai20_eval.sh	DAI/ prefix	5
+DAI/run/dai21_eval5.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai21_eval5.sh	DAI/ prefix	12
+DAI/run/dai2_pseudo.sh	DAI/ prefix	3
+DAI/run/dai_eval.sh	DAI/ prefix	12
+DAI/run/dai_k10.sh	cd /home/snics/MER-DA
+	1
+DAI/run/dai_k10.sh	DAI/ prefix	7
+DAI/run/e77.sh	cd /home/snics/MER-DA
+	1
+DAI/run/e77.sh	mer_docs	1
+DAI/run/e77b.sh	cd /home/snics/MER-DA
+	1
+DAI/run/e78.sh	cd /home/snics/MER-DA
+	1
+DAI/run/e78.sh	mer_docs	1
+DAI/run/e78b.sh	cd /home/snics/MER-DA
+	1
+DAI/run/eval_procedure.md	DAI/ prefix	15
+DAI/tools/dai18_posthoc_selcounts.py	/ "DAI" / "exp"	2
+DAI/tools/dai18_posthoc_selcounts.py	Path("/home/snics/MER-DA")	1
+DAI/tools/dai18_posthoc_selcounts.py	DAI/ prefix	5
+DAI/tools/dai18_posthoc_voice40.py	/ "DAI" / "exp"	2
+DAI/tools/dai18_posthoc_voice40.py	Path("/home/snics/MER-DA")	1
+DAI/tools/dai18_posthoc_voice40.py	DAI/ prefix	4
+DAI/tools/dai20_posthoc_intercept.py	/ "DAI" / "frozen"	1
+DAI/tools/dai20_posthoc_intercept.py	/ "DAI" / "exp"	2
+DAI/tools/dai20_posthoc_intercept.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/tools/dai20_posthoc_intercept.py	DAI/ prefix	3
+DAI/tools/dai20_posthoc_intercept.py	tools sys.path -> ../exp	1
+DAI/tools/dai21_posthoc_cremad_sentence.py	/ "DAI" / "exp"	1
+DAI/tools/dai21_posthoc_cremad_sentence.py	/ "DAI" / "checks"	1
+DAI/tools/dai21_posthoc_cremad_sentence.py	sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")	1
+DAI/tools/dai21_posthoc_cremad_sentence.py	DAI/ prefix	5
+DAI/tools/dai21_posthoc_cremad_sentence.py	tools sys.path -> ../exp	1
+DAI/tools/latex_tables_dai16_17.py	DAI/ prefix	2
+DAI/tools/md_tables_dai16_17.py	DAI/ prefix	1
+DAI/tools/md_tables_dai18.py	DAI/ prefix	3
+DAI/tools/md_tables_dai20.py	seg_docs	1
+DAI/tools/md_tables_dai20.py	Path("/home/snics/MER-DA")	1
+DAI/tools/md_tables_dai20.py	DAI/ prefix	3
+DAI/tools/md_tables_dai21.py	seg_docs	1
+DAI/tools/md_tables_dai21.py	Path("/home/snics/MER-DA")	1
+DAI/tools/md_tables_dai21.py	DAI/ prefix	3
+DAI/tools/pdf_figs_proposal.py	Path("/home/snics/MER-DA")	1
+DAI/tools/pdf_figs_proposal.py	DAI/ prefix	5
+DAI/tools/md_tables_dai16_17.py	manual: R = "/home/snics/MER-DA/results" -> R = _ROOT + "/results"	1
+DAI/tools/md_tables_dai16_17.py	manual: OUT = "/home/snics/MER-DA/DAI/docs/実験16・17_下調べ_結果の表_K5・10・25_2026-11-14.md" -> OUT = _ROOT + "/docs/結果/実験16・17_下調べ_結果の表_K5・10・25_2026-11-14.md"	1
+DAI/tools/md_tables_dai16_17.py	manual: OLD16 = "/home/snics/MER-DA/DAI/docs/実験16_下調べ_結果の表_2026-11-14.md" -> OLD16 = _ROOT + "/docs/結果/実験16_下調べ_結果の表_2026-11-14.md"	1
+DAI/tools/md_tables_dai16_17.py	manual: add _ROOT line	1
+DAI/tools/latex_tables_dai16_17.py	manual: R = "/home/snics/MER-DA/results" -> R = _ROOT + "/results"	1
+DAI/tools/latex_tables_dai16_17.py	manual: OLD16 = "/home/snics/MER-DA/DAI/docs/実験16_下調べ_結果の表_2026-11-14.md" -> OLD16 = _ROOT + "/docs/結果/実験16_下調べ_結果の表_2026-11-14.md"	1
+DAI/tools/latex_tables_dai16_17.py	manual: OUT = "/home/snics/MER-DA/DAI/docs/説明_実験16・17_結果の表.tex" -> OUT = _ROOT + "/docs/説明/説明_実験16・17_結果の表.tex"	1
+DAI/tools/latex_tables_dai16_17.py	manual: add _ROOT line	1
+DAI/tools/md_tables_dai18.py	manual: R = "/home/snics/MER-DA/results/dai18_probe/summary" -> R = _ROOT + "/results/dai18_probe/summary"	1
+DAI/tools/md_tables_dai18.py	manual: OUT = "/home/snics/MER-DA/DAI/docs/実験18_下調べ_結果の表_2026-11-14.md" -> OUT = _ROOT + "/docs/結果/実験18_下調べ_結果の表_2026-11-14.md"	1
+DAI/tools/md_tables_dai18.py	manual: open("/home/snics/MER-DA/results/dai18_probe/posthoc/provenance_selcounts.json") -> open(_ROOT + "/results/dai18_probe/posthoc/provenance_selcounts.json")	1
+DAI/tools/md_tables_dai18.py	manual: add _ROOT line	1
+DAI/tools/pdf_figs_proposal.py	manual: OUT = ROOT / "DAI" / "docs" -> OUT = ROOT / "docs" / "説明"	1
+DAI/tools/extract_dai18_text.py	restored to original (historical tool; reads git history at old placement)	1
+DAI/tools/extract_dai20_text.py	restored to original (historical tool; reads git history at old placement)	1
+DAI/tools/extract_dai21_text.py	restored to original (historical tool; reads git history at old placement)	1
+DAI/tools/rebuild_explain_pdf_2026-11-14.py	restored to original (historical tool; reads git history at old placement)	1

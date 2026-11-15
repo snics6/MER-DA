@@ -1,4 +1,4 @@
-"""DAI 実験 1：コーパスごとの識別器と，中核の手法（設計は `DAI/docs/実験1_設計.md`．計画は `DAI/docs/計画_2026-11-04.tex`）。
+"""DAI 実験 1：コーパスごとの識別器と，中核の手法（設計は `docs/設計/実験1_設計.md`．計画は `docs/計画/計画_2026-11-04.tex`）。
 
 段（--stage）：
   source  ：コーパスごと × 種類（A,V,T,AV,AT,VT,AVT）の識別器を作って保存する（C は塊の 5 分割の交差検証）。
@@ -69,7 +69,7 @@ def mval(rho, n):
 
 def git_commit() -> tuple[str, bool]:
     c = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "DAI/exp", "DAI/splits", "measure", "features",
+    dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "exp", "splits", "measure", "features",
                                  "data/metadata"],
                                 cwd=ROOT, capture_output=True, text=True).stdout.strip())     # 未追跡のファイルも数える（I9）
     return c, dirty
@@ -586,11 +586,11 @@ def committed_clean(path: Path) -> bool:
 
 
 EVAL_REQUIRED = [                                                   # 評価の回の前にコミットしてあるべきファイル（台本の側に固定．m51）
-    "DAI/docs/実験1_設計.md", "DAI/docs/実験2_設計.md", "DAI/docs/実験3_設計.md", "DAI/docs/計画_2026-11-04.tex",
-    "DAI/frozen/dai2_frozen.json", "DAI/frozen/dai3_frozen.json", "DAI/frozen/subsets.csv",
-    "DAI/exp/dai1.py", "DAI/exp/dai_solver.py", "DAI/exp/dai_data.py", "DAI/exp/dai1_select.py", "DAI/exp/dai1_stats.py",
-    "DAI/exp/dai_subsets.py", "DAI/exp/dai2.py", "DAI/exp/dai2_grad.py", "DAI/exp/dai2_select.py", "DAI/exp/dai3.py",
-    "DAI_paper/reviews/comparison-design/proposal_v8.md", "exp/compare_dai.py", "exp/compare_dai2.py",
+    "docs/設計/実験1_設計.md", "docs/設計/実験2_設計.md", "docs/設計/実験3_設計.md", "docs/計画/計画_2026-11-04.tex",
+    "frozen/dai2_frozen.json", "frozen/dai3_frozen.json", "frozen/subsets.csv",
+    "exp/dai1.py", "exp/dai_solver.py", "exp/dai_data.py", "exp/dai1_select.py", "exp/dai1_stats.py",
+    "exp/dai_subsets.py", "exp/dai2.py", "exp/dai2_grad.py", "exp/dai2_select.py", "exp/dai3.py",
+    "docs/設計/前半/proposal_v8.md", "exp/compare_dai.py", "exp/compare_dai2.py",
 ]
 
 
@@ -610,12 +610,12 @@ def latest_report(folder: Path, role: str) -> str:
 
 
 def check_eval_gate(frozen_rel: str) -> str:
-    """評価の回を流す条件（ML の査読者の M15，漏れの検査 L8）：`DAI/frozen/eval_gate.json` がコミット済みで，
+    """評価の回を流す条件（ML の査読者の M15，漏れの検査 L8）：`frozen/eval_gate.json` がコミット済みで，
     そこに並べたファイル（実験 1 の固定のファイル，実験 2・3 の設計，種の数と検出できる差の表，査読の OK の報告など）が
     すべてコミット済みで sha256 が一致すること．戻り：eval_gate.json の sha256。"""
-    gp = ROOT / "DAI" / "frozen" / "eval_gate.json"
+    gp = ROOT / "frozen" / "eval_gate.json"
     if not gp.exists() or not committed_clean(gp):
-        sys.exit("DAI/frozen/eval_gate.json が無いかコミットされていない（実験 2・3 の固定の前に評価の回は流さない）")
+        sys.exit("frozen/eval_gate.json が無いかコミットされていない（実験 2・3 の固定の前に評価の回は流さない）")
     gate = json.load(open(gp))
     req = gate["required"]
     missing = [r for r in EVAL_REQUIRED + [frozen_rel] if r not in req]
@@ -625,9 +625,9 @@ def check_eval_gate(frozen_rel: str) -> str:
         fp = ROOT / rel
         if not fp.exists() or sha(fp) != h or not committed_clean(fp):
             sys.exit(f"eval_gate.json の {rel} が無いか，sha256 が違うか，コミットされていない")
-    # 実験 1〜3 のそれぞれで，査読者 2 人と関門 5 体の「最新の版の」報告が OK・通すであること（DAI/CLAUDE.md の規則．m64）
-    folders = {"DAI-1": ("DAI/checks/DAI-1/",), "DAI-2": ("DAI/checks/DAI-2_3/", "DAI/checks/DAI-2/"),
-               "DAI-3": ("DAI/checks/DAI-2_3/", "DAI/checks/DAI-3/")}             # 実験ごとの報告の置き場を台本に固定（比較の検査の 4 回目）
+    # 実験 1〜3 のそれぞれで，査読者 2 人と関門 5 体の「最新の版の」報告が OK・通すであること（CLAUDE.md の規則．m64）
+    folders = {"DAI-1": ("checks/DAI-1/",), "DAI-2": ("checks/DAI-2_3/", "checks/DAI-2/"),
+               "DAI-3": ("checks/DAI-2_3/", "checks/DAI-3/")}             # 実験ごとの報告の置き場を台本に固定（比較の検査の 4 回目）
     for exp_name, files in gate["approvals"].items():
         for role in APPROVAL_ROLES:
             if not files[role].startswith(folders[exp_name]):
@@ -778,7 +778,7 @@ def main() -> None:
     if dirty and args.stage in ("select", "eval"):
         sys.exit("選ぶ段と評価の段は未コミットの変更があると流さない（--allow-dirty も受け付けない．m51）")
     if dirty and not args.allow_dirty and args.stage not in ("selftest",):
-        sys.exit("DAI/exp・measure・features に未コミットの変更がある（試しは --allow-dirty）")
+        sys.exit("exp・measure・features に未コミットの変更がある（試しは --allow-dirty）")
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, host=platform.node(),
                 gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", torch=torch.__version__,
                 script_sha256=sha(Path(__file__)), solver_sha256=sha(HERE / "dai_solver.py"), data_sha256=sha(HERE / "dai_data.py"),
@@ -789,7 +789,7 @@ def main() -> None:
                 encoder=ENC["enc"],
                 afew_transcript_sha256=sha(ROOT / "data" / "metadata" / "afew_transcript_whisper.csv"),
                 metadata_sha256={p.name: sha(p) for p in sorted((ROOT / "data" / "metadata").glob("*.csv"))},   # m55
-                splits_sha256={p.name: sha(p) for p in sorted((ROOT / "DAI" / "splits").glob("*.csv"))})
+                splits_sha256={p.name: sha(p) for p in sorted((ROOT / "splits").glob("*.csv"))})
     RUN["commit"], RUN["dirty"] = commit, dirty
     RUN["gpu"] = prov["gpu"]
     with open(out / "provenance_log.jsonl", "a") as fh:
@@ -837,12 +837,12 @@ def main() -> None:
         dai1_select.main(out, args.targets); return
     if args.stage == "eval":
         fz = out / "select" / "frozen.json"
-        cp = ROOT / "DAI" / "frozen" / f"{out.name}_frozen.json"
+        cp = ROOT / "frozen" / f"{out.name}_frozen.json"
         if not fz.exists() or not cp.exists() or sha(fz) != sha(cp):
-            sys.exit("固定のファイルが無いか，DAI/frozen/dai1_frozen.json と一致しない")
+            sys.exit("固定のファイルが無いか，frozen/dai1_frozen.json と一致しない")
         if not committed_clean(cp):
             sys.exit("固定のファイルの写しがコミットされていない（漏れの検査 L8）")
-        gate_sha = check_eval_gate(f"DAI/frozen/{out.name}_frozen.json")
+        gate_sha = check_eval_gate(f"frozen/{out.name}_frozen.json")
         RUN["gate_sha256"] = gate_sha
         RUN["frozen_sha256"] = sha(fz)
         with open(out / "provenance_log.jsonl", "a") as fh:

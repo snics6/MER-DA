@@ -10,7 +10,7 @@
 出力：<out>/posthoc/additive_units.csv（単位 × K × 出どころ），additive_corr.csv（c × K × 出どころ），additive_levels.csv（c × K × 版の UAR），
 additive_effects.csv（差と区間），additive_clip.csv（負を切った単位の数），posthoc_provenance.json
 
-使い方：.venv/bin/python DAI/exp/dai16_posthoc.py [--out-dir results/dai16_probe] [--limit N]
+使い方：.venv/bin/python exp/dai16_posthoc.py [--out-dir results/dai16_probe] [--limit N]
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, "/home/snics/MER-DA/DAI/exp")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dai1  # noqa: E402
 import dai1_stats as ST  # noqa: E402
 import dai12_probe as P12  # noqa: E402

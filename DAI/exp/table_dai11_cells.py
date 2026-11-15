@@ -1,6 +1,6 @@
 """DAI-11 の全部のセルの値と区間を，結果ファイルから Markdown の表に書き出す（設計 4.6 節の「どの規則も，満たしたかどうかによらず全部のセルの値と区間を表に出す」）。
 
-python DAI/exp/table_dai11_cells.py > "DAI/docs/実験11_下調べ_全セルの表_2026-11-09.md"
+python exp/table_dai11_cells.py > "docs/結果/実験11_下調べ_全セルの表_2026-11-09.md"
 
 読むファイル：results/dai11_probe/diffs.csv，criteria.csv，req_cells.csv，rank_corr.csv，cells.csv，select/enc2_grid.csv．
 書き換えはしない．
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 D11 = ROOT / "results" / "dai11_probe"
 STUDENTS = ("A", "V", "T", "AVT")
 KS_ALL = (0, 1, 5, 10, 25)
@@ -56,7 +56,7 @@ def wide(d, cols, title, nd=3, keys=("c", "K")):
 
 def main():
     print("# 実験 11 の下調べ：全部のセルの値と区間（付録．2026-11-09）\n")
-    print("表は `DAI/exp/table_dai11_cells.py` が `results/dai11_probe/diffs.csv`，`criteria.csv`，`req_cells.csv`，`rank_corr.csv`，`cells.csv`，`select/enc2_grid.csv` から書き出した．"
+    print("表は `exp/table_dai11_cells.py` が `results/dai11_probe/diffs.csv`，`criteria.csv`，`req_cells.csv`，`rank_corr.csv`，`cells.csv`，`select/enc2_grid.csv` から書き出した．"
           "差の表の値は「a − b」のテストの UAR の差のポイントで，点推定 [95% 区間] である．UAR の区間は `dai1_stats.effect_stats`（(f, r) を単位，3 つの T の数を平均），"
           "WAR・WAF・macro-F1 の区間は分割ごとの平均の 5 つの値の t の区間（自由度 4）である（設計 4.1 節）．K = 0 の K 本だけの版は種に依らず同じ判定になるので，K = 0 の独立な単位は分割の 5 個である．\n")
     d = pd.read_csv(D11 / "diffs.csv")

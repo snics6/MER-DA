@@ -1,3 +1,0 @@
-checked 418860 mismatch 0 []
-coverage {'lin:none': 4000, 'lin:t3a': 24000, 'lin:t3a_b': 24000, 'lin:saerens': 4000, 'lin:own': 48000, 'lin:entmin': 16000, 'lin:im': 48000, 'lin:self': 48000, 'lin:lp': 38400, 'lin:st': 10400, 'coral:coral': 9600, 'coral:coral_tether': 44800, 'map:map:dann': 28800, 'map:map:mme': 28800, 'map:map:mapctl': 9600, 'map:maprep:dann': 2400, 'map:maprep:mme': 2400, 'map:maprep:mapctl': 3360, 'xmuda:xm:xmuda': 21600, 'xmuda:xmrep:xmuda': 2700}
-multi-row matches {}
