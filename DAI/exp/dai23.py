@@ -263,7 +263,7 @@ def load_merged(out: Path, T: str) -> tuple[dict, pd.DataFrame]:
 def kappa_from_dai14() -> dict:
     """κ_T = D(A ← T) ÷ D(A ← V)：実験 14 の predictions.csv の P3 ÷ P3b（K = 5，R1，#shufcl．部分集合ごと）．設計 3 節の値と小数 3 桁で照らす．"""
     p = pd.read_csv(OUT14 / "summary" / "predictions.csv")
-    x = p[(p.K == K) & (p.readout == "R1") & (p.control == "cl") & (p.subset == "all")]
+    x = p[(p.K == K) & (p.readout == "R1") & (p.control == "cl")]
     out = {}
     for (T, sb), kd in KAPPA_DESIGN.items():
         y_ = x[(x["T"] == T) & (x.subset == sb)]
@@ -351,6 +351,8 @@ def stage_summary(out: Path, targets: list) -> None:
                     continue
                 run_q(q, terms, bool(q in PRIMARY and subset != "nomarker"))
             # M3 の κ の推定の揺れを 1 次で入れた版（設計 4 節）：M3 = D_AT − D_XT − κ̂ (D_AV − D_XV)，κ̂ = D_AT / D_AV の 1 次の係数
+            if not RUN["partial"] and abs(got["DAT"] / got["DAV"] - kp) > 1e-6:   # 単位を絞った試しでは比が変わるので確かめない                 # 固定の κ は同じ A の予測から作った値なので，ここで作り直した比と一致するはず
+                raise SystemExit(f"{T}/{subset}：D(A ← T) ÷ D(A ← V) = {got['DAT'] / got['DAV']:.6f} が固定の κ {kp:.6f} と違う")
             for X in OPS:
                 dat, dav, dxv = got["DAT"], got["DAV"], got[f"D{X}V"]
                 kh = dat / dav
@@ -362,6 +364,9 @@ def stage_summary(out: Path, targets: list) -> None:
                 run_q(f"M3d_{X}", terms, bool(subset != "nomarker"))
                 run_q(f"dV_{X}", [("A", "single_V", "true", 1), ("A", "single_V", "shufcl", -1),
                                   (X, "single_V", "true", -1), (X, "single_V", "shufcl", 1)], False)
+            # 記述：2 つの操作の M3 の差（M3_L − M3_B = κ [D(L ← V) − D(B ← V)] − [D(L ← T) − D(B ← T)]）
+            run_q("M3_L-B", [("L", "single_T", "true", -1), ("L", "single_T", "shufcl", 1), ("B", "single_T", "true", 1), ("B", "single_T", "shufcl", -1),
+                             ("L", "single_V", "true", kp), ("L", "single_V", "shufcl", -kp), ("B", "single_V", "true", -kp), ("B", "single_V", "shufcl", kp)], False)
             if subset == "nomarker":
                 continue
             # 記述：L・B の R と D（全部の目標），R(X ← y)，R(A ← y)
@@ -477,7 +482,16 @@ def selftest() -> None:
     cr = criteria(M, list(TARGETS))
     assert cr["L"]["E1_corpora"] == ["IEMOCAP", "MOSEI"] and cr["L"]["E1_hit"] and cr["L"]["E2_corpora"] == ["MOSEI"]
     assert cr["B"]["E2_corpora"] == [] and cr["lexical_both_ops"] == []
-    print("selftest：5 項目とも通った")
+    # (6) 部分集合ごとの κ を実験 14 の保存から作り直せ，設計の値と一致する．部分集合の κ を使えば帰無で M3 = 0
+    kp = kappa_from_dai14()
+    assert set(kp) == set(KAPPA_DESIGN)
+    p14 = pd.read_csv(OUT14 / "summary" / "predictions.csv")
+    for (T, sb), kv in kp.items():
+        y_ = p14[(p14.K == K) & (p14.readout == "R1") & (p14.control == "cl") & (p14["T"] == T) & (p14.subset == sb)]
+        dAT_, dAV_ = float(y_[y_.prediction == "P3"].effect.iloc[0]), float(y_[y_.prediction == "P3b"].effect.iloc[0])
+        for c in (0.2, 0.7):
+            assert abs((dAT_ - c * dAT_) - kv * (dAV_ - c * dAV_)) < 1e-9, (T, sb)
+    print("selftest：6 項目とも通った")
 
 
 def main() -> None:
@@ -514,6 +528,8 @@ def main() -> None:
     kinds = {"L": args.l_kind or f"audio_wavlm-lp{int(fcj['fc'])}", "B": args.b_kind or "audio_wavlm-rev"}
     if any(k is not None and k != DD.ENC1["A"] for k in (args.l_kind, args.b_kind)):
         sys.exit("--l-kind と --b-kind に渡せるのは元の声の特徴（退化の試し）だけ（設計 8 節）")
+    if not prod and (args.l_kind is None or args.b_kind is None):
+        sys.exit("本番でない置き場では --l-kind と --b-kind の両方に元の声の特徴を渡す（言葉を消した特徴の量は本番の置き場でだけ作る．設計 8 節）")
     dai1.ENC["enc"] = DD.ENC1
     fz1, fz1_sha = dai3.load_fz1(OUT1)
     out.mkdir(parents=True, exist_ok=True)

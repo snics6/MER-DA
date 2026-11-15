@@ -149,6 +149,8 @@ def main() -> None:
     ap.add_argument("--device", default="cuda")
     args = ap.parse_args()
     out = Path(args.out_dir)
+    if out.resolve() == (ROOT / "results" / "dai23").resolve() and args.n != 100:
+        raise SystemExit("本番の置き場では --n は 100（設計 2 節）")
     out.mkdir(parents=True, exist_ok=True)
     if (out / "fc.json").exists():
         raise SystemExit(f"{out / 'fc.json'} が既にある（fc を決め直さない）")
