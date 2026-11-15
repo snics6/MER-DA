@@ -330,6 +330,7 @@ def stage_freeze() -> None:
 def load_frozen() -> dict:
     fz = json.load(open(FROZEN))
     for p, h in fz["source_sha256"].items():
+        p = p.removeprefix("DAI/")                                       # 整理（2026-11-15）の前の鍵は MER-DA の直下から書いてある
         if (ROOT / p).exists() and dai15.sha(ROOT / p) != h:
             raise SystemExit(f"固定のファイルの元（{p}）が変わっている")
     if fz["sgrid"] != [[r, a] for r, a in SGRID] or fz["wf_tables2_sha256"] != hashlib.sha256(tables_of(2).tobytes()).hexdigest():
