@@ -44,6 +44,8 @@ FC_JSON = Path(__file__).resolve().parents[1] / "results" / "dai23" / "fc.json"
 FC_ALLOWED = (300, 400, 500)
 TARGETS = ("IEMOCAP", "MOSEI", "MELD")
 TOL_IDENTITY = 2e-3        # 既存の特徴との差の上限（実験 13 の照合の最大 9.16e-04 の約 2 倍）
+LIMIT_MAX = 256            # 試しの本数の上限（規則で選んでいない fc の特徴を全発話ぶん作らないため）
+FILTER = "butter4_sosfiltfilt_zero_phase"
 
 
 def lowpass(w: np.ndarray, fc: int | None) -> np.ndarray:
@@ -100,12 +102,16 @@ def process_chunk(df: pd.DataFrame, model, args, op: str | None, fc: int | None)
            ("sample_id", "corpus", "split", "speaker_id", "dialog_type")},
         "label_4": df["label_4"].to_numpy(dtype=np.int8),
         "op": np.array(op or ""), "lowpass_fc": np.array(-1 if fc is None else fc), "lowpass_order": np.array(ORDER),
+        "filter": np.array(FILTER if op == "lp" else ""), "model_revision": np.array(getattr(model.config, "_commit_hash", "") or ""),
     }
 
 
 def check_identity(corpus: str, model, args) -> None:
-    """濾波を外した流れが既存の特徴を作り直すか（先頭 limit 件）。書き出さない。"""
-    df = common.load_manifest(corpus).head(args.limit)
+    """操作を外した流れが既存の特徴を作り直すか（sample_id の sha256 の順の limit 件）。書き出さない。"""
+    import hashlib
+    df = common.load_manifest(corpus)
+    df = df.assign(h=df["sample_id"].map(lambda x: hashlib.sha256(x.encode()).hexdigest())).sort_values("h").head(args.limit)
+    df = df.drop(columns="h").reset_index(drop=True)
     pay = process_chunk(df, model, args, None, None)
     old = common.load_cache("audio_wavlm", corpus)
     pos = pd.Series(np.arange(len(old["sample_id"])), index=old["sample_id"].astype(str))
@@ -116,7 +122,7 @@ def check_identity(corpus: str, model, args) -> None:
     both = pay["ok"] & old["ok"][idx]
     d = np.abs(pay["X"][both] - old["X"][idx][both])
     print(f"{corpus}：{int(both.sum())} 件で照合．最大の差 {d.max():.2e}，平均 {d.mean():.2e}，ok の一致 "
-          f"{int((pay['ok'] == old['ok'][idx]).sum())}/{len(idx)}", flush=True)
+          f"{int((pay['ok'] == old['ok'][idx]).sum())}/{len(idx)}．先頭の sample_id {list(pay['sample_id'][:3])}", flush=True)
     if d.max() > TOL_IDENTITY:
         raise SystemExit(f"{corpus}：濾波を外した流れが既存の特徴と {d.max():.2e} 違う（上限 {TOL_IDENTITY}）")
 
@@ -170,6 +176,8 @@ def main() -> None:
         elif args.fc is None or not (args.limit or args.check_identity or args.merge):
             raise SystemExit("fc.json が無い（先に features/check_lowpass_asr.py）．試しは --fc と --limit を付ける")
         kind = f"audio_wavlm-lp{args.fc}"
+    if args.limit > LIMIT_MAX:
+        raise SystemExit(f"--limit は {LIMIT_MAX} 以下")
     if args.limit and not args.check_identity:
         kind += "_trial"          # 試しの途中保存が本番の途中保存として「済み」と読まれないように名前を分ける
     if args.merge:

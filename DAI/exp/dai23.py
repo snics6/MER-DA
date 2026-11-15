@@ -28,6 +28,7 @@ import argparse
 import hashlib
 import json
 import platform
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -58,7 +59,8 @@ RNG_SEED = 20261115
 MEM_FRAC = 0.6
 VERIFY_AGREE = 0.995          # 元の声で作り直した R1 の予測が実験 14 の保存と一致する割合の下限（--verify）
 RATIO_MIN = 0.5               # 仮定：R(X ← y) − 25 が R(A ← y) − 25 のこの割合以上（設計 6 節）
-KAPPA_DESIGN = {"IEMOCAP": 3.215, "MOSEI": 6.165, "MELD": 1.949}   # 設計 3 節．台本は実験 14 の predictions.csv から計算し直して小数 3 桁で照らす
+KAPPA_DESIGN = {("IEMOCAP", "all"): 3.215, ("IEMOCAP", "nomarker"): 3.328, ("MOSEI", "all"): 6.165, ("MOSEI", "nomarker"): 5.779,
+                ("MELD", "all"): 1.949, ("MELD", "nonshared"): 1.784, ("MELD", "nomarker"): 1.958}   # 設計 3 節．部分集合ごと．実験 14 の predictions.csv から計算し直して小数 3 桁で照らす
 OPS = ("L", "B")
 SCRIPTS = ("dai23.py", "dai14.py", "dai3.py", "dai1.py", "dai1_stats.py", "dai_solver.py", "dai_data.py")
 FEAT_SCRIPTS = ("build_audio.py", "build_audio_lowpass.py", "check_lowpass_asr.py")
@@ -90,7 +92,7 @@ def quant(X: str, kappa: float) -> dict:
 
 QUANT_A = {"DAT": [("A", "single_T", "true", 1), ("A", "single_T", "shufcl", -1)],
            "DAV": [("A", "single_V", "true", 1), ("A", "single_V", "shufcl", -1)]}
-PRIMARY = tuple(f"{q}_{X}" for X in OPS for q in ("M1", "M2", "M3"))
+PRIMARY = tuple(f"{q}_{X}" for X in OPS for q in ("M1", "M2", "M3", "M3d"))
 
 
 def sha(path: Path) -> str:
@@ -259,16 +261,17 @@ def load_merged(out: Path, T: str) -> tuple[dict, pd.DataFrame]:
 
 
 def kappa_from_dai14() -> dict:
-    """κ_T = D(A ← T) ÷ D(A ← V)：実験 14 の predictions.csv の P3 ÷ P3b（K = 5，R1，#shufcl，候補の全体）．設計 3 節の値と小数 3 桁で照らす．"""
+    """κ_T = D(A ← T) ÷ D(A ← V)：実験 14 の predictions.csv の P3 ÷ P3b（K = 5，R1，#shufcl．部分集合ごと）．設計 3 節の値と小数 3 桁で照らす．"""
     p = pd.read_csv(OUT14 / "summary" / "predictions.csv")
     x = p[(p.K == K) & (p.readout == "R1") & (p.control == "cl") & (p.subset == "all")]
     out = {}
-    for T in TARGETS:
-        num = float(x[(x["T"] == T) & (x.prediction == "P3")].effect.iloc[0])
-        den = float(x[(x["T"] == T) & (x.prediction == "P3b")].effect.iloc[0])
-        out[T] = num / den
-        if abs(round(out[T], 3) - KAPPA_DESIGN[T]) > 1e-9:
-            raise SystemExit(f"{T}：κ を作り直すと {out[T]:.4f} で，設計の {KAPPA_DESIGN[T]} と違う")
+    for (T, sb), kd in KAPPA_DESIGN.items():
+        y_ = x[(x["T"] == T) & (x.subset == sb)]
+        num = float(y_[y_.prediction == "P3"].effect.iloc[0])
+        den = float(y_[y_.prediction == "P3b"].effect.iloc[0])
+        out[(T, sb)] = num / den
+        if abs(round(out[(T, sb)], 3) - kd) > 1e-9:
+            raise SystemExit(f"{T}/{sb}：κ を作り直すと {out[(T, sb)]:.4f} で，設計の {kd} と違う")
     return out
 
 
@@ -279,16 +282,30 @@ def corpus_verdict(main: pd.DataFrame, T: str, q: str, subsets: tuple = ("all",)
     return all(((x.subset == sb) & (x.verdict == "上回る")).any() for sb in need)
 
 
-def criteria(main: pd.DataFrame, targets: list) -> dict:
-    """予言の数え（設計 5 節）．E1_X：M1_X が 3 コーパスのうち 2 以上で上回る．E2_X：M1_X・M2_X・M3_X がすべて上回るコーパスを名指し．
-    言葉の中身に帰す書き方は，E2_L と E2_B の両方が成り立つコーパスだけ．"""
+def criteria(main: pd.DataFrame, targets: list, asm: pd.DataFrame | None = None, fcj: dict | None = None) -> dict:
+    """予言の数え（設計 5 節）．E1_X：M1_X が 3 コーパスのうち 2 以上で上回る．E2_X：M1_X・M2_X・M3_X・M3d_X（κ の揺れを 1 次で入れた区間）が
+    すべて上回るコーパスを名指し．言葉の中身に帰す書き方は，E2_L と E2_B の両方が成り立ち，仮定の表の条件（操作の確かめ，感情の情報）を
+    満たすコーパスだけ（lexical_both_ops_ok）．顔の判断の再現が操作で増えた（dV_X が下回る）コーパスは face_increase に名指しする．"""
     out = {}
     for X in OPS:
         e1 = [T for T in targets if corpus_verdict(main, T, f"M1_{X}")]
-        e2 = [T for T in targets if all(corpus_verdict(main, T, f"{q}_{X}") for q in ("M1", "M2", "M3"))]
+        e2 = [T for T in targets if all(corpus_verdict(main, T, f"{q}_{X}") for q in ("M1", "M2", "M3", "M3d"))]
         l3 = [T for T in targets if corpus_verdict(main, T, f"L3_{X}")]
-        out[X] = dict(E1_count=len(e1), E1_corpora=e1, E1_hit=bool(len(e1) >= 2), E2_corpora=e2, L3_above=l3)
+        fi = [T for T in targets if ((main["T"] == T) & (main.quantity == f"dV_{X}") & (main.subset == "all") & (main.verdict == "下回る")).any()]
+        nm = {T: {q: main[(main["T"] == T) & (main.quantity == f"{q}_{X}") & (main.subset == "nomarker")].verdict.tolist()
+                  for q in ("M1", "M2", "M3", "M3d", "L3")} for T in targets}
+        out[X] = dict(E1_count=len(e1), E1_corpora=e1, E1_hit=bool(len(e1) >= 2), E2_corpora=e2, L3_above=l3,
+                      face_increase=fi, nomarker_verdicts=nm)
     out["lexical_both_ops"] = [T for T in targets if T in out["L"]["E2_corpora"] and T in out["B"]["E2_corpora"]]
+    ok_manip = bool((fcj or {}).get("rule_met", False)) and bool((fcj or {}).get("rev_ok", False))
+    bad_info = set()
+    if asm is not None and len(asm):
+        li = asm[asm.kind == "label_info"]
+        bad_info = set(li[li.flag.astype(bool)]["T"])
+    out["assumptions"] = dict(fc_rule_met=bool((fcj or {}).get("rule_met", False)), rev_ok=bool((fcj or {}).get("rev_ok", False)),
+                              label_info_flagged=sorted(bad_info))
+    out["lexical_both_ops_ok"] = [T for T in out["lexical_both_ops"] if ok_manip and T not in bad_info
+                                  and T not in out["L"]["face_increase"] and T not in out["B"]["face_increase"]]
     out["below"] = main[main.primary & (main.verdict == "下回る")][["T", "subset", "quantity"]].to_dict("records")
     return out
 
@@ -312,20 +329,39 @@ def stage_summary(out: Path, targets: list) -> None:
         main_nm = "prop_" + fz1[T]["main"][str(K)]
         g_eff, _ = ST.g_eff_of(T)
         rng = np.random.default_rng([RNG_SEED, DD.CORPUS_ID[T]])
-        Q = dict(QUANT_A)
-        for X in OPS:
-            Q.update(quant(X, kap[T]))
         subsets = (["all", "nonshared"] if T == "MELD" else ["all"]) + ["nomarker"]
         for subset in subsets:
-            for q, terms in Q.items():
-                if subset == "nomarker" and not q.startswith(("M1_", "M2_", "M3_")):
-                    continue
+            kp = kap[(T, subset)]
+            Q = dict(QUANT_A)
+            for X in OPS:
+                Q.update(quant(X, kp))
+            got = {}
+
+            def run_q(q, terms, primary):
                 tt = [("R1", s_, nm, ver, co) for s_, nm, ver, co in terms]
                 cells = [D14.Rcell(U, K, "R1", s_, nm, ver, subset) for _, s_, nm, ver, _ in tt]
                 spv = D14.split_values(U, K, tt, subset)
                 e = D14.combo_stats(cells, [t[-1] for t in tt], g_eff, rng, split_vals=spv)
-                mains.append(dict(T=T, K=K, subset=subset, quantity=q, kappa=kap[T], primary=bool(q in PRIMARY and subset != "nomarker")) | e |
+                got[q] = e["effect"]
+                mains.append(dict(T=T, K=K, subset=subset, quantity=q, kappa=kp, primary=primary) | e |
                              dict(verdict=D14.verdict(e["lo"], e["hi"]), verdict_ns=D14.verdict(e["lo_ns"], e["hi_ns"])))
+
+            for q, terms in Q.items():
+                if subset == "nomarker" and not q.startswith(("M1_", "M2_", "M3_", "L3_", "D")):
+                    continue
+                run_q(q, terms, bool(q in PRIMARY and subset != "nomarker"))
+            # M3 の κ の推定の揺れを 1 次で入れた版（設計 4 節）：M3 = D_AT − D_XT − κ̂ (D_AV − D_XV)，κ̂ = D_AT / D_AV の 1 次の係数
+            for X in OPS:
+                dat, dav, dxv = got["DAT"], got["DAV"], got[f"D{X}V"]
+                kh = dat / dav
+                co = {"AT": dxv / dav, "XT": -1.0, "AV": -kh * dxv / dav, "XV": kh}
+                terms = ([("A", "single_T", "true", co["AT"]), ("A", "single_T", "shufcl", -co["AT"])] +
+                         [(X, "single_T", "true", co["XT"]), (X, "single_T", "shufcl", -co["XT"])] +
+                         [("A", "single_V", "true", co["AV"]), ("A", "single_V", "shufcl", -co["AV"])] +
+                         [(X, "single_V", "true", co["XV"]), (X, "single_V", "shufcl", -co["XV"])])
+                run_q(f"M3d_{X}", terms, bool(subset != "nomarker"))
+                run_q(f"dV_{X}", [("A", "single_V", "true", 1), ("A", "single_V", "shufcl", -1),
+                                  (X, "single_V", "true", -1), (X, "single_V", "shufcl", 1)], False)
             if subset == "nomarker":
                 continue
             # 記述：L・B の R と D（全部の目標），R(X ← y)，R(A ← y)
@@ -385,7 +421,10 @@ def stage_summary(out: Path, targets: list) -> None:
     C = pd.concat(conv)
     json.dump(dict(grad_max=float(C.grad.max()), inner_grad_max=float(C.inner_grad.max()), stalled=int(C.stalled.sum()),
                    inner_stalled=int(C.inner_stalled.max())), open(sdir / "convergence.json", "w"), indent=1)
-    json.dump(criteria(M, targets) | dict(kappa=kap), open(sdir / "criteria.json", "w"), ensure_ascii=False, indent=1)
+    A_ = pd.DataFrame(asm)
+    fcj = json.load(open(FC_JSON)) if FC_JSON.exists() else {}
+    json.dump(criteria(M, targets, A_, fcj) | dict(kappa={f"{k[0]}/{k[1]}": v for k, v in kap.items()}),
+              open(sdir / "criteria.json", "w"), ensure_ascii=False, indent=1)
     print(f"summary：主の量 {len(M)} 行，記述 {len(desc)} 行，仮定 {len(asm)} 行", flush=True)
 
 
@@ -433,7 +472,7 @@ def selftest() -> None:
     # (5) 数えの規則
     M = pd.DataFrame([dict(T=T, subset=sb, quantity=q, verdict=v, primary=True) for T, sb, q, v in [
         ("IEMOCAP", "all", "M1_L", "上回る"), ("MOSEI", "all", "M1_L", "上回る"), ("MELD", "all", "M1_L", "上回る"), ("MELD", "nonshared", "M1_L", "判定できない"),
-        ("MOSEI", "all", "M2_L", "上回る"), ("MOSEI", "all", "M3_L", "上回る"),
+        ("MOSEI", "all", "M2_L", "上回る"), ("MOSEI", "all", "M3_L", "上回る"), ("MOSEI", "all", "M3d_L", "上回る"),
         ("MOSEI", "all", "M1_B", "上回る"), ("MOSEI", "all", "M2_B", "上回る"), ("MOSEI", "all", "M3_B", "判定できない")]])
     cr = criteria(M, list(TARGETS))
     assert cr["L"]["E1_corpora"] == ["IEMOCAP", "MOSEI"] and cr["L"]["E1_hit"] and cr["L"]["E2_corpora"] == ["MOSEI"]
@@ -473,6 +512,8 @@ def main() -> None:
         sys.exit(f"{FC_JSON} が無い（先に features/check_lowpass_asr.py で fc を決める．退化の試しは --l-kind を付ける）")
     fcj = json.load(open(FC_JSON)) if FC_JSON.exists() else {}
     kinds = {"L": args.l_kind or f"audio_wavlm-lp{int(fcj['fc'])}", "B": args.b_kind or "audio_wavlm-rev"}
+    if any(k is not None and k != DD.ENC1["A"] for k in (args.l_kind, args.b_kind)):
+        sys.exit("--l-kind と --b-kind に渡せるのは元の声の特徴（退化の試し）だけ（設計 8 節）")
     dai1.ENC["enc"] = DD.ENC1
     fz1, fz1_sha = dai3.load_fz1(OUT1)
     out.mkdir(parents=True, exist_ok=True)
@@ -481,6 +522,8 @@ def main() -> None:
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"),
                 host=platform.node(), gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""),
                 python=platform.python_version(), torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__,
+                scipy=__import__("scipy").__version__, transformers=__import__("transformers").__version__,
+                ffmpeg=subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.splitlines()[0],
                 scripts=script_shas(), design_sha256=sha(DESIGN), fc_json=fcj, fc_json_sha256=(sha(FC_JSON) if FC_JSON.exists() else ""), kinds=kinds, kappa_design=KAPPA_DESIGN,
                 cache_sha256={k: (sha(p) if p.exists() else "") for k, p in cache.items()},
                 dai1_frozen_sha256=fz1_sha, K=K, grid_c=D14.GRID_C, cb_r1=D14.CB_R1, dim_r1=D14.DIM_R1, rng_seed=RNG_SEED,
@@ -494,7 +537,7 @@ def main() -> None:
             folds = list(range(DD.N_FOLDS)) if args.folds is None else args.folds
             for f in folds:
                 for r in seeds:
-                    df = run_unit(T, f, r, fzT, out, kinds, args.verify)
+                    df = run_unit(T, f, r, fzT, out, kinds, args.verify or r == 0)   # r = 0 の単位は本番でも照合する（設計 6 節）
                     if df is None:
                         print(f"{T}_f{f}_r{r}：済み（飛ばす）", flush=True)
                         continue

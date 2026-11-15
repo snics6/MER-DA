@@ -5,10 +5,11 @@
     sha256 の順に 100 本ずつ選ぶ。テストの分割の発話も入るが，使うのは書き起こしと波形だけで，感情のラベルの値は使わない。
     条件：元の音声，逆再生（rev），fc = 500，400，300 Hz の低域通過（lp<fc>）。
     Whisper large-v3（`build_transcript_afew.py` と同じ設定：英語に固定，書き起こし，ビーム幅 5，サンプリングなし，波形は正規化しない）。
-    一致率 H/N：人の書き起こしと出力を同じ規則で単語に分け，最長共通部分列の長さ H を参照の単語の数 N で割る
-    （Whisper が無い文を作って足した単語は，参照の単語と順に一致しない限り H を増やさない）。参考に単語誤り率 WER も出す。
-    規則（計算の前に固定）：3 コーパスのすべてで H/N の平均が 0.20 以下になる最も高い fc を使う。どれも満たさないときは
-    300 Hz を使い，fc.json の rule_met を false にする。
+    一致率 H/N：人の書き起こしと出力を同じ規則で単語に分け，最長共通部分列の長さ H を参照の単語の数 N で割る。参考に単語誤り率 WER も出す。
+    偶然の水準：同じ条件の出力を，同じコーパスの別の発話の参照と組ませたすべての組の H/N の平均（出力が長いだけで H/N は上がるため）。
+    超過 = H/N の平均 − 偶然の水準。
+    規則（計算の前に固定）：3 コーパスのすべてで超過が 0.10 以下になる最も高い fc を使う。どれも満たさないときは
+    300 Hz を使い，fc.json の rule_met を false にする。逆再生の超過も同じ基準で記録する（rev_ok）。
     F0：同じ標本の元の音声で，YIN（de Cheveigné & Kawahara 2002）の推定で有声の区間のうち F0 が 0.8·fc を超える割合を出す（仮定の表）。
 
 出力：results/dai23/asr_check.csv（発話ごと），asr_check_summary.csv，f0_check.csv，fc.json。
@@ -46,11 +47,12 @@ import dai_data as DD  # noqa: E402
 MODEL = "openai/whisper-large-v3"
 TARGETS = ("IEMOCAP", "MOSEI", "MELD")
 FCS = (500, 400, 300)                 # 高い順（規則は最も高い fc から確かめる）
-HIT_MAX = 0.20
+EXCESS_MAX = 0.10                   # 超過の上限（慣用の値で，根拠は無い．設計 6 節）
 MIN_WORDS = 3
 MAX_SEC = 30.0
 F0_RANGE = (60.0, 500.0)
 F0_FRAME, F0_HOP, F0_THRESH, F0_GATE_DB = 0.04, 0.01, 0.15, -40.0
+_PICKED: dict = {}
 
 
 def norm_words(t) -> list[str]:
@@ -162,6 +164,7 @@ def main() -> None:
         df, dec = pick(c, args.n)
         if len(df) < args.n:
             raise SystemExit(f"{c}：条件を満たす発話が {len(df)} 本しか無い")
+        _PICKED[c] = (df["sample_id"].tolist(), df["transcript"].tolist())
         f0 = [f0_yin(w) for w in dec]
         allf = np.concatenate([x for x in f0 if len(x)]) if any(len(x) for x in f0) else np.array([])
         f0rows.append(dict(corpus=c, n_utt=len(dec), n_voiced=len(allf), f0_median=float(np.median(allf)) if len(allf) else np.nan,
@@ -177,17 +180,35 @@ def main() -> None:
             print(f"{c} {cond}：{len(df)} 本 {time.perf_counter() - t0:.0f} 秒", flush=True)
     res = pd.DataFrame(rows)
     res.to_csv(out / "asr_check.csv", index=False)
+    refs = {(c, sid): norm_words(t) for c in TARGETS for sid, t in zip(*_PICKED[c])}
+    chance = []
+    for (c, cond), g in res.groupby(["corpus", "condition"]):       # 出力を別の発話の参照と組ませたすべての組の H/N の平均
+        hyps = [norm_words(h) for h in g["hyp"]]
+        sids = g["sample_id"].tolist()
+        v = [lcs(refs[(c, sids[i])], hyps[j]) / len(refs[(c, sids[i])]) for i in range(len(sids)) for j in range(len(sids)) if i != j]
+        chance.append(dict(corpus=c, condition=cond, hit_chance=float(np.mean(v))))
     summ = res.groupby(["corpus", "condition"]).agg(hit_mean=("hit", "mean"), hit_median=("hit", "median"),
-                                                    wer_mean=("wer", "mean"), n=("hit", "size")).reset_index()
+                                                    wer_mean=("wer", "mean"), n_hyp_mean=("n_hyp", "mean"),
+                                                    n=("hit", "size")).reset_index()
+    summ = summ.merge(pd.DataFrame(chance), on=["corpus", "condition"])
+    summ["excess"] = summ["hit_mean"] - summ["hit_chance"]
     summ.to_csv(out / "asr_check_summary.csv", index=False)
     pd.DataFrame(f0rows).to_csv(out / "f0_check.csv", index=False)
     chosen, met = 300, False
     for fc in FCS:
-        m = summ[summ.condition == f"lp{fc}"].set_index("corpus")["hit_mean"]
-        if len(m) == len(TARGETS) and (m <= HIT_MAX).all():
+        m = summ[summ.condition == f"lp{fc}"].set_index("corpus")["excess"]
+        if len(m) == len(TARGETS) and (m <= EXCESS_MAX).all():
             chosen, met = fc, True
             break
-    json.dump(dict(fc=chosen, rule_met=met, hit_max=HIT_MAX, n_per_corpus=args.n, max_sec=MAX_SEC, model=MODEL,
+    rv = summ[summ.condition == "rev"].set_index("corpus")["excess"]
+    import scipy
+    import transformers
+    json.dump(dict(fc=chosen, rule_met=met, rev_ok=bool(len(rv) == len(TARGETS) and (rv <= EXCESS_MAX).all()),
+                   excess_max=EXCESS_MAX, n_per_corpus=args.n, max_sec=MAX_SEC, min_words=MIN_WORDS, order="sha256(sample_id)",
+                   norm_rule="lower; drop [..] (..) {..}; non [a-z0-9'] -> space; strip apostrophes", hit="LCS / n_ref",
+                   chance="mean over all mismatched (ref i, hyp j), i != j, same corpus and condition",
+                   model=MODEL, model_revision=getattr(model.config, "_commit_hash", ""), transformers=transformers.__version__,
+                   scipy=scipy.__version__, filter="butter4 sosfiltfilt zero phase",
                    decoding=dict(language="en", task="transcribe", num_beams=5, do_sample=False, max_new_tokens=200),
                    candidates=list(FCS)), open(out / "fc.json", "w"), indent=1)
     print(summ.to_string(index=False))
