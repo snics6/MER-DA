@@ -18,3 +18,4 @@
 .DS_Store
 *.pdf
 !sn-jnl-user-manual.pdf
+!figures/*.pdf

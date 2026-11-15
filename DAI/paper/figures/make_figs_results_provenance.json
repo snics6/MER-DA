@@ -1,0 +1,155 @@
+{
+ "figures": {
+  "fig3_q1_retraining": {
+   "sources": [
+    {
+     "path": "results/dai1/stats/families_flagged.csv",
+     "sha256_16": "5bc07e9b384fbcd7"
+    }
+   ],
+   "first_edition": [
+    {
+     "path": "paper/ja/第1版/07_本番の評価.md",
+     "sha256_16": "bbdc7a4d22e50309"
+    }
+   ],
+   "n_checked": 86,
+   "size_mm": [
+    174.0,
+    62.0
+   ]
+  },
+  "fig4_mixing_gain": {
+   "sources": [
+    {
+     "path": "results/e76_analysis/e76a_1_kind.csv",
+     "sha256_16": "cc86384e0591a15e"
+    }
+   ],
+   "first_edition": [
+    {
+     "path": "paper/ja/第1版/03_混ぜるgain.md",
+     "sha256_16": "aa5c8659928e49ab"
+    }
+   ],
+   "n_checked": 154,
+   "size_mm": [
+    174.0,
+    66.0
+   ]
+  },
+  "fig5_bias_and_direction": {
+   "sources": [
+    {
+     "path": "results/e76_analysis/e76a_4_kind.csv",
+     "sha256_16": "800e156e0901c573"
+    },
+    {
+     "path": "results/e75/e75_5_summary.csv",
+     "sha256_16": "9ae6e8e41f80298f"
+    },
+    {
+     "path": "results/e76_analysis/e76a_3_dT.csv",
+     "sha256_16": "7f2570a1474e7097"
+    },
+    {
+     "path": "results/e76_analysis/e76a_3_q_summary.csv",
+     "sha256_16": "7a608b3937906242"
+    }
+   ],
+   "first_edition": [
+    {
+     "path": "paper/ja/第1版/04_切片.md",
+     "sha256_16": "8c50081ea82b9bed"
+    },
+    {
+     "path": "paper/ja/第1版/05_向き.md",
+     "sha256_16": "d81fcf17a23d0450"
+    }
+   ],
+   "n_checked": 112,
+   "size_mm": [
+    174.0,
+    88.0
+   ]
+  },
+  "fig6_conditions": {
+   "sources": [
+    {
+     "path": "results/dai14/summary/conditions.csv",
+     "sha256_16": "ca618aa3978b7314"
+    },
+    {
+     "path": "results/dai3/eval/expl4_corpus_restored.csv",
+     "sha256_16": "bd0acf2f9c95e33d"
+    }
+   ],
+   "first_edition": [
+    {
+     "path": "paper/ja/第1版/08_3条件.md",
+     "sha256_16": "f563146cbf57af46"
+    }
+   ],
+   "n_checked": 109,
+   "size_mm": [
+    84.0,
+    80.0
+   ]
+  },
+  "fig7_strength_profile": {
+   "sources": [
+    {
+     "path": "results/dai16_probe/summary/reliability.csv",
+     "sha256_16": "c0f8425ac25ffec2"
+    },
+    {
+     "path": "results/dai16_probe/summary/r0.csv",
+     "sha256_16": "e2831d70b7395084"
+    }
+   ],
+   "first_edition": [
+    {
+     "path": "paper/ja/第1版/10_手法と評価.md",
+     "sha256_16": "fb69569e959f2f7d"
+    }
+   ],
+   "n_checked": 12,
+   "size_mm": [
+    174.0,
+    88.0
+   ]
+  },
+  "fig9_fusion_vs_others": {
+   "sources": [
+    {
+     "path": "results/dai20_eval/summary/effects.csv",
+     "sha256_16": "0e252da4fd1ee7d1"
+    },
+    {
+     "path": "results/dai21_eval5/summary/effects.csv",
+     "sha256_16": "34e5d8f0bf302918"
+    }
+   ],
+   "first_edition": [
+    {
+     "path": "paper/ja/第1版/10_手法と評価.md",
+     "sha256_16": "fb69569e959f2f7d"
+    }
+   ],
+   "n_checked": 310,
+   "size_mm": [
+    174.0,
+    62.0
+   ]
+  }
+ },
+ "script": "paper/scripts/make_figs_results.py",
+ "script_sha256_16": "6884533caded86f8",
+ "commit": "187d5480da2b3eed33e1db0a182be47368569ce6",
+ "results_dirty": false,
+ "script_tracked_in_git": false,
+ "font": "Arial",
+ "matplotlib": "3.11.2",
+ "pandas": "3.0.6",
+ "numpy": "2.5.2"
+}

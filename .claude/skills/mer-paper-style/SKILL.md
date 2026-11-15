@@ -16,29 +16,44 @@ description: MER-DA の論文（DAI に出す MER の論文．DAI/paper/）の�
 4. **要旨と序論では結果を点推定で言い切る．**区間が 0 を含むかどうか，条件の数え方は結果の節で書く．MER の論文で区間まで出すものはほとんど無い（29 本中 0 本）ので，結果の節の区間はこの論文の強みとして書いてよい．
 5. **データ → モデル → 実験 → 結果の順に事実を書く．**評価の手順は事実のとおりに書き，「探索」などのラベルや長い断り書きは付けない．範囲の限定は限界の節にまとめる．
 6. **長さ：誌の版で 32 頁ほど（約 9,600 語）．**DAI の ML 論文は補足資料も付録もほとんど使わない（24 本中 ESM 1 本，付録 0 本）．
-8. **言い切りすぎない（2026-11-15 研究者の指摘「全体的にあなたが断定するところが気になる」）．**
-   - 原因を because で断定しない．原因の候補は *"Some factors that change across datasets and can impact affect recognition include ..."*（ADDoG）のように can / may で並べる．
-   - 自分の結果は観察として過去形で書く（*"Our results show that ..."*，*"We observed ..."*，was reduced，varied）．現在形の一般の法則のように書かない（is removed，varies）．
-   - 他人の結果は *"have been reported to ..."* で書く．解釈は *"suggesting that ..."*，理由は *"One possible explanation is that ..."*（Hayashi 2025），示唆は *"These findings suggest ..."*，条件つきは *"conditional rather than universal"*（Kikuchi 2026）．
-   - 「多くの場合」「ふつう」のように，測っていない一般の頻度を言わない．設定は「本研究は〜の場合を考える」と書く．
-9. 数値は照合を通した結果の文か結果ファイルからだけ取る（`DAI/paper/CLAUDE.md`）．嘘にならない言い切りに限る：点推定の符号を数えた「12 条件のうち 11 で上回った」は書いてよい．「4 コーパスすべてで有意に」は区間が支えないなら書かない．
+7. **論の組み立ては次節（0.5 節）の岡田・石井のエッセンスに従う．**「言い切りすぎない」は表に出た症状で，本体は 0.5 節の 6 点である（2026-11-15 研究者の指摘「言い切りすぎない，だとちょっと浅い理解」）．
+8. 数値は照合を通した結果の文か結果ファイルからだけ取る（`DAI/paper/CLAUDE.md`）．嘘にならない言い切りに限る：点推定の符号を数えた「12 条件のうち 11 で上回った」は書いてよい．「4 コーパスすべてで有意に」は区間が支えないなら書かない．
+
+## 0.5 岡田・石井のエッセンス（論の組み立て．2026-11-15 研究者の承認）
+
+2 人は文ごとに語を弱めるのではなく，**主張の強さを問いの立て方と証拠の種類で決める**．証拠があるところは強く言い切る（Ishii 2022 の *"critically important"*，*"the first time that such a dissonance has been revealed"*，Okada 2019 の *"more accurate than previous models for 14 out of 15 traits"*）．
+
+1. **問題を方法からではなく人や場面の側から立てる．**石井は「円滑な会話のために参加者は相手の意欲を見て振る舞いを変えなければならない」から始め，手法の動機も人についての考えで書く（*"humans are likely to control actual turn-changing on the basis of turn-management willingness"*，*"We believe that ..."*）．Sakuramoto 2026 は実環境の性質から始める．こちらは「感情の表れ方と付け方がコーパスで違う」「ラベルは複数の評定者が付ける」から始め，分類器の成績はその後に置く．
+2. **新しさは「知られていることが，この場面でも成り立つか」で立てる．**Hayashi 2025（初対面で効いた性格の情報が友人どうしでも効くか．*"we investigate whether this findings applies to ..."*），Sakuramoto 2026（*"it remains unclear whether they can be directly applied to real-world environments"*），Kikuchi 2026（LLM が予測できるとき声が何を足すか）．既知の結果を土台にし，最後は *"the first step toward understanding why ..."* で結ぶ．こちらの既知の結果：ほかのモダリティの疑似ラベルで声の分類器が学べる（Albanie 2018）．
+3. **問いを番号で立て，主張は問いへの答えとして書く．範囲は主張の文の中に入れる．**石井の Q1，Q2-1，Q2-2 → 手法の節 *"To address Q1"* → 考察 *"Answer to Q1"*．Hayashi 2025 は RO-1（効くか）と RO-2（なぜ効くか）を立て，考察の見出しを答えの文にする．範囲の語（*"in dyadic interactions between friends"*，*"in real-world HRI"*，*"on this dataset"*）を主張の中に入れるので，後から断り書きを足さない．
+4. **「効くか」の次に「なぜ効くか」を，量を成分に分けて答える．**Hayashi 2025 は効いたことを示した後 *"demystify how BFFs improve"* と問い，評定を 3 成分に分け，どの入力がどの成分を捉えさせたかを示す．Kikuchi 2026 は 2 つの予測が重なる分散を測ってから「補い合う」と言う．こちらの「誤りを答えの偏りと残りの誤りに分け，どの情報源がどちらを直すか」はこの型に乗せて書く．
+5. **動詞の強さを証拠の種類に合わせる．**測った結果は *"Our results show"*（自分の観察は過去形），仮説の検定は *"substantiates / supports / partially confirms"*，解釈は *"suggesting that"*，測っていない理由は *"Although we cannot say for certain ..., one possible explanation is ..."*，先行研究とは *"in line with"*，他人の結果は *"have been reported / shown"*．原因の候補は can / may で並べ，because で断定しない（ADDoG）．「多くの場合」「ふつう」のように測っていない頻度を言わない．設定は「本研究は〜の場合を考える」と書く．
+6. **読者が持ち帰る判断を書く．**Hayashi 2025 *"RO-1 provides readers with information to judge whether performance gain is worth the cost of collecting Big Five personality traits"*，Okada 2019 *"we present guidelines for applying the framework"*．こちらは「新しいコーパスで手間をラベル付けとラベル無しの録画のどちらに回すか」の判断材料．
+
+**文のつなぎ**：各文の頭で前の文の最後の語を受ける（成績が落ちる → *"Adapting ..."* → 費用 → *"To reduce this cost"* → 使われてきた → *"However, it remains unclear whether"* → 問い → *"To answer these questions"*）．既知の結果の文を前の文とつなげずに置かない．
 
 ## 1. 要旨（7〜9 文，150〜230 語．上限 250 語）
 
-| 文 | 役割 | 型（原文の句） | 出典 |
-|---|---|---|---|
-| 1 | 分野の問題 | 「1 つのコーパスでは良いが，新しいコーパスでは落ちる」の対比と原因：*"While methods trained and tested within the same dataset have been shown successful, they often fail when applied to unseen datasets."* 原因は recording conditions，elicitation（acted or natural），annotation，language | ADDoG（Gideon 2019） |
-| 2 | なぜ難しいか | ラベルが少ない理由：*"labels ... are collected with perceptual evaluations from multiple evaluators ... cognitively intense and expensive"*．ラベル無しは多い：*"the abundance of unlabeled data"* | Parthasarathy & Busso 2020，Abdelwahab & Busso 2018 |
-| 3 | 分かっていないこと | *"..., but it remains unclear ..."* を 1 文 | 岡田研 2023〜2026，Kikuchi 2026，Xue 2023 |
-| 4 | 本研究の設定 | *"With linear classifiers on frozen pretrained ... encoders, we answer this in two steps."* | Kikuchi 2026 |
-| 5〜6 | 解析で見つけたこと | *"Firstly, we find that ..., whereas ..."*．条件は同じ文に（*"when ..."*，*"but ... rather than universal"*） | Ishii 2022，Kikuchi 2026，Wagner 2023 |
-| 7 | 提案 | *"Secondly, we propose ..."*．MER の語で名指す（late fusion / decision-level fusion） | Ishii 2022，融合系 |
-| 8 | 評価の範囲と結果 | コーパスを名前で書く．数値は 1〜2 組．*"outperforms X in 11 of 12 conditions, by 2.1–3.5 UAR points on AFEW"* | 融合系 8/15，Okada 2019 の「何個のうち何個」 |
-| 9 | 示唆 | *"These findings suggest ..."* | 岡田研 |
+決まった要旨（第 7 版，2026-11-15．`DAI/paper/ja/00_要旨.md`）の流れ：
 
+| 文 | 役割 | 型 | 出典 |
+|---|---|---|---|
+| 1 | 場面の事実と既知の問題 | コーパスは録音・誘発・注釈が違い，*"... have been reported to degrade on another"*（原因は言い切らず並べる） | ADDoG，エッセンス 1・5 |
+| 2 | なぜ難しいか | *"Adapting ... requires its labels, which are costly because each needs several annotators"* | Busso 研 |
+| 3 | 既知の対処 | *"To reduce this cost, pseudo-labels from other modalities have been used to ..."* | Albanie 2018，エッセンス 2 |
+| 4 | 問い | *"However, it remains unclear whether and why this works when ..., and how ..."* | Sakuramoto 2026，エッセンス 2・3 |
+| 5 | 成分に分ける | *"To answer these questions, we decompose the error of ... into ..."* | Hayashi 2025，エッセンス 4 |
+| 6〜7 | 答え（観察） | *"Our results show that ... was removed ..., whereas ... decreased ... but rarely ..."*，過去形 | Kikuchi 2026，エッセンス 5 |
+| 8 | 提案 | *"Based on this, we propose ... late fusion for pseudo-labelling ..."* | Ishii 2022，融合系 |
+| 9 | 範囲と結果 | コーパス名，*"outperformed ... in 11 of 12 conditions, by 2.1–3.5 UAR points on AFEW"* | 融合系，Okada 2019 |
+| 10 | 読者の判断 | *"These results inform whether annotation effort is better spent on ..."* | Hayashi 2025，エッセンス 6 |
+
+- 7〜10 文，150〜249 語（上限 250 語未満）．数値は 2〜3 組．
 - 独自の語（切片のずれ，向きのずれ，gain，余地）は要旨で使わないか，括弧で 1 句の説明を付ける．内部の語（評価の回，条件の数え方，下調べ）は使わない．
 
 ## 2. 序論
+
+全体の構成（問い Q1〜Q3，章立て，図 1〜9）は `DAI/paper/notes/構成の案_岡田石井の型_2026-11-15.md`（2026-11-15 研究者の承認）．図の決まりは `DAI/paper/notes/図_岡田石井と有名なMER論文_2026-11-15.md` の 4.0 節．
 
 1. 1 段落目：コーパス間で成績が落ちることと原因を，出典つきで 1 文に並べる（ADDoG の 2 段落目の型）．同じ項目を 2 節のコーパスの表の列にする（EmoBox の型）．
 2. 2 段落目：ラベルが少ない理由（評定者の知覚評価の費用，正解の主観性）と，ラベル無しの発話とほかのコーパスは手元にあること．このため半教師ありのドメイン適応の問題になり，MER ではほかのモダリティも使える．

@@ -4,3 +4,6 @@
 \setmonofont[RawFeature={fallback=mdfb},Scale=0.9]{DejaVu Sans Mono}
 \setmainjfont[RawFeature={fallback=mdfb}]{Noto Serif CJK JP}
 \setmonojfont[RawFeature={fallback=mdfb}]{Noto Sans Mono CJK JP}
+% 説明文は「図 N」で始まるので，LaTeX の "Figure N:" を付けない
+\usepackage{caption}
+\captionsetup[figure]{labelformat=empty,font=small}
