@@ -1,0 +1,66 @@
+{
+ "script": "exp/text_cond2.py",
+ "argv": [
+  "--target",
+  "MELD",
+  "IEMOCAP-script"
+ ],
+ "commit": "b285c364ea4f4ec02a9f9af761a7f39befc4d366",
+ "dirty": false,
+ "started": "2026-10-21T14:29:26+0900",
+ "targets": [
+  "MELD",
+  "IEMOCAP-script"
+ ],
+ "map_dir": "results/fixc_map/text_roberta",
+ "K": [
+  "1",
+  "5",
+  "10",
+  "25"
+ ],
+ "reps": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9
+ ],
+ "tau": 40.0,
+ "lams": [
+  0.001,
+  0.01,
+  0.1,
+  1.0,
+  10.0
+ ],
+ "src_C": {
+  "IEMOCAP-impro": 0.01,
+  "IEMOCAP-script": 0.01,
+  "MELD": 0.01,
+  "MOSEI": 0.01
+ },
+ "policies": [
+  "random_true",
+  "random_pool",
+  "herding_pred",
+  "herding_pred_p4",
+  "margin",
+  "badge",
+  "coreset",
+  "typiclust",
+  "LLL",
+  "q:fixed",
+  "q:cycle",
+  "pq:cycle",
+  "pq:count",
+  "P4:random_pool",
+  "P4:random_true"
+ ],
+ "gpu": "NVIDIA RTX A5000"
+}

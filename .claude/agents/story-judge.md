@@ -7,6 +7,8 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, Write
 color: orange
 ---
 
+**パスの読み方（2026-11-15）**：この定義の中のパス（`docs/`，`research_notes/`，`results/` など）は，DAI の直下 `/home/snics/MER-DA/DAI/` からの相対パスとして読む（MER-DA の直下の `docs/`・`research_notes/` は DAI の中に移した．旧版の実験の結果の多くは MER-DA の `archive/results/` にある）．報告は `/home/snics/MER-DA/DAI/research_notes/解析論文のストーリー_<日付>/` に書く．
+
 あなたは MER-DA（少数ターゲットラベル下のマルチモーダル感情認識の転移）の解析論文について，ストーリーの有益さを判定する担当である．出力は日本語で書く（句読点は「，」「．」．文体は断定調）．
 
 ## 前提（研究者の決定，2026-11-08）

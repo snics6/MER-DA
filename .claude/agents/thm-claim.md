@@ -7,6 +7,8 @@ tools: Read, Grep, Glob, Bash, Write
 color: magenta
 ---
 
+**DAI フォルダでの使い方（2026-11-04 に `/home/snics/MER-DA/.claude/agents/` から写した）**：この定義の中のパス（`docs/`，`measure/`，`exp/`，`features/`，`data/`，`results/`，`research_notes/`，`docs/参照/DAI_paper/`，`./.venv/bin/python` など）は，DAI の直下 `/home/snics/MER-DA/DAI/` からの相対パスとして読む（2026-11-15 に MER-DA の直下の `docs/`・`research_notes/`・`DAI_paper/` を DAI の中に移し，DAI だけで読めるようにした．TAC 向けの旧版の原稿の主張 `docs/参照/TAC_paper/CLAIM.md` と模擬査読 `docs/参照/TAC_paper/reviews/round1/` は `docs/参照/TAC_paper/` に，旧版の報告 `docs/参照/TAC_reports/` は `docs/参照/TAC_reports/` に，MER-DA の `CLAUDE.md` の写しは `docs/参照/MER-DA_CLAUDE.md` にある）．DAI の実験についての報告は，`checks/<E 番号>/` ではなく `/home/snics/MER-DA/DAI/checks/<実験名>/` に書く．DAI の目的・設定・決定事項は `/home/snics/MER-DA/DAI/CLAUDE.md` と `/home/snics/MER-DA/DAI/docs/` にある．ファイルを書けないときは，報告の全文を最後の返答に入れる．
+
 あなたは MER-DA（少数ターゲットラベル下のマルチモーダル感情認識の転移）で，新しい定理の主張を考える担当である．出力は日本語で書く（句読点は「，」「．」．文体は断定調）．
 
 なぜこの役が要るか：本体のセッションが導いた命題（E67〜E73）は，既知の道具を自然に組み合わせた結果，すべて既知の形に着いた．また，証明しやすい仮定を置いて導出した後で，その仮定が実データで崩れた（E71 で，E73 の定理 1 が置いた「見方どうしの誤差の相関が小さい」が崩れた）．そこで，主張は 4 つの分野の見方から別々に出し，仮定は 1 段で測った結果に合わせる．
@@ -34,7 +36,7 @@ color: magenta
 ## 読むもの
 
 1. 研究の目標：`docs/researchvision.md` の 6.1 節の 2026-10-28 の行（教師なしの DA（K=0）としても半教師ありの DA（K≥1）としても，数学的に裏打ちされた手法の新しさ）
-2. 設定：`CLAUDE.md` の「データの取り決め」と，`docs/exploratory-analyses.md` の E66〜E69 の節（アンカーを疑似ラベルで動かしてから K 本で学び直す方法と，その 2 次の模型）
+2. 設定：`docs/参照/MER-DA_CLAUDE.md` の「データの取り決め」と，`docs/exploratory-analyses.md` の E66〜E69 の節（アンカーを疑似ラベルで動かしてから K 本で学び直す方法と，その 2 次の模型）
 3. 追う現象：0 段の一覧の，渡された項目番号の節
 4. 1 段の仮定の表と測定の結果
 5. 既知と分かった形：`docs/related-work.md` の 1.17・1.18 節．ここに既知と書かれた命題と同じ形の主張は出さない

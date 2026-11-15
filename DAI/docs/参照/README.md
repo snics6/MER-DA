@@ -4,7 +4,7 @@ DAI の設計・台本・検査の報告・論文の原稿が引く資料のう�
 
 | 場所 | 中身 | 読む役 |
 |---|---|---|
-| `DAI_paper/` | 旧版の論文の執筆フォルダ（2026-10-31〜11-14）．MER-DA の直下から中身を変えずに移した（`git mv`）．MER-DA の直下の `DAI_paper` はここへのリンク | |
+| `DAI_paper/` | 旧版の論文の執筆フォルダ（2026-10-31〜11-14）．MER-DA の直下から中身を変えずに移した（`git mv`）． | |
 | `DAI_paper/docs/venue.md`，`DAI_paper/docs/sources/` | 投稿要項の要約と原文 | 査読想定の役（`dai-review-ml`・`dai-review-affect`），`dai-editor`，論文のセッション |
 | `DAI_paper/参照論文/` | 参照論文の要点のノートと PDF（PDF は出版社に著作権があるので git に入れない．一覧は同じフォルダの `README.md`） | 論文のセッション，`paper-citations` |
 | `DAI_paper/inventory.md` | 実験の棚卸し | `prior-work-diff` |

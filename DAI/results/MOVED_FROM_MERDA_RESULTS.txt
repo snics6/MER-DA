@@ -91,3 +91,8 @@ multisource_scores_fuse-audio-video-text
 multisource_scores_fuse-video-text
 multisource_scores_text_roberta
 multisource_scores_video
+
+# 2026-11-15 夜：MER-DA の直下の results/ を片づけた．
+# DAI の文書と台本が引く次の 8 つを MER-DA/results からここへ移した（MANIFEST.tsv と MANIFEST_outside_git.tsv に足した）：
+#   dai21_eval5_check18/ explore_fusion/ explore_consensus/ explore_depfusion/ text_cond2_text_roberta/ manifest_audit.csv speaker_audit.csv split_summary.csv
+# 上の 93 個を指していた MER-DA/results/<名前> のリンクは消した．残りの旧版の結果（230 個．論文に使わない）は MER-DA/archive/results/ に移した．

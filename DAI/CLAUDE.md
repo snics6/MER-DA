@@ -79,10 +79,10 @@ DAI の実験では，結果ファイルの設定とコミットを，各 csv �
 | `exp/` | 論文に使う実験の台本（前半の E75〜E80 と後半の実験 1〜3，11〜18，20，21）．新しい実験の台本もここに置く |
 | `run/` | 起動の台本 |
 | `tools/` | 表を書き出す道具，計算の後の解析，整理の道具．計算中の実験の台本を一時に置く場所としても使う（前の `docs/tools_pending/`） |
-| `docs/` の直下の 7 本 | 研究計画 `researchvision.md`，方法 `methods.md`（9 節が実験の関門），結果 `results.md`，探索の記録 `exploratory-analyses.md`，先行研究 `related-work.md`，見たデータの台帳 `seen-data.md`，旧版の主張契約 `paper-claim.md`．2026-11-15 に MER-DA の直下の `docs/` から移した正本（MER-DA の `docs` はここへのリンク）．中のパスは MER-DA の直下から書いてある |
+| `docs/` の直下の 6 本 | 研究計画 `researchvision.md`，方法 `methods.md`（9 節が実験の関門），結果 `results.md`，探索の記録 `exploratory-analyses.md`，先行研究 `related-work.md`，見たデータの台帳 `seen-data.md`．2026-11-15 に MER-DA の直下の `docs/` から移した正本（旧版の主張契約 `paper-claim.md` は使わないので `archive/docs/` に移した）．中のパスは MER-DA の直下から書いてある |
 | `docs/設計/`，`docs/結果/`，`docs/主張/`，`docs/計画/`，`docs/説明/`，`docs/記録/` | 設計，結果の文と表，主張，計画，説明の資料，記録 |
 | `docs/参照/` | 読むだけの資料：旧版の論文の執筆フォルダ `DAI_paper/`（要項・参照論文・棚卸し），TAC 向けの旧版の主張と模擬査読 `TAC_paper/`，旧版の報告 `TAC_reports/`，MER-DA の `CLAUDE.md` の写し |
-| `research_notes/` | 調べ直しのノートと論文の相談のノート（2026-11-15 に MER-DA の直下から移した．MER-DA の `research_notes` はここへのリンク） |
+| `research_notes/` | 調べ直しのノートと論文の相談のノート（2026-11-15 に MER-DA の直下から移した） |
 | `docs/実験の地図.md` | 論文の節と実験・台本・結果の対応 |
 | `frozen/`，`splits/` | 固定のファイルと 5 分割 |
 | `results/` | 結果．集計と記録は git に入れる（`python tools/collect_results.py` が `results/MANIFEST.tsv` を書く．入れるときは `git add -f`） |
@@ -98,7 +98,7 @@ DAI の実験では，結果ファイルの設定とコミットを，各 csv �
 
 ## サブエージェント
 
-- `../.claude/agents/` の 14 体（関門の `gate-*` 7 体，定理の手順の `thm-*` 6 体，先行研究の `prior-work-diff`）を，2026-11-04 に `.claude/agents/` へ写した．元の定義は MER-DA の直下で起動するセッションのために残してある．
+- `../.claude/agents/` の 14 体（関門の `gate-*` 7 体，定理の手順の `thm-*` 6 体，先行研究の `prior-work-diff`）を，2026-11-04 に `.claude/agents/` へ写した．2026-11-15 に `story-judge` も写し，**このフォルダの定義を正本にした**．MER-DA の直下の `.claude/agents/` は，MER-DA の直下で起動したセッションのための同じ中身の写しである（定義を直したら写しにも入れる．元の直下の定義は MER-DA の `archive/claude_agents_root_2026-11-15/`）．
 - このフォルダで起動すると，同じ名前の定義はこのフォルダの写しが使われる（公式の説明：入れ子の `.claude/agents/` に同じ名前があれば，作業ディレクトリに近いほうを使う）．
 - サブエージェントの作業ディレクトリは起動したフォルダ（この `DAI/`）になる．写しの冒頭に，定義の中のパスは DAI の直下からの相対パスとして読むこと（2026-11-15 から．それまでは MER-DA の直下から），DAI の実験の報告は `checks/<実験名>/` に書くことを書き足した．
 - 2026-11-04 の時点では，サブエージェントはファイルを書けず，報告を最後の返答に入れる．このときは本体のセッションが返答の全文を所定の場所に保存する．
