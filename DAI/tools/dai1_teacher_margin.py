@@ -113,12 +113,26 @@ def main() -> None:
                              gain=float(g.effect), gain_lo=float(g.lo), gain_hi=float(g.hi)))
         print(f"{T}：{sum(1 for x in rows if x['T'] == T)} 点", flush=True)
     D = pd.DataFrame(rows)
+    # 除く点（台本の検査 checks/dai1_teacher_margin/code.md の 1・2）：
+    #  (a) AVT の生徒の fused_AVT は自分（none_AVT）そのもので margin が定義から 0 になる．
+    #  (b) 選んだ指数が (1,1,1) のコーパスと K では noret_sel と poe_none が同じ先生になる（先生の UAR と gain が同じ）．noret_sel を除く．
+    selfp = (D.student == "AVT") & (D.teacher == "fused_AVT")
+    key = ["T", "student", "K"]
+    pn = D[D.teacher == "poe_none"].set_index(key)[["teacher_uar_pool", "gain"]]
+    nr = D[D.teacher == "noret_sel"].join(pn, on=key, rsuffix="_poe")
+    dup_idx = nr[(nr.teacher_uar_pool - nr.teacher_uar_pool_poe).abs().lt(1e-9) & (nr.gain - nr.gain_poe).abs().lt(1e-9)].index
+    D["excluded"] = ""
+    D.loc[selfp, "excluded"] = "self_teacher"
+    D.loc[dup_idx, "excluded"] = "same_as_poe_none"
     cm, dt = dai1.git_commit()
     D.assign(commit=cm, dirty=dt, units_commit="ba98974").to_csv(sdir / "teacher_margin.csv", index=False)
+    E = D[D.excluded == ""]
     summ = []
-    for (K, s), x in list(D.groupby(["K", "student"])) + [((K, "all"), D[D.K == K]) for K in KS]:
+    groups = ([(("all", K, s), x) for (K, s), x in E.groupby(["K", "student"])] + [(("all", K, "all"), E[E.K == K]) for K in KS]
+              + [((T, K, s), x) for (T, K, s), x in E.groupby(["T", "K", "student"])])            # (T, 生徒, K) の中の数えも出す（検査の 3）
+    for (T, K, s), x in groups:
         rho = st.spearmanr(x.margin, x.gain).statistic if len(x) > 2 else np.nan
-        summ.append(dict(K=K, student=s, n=len(x), spearman=float(rho),
+        summ.append(dict(T=T, K=K, student=s, n=len(x), spearman=float(rho),
                          sign_agree=int(((x.margin > 0) & (x.gain > 0)).sum() + ((x.margin < 0) & (x.gain < 0)).sum()),
                          margin_pos_gain_ci_pos=int(((x.margin > 0) & (x.gain_lo > 0)).sum()),
                          margin_neg_gain_ci_neg=int(((x.margin < 0) & (x.gain_hi < 0)).sum()),
