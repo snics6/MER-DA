@@ -1,11 +1,12 @@
-"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 3 版）．
+"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 4 版）．
 
 本番の評価の回（実験 1．results/dai1/eval）の保存から，融合の生徒 AVT について，K 本だけの分類器の判定 J_none と
 提案の主の版の疑似ラベル J_prop（prop_one）を候補の上で作り直し，J_prop を目標にした線形の識別器の交差の予測を 2 つの読み出しで作る．
   R0（実験 1 の作り．表 8.1 の P の列）：生徒の出発点と実験 1 の引き戻し（実験 14 の fit_r0 をそのまま使う）．
   R1（そろえた読み出し．副）：候補の上の主成分で 512 次元にそろえ，C′ を内側の交差の予測で選ぶ（実験 14 の fit_r1）．
 量は実験 14 の conditions.csv と同じ名前：uar_none，uar_pseudo，delta，uar_imitation_R0/R1，imitable_R0/R1（K 本を除いた候補の上）．
-ほかに出発点の UAR と差（uar_start，start_minus_none，R0_minus_start），行どうしの差（delta_minus_delta_A/V/T．実験 14 の npz の
+ほかに出発点の UAR と差（uar_start，start_minus_none，R0_minus_start），読み出しと q の UAR の差（R0_minus_pseudo，R1_minus_pseudo），
+声・顔・言葉の行の出発点の差（実験 14 の npz から．start_minus_none_<s>，R0_minus_start_<s>），行どうしの差（delta_minus_delta_A/V/T．実験 14 の npz の
 K 本だけの分類器から），MELD の共有の対話を除いた版．融合の行の作り（q は融合の特徴の線形の判定と同じ）と，q と J_none の κ，
 読み出しと q・出発点の一致を記録する．K = 5（主）と 25（副）．
 
@@ -56,10 +57,11 @@ TOL_RESOLVE = (1e-8, 1e-10)                    # 照合が外れた問を 1 問�
 CLAMP = 1e-12                                  # dai1.product が確率を切る値
 TIE = 1e-6                                     # つないだ線形の判定の上位 2 つの点数の差がこれ未満の発話は同点とみなす（第 3 版．review_ml の m2）
 CAT_TOL = 1e-10                                # 融合の特徴と 3 つをつないだ特徴の差の許し（第 3 版）
-TOL_DAI1 = 1e-6                                # J_none・J_prop の UAR と実験 1 の p2.csv の uar_pool の差の許し（第 3 版．gate-code の R15）
-RESOLVED_SHARE = 0.25                          # 解き直しで通した R0 の行の割合がこれを超えたら止める（入力の系統的なずれを素通りさせないため．第 3 版．review_ml の m1）
+TOL_DAI1 = 1e-6                                # J_none・J_prop の UAR と実験 1 の p2.csv・p3.csv の uar_pool の差の許し（第 3 版．gate-code の R15．J_prop は第 4 版で p3.csv も見る）
+RESOLVED_SHARE = 0.25                          # コーパスごとに，解き直しで通した R0 の行の割合がこれを超えたら止める（入力の系統的なずれを素通りさせないため．第 3 版．第 4 版でコーパスごと）
 RESOLVED_MIN = 4
 TOL_PSEUDO = 1e-9
+PROP = "prop_one"                              # 主の版（固定のファイルの main は K = 5・25 とも one．要約の段で確かめる）
 QUANT = ("uar_none", "uar_pseudo", "delta", "uar_imitation_R0", "imitable_R0", "uar_imitation_R1", "imitable_R1", "uar_start")
 RUN = {"commit": "", "dirty": True}
 
@@ -116,6 +118,8 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
     halves = [np.flatnonzero(h == 0), np.flatnonzero(h == 1)]
     a14 = np.load(OUT14 / "units" / f"{T}_f{f}_r{r}.npz", allow_pickle=False)
     p2c = pd.read_csv(OUT1 / "eval" / "units" / f"{T}_ALL_f{f}_r{r}_p2.csv")
+    p3c = pd.read_csv(OUT1 / "eval" / "units" / f"{T}_ALL_f{f}_r{r}_p3.csv", low_memory=False)
+    p3t = p3c[(p3c.method == "_teacher_stats") & p3c.student.isna()]
     if not (a14["sid"].astype(str) == sv.sid_pool.astype(str)).all() or not (a14["half"].astype(int) == h).all():
         raise SystemExit(f"{base.name}：候補の並びか 2 組の分け方が実験 14 の保存と違う")
     if p2c.commit.nunique() != 1:
@@ -153,8 +157,12 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         u_none = 100 * S.uar(y[nk], arr[f"none__K{K}"].astype(int)[nk]); u_prop = 100 * S.uar(y[nk], qy[nk])
         r_none = p2c[(p2c.method == "teacher") & (p2c.teacher == "none_AVT") & (p2c.K == K)].uar_pool
         r_prop = p2c[(p2c.method == "product") & (p2c.teacher == "(1.0, 1.0, 1.0)") & (p2c.K == K)].uar_pool
-        if len(r_none) != 1 or len(r_prop) != 1 or abs(float(r_none.iloc[0]) - u_none) > TOL_DAI1 or abs(float(r_prop.iloc[0]) - u_prop) > TOL_DAI1:
-            raise SystemExit(f"{base.name}：K={K} の J_none か J_prop の UAR が実験 1 の p2.csv と合わない")
+        r_prop3 = p3t[(p3t.teacher == fz1T["main"][str(K)]) & (p3t.K == K)].uar_pool    # 段 3 が受け取った J_prop（保存した重みと同じ経路．第 4 版．compare_v3 の 1）
+        if len(r_none) != 1 or len(r_prop) != 1 or len(r_prop3) != 1:
+            raise SystemExit(f"{base.name}：K={K} の実験 1 の照合の行がそろわない")
+        d_none = abs(float(r_none.iloc[0]) - u_none); d_prop2 = abs(float(r_prop.iloc[0]) - u_prop); d_prop3 = abs(float(r_prop3.iloc[0]) - u_prop)
+        if d_none > TOL_DAI1 or min(d_prop2, d_prop3) > TOL_DAI1:
+            raise SystemExit(f"{base.name}：K={K} の J_none か J_prop の UAR が実験 1 の p2.csv・p3.csv と合わない")
         clamped = np.zeros(n, bool)
         for m in "AVT":
             clamped |= (TK[K][f"ret_{m}"][0] < CLAMP).any(1).cpu().numpy()
@@ -179,7 +187,9 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
                          agree_linear=float((lin == qy).mean()), n_clamped=int(clamped.sum()), n_tie=int(tie.sum()),
                          n_linear_diff_nontie_unclamped=int(((lin != qy) & ~tie & ~clamped).sum()),
                          agree_linear_unclamped=float((lin[~clamped] == qy[~clamped]).mean()) if (~clamped).any() else np.nan,
-                         kappa_pseudo_none=kappa(qy[nk], arr[f"none__K{K}"].astype(int)[nk]), cat_max_abs_diff=cat_diff, **extra))
+                         kappa_pseudo_none=kappa(qy[nk], arr[f"none__K{K}"].astype(int)[nk]), cat_max_abs_diff=cat_diff,
+                         n_nonshared=int(a14["nonshared"].astype(bool).sum()), n_clusters_nonshared=int(len(np.unique(cl[a14["nonshared"].astype(bool)]))),
+                         dai1_none_abs_diff=d_none, dai1_prop_p2_abs_diff=d_prop2, dai1_prop_p3_abs_diff=d_prop3, **extra))
     # R1：K = 5 と 25 の問を 1 回の束で解く（実験 14 と同じ）
     tg_all = {(k, "true"): v for k, v in tg_true.items()}
     res1, curves, _ = D14.fit_r1(Z, cl, halves, tg_true, tg_all)
@@ -202,7 +212,7 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
     df["commit"], df["dirty"], df["sec"] = RUN["commit"], RUN["dirty"], time.time() - t0
     df["dai1_commits"] = ",".join(sorted(sv.commits))
     df["dai14_npz_sha256"] = D14.sha(OUT14 / "units" / f"{T}_f{f}_r{r}.npz")
-    df["dai1_unit_sha256"] = ",".join(D14.sha(q)[:16] for q in sorted((OUT1 / "eval" / "units").glob(f"{T}_ALL_f{f}_r{r}_p*.npz")))
+    df["dai1_unit_sha256"] = ",".join(D14.sha(q)[:16] for q in sorted((OUT1 / "eval" / "units").glob(f"{T}_ALL_f{f}_r{r}_p*.*")))   # npz と csv（第 4 版）
     np.savez_compressed(f"{base}.npz", **arr)
     df.to_csv(f"{base}.csv", index=False)
     return df
@@ -230,6 +240,9 @@ def cells_of(U: dict, K: int, subset: str = "all", U14: dict | None = None) -> d
     if U14 is not None:
         for s in "AVT":
             out[f"none_{s}"] = {k: D14.counts(a["y"][m_of(a)], U14[k][f"none__K{K}__{s}"][m_of(a)], a["cl"][m_of(a)]) for k, a in U.items()}
+            if f"start__{s}" in next(iter(U14.values())):
+                out[f"start_{s}"] = {k: D14.counts(a["y"][m_of(a)], U14[k][f"start__{s}"][m_of(a)], a["cl"][m_of(a)]) for k, a in U.items()}
+                out[f"R0_{s}"] = {k: D14.counts(a["y"][m_of(a)], U14[k][f"K{K}__main__R0__{s}__{PROP}__true"][m_of(a)], a["cl"][m_of(a)]) for k, a in U.items()}
     return out
 
 
@@ -237,10 +250,13 @@ def quantities(c: dict) -> list:
     q = [("uar_none", [c["none"]], [1]), ("uar_pseudo", [c["pseudo"]], [1]), ("delta", [c["pseudo"], c["none"]], [1, -1]),
          ("uar_imitation_R0", [c["R0"]], [1]), ("imitable_R0", [c["R0"], c["none"]], [1, -1]),
          ("uar_imitation_R1", [c["R1"]], [1]), ("imitable_R1", [c["R1"], c["none"]], [1, -1]), ("uar_start", [c["start"]], [1]),
-         ("start_minus_none", [c["start"], c["none"]], [1, -1]), ("R0_minus_start", [c["R0"], c["start"]], [1, -1])]
+         ("start_minus_none", [c["start"], c["none"]], [1, -1]), ("R0_minus_start", [c["R0"], c["start"]], [1, -1]),
+         ("R0_minus_pseudo", [c["R0"], c["pseudo"]], [1, -1]), ("R1_minus_pseudo", [c["R1"], c["pseudo"]], [1, -1])]
     for s in "AVT":                                                   # Δ_AVT − Δ_s = UAR(J_none,s) − UAR(J_none,AVT)（q は共通）
         if f"none_{s}" in c:
             q.append((f"delta_minus_delta_{s}", [c[f"none_{s}"], c["none"]], [1, -1]))
+        if f"start_{s}" in c:                                         # 声・顔・言葉の行の出発点への依存（実験 14 の npz から．第 4 版．compare_v3 の 2）
+            q += [(f"start_minus_none_{s}", [c[f"start_{s}"], c[f"none_{s}"]], [1, -1]), (f"R0_minus_start_{s}", [c[f"R0_{s}"], c[f"start_{s}"]], [1, -1])]
     return q
 
 
@@ -280,6 +296,19 @@ def stage_summary(out: Path, targets: list) -> None:
         for k, a in U.items():
             if not (U14[k]["sid"].astype(str) == a["sid"].astype(str)).all():
                 raise SystemExit(f"{T}_f{k[0]}_r{k[1]}：実験 14 の保存と候補の並びが違う")
+        if any("prop_" + fz1[T]["main"][str(K)] != PROP for K in KS):
+            raise SystemExit(f"{T}：主の版が {PROP} でない")
+        for K in KS:                                                  # 声・顔・言葉の行の一致と κ（実験 14 の npz から．第 4 版．compare_v3 の 2）
+            for s in "AVT":
+                def agr(x, z):
+                    return [float((U14[k][x][U[k][f"nk__K{K}"]] == U14[k][z][U[k][f"nk__K{K}"]]).mean()) for k in U]
+                for nm, (x, z) in ((f"agree_R0_tgt_{s}", (f"K{K}__main__R0__{s}__{PROP}__true", f"tgt__K{K}__{PROP}__true")),
+                                   (f"agree_R0_start_{s}", (f"K{K}__main__R0__{s}__{PROP}__true", f"start__{s}"))):
+                    v = agr(x, z)
+                    agree_rows.append(dict(kind=nm, T=T, K=K, agree_mean=float(np.mean(v)), agree_min=float(np.min(v)), agree_max=float(np.max(v))))
+                kv = [kappa(U14[k][f"tgt__K{K}__{PROP}__true"][U[k][f"nk__K{K}"]], U14[k][f"none__K{K}__{s}"][U[k][f"nk__K{K}"]]) for k in U]
+                agree_rows.append(dict(kind=f"kappa_pseudo_none_{s}", T=T, K=K, kappa_mean=float(np.mean(kv)), kappa_min=float(np.min(kv)),
+                                       kappa_max=float(np.max(kv))))
         for K in KS:                                                  # 読み出しと q・出発点の一致（K 本を除いた候補．単位の平均・最小・最大．第 3 版．gate-define の 2）
             for ro in ("R0", "R1"):
                 for other in ("tgt", "start"):
@@ -300,8 +329,10 @@ def stage_summary(out: Path, targets: list) -> None:
     C = pd.DataFrame(cond); CV = pd.concat(conv); PL = pd.DataFrame(plateau)
     r0all = CV[CV.readout == "R0"]
     n_res = int(r0all.tol_resolved.astype(str).eq("True").sum())
-    if not RUN.get("partial") and n_res > max(RESOLVED_MIN, RESOLVED_SHARE * len(r0all)):
-        raise SystemExit(f"解き直しで通した R0 の行が {n_res} / {len(r0all)} 行で多すぎる（入力の系統的なずれを疑う）")
+    for T, x in r0all.groupby("T"):                                   # コーパスごと（第 4 版．review_ml_v3 の m1）
+        nt = int(x.tol_resolved.astype(str).eq("True").sum())
+        if not RUN.get("partial") and nt > max(RESOLVED_MIN, RESOLVED_SHARE * len(x)):
+            raise SystemExit(f"{T}：解き直しで通した R0 の行が {nt} / {len(x)} 行で多すぎる（入力の系統的なずれを疑う）")
     tag = dict(commit=RUN["commit"], dirty=RUN["dirty"])
     C.assign(**tag).to_csv(sdir / "conditions.csv", index=False)
     asm = []
@@ -318,6 +349,9 @@ def stage_summary(out: Path, targets: list) -> None:
         asm.append(dict(kind="n_per_dim", T=T, readout=ro, half_over_dim_min=float((x[["n_half0", "n_half1"]].min(axis=1) / x.dim).min())))
     for row in agree_rows:
         asm.append(row)
+    for T, x in CV[(CV.readout == "R0") & (CV["T"] == "MELD")].groupby("T"):
+        asm.append(dict(kind="nonshared_size", T=T, n_nonshared_min=int(x.n_nonshared.min()), n_nonshared_max=int(x.n_nonshared.max()),
+                        n_clusters_nonshared_min=int(x.n_clusters_nonshared.min()), n_cand_min=int(x.n_cand.min())))
     for (T, K), x in CV[CV.readout == "R0"].groupby(["T", "K"]):     # q が融合の特徴の線形の判定と同じか，q と J_none の依存（第 2 版．A1，gate-define の 2）
         asm.append(dict(kind="linear_identity", T=T, K=K, agree_linear_min=float(x.agree_linear.min()), agree_linear_mean=float(x.agree_linear.mean()),
                         n_tie_max=int(x.n_tie.max()), n_linear_diff_nontie_unclamped_max=int(x.n_linear_diff_nontie_unclamped.max()),
@@ -372,9 +406,13 @@ def selftest() -> None:
                 assert abs(q["imitable_R0"]["effect"] - (q["uar_imitation_R0"]["effect"] - q["uar_none"]["effect"])) < 1e-9
                 assert abs(q["uar_imitation_R1"]["effect"] - q["uar_pseudo"]["effect"]) < 1e-9          # R1 の予測 = 目標なら UAR は同じ
                 assert abs(q["imitable_R1"]["effect"] - q["delta"]["effect"]) < 1e-9
+                assert abs(q["start_minus_none"]["effect"] - (q["uar_start"]["effect"] - q["uar_none"]["effect"])) < 1e-9
+                assert abs(q["R0_minus_start"]["effect"] - (q["uar_imitation_R0"]["effect"] - q["uar_start"]["effect"])) < 1e-9
+                assert abs(q["R0_minus_pseudo"]["effect"] - (q["imitable_R0"]["effect"] - q["delta"]["effect"])) < 1e-9   # P − Δ
+                assert abs(q["R1_minus_pseudo"]["effect"]) < 1e-9
                 assert q["delta"]["lo"] <= q["delta"]["effect"] <= q["delta"]["hi"]
     assert abs(kappa(np.array([0, 1, 2, 3] * 25), np.array([0, 1, 2, 3] * 25)) - 1) < 1e-12
-    print("selftest（実験 22）：差の量 5 項目，区間の順序，κ がすべて通った")
+    print("selftest（実験 22）：差の量 9 項目，区間の順序，κ がすべて通った")
 
 
 # ------------------------------------------------------------------ main
@@ -443,10 +481,12 @@ def main() -> None:
                         bad.to_csv(out / f"check_fail_{T}_f{f}_r{r}.csv", index=False)
                         sys.exit(f"{T}_f{f}_r{r}：実験 3 の保存の一致と {TOL_REPRO} を超えて違い，解き直すと予測が変わる行がある")
                     allrows.append(chk)
-                    allc = pd.concat(allrows)
-                    n_res = int(allc.tol_resolved.astype(bool).sum())
-                    if n_res > max(RESOLVED_MIN, RESOLVED_SHARE * len(allc)):
-                        sys.exit(f"解き直しで通した R0 の行が {n_res} / {len(allc)} 行で多すぎる（入力の系統的なずれを疑う）")
+            done = [pd.read_csv(q_) for q_ in sorted((out / "units").glob(f"{T}_f*_r*.csv"))]   # コーパスを流し終えた時点で，そのコーパスの行で数える（第 4 版）
+            if done:
+                cT = pd.concat(done); cT = cT[cT.readout == "R0"]
+                nt = int(cT.tol_resolved.astype(str).eq("True").sum())
+                if nt > max(RESOLVED_MIN, RESOLVED_SHARE * len(cT)):
+                    sys.exit(f"{T}：解き直しで通した R0 の行が {nt} / {len(cT)} 行で多すぎる（入力の系統的なずれを疑う）")
             dai1.Corpus.cache.pop(T, None)
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
