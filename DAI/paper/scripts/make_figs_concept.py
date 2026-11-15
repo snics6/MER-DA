@@ -159,7 +159,7 @@ def save(fig, name):
 
 
 # ======================================================================= Fig. 1
-def modality_row(ax, x, y, labels=("audio", "face", "text")):
+def modality_row(ax, x, y, labels=("audio", "visual", "text")):
     """Row of modality chips: marker + word."""
     cx = x
     for m, lab in zip("AVT", labels):
@@ -278,25 +278,25 @@ def fig1():
         arrow(ax, (51.5, y0 + 5), (cx0, y0 + 5), lw=0.8, head=6)
 
     # ---- pseudo-labels (fusion)
-    px, py, pw, ph = 95, 62.5, 24, 19
+    px, py, pw, ph = 93.5, 61, 28.5, 22
     box(ax, px, py, pw, ph, fc="#F3ECE2", ec=QCOL["Q3"], lw=1.2)
     ax.text(px + pw / 2, py + ph - 3.2, "Pseudo-labels", ha="center", va="center",
             fontsize=FS, weight="bold", zorder=6)
     ax.text(px + pw / 2, py + ph - 6.0,
-            "fused answers on\nunlabelled target\nutterances",
+            "late fusion of the\nclassifiers’ answers\non unlabelled target\nutterances",
             ha="center", va="top", fontsize=FS, linespacing=1.1, zorder=6)
-    ends = {"A": py + 14.5, "V": py + 9.5, "T": py + 4.5}
+    ends = {"A": py + 16, "V": py + 11, "T": py + 6}
     for m in "AVT":
         arrow(ax, (cx0 + cwid, clf_y[m] + 5), (px, ends[m]), color=QCOL["Q3"], lw=1.3,
               ls=(0, (5, 1.6, 1, 1.6)), head=7)
 
     # ---- retrained classifiers
-    rx, ry, rw, rh = 128, 62.5, 44, 19
+    rx, ry, rw, rh = 128, 61, 44, 22
     box(ax, rx, ry, rw, rh, fc="#F5E9EF", ec=QCOL["Q1"], lw=1.2)
     ax.text(rx + rw / 2, ry + rh - 3.2, "Retrained classifiers", ha="center",
             va="center", fontsize=FS, weight="bold", zorder=6)
     ax.text(rx + rw / 2, ry + rh - 6.0,
-            "audio, visual, text and fused,\ntrained on the K labels\nand the pseudo-labels",
+            "audio, visual, text and\nAVT (concatenated),\ntrained on the K labels\nand the pseudo-labels",
             ha="center", va="top", fontsize=FS, linespacing=1.1, zorder=6)
     arrow(ax, (px + pw, py + ph / 2), (rx, ry + rh / 2), color=QCOL["Q1"], lw=2.0,
           head=9)
@@ -330,17 +330,18 @@ def fig1():
 
     # ---- question texts with leaders to their arrows
     yq = qtext(ax, 60.5, 111.5, "Q3", 7,
-               "How should the classifiers’ outputs be fused into pseudo-labels?", 52)
+               "How should the classifiers’ answers be combined into pseudo-labels "
+               "(late fusion)?", 58)
     xa = 89.5  # point on the arrow from the audio classifier
     ya = (clf_y["A"] + 5) + (ends["A"] - clf_y["A"] - 5) * (xa - cx0 - cwid) / (px - cx0 - cwid)
     leader(ax, xa, yq - 0.6, ya, QCOL["Q3"])
 
     yq = qtext(ax, 121.5, 111.5, "Q1", 5,
-               "Do pseudo-labels from other modalities improve each classifier when "
-               "only a few target labels are available?", 50)
+               "Do pseudo-labels from classifiers that include other modalities improve "
+               "each classifier when only a few target labels are available?", 50)
     leader(ax, 123.5, yq - 0.6, py + ph / 2, QCOL["Q1"])
 
-    qtext(ax, 102.5, 60.0, "Q2", 6,
+    qtext(ax, 102.5, 59.0, "Q2", 6,
           "Which part of the error do they correct, and for which classifiers?", 44,
           extra="compared with the K labels, source corpora and unlabelled "
                 "utterances of the same modality")
@@ -618,10 +619,10 @@ def fig8():
     # (iv) fusion of one unlabelled utterance
     x4, w4 = 108.5, 64.5
     arrow(ax, (x3 + w3, 67), (x4, 67), lw=1.0, head=7)
-    yt4 = panel(ax, x4, 38.5, w4, 57.5, "(iv) Fusion for an unlabelled target utterance")
+    yt4 = panel(ax, x4, 38.5, w4, 57.5, "(iv) Late fusion for one unlabelled utterance")
     y4 = ptext(ax, x4 + 2, yt4 - 1.5,
                "Scores $z_k(i | x)$: centred log-probabilities of each "
-               "classifier for utterance $x$", w4 - 4)
+               "classifier for utterance $x$; $s$ = Σ$_k$ $W z_k$", w4 - 4)
 
     def lab_fn(ax_, x0, yc, key):
         if key in "AVT":
@@ -634,7 +635,7 @@ def fig8():
     lab4, cw4 = 29.5, 8.0
     yb4 = table(ax, x4 + 1.5, y4 - 0.6, "AVT", EMO, z, col_w=cw4, lab_w=lab4,
                 fmt="{:+.1f}", row_label_fn=lab_fn)
-    rows2 = ["Product: Σ$_k$ $z_k$", "Proposed: $s$ = Σ$_k$ $W z_k$",
+    rows2 = ["Product: Σ$_k$ $z_k$", "Proposed fusion: $s$",
              "Intercept shift $c$"]
     fmt2 = ["{:+.2f}", "{:+.2f}", "{:+.1f}"]
     vstr = [[f.format(v).replace("-", "−") for v in row]
@@ -660,9 +661,8 @@ def fig8():
                    x0 + 0.4, yc, "$q(i | x)$", ha="left", va="center",
                    fontsize=FS, zorder=6))
     ptext(ax, x4 + 2, y5 - 1.6,
-          "Retrain the fused classifier (linear, on the concatenated audio, visual "
-          "and text features) on the K labels and the pseudo-labels of all "
-          "unlabelled target utterances", w4 - 4)
+          "Retrain the AVT (concatenated) classifier (linear) on the K labels and "
+          "the pseudo-labels of all unlabelled target utterances", w4 - 4)
     save(fig, "fig8_method")
 
 

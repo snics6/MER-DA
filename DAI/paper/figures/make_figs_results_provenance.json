@@ -16,7 +16,7 @@
    "n_checked": 86,
    "size_mm": [
     174.0,
-    62.0
+    70.0
    ]
   },
   "fig4_mixing_gain": {
@@ -93,7 +93,7 @@
    "n_checked": 109,
    "size_mm": [
     84.0,
-    80.0
+    104.0
    ]
   },
   "fig7_strength_profile": {
@@ -139,15 +139,15 @@
    "n_checked": 310,
    "size_mm": [
     174.0,
-    62.0
+    78.0
    ]
   }
  },
  "script": "paper/scripts/make_figs_results.py",
- "script_sha256_16": "6884533caded86f8",
- "commit": "187d5480da2b3eed33e1db0a182be47368569ce6",
+ "script_sha256_16": "9f6ee2efca23b6e2",
+ "commit": "0a7547ab4895947a01fcbbef3cac72a490d4cb8b",
  "results_dirty": false,
- "script_tracked_in_git": false,
+ "script_tracked_in_git": true,
  "font": "Arial",
  "matplotlib": "3.11.2",
  "pandas": "3.0.6",

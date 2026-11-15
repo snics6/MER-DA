@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
+from matplotlib.transforms import blended_transform_factory  # noqa: E402
 
 DAI = Path(__file__).resolve().parents[2]
 RES = DAI / "results"
@@ -252,37 +253,48 @@ def fig3() -> None:
     ck.true(bool((f[f.K == 0].n_units == 5).all() and (f[f.K > 0].n_units == 50).all()), "7.2: 50 repetitions (K=0: 5)")
     ck.done()
 
+    # K is written on the y-axis (one row per K), so the marker shape keeps the meaning it has in every other
+    # figure: the classifier's modality (circle A, square V, triangle T, diamond AVT).
     gap = 1.0
     ypos = {(c, K): i * (3 + gap) + j for i, c in enumerate(CORP4) for j, K in enumerate(KS)}
-    KM = {0: ("D", False), 5: ("o", True), 25: ("^", True)}
-    fig, axes = plt.subplots(1, 4, figsize=(W2, 62 * MM), sharex=True, sharey=True)
-    fig.subplots_adjust(left=0.085, right=0.99, top=0.84, bottom=0.17, wspace=0.12)
+    fig, axes = plt.subplots(1, 4, figsize=(W2, 70 * MM), sharex=True, sharey=True)
+    fig.subplots_adjust(left=0.125, right=0.99, top=0.91, bottom=0.15, wspace=0.12)
     rows = []
-    titles = ["(a) Audio", "(b) Visual", "(c) Text", "(d) Fused AVT"]
+    titles = ["(a) Audio", "(b) Visual", "(c) Text", "(d) AVT (concatenated)"]
     for ax, s, t in zip(axes, STUD, titles):
-        col = STYLE[s][0]
+        col, mk, _ = STYLE[s]
         for i in range(1, 4):
             ax.axhline(i * (3 + gap) - (gap + 1) / 2, color="0.85", lw=0.6, zorder=0)
         ax.axvline(0, **ZERO)
         for c in CORP4:
             for K in KS:
                 x = g(s, c, K)
-                m, filled = KM[K]
-                ax.errorbar(x.effect, ypos[(c, K)], xerr=xerr(x.effect, x.lo, x.hi), fmt=m, ms=3.8,
-                            color=col, mfc=col if filled else "white", mec=col, mew=0.8, **EB)
+                ax.errorbar(x.effect, ypos[(c, K)], xerr=xerr(x.effect, x.lo, x.hi), fmt=mk, ms=3.8,
+                            color=col, mfc=col, mec=col, mew=0.8, **EB)
                 rows.append(dict(panel=t, classifier=s, corpus=c, K=K, effect=x.effect, lo=x.lo, hi=x.hi,
                                  n_repetitions=int(x.n_units)))
         panel(ax, t)
         ax.tick_params(axis="y", length=0)
-    axes[0].set_yticks([i * (3 + gap) + 1 for i in range(4)])
-    axes[0].set_yticklabels(CORP4)
-    axes[0].set_ylim(3 * (3 + gap) + 2.8, -0.8)
+    axes[0].set_yticks([ypos[(c, K)] for c in CORP4 for K in KS])
+    axes[0].set_yticklabels([str(K) for c in CORP4 for K in KS])
+    axes[0].set_ylim(3 * (3 + gap) + 2.6, -1.5)
     axes[0].set_xlim(-7.5, 11.5)
     axes[0].set_xticks([-5, 0, 5, 10])
-    hd = [Line2D([], [], ls="none", marker=KM[K][0], ms=3.8, color="0.15", mfc="0.15" if KM[K][1] else "white",
-                 mew=0.8, label=f"K = {K}") for K in KS]
-    fig.legend(handles=hd, loc="upper right", ncol=3, bbox_to_anchor=(0.99, 1.0))
-    fig.text(0.537, 0.02, "UAR difference, retrained − K labels only (points)", ha="center", va="bottom")
+    fig.text(0.5575, 0.02, "UAR difference: pseudo-label retraining − K-label baseline (points)", ha="center",
+             va="bottom")
+    # corpus names to the left of the K column, and the K header above it
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    ticks = axes[0].get_yticklabels()
+    x0 = min(t.get_window_extent(r).x0 for t in ticks)
+    x1 = max(t.get_window_extent(r).x1 for t in ticks)
+    xf0, xf1 = inv.transform((x0 - 6, 0))[0], inv.transform((x1, 0))[0]
+    for i, c in enumerate(CORP4):
+        yf = inv.transform(axes[0].transData.transform((0, i * (3 + gap) + 1)))[1]
+        fig.text(xf0, yf, "IEMOCAP\n(impro.)" if c == "IEMOCAP" else c, ha="right", va="center", linespacing=1.1)
+    yf = inv.transform(axes[0].transData.transform((0, -1.05)))[1]
+    fig.text(xf1, yf, "K", ha="right", va="center")
     save(fig, name, pd.DataFrame(rows))
 
 
@@ -318,10 +330,10 @@ def fig4() -> None:
     XP = np.array([0, 1, 2, 3, 4, 5.4])
     off = np.linspace(-0.15, 0.15, 4)
     fig, axes = plt.subplots(1, 2, figsize=(W2, 66 * MM), sharey=True)
-    fig.subplots_adjust(left=0.075, right=0.99, top=0.92, bottom=0.17, wspace=0.08)
+    fig.subplots_adjust(left=0.09, right=0.99, top=0.92, bottom=0.17, wspace=0.08)
     rows = []
     groups = [["A", "A(HuBERT)", "V", "T"], ["AV", "VT", "AT", "AVT"]]
-    for ax, grp, t in zip(axes, groups, ["(a) Single-modality features", "(b) Fused features"]):
+    for ax, grp, t in zip(axes, groups, ["(a) Single-modality features", "(b) Concatenated features"]):
         ax.axhline(0, **ZERO)
         hs = []
         for o, s in zip(off, grp):
@@ -342,7 +354,7 @@ def fig4() -> None:
         ax.legend(handles=hs, loc="upper right", ncol=2)
         panel(ax, t)
     axes[0].set_ylim(-7, 16.5)
-    axes[0].set_ylabel("Gain, merged − target only (UAR points)")
+    axes[0].set_ylabel("UAR difference:\nmerged − target-only (points)")
     save(fig, name, pd.DataFrame(rows))
 
 
@@ -422,27 +434,24 @@ def fig5() -> None:
            "G_crit_c": dict(facecolor="white", edgecolor="0.15")}
     ax.axhline(0, **ZERO)
     for i, s in enumerate(KINDS):
-        tops = []
         for j, q in enumerate(QN):
             x = g4(s, q)
             xp = i + (j - 1) * w
             ax.bar(xp, x["mean"], width=w, lw=0.6, zorder=2, **BAR[q])
             ax.errorbar(xp, x["mean"], yerr=xerr(x["mean"], x.lo, x.hi), fmt="none", ecolor="black", zorder=3, **EB)
-            tops.append(x.hi)
             rows.append(dict(panel="a", feature=s, quantity=q, mean=x["mean"], lo=x.lo, hi=x.hi, n_pairs=int(x.n_pairs)))
-        ratio = float(g75(s).uar_ratio_of_sums_Gcrit_Gmerge)
-        rows.append(dict(panel="a", feature=s, quantity="ratio_intercept_only_over_merged", mean=ratio))
-        ax.text(i, max(tops) + 0.2, f"{ratio:.2f}", ha="center", va="bottom", fontsize=8)
+    # The ratio (intercept-only fit − source-only) / (merged − source-only) is checked above against the first
+    # edition but is not drawn: the intercept-only fit has no bar here, so the ratio could not be read off the bars
+    # (review round3_ja/presentation_mer.md, m1).  It is given in the text and the appendix table.
     ax.set_xticks(range(8))
     ax.set_xticklabels(["A\nWavLM", "A\nHuBERT", "V", "T", "AV", "VT", "AT", "AVT"])
     ax.tick_params(axis="x", length=0)
     ax.set_xlim(-0.6, 7.6)
-    ax.set_ylim(-1.5, 6.6)
-    ax.set_ylabel("Gain at K = 5 (UAR points)")
-    hd = [Patch(lw=0.6, label="Merged − source only", **BAR["G_merge"]),
-          Patch(lw=0.6, label="Mean subtraction (no labels) − source only", **BAR["G_center"]),
-          Patch(lw=0.6, label="Intercept fit after mean subtraction − mean subtraction", **BAR["G_crit_c"]),
-          Line2D([], [], ls="none", label="Number above group: intercept-only gain ÷ merged gain")]
+    ax.set_ylim(-1.5, 6.3)
+    ax.set_ylabel("UAR difference (points)")
+    hd = [Patch(lw=0.6, label="Merged − source-only", **BAR["G_merge"]),
+          Patch(lw=0.6, label="Mean subtraction (no labels) − source-only", **BAR["G_center"]),
+          Patch(lw=0.6, label="Intercept fit after mean subtraction − mean subtraction", **BAR["G_crit_c"])]
     ax.legend(handles=hd, loc="lower left", bbox_to_anchor=(-0.01, 1.03), ncol=1, handlelength=1.6,
               borderaxespad=0, labelspacing=0.3)
     # (b) d_T(K)/D
@@ -533,8 +542,9 @@ def fig6() -> None:
            ("V", "MOSEI"): (-12, -9, True), ("V", "MELD"): (6, 2, False), ("T", "AFEW"): (-7, 3, False),
            ("T", "IEMOCAP"): (8, 3, False), ("T", "MOSEI"): (-20, 11, True), ("T", "MELD"): (-7, -6, False)}
     SZ = 5.0  # marker area (pt^2) per UAR point of room
-    fig, ax = plt.subplots(figsize=(W1, 80 * MM))
-    fig.subplots_adjust(left=0.15, right=0.98, top=0.86, bottom=0.14)
+    H6 = 104
+    fig, ax = plt.subplots(figsize=(W1, H6 * MM))
+    fig.subplots_adjust(left=0.165, right=0.98, top=1 - 23.5 / H6, bottom=18 / H6)
     XL, YL = (-4.5, 10.8), (-4.0, 34)
     ax.fill_between([0, XL[1]], 0, YL[1], color="0.93", lw=0, zorder=0)
     ax.axvline(0, **ZERO)
@@ -555,18 +565,22 @@ def fig6() -> None:
                              delta_lo=D.lo, delta_hi=D.hi, room=R))
     ax.set_xlim(*XL)
     ax.set_ylim(*YL)
-    ax.set_xlabel("Reproducibility P (UAR points)")
-    ax.set_ylabel("Pseudo-label advantage Δ (UAR points)")
+    # axis names give both sides of each difference (直しの決め事 2 節; review m2: "reproducibility" read as
+    # replicability, so P is called the imitable part)
+    ax.set_xlabel("Imitable part P, UAR difference:\nimitated pseudo-labels − K-label baseline (points)")
+    ax.set_ylabel("Pseudo-label advantage Δ, UAR difference:\npseudo-labels − K-label baseline (points)")
     hm = [Line2D([], [], ls="none", marker=STYLE[s][1], ms=5, color=STYLE[s][0], mec="black", mew=0.4, label=lab)
           for s, lab in [("A", "Audio"), ("V", "Visual"), ("T", "Text")]]
     hz = [plt.scatter([], [], s=v * SZ, marker="o", color="white", edgecolors="black", linewidths=0.6, label=f"{v}")
           for v in [2, 6, 10]]
-    l1 = ax.legend(handles=hm, title="Classifier", loc="lower left", bbox_to_anchor=(-0.17, 1.02), ncol=3,
+    x_left = -0.165 / (0.98 - 0.165)  # left edge of the figure in axes coordinates
+    l1 = ax.legend(handles=hm, title="Classifier", loc="lower left", bbox_to_anchor=(x_left + 0.01, 1.245), ncol=3,
                    borderaxespad=0, title_fontsize=8, alignment="left")
     ax.add_artist(l1)
-    ax.legend(handles=hz, title="Room (UAR points)", loc="lower right", bbox_to_anchor=(0.99, 0.40), ncol=3,
-              borderaxespad=0, title_fontsize=8, alignment="center", handletextpad=0.2, columnspacing=0.8,
-              frameon=False)
+    ax.legend(handles=hz, title="Room (marker area), UAR difference:\nall-label classifier − K-label baseline (points)",
+              loc="lower left", bbox_to_anchor=(x_left + 0.01, 1.015), ncol=3, borderaxespad=0, title_fontsize=8,
+              alignment="left", handletextpad=0.2, columnspacing=0.8, frameon=False)
+    fig.text(0.01, 0.008, "AF: AFEW, IE: IEMOCAP (impro.), MO: MOSEI, ME: MELD", ha="left", va="bottom")
     save(fig, name, pd.DataFrame(rows))
 
 
@@ -607,7 +621,7 @@ def fig7() -> None:
     ck.done()
 
     fig = plt.figure(figsize=(W2, 88 * MM))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1.45, 1], height_ratios=[1, 0.04], left=0.175, right=0.985,
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.45, 1], height_ratios=[1, 0.04], left=0.215, right=0.985,
                           top=0.85, bottom=0.085, wspace=0.07, hspace=0.12)
     ax, bx, cax = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, 0])
     im = ax.imshow(R, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
@@ -622,23 +636,24 @@ def fig7() -> None:
     ax.set_xticklabels(EMO)
     ax.xaxis.tick_top()
     ax.set_yticks(range(12))
-    ax.set_yticklabels([c for _, c in rows_i])
+    ax.set_yticklabels(["IEMOCAP (impro.)" if c == "IEMOCAP" else c for _, c in rows_i])
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
     names = {"A": "Audio", "V": "Visual", "T": "Text"}
+    xmod = 0.022  # modality labels at a fixed distance from the left edge of the figure
+    tmod = blended_transform_factory(fig.transFigure, ax.transData)
     for k, mod in enumerate(["A", "V", "T"]):
         col, mk, _ = STYLE[mod]
-        ax.annotate(names[mod], xy=(-0.215, 4 * k + 1.5), xycoords=("axes fraction", "data"), rotation=90,
-                    ha="center", va="center", fontsize=8)
-        ax.plot([-0.215], [4 * k - 0.1], marker=mk, color=col, ms=5, transform=ax.get_yaxis_transform(),
-                clip_on=False)
+        ax.text(xmod, 4 * k + 1.5, names[mod], transform=tmod, rotation=90, ha="center", va="center", fontsize=8)
+        ax.plot([xmod], [4 * k - 0.1], marker=mk, color=col, ms=5, transform=tmod, clip_on=False)
     cb = fig.colorbar(im, cax=cax, orientation="horizontal")
     cb.set_ticks([-1, -0.5, 0, 0.5, 1])
     cb.ax.tick_params(length=2)
     cb.outline.set_linewidth(0.5)
-    cax.set_xlabel("Affinity r = d − L (reliability d minus the classifier's level L)", labelpad=1)
-    # (b) level
+    # words as in Fig. 8 and the English abstract: strength (水準) and per-emotion profile (相性)
+    cax.set_xlabel("Per-emotion profile r = d − L (reliability d minus the classifier's strength L)", labelpad=1)
+    # (b) strength
     for yb in [3.5, 7.5]:
         bx.axhline(yb, color="0.8", lw=0.6)
     rows = []
@@ -654,10 +669,10 @@ def fig7() -> None:
     bx.tick_params(axis="y", length=0)
     bx.set_xlim(0, 2.1)
     bx.set_xticks([0, 0.5, 1.0, 1.5, 2.0])
-    bx.set_xlabel("Level L (mean d over the four emotions)", labelpad=2)
+    bx.set_xlabel("Strength L (mean d over the four emotions)", labelpad=2)
     top = ax.get_position().y1
-    fig.text(0.008, 0.99, "(a) Per-emotion profile (affinity)", ha="left", va="top", fontsize=9)
-    fig.text(bx.get_position().x0 - 0.01, 0.99, "(b) Level", ha="left", va="top", fontsize=9)
+    fig.text(0.008, 0.99, "(a) Per-emotion profile", ha="left", va="top", fontsize=9)
+    fig.text(bx.get_position().x0 - 0.01, 0.99, "(b) Strength", ha="left", va="top", fontsize=9)
     assert top < 0.9
     save(fig, name, pd.DataFrame(rows))
 
@@ -666,8 +681,8 @@ def fig7() -> None:
 ROWS9 = [("prod", "Product", "A", "積（7 節の手法の推定時の答え）"),
          ("tcal", "Temperature calibration", "A", "分類器ごとの温度の較正"),
          ("wf1000", "Weight-table search", "A", "K 本で重みの表を探す（乱数の表 1,000 個"),
-         ("none", "Fused, K labels only", "B", "K 本だけの融合"),
-         ("stud_prod", "Product pseudo-labels", "B", "7 節の方法（積を疑似ラベルにした学び直し）")]
+         ("none", "K-label baseline", "B", "K 本だけの融合"),
+         ("stud_prod", "Pseudo-label retraining", "B", "7 節の方法（積を疑似ラベルにした学び直し）")]
 
 
 def fig9() -> None:
@@ -711,45 +726,62 @@ def fig9() -> None:
         ck.eq(max(v), z, f"10.2.3 {b} other corpora max")
     ck.done()
 
-    YP = {"prod": 0, "tcal": 1, "wf1000": 2, "none": 3.6, "stud_prod": 4.6}
-    KM = {5: ("o", "black"), 10: ("s", "white"), 25: ("^", "0.6")}
-    KO = {5: -0.25, 10: 0.0, 25: 0.25}
-    fig = plt.figure(figsize=(W2, 62 * MM))
-    gs = fig.add_gridspec(1, 6, width_ratios=[1, 1, 1, 1, 0.13, 1], left=0.205, right=0.99, top=0.83, bottom=0.18,
-                          wspace=0.1)
+    # K is written on the y-axis (one row per K) instead of being coded by marker shape, because circles,
+    # squares and triangles mean audio, visual and text in the other figures (review round3_ja m3).  The marker
+    # is a cross, a shape no feature set uses.
+    YB = {"prod": 0, "tcal": 3.9, "wf1000": 7.8, "none": 12.0, "stud_prod": 15.9}  # first row of each block
+    SEP = 10.9  # line between the two groups of rows
+    KJ = {5: 0, 10: 1, 25: 2}
+    H9 = 78
+    fig = plt.figure(figsize=(W2, H9 * MM))
+    gs = fig.add_gridspec(1, 6, width_ratios=[1, 1, 1, 1, 0.13, 1], left=0.185, right=0.99, top=1 - 10 / H9,
+                          bottom=10 / H9, wspace=0.1)
     axes = [fig.add_subplot(gs[0, i]) for i in [0, 1, 2, 3, 5]]
     rows = []
+    titles = {"AFEW": "AFEW", "IEMOCAP": "IEMOCAP\n(impro.)", "MOSEI": "MOSEI", "MELD": "MELD",
+              "CREMA-D": "CREMA-D\n(audio, visual)"}
     for k, (ax, c) in enumerate(zip(axes, CORP5)):
         ax.axvline(0, **ZERO)
-        ax.axhline(3.1, color="0.6", lw=0.6)
+        ax.axhline(SEP, color="0.6", lw=0.6)
         for b, lab, grp, _ in ROWS9:
             for K in KS:
                 x = g(c, b, grp, K)
-                mk, fc = KM[K]
-                ax.errorbar(x.est, YP[b] + KO[K], xerr=xerr(x.est, x.lo, x.hi), fmt=mk, ms=3.4, color="black",
-                            mfc=fc, mec="black", mew=0.6, **EB)
+                ax.errorbar(x.est, YB[b] + KJ[K], xerr=xerr(x.est, x.lo, x.hi), fmt="X", ms=3.8, color="black",
+                            mfc="black", mec="black", mew=0.3, **EB)
                 rows.append(dict(corpus=c, comparison=lab, group=grp, a=x.a, b=x.b, K=K, effect=x.est, lo=x.lo, hi=x.hi,
                                  n_repetitions=int(x.n_fr)))
         ax.set_xlim(-6.8, 6.8)
         ax.set_xticks([-5, 0, 5])
-        ax.set_ylim(5.1, -0.55)
-        ax.set_yticks(list(YP.values()))
-        ax.set_yticklabels([lab for _, lab, _, _ in ROWS9] if k == 0 else [])
+        ax.set_ylim(YB["stud_prod"] + 2.6, -1.5)
+        ax.set_yticks([YB[b] + KJ[K] for b, _, _, _ in ROWS9 for K in KS])
+        ax.set_yticklabels([str(K) for _ in ROWS9 for K in KS] if k == 0 else [])
         ax.tick_params(axis="y", length=0)
-        panel(ax, f"({'abcde'[k]}) {c}")
-    hd = [Line2D([], [], ls="none", marker=KM[K][0], ms=3.4, color="black", mfc=KM[K][1], mew=0.6, label=f"K = {K}")
-          for K in KS]
-    fig.legend(handles=hd, loc="upper right", ncol=3, bbox_to_anchor=(0.99, 1.0))
-    fig.text(0.58, 0.02, "UAR difference, proposed − comparison (points)", ha="center", va="bottom")
+        # titles hang from a common top line so that the one- and two-line titles start at the same height
+        ax.annotate(f"({'abcde'[k]}) {titles[c]}", xy=(0, 1), xycoords="axes fraction", xytext=(0, 25),
+                    textcoords="offset points", ha="left", va="top", fontsize=9, linespacing=1.1)
+    fig.text(0.5875, 0.012, "UAR difference: proposed fusion − method in the row (points)", ha="center", va="bottom")
     fig.canvas.draw()
     r = fig.canvas.get_renderer()
     ax0 = axes[0]
-    x0 = min(t.get_window_extent(r).x0 for t in ax0.get_yticklabels())
     inv = fig.transFigure.inverted()
-    xf = inv.transform((x0 - 3, 0))[0]
-    for y0, y1, t in [(0, 2, "Inference"), (3.6, 4.6, "Retrained")]:
+    ticks = ax0.get_yticklabels()
+    x0 = min(t.get_window_extent(r).x0 for t in ticks)
+    x1 = max(t.get_window_extent(r).x1 for t in ticks)
+    xf0, xf1 = inv.transform((x0 - 5, 0))[0], inv.transform((x1, 0))[0]
+    yf = inv.transform(ax0.transData.transform((0, -1.05)))[1]
+    fig.text(xf1, yf, "K", ha="right", va="center")
+    NAME9 = {"prod": "Product", "tcal": "Temperature\ncalibration", "wf1000": "Weight-table\nsearch",
+             "none": "K-label\nbaseline", "stud_prod": "Pseudo-label\nretraining"}
+    for b, _, _, _ in ROWS9:
+        yf = inv.transform(ax0.transData.transform((0, YB[b] + 1)))[1]
+        fig.text(xf0, yf, NAME9[b], ha="right", va="center", linespacing=1.1)
+    fig.canvas.draw()
+    xg = min(t.get_window_extent(r).x0 for t in fig.texts if "\n" in t.get_text() or t.get_text() == "Product")
+    xg = inv.transform((xg - 4, 0))[0]
+    for y0, y1, t in [(YB["prod"], YB["wf1000"] + 2, "Late-fusion\nanswers"),
+                      (YB["none"], YB["stud_prod"] + 2, "Retrained AVT\n(concatenated)")]:
         yf = inv.transform(ax0.transData.transform((0, (y0 + y1) / 2)))[1]
-        fig.text(xf, yf, t, rotation=90, ha="right", va="center", fontsize=8)
+        fig.text(xg, yf, t, rotation=90, ha="right", va="center", fontsize=8, linespacing=1.1)
     save(fig, name, pd.DataFrame(rows))
 
 
