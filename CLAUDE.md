@@ -73,7 +73,7 @@
 | `results/` | 結果（再計算できる前提．各ファイルに設定とコミット番号を書く） | × |
 | `logs/` | 長時間処理のログ | × |
 | `DAI_paper/` | Discover Artificial Intelligence に出す論文の旧版の執筆フォルダ（2026-10-31〜11-14）．要項 `docs/venue.md`・参照論文・棚卸しを読むだけにする．原稿は `DAI/paper/` で書く | ○ |
-| `DAI/` | Albanie 型の研究を土台に組み直す作業場（2026-11-04〜）．規則 `DAI/CLAUDE.md`，計画 `DAI/docs/`，論文の原稿 `DAI/paper/`（2026-11-14〜），検査の報告 `DAI/checks/`，サブエージェントの写し `DAI/.claude/agents/` | ○（LaTeX の中間生成物は ×） |
+| `DAI/` | Albanie 型の研究を土台に組み直す作業場（2026-11-04〜）．**2026-11-15 に整理し，データと大きい結果を除けば単独で論文の実験を流し直せる形にした**（DAI の直下が作業の根．入口 `DAI/README.md`，手順 `DAI/docs/再現の手順.md`）．規則 `DAI/CLAUDE.md`，台本 `DAI/exp/`（論文の前半の写しを含む），設計 `DAI/docs/設計/`，論文の原稿 `DAI/paper/`，検査の報告 `DAI/checks/`，DAI の実験の結果 `DAI/results/`（`results/` の同じ名前はリンク） | ○（集計と記録だけ．LaTeX の中間生成物は ×） |
 | `paper/` | TAC 向けの旧版の執筆フォルダ（2026-10-27〜10-28．2026-10-31 からは従わない）．主張契約 `CLAIM.md`，規則 `CLAUDE.md`，数値台帳 `results/numbers.json`，実験要求 `requests.md`．IEEEtran を同梱．`make check` で検査 | ○（PDF と中間生成物は ×） |
 | `slides/` | 発表資料（Beamer，LuaLaTeX．2026-10-27〜）．資料ごとに 1 フォルダ．数値は論文の台帳の `\NUM{key}`，図の値は資料の `scripts/export_figdata.py` が台帳と照合して書き出す．見た目の設定は `~/slides` から 1 回だけ写した（以後は読まない）．規則 `slides/CLAUDE.md` | ○（PDF と中間生成物は ×） |
 | `research_notes/`，`reports/` | 調べ直しのノートと報告（2026-10-27：「TAC 論文の先行研究と書き方」と「TAC 論文 先行研究の精読と穴」．要点は `docs/related-work.md` 1.6・1.13・1.14 節） | ○ |
