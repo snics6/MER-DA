@@ -1,11 +1,13 @@
-"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 2 版）．
+"""実験 22（DAI-22）：融合の分類器の当たる幅と再現できる分を評価の回で測る（設計 `docs/設計/実験22_設計.md` 第 3 版）．
 
 本番の評価の回（実験 1．results/dai1/eval）の保存から，融合の生徒 AVT について，K 本だけの分類器の判定 J_none と
 提案の主の版の疑似ラベル J_prop（prop_one）を候補の上で作り直し，J_prop を目標にした線形の識別器の交差の予測を 2 つの読み出しで作る．
   R0（実験 1 の作り．表 8.1 の P の列）：生徒の出発点と実験 1 の引き戻し（実験 14 の fit_r0 をそのまま使う）．
   R1（そろえた読み出し．副）：候補の上の主成分で 512 次元にそろえ，C′ を内側の交差の予測で選ぶ（実験 14 の fit_r1）．
 量は実験 14 の conditions.csv と同じ名前：uar_none，uar_pseudo，delta，uar_imitation_R0/R1，imitable_R0/R1（K 本を除いた候補の上）．
-K = 5（主）と 25（副）．
+ほかに出発点の UAR と差（uar_start，start_minus_none，R0_minus_start），行どうしの差（delta_minus_delta_A/V/T．実験 14 の npz の
+K 本だけの分類器から），MELD の共有の対話を除いた版．融合の行の作り（q は融合の特徴の線形の判定と同じ）と，q と J_none の κ，
+読み出しと q・出発点の一致を記録する．K = 5（主）と 25（副）．
 
 段：
   selftest  実験 14 の selftest と，要約の差の量が UAR の差と一致すること
@@ -52,6 +54,11 @@ COND14 = OUT14 / "summary" / "conditions.csv"
 TOL_REPRO = 1e-3
 TOL_RESOLVE = (1e-8, 1e-10)                    # 照合が外れた問を 1 問だけで解き直す勾配の基準（実験 14 の 10.1 節と同じ手順．第 2 版．gate-code の I14）
 CLAMP = 1e-12                                  # dai1.product が確率を切る値
+TIE = 1e-6                                     # つないだ線形の判定の上位 2 つの点数の差がこれ未満の発話は同点とみなす（第 3 版．review_ml の m2）
+CAT_TOL = 1e-10                                # 融合の特徴と 3 つをつないだ特徴の差の許し（第 3 版）
+TOL_DAI1 = 1e-6                                # J_none・J_prop の UAR と実験 1 の p2.csv の uar_pool の差の許し（第 3 版．gate-code の R15）
+RESOLVED_SHARE = 0.25                          # 解き直しで通した R0 の行の割合がこれを超えたら止める（入力の系統的なずれを素通りさせないため．第 3 版．review_ml の m1）
+RESOLVED_MIN = 4
 TOL_PSEUDO = 1e-9
 QUANT = ("uar_none", "uar_pseudo", "delta", "uar_imitation_R0", "imitable_R0", "uar_imitation_R1", "imitable_R1", "uar_start")
 RUN = {"commit": "", "dirty": True}
@@ -81,6 +88,7 @@ def resolve_r0(sv, K: int, qy: np.ndarray, halves, unit_pred: np.ndarray) -> dic
     out = {}
     for tol in TOL_RESOLVE:
         res = S.fit(u.Xp[STU], G, W0, b0, Cw=cw, Cb=cb, tol=tol, max_iter=200000)
+        out[f"n_iter_tol{tol:g}"] = int(res["n_iter"]); out[f"stalled_tol{tol:g}"] = int(np.sum(res["stalled_p"]))
         pr = S.logits(u.Xp[STU], res["W"], res["b"]).argmax(2).cpu().numpy()
         full = np.empty(n, int)
         for hh in (0, 1):
@@ -107,8 +115,11 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
     h = dai3.pool_halves(cl)
     halves = [np.flatnonzero(h == 0), np.flatnonzero(h == 1)]
     a14 = np.load(OUT14 / "units" / f"{T}_f{f}_r{r}.npz", allow_pickle=False)
+    p2c = pd.read_csv(OUT1 / "eval" / "units" / f"{T}_ALL_f{f}_r{r}_p2.csv")
     if not (a14["sid"].astype(str) == sv.sid_pool.astype(str)).all() or not (a14["half"].astype(int) == h).all():
         raise SystemExit(f"{base.name}：候補の並びか 2 組の分け方が実験 14 の保存と違う")
+    if p2c.commit.nunique() != 1:
+        raise SystemExit(f"{base.name}：実験 1 の p2.csv のコミットが 1 つでない")
     arr = dict(y=y.astype(np.int8), cl=cl, sid=sv.sid_pool.astype(str), half=h.astype(np.int8),
                nonshared=a14["nonshared"], marker=a14["marker"], sex=a14["sex"])   # 実験 14 の保存から（並びは上で照合した．第 2 版．R11）
     Z, pca = D14.aligned_features(u.Xp[STU])
@@ -134,7 +145,16 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         # q が融合の特徴の線形の判定と同じか（第 2 版．A1）：学び直した 3 つの識別器の W・b を横につないだ識別器の判定と比べる
         Wc = torch.cat([S.t(sv.p2[f"p2_K{K}_ret_{m}_W"]) for m in "AVT"], 1)
         bc = sum(S.t(sv.p2[f"p2_K{K}_ret_{m}_b"]) for m in "AVT")
-        lin = S.logits(u.Xp[STU], Wc, bc).argmax(1).cpu().numpy()
+        lg_lin = S.logits(u.Xp[STU], Wc, bc)
+        lin = lg_lin.argmax(1).cpu().numpy()
+        top2 = torch.topk(lg_lin, 2, dim=1).values
+        tie = ((top2[:, 0] - top2[:, 1]) < TIE).cpu().numpy()
+        # J_none・J_prop の K 本を除いた候補の上の UAR を，実験 1 の評価の回の p2.csv と照合する（第 3 版）
+        u_none = 100 * S.uar(y[nk], arr[f"none__K{K}"].astype(int)[nk]); u_prop = 100 * S.uar(y[nk], qy[nk])
+        r_none = p2c[(p2c.method == "teacher") & (p2c.teacher == "none_AVT") & (p2c.K == K)].uar_pool
+        r_prop = p2c[(p2c.method == "product") & (p2c.teacher == "(1.0, 1.0, 1.0)") & (p2c.K == K)].uar_pool
+        if len(r_none) != 1 or len(r_prop) != 1 or abs(float(r_none.iloc[0]) - u_none) > TOL_DAI1 or abs(float(r_prop.iloc[0]) - u_prop) > TOL_DAI1:
+            raise SystemExit(f"{base.name}：K={K} の J_none か J_prop の UAR が実験 1 の p2.csv と合わない")
         clamped = np.zeros(n, bool)
         for m in "AVT":
             clamped |= (TK[K][f"ret_{m}"][0] < CLAMP).any(1).cpu().numpy()
@@ -156,7 +176,8 @@ def run_unit(T: str, f: int, r: int, fz1T: dict, out: Path, repro: pd.DataFrame)
         rows.append(dict(T=T, fold=f, seed=r, K=K, readout="R0", target=main, agree_halfmean=ag, agree_saved=float(sv_row.agree.iloc[0]),
                          abs_diff=diff, n_cand=n, n_nk=int(nk.sum()), n_half0=len(halves[0]),
                          n_half1=len(halves[1]), dim=info["dim"], Cw=info["Cw"], Cb=info["Cb"], grad=info["grad"], stalled=info["stalled"],
-                         agree_linear=float((lin == qy).mean()), n_clamped=int(clamped.sum()),
+                         agree_linear=float((lin == qy).mean()), n_clamped=int(clamped.sum()), n_tie=int(tie.sum()),
+                         n_linear_diff_nontie_unclamped=int(((lin != qy) & ~tie & ~clamped).sum()),
                          agree_linear_unclamped=float((lin[~clamped] == qy[~clamped]).mean()) if (~clamped).any() else np.nan,
                          kappa_pseudo_none=kappa(qy[nk], arr[f"none__K{K}"].astype(int)[nk]), cat_max_abs_diff=cat_diff, **extra))
     # R1：K = 5 と 25 の問を 1 回の束で解く（実験 14 と同じ）
@@ -215,7 +236,8 @@ def cells_of(U: dict, K: int, subset: str = "all", U14: dict | None = None) -> d
 def quantities(c: dict) -> list:
     q = [("uar_none", [c["none"]], [1]), ("uar_pseudo", [c["pseudo"]], [1]), ("delta", [c["pseudo"], c["none"]], [1, -1]),
          ("uar_imitation_R0", [c["R0"]], [1]), ("imitable_R0", [c["R0"], c["none"]], [1, -1]),
-         ("uar_imitation_R1", [c["R1"]], [1]), ("imitable_R1", [c["R1"], c["none"]], [1, -1]), ("uar_start", [c["start"]], [1])]
+         ("uar_imitation_R1", [c["R1"]], [1]), ("imitable_R1", [c["R1"], c["none"]], [1, -1]), ("uar_start", [c["start"]], [1]),
+         ("start_minus_none", [c["start"], c["none"]], [1, -1]), ("R0_minus_start", [c["R0"], c["start"]], [1, -1])]
     for s in "AVT":                                                   # Δ_AVT − Δ_s = UAR(J_none,s) − UAR(J_none,AVT)（q は共通）
         if f"none_{s}" in c:
             q.append((f"delta_minus_delta_{s}", [c[f"none_{s}"], c["none"]], [1, -1]))
@@ -226,7 +248,7 @@ def stage_summary(out: Path, targets: list) -> None:
     sdir = out / "summary"
     sdir.mkdir(parents=True, exist_ok=True)
     fz1, _ = dai3.load_fz1(OUT1)
-    cond, conv, plateau = [], [], []
+    cond, conv, plateau, agree_rows = [], [], [], []
     c14 = pd.read_csv(COND14)
     for T in targets:
         U = load_units(out, T)
@@ -240,6 +262,10 @@ def stage_summary(out: Path, targets: list) -> None:
             raise SystemExit(f"{T}：単位のコミットが 1 つでないか，汚れた作業木の単位がある")
         if len(csvs) != len(U) * len(KS) * 2:
             raise SystemExit(f"{T}：行の数 {len(csvs)}（見込み {len(U) * len(KS) * 2}）")
+        r0c = csvs[csvs.readout == "R0"]
+        bad = r0c[r0c.abs_diff.isna() | ((r0c.abs_diff > TOL_REPRO) & ~r0c.tol_resolved.astype(str).eq("True"))]
+        if len(bad):                                                  # 照合で止まった単位を流し直して素通りさせない（第 3 版．gate-code の I14b）
+            raise SystemExit(f"{T}：実験 3 の保存との照合が外れたまま解き直しで通っていない行が {len(bad)} 行ある")
         conv.append(csvs)
         for (f, r), a in U.items():                                   # 下端の C′ が「罰を強めた極限に届いた」だけかの印（実験 14 と同じ）
             for K in KS:
@@ -254,6 +280,13 @@ def stage_summary(out: Path, targets: list) -> None:
         for k, a in U.items():
             if not (U14[k]["sid"].astype(str) == a["sid"].astype(str)).all():
                 raise SystemExit(f"{T}_f{k[0]}_r{k[1]}：実験 14 の保存と候補の並びが違う")
+        for K in KS:                                                  # 読み出しと q・出発点の一致（K 本を除いた候補．単位の平均・最小・最大．第 3 版．gate-define の 2）
+            for ro in ("R0", "R1"):
+                for other in ("tgt", "start"):
+                    v = [float((a[f"K{K}__{ro}"][a[f"nk__K{K}"]] == (a[f"tgt__K{K}"] if other == "tgt" else a["start"])[a[f"nk__K{K}"]]).mean())
+                         for a in U.values()]
+                    agree_rows.append(dict(kind=f"agree_{ro}_{other}", T=T, K=K, agree_mean=float(np.mean(v)), agree_min=float(np.min(v)),
+                                           agree_max=float(np.max(v))))
         for K in KS:
             for subset in (["all", "nonshared"] if T == "MELD" else ["all"]):
                 for qn, cells_, co in quantities(cells_of(U, K, subset, U14)):
@@ -265,6 +298,10 @@ def stage_summary(out: Path, targets: list) -> None:
                 raise SystemExit(f"{T} K={K}：uar_pseudo が実験 14 の conditions.csv と合わない")
         dai1.Corpus.cache.pop(T, None)
     C = pd.DataFrame(cond); CV = pd.concat(conv); PL = pd.DataFrame(plateau)
+    r0all = CV[CV.readout == "R0"]
+    n_res = int(r0all.tol_resolved.astype(str).eq("True").sum())
+    if not RUN.get("partial") and n_res > max(RESOLVED_MIN, RESOLVED_SHARE * len(r0all)):
+        raise SystemExit(f"解き直しで通した R0 の行が {n_res} / {len(r0all)} 行で多すぎる（入力の系統的なずれを疑う）")
     tag = dict(commit=RUN["commit"], dirty=RUN["dirty"])
     C.assign(**tag).to_csv(sdir / "conditions.csv", index=False)
     asm = []
@@ -279,8 +316,11 @@ def stage_summary(out: Path, targets: list) -> None:
                         eff_rank_mean=float(x.eff_rank.mean()), dim_in=int(x.dim_in.iloc[0])))
     for (T, ro), x in CV.groupby(["T", "readout"]):
         asm.append(dict(kind="n_per_dim", T=T, readout=ro, half_over_dim_min=float((x[["n_half0", "n_half1"]].min(axis=1) / x.dim).min())))
+    for row in agree_rows:
+        asm.append(row)
     for (T, K), x in CV[CV.readout == "R0"].groupby(["T", "K"]):     # q が融合の特徴の線形の判定と同じか，q と J_none の依存（第 2 版．A1，gate-define の 2）
         asm.append(dict(kind="linear_identity", T=T, K=K, agree_linear_min=float(x.agree_linear.min()), agree_linear_mean=float(x.agree_linear.mean()),
+                        n_tie_max=int(x.n_tie.max()), n_linear_diff_nontie_unclamped_max=int(x.n_linear_diff_nontie_unclamped.max()),
                         agree_linear_unclamped_min=float(x.agree_linear_unclamped.min()), n_clamped_max=int(x.n_clamped.max()),
                         cat_max_abs_diff=float(x.cat_max_abs_diff.max())))
         asm.append(dict(kind="kappa_pseudo_none", T=T, K=K, kappa_mean=float(x.kappa_pseudo_none.mean()),
@@ -290,11 +330,14 @@ def stage_summary(out: Path, targets: list) -> None:
     conv_s = dict(n_rows=len(CV), n_units=int(CV[["T", "fold", "seed"]].drop_duplicates().shape[0]), grad_max=float(CV.grad.max()),
                   n_stalled=int(CV.stalled.astype(str).eq("True").sum()), inner_grad_max=float(r1.inner_grad.max()),
                   inner_stalled_max=int(r1.inner_stalled.max()), r0_saved_abs_diff_max=float(r0.abs_diff.max()),
-                  r0_saved_n_over_tol=int((r0.abs_diff > TOL_REPRO).sum()), r0_n_resolved=int(r0.tol_resolved.astype(str).eq("True").sum()),
+                  r0_saved_n_over_tol=int((r0.abs_diff > TOL_REPRO).sum()), r0_n_resolved=n_res,
+                  r0_resolved_abs_diff_max=(float(r0[r0.tol_resolved.astype(str).eq("True")].abs_diff.max()) if n_res else 0.0),
+                  cat_ok=bool(float(r0.cat_max_abs_diff.max()) <= CAT_TOL),
                   inner_grad_ok=bool(float(r1.inner_grad.max()) <= 1e-5), grad_ok=bool(float(CV.grad.max()) <= 1e-5),
                   C_chosen_counts={str(k): int(v) for k, v in pd.concat([r1.C0, r1.C1]).value_counts().items()},
                   sec_total=float(CV.drop_duplicates(["T", "fold", "seed"]).sec.sum()))
-    json.dump(conv_s, open(sdir / "convergence.json", "w"), ensure_ascii=False, indent=1)
+    with open(sdir / "convergence.json", "w") as fh:
+        json.dump(conv_s, fh, ensure_ascii=False, indent=1)
     print(json.dumps({k: conv_s[k] for k in ("n_rows", "n_units", "grad_max", "n_stalled", "r0_saved_n_over_tol")}, ensure_ascii=False))
 
 
@@ -372,7 +415,8 @@ def main() -> None:
                 host=platform.node(), gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""),
                 python=platform.python_version(), torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__, scipy=scipy.__version__,
                 scripts=script_shas(), design_sha256=D14.sha(DESIGN), dai1_frozen_sha256=fz1_sha, repro_saved_sha256=D14.sha(REPRO_SAVED),
-                cond14_sha256=D14.sha(COND14), dai14_provenance_sha256=D14.sha(OUT14 / "provenance.json"), tol_repro=TOL_REPRO, tol_resolve=TOL_RESOLVE, clamp=CLAMP, tol_pseudo=TOL_PSEUDO, mem_frac=MEM_FRAC, encoder=dai1.ENC["enc"],
+                cond14_sha256=D14.sha(COND14), dai14_provenance_sha256=D14.sha(OUT14 / "provenance.json"), tol_repro=TOL_REPRO, tol_resolve=TOL_RESOLVE, clamp=CLAMP, tie=TIE, cat_tol=CAT_TOL, tol_dai1=TOL_DAI1,
+                resolved_share=RESOLVED_SHARE, resolved_min=RESOLVED_MIN, tol_pseudo=TOL_PSEUDO, mem_frac=MEM_FRAC, encoder=dai1.ENC["enc"],
                 KS=KS, student=STU, grid_c=GRID_C, cb_r1=D14.CB_R1, dim_r1=D14.DIM_R1, edge_share=EDGE_SHARE, rng_seed=RNG_SEED,
                 n_boot=ST.N_BOOT, min_n=ST.MIN_TEST)
     with open(out / "provenance_log.jsonl", "a") as fh:
@@ -399,6 +443,10 @@ def main() -> None:
                         bad.to_csv(out / f"check_fail_{T}_f{f}_r{r}.csv", index=False)
                         sys.exit(f"{T}_f{f}_r{r}：実験 3 の保存の一致と {TOL_REPRO} を超えて違い，解き直すと予測が変わる行がある")
                     allrows.append(chk)
+                    allc = pd.concat(allrows)
+                    n_res = int(allc.tol_resolved.astype(bool).sum())
+                    if n_res > max(RESOLVED_MIN, RESOLVED_SHARE * len(allc)):
+                        sys.exit(f"解き直しで通した R0 の行が {n_res} / {len(allc)} 行で多すぎる（入力の系統的なずれを疑う）")
             dai1.Corpus.cache.pop(T, None)
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -408,7 +456,8 @@ def main() -> None:
             (out / "units.done").write_text(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
     else:
         stage_summary(out, args.targets)
-        json.dump(prov, open(out / "provenance.json", "w"), ensure_ascii=False, indent=1)
+        with open(out / "provenance.json", "w") as fh:
+            json.dump(prov, fh, ensure_ascii=False, indent=1)
         if prod and set(args.targets) == set(DD.CORPORA):
             (out / "summary.done").write_text(time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
 
