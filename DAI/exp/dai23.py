@@ -123,6 +123,16 @@ def corpus_audio(T: str, kind: str) -> tuple[pd.DataFrame, torch.Tensor]:
     return _CORP[(T, kind)]
 
 
+MIN_WORDS_W3 = 3
+
+
+def words_of(T: str) -> pd.Series:
+    """sample_id → 人の書き起こしの単語の数（操作の確かめと同じ単語の分け方 `check_lowpass_asr.norm_words`）．"""
+    from check_lowpass_asr import norm_words
+    m = DD.common.load_manifest(T)
+    return pd.Series([len(norm_words(t)) for t in m["transcript"]], index=m["sample_id"].astype(str))
+
+
 def std_pool(X: torch.Tensor, pool: np.ndarray) -> torch.Tensor:
     """`dai1.Unit` と同じ標準化：候補（K 本を含み，テストを含まない）の平均と標準偏差．"""
     mu, sd = X[pool].mean(0), X[pool].std(0).clamp(min=1e-6)
@@ -296,11 +306,12 @@ def criteria(main: pd.DataFrame, targets: list, asm: pd.DataFrame | None = None,
         e1 = [T for T in targets if corpus_verdict(main, T, f"M1_{X}")]
         e2 = [T for T in targets if all(corpus_verdict(main, T, f"{q}_{X}") for q in ("M1", "M2", "M3", "M3d"))]
         l3 = [T for T in targets if corpus_verdict(main, T, f"L3_{X}")]
-        fi = [T for T in targets if ((main["T"] == T) & (main.quantity == f"dV_{X}") & (main.subset == "all") & (main.verdict == "下回る")).any()]
-        nm = {T: {q: main[(main["T"] == T) & (main.quantity == f"{q}_{X}") & (main.subset == "nomarker")].verdict.tolist()
-                  for q in ("M1", "M2", "M3", "M3d", "L3")} for T in targets}
+        fi = [T for T in targets if ((main["T"] == T) & (main.quantity == f"dV_{X}") & main.subset.isin(["all", "nonshared"])
+                                      & (main.verdict == "下回る")).any()]       # MELD は共有の対話を除いた版も見る（ML の査読の m4）
+        nm = {sb: {T: {q: main[(main["T"] == T) & (main.quantity == f"{q}_{X}") & (main.subset == sb)].verdict.tolist()
+                       for q in ("M1", "M2", "M3", "M3d", "L3", "dV")} for T in targets} for sb in ("nomarker", "words3")}
         out[X] = dict(E1_count=len(e1), E1_corpora=e1, E1_hit=bool(len(e1) >= 2), E2_corpora=e2, L3_above=l3,
-                      face_increase=fi, nomarker_verdicts=nm)
+                      face_increase=fi, side_subset_verdicts=nm)
     out["lexical_both_ops"] = [T for T in targets if T in out["L"]["E2_corpora"] and T in out["B"]["E2_corpora"]]
     ok_manip = bool((fcj or {}).get("rule_met", False)) and bool((fcj or {}).get("rev_ok", False))
     bad_info = set()
@@ -342,9 +353,19 @@ def stage_summary(out: Path, targets: list) -> None:
         main_nm = "prop_" + fz1[T]["main"][str(K)]
         g_eff, _ = ST.g_eff_of(T)
         rng = np.random.default_rng([RNG_SEED, DD.CORPUS_ID[T]])
-        subsets = (["all", "nonshared"] if T == "MELD" else ["all"]) + ["nomarker"]
+        subsets = (["all", "nonshared"] if T == "MELD" else ["all"]) + ["nomarker", "words3"]
+        # 記述の部分集合 words3：人の書き起こしが 3 語以上の発話（操作の確かめの標本と同じ範囲．感情認識の査読の A2）．
+        # dai14 の mask_of は nomarker で ~marker を使うので，marker を「3 語未満」に置き換えた単位の写しを nomarker として渡す
+        nw_of = words_of(T)
+        U_w3 = {k: {**a, "marker": nw_of.reindex(a["sid"]).to_numpy() < MIN_WORDS_W3} for k, a in U.items()}
         for subset in subsets:
-            kp = kap[(T, subset)]
+            Uu, msub = (U_w3, "nomarker") if subset == "words3" else (U, subset)
+            if (T, subset) in kap:
+                kp = kap[(T, subset)]
+            else:                                                     # words3 の κ は A の項（実験 14 と同じ予測）だけから作る
+                ea = D14.combo_stats([D14.Rcell(Uu, K, "R1", "A", "single_T", "true", msub), D14.Rcell(Uu, K, "R1", "A", "single_T", "shufcl", msub)], [1, -1], g_eff, rng)
+                eb = D14.combo_stats([D14.Rcell(Uu, K, "R1", "A", "single_V", "true", msub), D14.Rcell(Uu, K, "R1", "A", "single_V", "shufcl", msub)], [1, -1], g_eff, rng)
+                kp = ea["effect"] / eb["effect"]
             Q = dict(QUANT_A)
             for X in OPS:
                 Q.update(quant(X, kp))
@@ -352,19 +373,20 @@ def stage_summary(out: Path, targets: list) -> None:
 
             def run_q(q, terms, primary):
                 tt = [("R1", s_, nm, ver, co) for s_, nm, ver, co in terms]
-                cells = [D14.Rcell(U, K, "R1", s_, nm, ver, subset) for _, s_, nm, ver, _ in tt]
-                spv = D14.split_values(U, K, tt, subset)
+                cells = [D14.Rcell(Uu, K, "R1", s_, nm, ver, msub) for _, s_, nm, ver, _ in tt]
+                spv = D14.split_values(Uu, K, tt, msub)
                 e = D14.combo_stats(cells, [t[-1] for t in tt], g_eff, rng, split_vals=spv)
                 got[q] = e["effect"]
                 mains.append(dict(T=T, K=K, subset=subset, quantity=q, kappa=kp, primary=primary) | e |
                              dict(verdict=D14.verdict(e["lo"], e["hi"]), verdict_ns=D14.verdict(e["lo_ns"], e["hi_ns"])))
 
+            side = subset in ("nomarker", "words3")                   # 記述の部分集合
             for q, terms in Q.items():
-                if subset == "nomarker" and not q.startswith(("M1_", "M2_", "M3_", "L3_", "D")):
+                if side and not q.startswith(("M1_", "M2_", "M3_", "L3_", "D")):
                     continue
-                run_q(q, terms, bool(q in PRIMARY and subset != "nomarker"))
+                run_q(q, terms, bool(q in PRIMARY and not side))
             # M3 の κ の推定の揺れを 1 次で入れた版（設計 4 節）：M3 = D_AT − D_XT − κ̂ (D_AV − D_XV)，κ̂ = D_AT / D_AV の 1 次の係数
-            if not RUN["partial"] and abs(got["DAT"] / got["DAV"] - kp) > 1e-6:   # 単位を絞った試しでは比が変わるので確かめない                 # 固定の κ は同じ A の予測から作った値なので，ここで作り直した比と一致するはず
+            if not RUN["partial"] and subset != "words3" and abs(got["DAT"] / got["DAV"] - kp) > 1e-6:   # 単位を絞った試しでは比が変わるので確かめない                 # 固定の κ は同じ A の予測から作った値なので，ここで作り直した比と一致するはず
                 raise SystemExit(f"{T}/{subset}：D(A ← T) ÷ D(A ← V) = {got['DAT'] / got['DAV']:.6f} が固定の κ {kp:.6f} と違う")
             for X in OPS:
                 dat, dav, dxv = got["DAT"], got["DAV"], got[f"D{X}V"]
@@ -374,23 +396,27 @@ def stage_summary(out: Path, targets: list) -> None:
                          [(X, "single_T", "true", co["XT"]), (X, "single_T", "shufcl", -co["XT"])] +
                          [("A", "single_V", "true", co["AV"]), ("A", "single_V", "shufcl", -co["AV"])] +
                          [(X, "single_V", "true", co["XV"]), (X, "single_V", "shufcl", -co["XV"])])
-                run_q(f"M3d_{X}", terms, bool(subset != "nomarker"))
+                run_q(f"M3d_{X}", terms, bool(not side))
                 run_q(f"dV_{X}", [("A", "single_V", "true", 1), ("A", "single_V", "shufcl", -1),
                                   (X, "single_V", "true", -1), (X, "single_V", "shufcl", 1)], False)
             # 記述：2 つの操作の M3 の差（M3_L − M3_B = κ [D(L ← V) − D(B ← V)] − [D(L ← T) − D(B ← T)]）
             run_q("M3_L-B", [("L", "single_T", "true", -1), ("L", "single_T", "shufcl", 1), ("B", "single_T", "true", 1), ("B", "single_T", "shufcl", -1),
                              ("L", "single_V", "true", kp), ("L", "single_V", "shufcl", -kp), ("B", "single_V", "true", -kp), ("B", "single_V", "shufcl", kp)], False)
             # 記述：C′ を固定した版（実験 14 の R1fixC と同じ点を A と X に当てる．分け方の揺れは足さない）
-            if subset != "nomarker":
+            if not side:
+                # κ_fixC：同じ固定の点で作った A の D の比（R1 の κ を当てると帰無の下でも M3 が 0 にならないため．台本の検査 code_v2 の 1）
+                fa = D14.combo_stats([D14.fixc_cell(U, ic_fix, "A", "single_T", "true", subset), D14.fixc_cell(U, ic_fix, "A", "single_T", "shufcl", subset)], [1, -1], g_eff, rng)
+                fb = D14.combo_stats([D14.fixc_cell(U, ic_fix, "A", "single_V", "true", subset), D14.fixc_cell(U, ic_fix, "A", "single_V", "shufcl", subset)], [1, -1], g_eff, rng)
+                kfix = fa["effect"] / fb["effect"]
                 for X in OPS:
                     for q in ("M1", "M2", "M3"):
-                        terms = quant(X, kp)[f"{q}_{X}"]
+                        terms = quant(X, kfix)[f"{q}_{X}"]
                         cells = [D14.fixc_cell(U, ic_fix, s_, nm, ver, subset) for s_, nm, ver, _ in terms]
                         e = D14.combo_stats(cells, [t[-1] for t in terms], g_eff, rng)
-                        mains.append(dict(T=T, K=K, subset=subset, quantity=f"{q}_{X}_fixC", kappa=kp, primary=False,
+                        mains.append(dict(T=T, K=K, subset=subset, quantity=f"{q}_{X}_fixC", kappa=kfix, primary=False,
                                           fixC0=D14.GRID_C[ic_fix[0]], fixC1=D14.GRID_C[ic_fix[1]]) | e |
                                      dict(verdict=D14.verdict(e["lo"], e["hi"]), verdict_ns=D14.verdict(e["lo_ns"], e["hi_ns"])))
-            if subset == "nomarker":
+            if side:
                 continue
             # 記述：L・B の R と D（全部の目標），R(X ← y)，R(A ← y)
             for s_, nm in [(X, m) for X in OPS for m in list(JUDG) + [main_nm, "label"]] + [("A", "label")]:

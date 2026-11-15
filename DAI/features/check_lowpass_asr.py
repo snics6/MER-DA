@@ -55,9 +55,16 @@ F0_FRAME, F0_HOP, F0_THRESH, F0_GATE_DB = 0.04, 0.01, 0.15, -40.0
 _PICKED: dict = {}
 
 
+QUOTES = {"\u2019": "'", "\u2018": "'", "\u02bc": "'", "`": "'", "\u201c": '"', "\u201d": '"'}
+
+
 def norm_words(t) -> list[str]:
-    """小文字にし，角括弧・丸括弧・波括弧の注記を除き，アポストロフィ以外の記号を空白にして単語に分ける。"""
-    t = str(t if isinstance(t, str) else "").lower()
+    """`common.fix_mojibake` で文字化け（MELD の \\x92 など）を直し，引用符を ' と " にそろえ，小文字にし，
+    角括弧・丸括弧・波括弧の注記を除き，アポストロフィ以外の記号を空白にして単語に分ける（参照と出力の両方に同じ規則を当てる）。"""
+    t = common.fix_mojibake(str(t if isinstance(t, str) else ""))
+    for k, v in QUOTES.items():
+        t = t.replace(k, v)
+    t = t.lower()
     t = re.sub(r"\[[^\]]*\]|\([^)]*\)|\{[^}]*\}", " ", t)
     t = re.sub(r"[^a-z0-9' ]+", " ", t)
     return [w.strip("'") for w in t.split() if w.strip("'")]
@@ -109,10 +116,16 @@ def f0_yin(w: np.ndarray) -> np.ndarray:
     return np.array(out)
 
 
+_SCOPE: list = []
+
+
 def pick(corpus: str, n: int) -> tuple[pd.DataFrame, list]:
     ids = set(DD.load_corpus(corpus)[0]["sample_id"])
     df = common.load_manifest(corpus)
     df = df[df["sample_id"].isin(ids)]
+    nw = df["transcript"].map(lambda t: len(norm_words(t)))
+    _SCOPE.append(dict(corpus=corpus, n_analysis=len(df), share_lt_min_words=float((nw < MIN_WORDS).mean()),
+                       share_0_words=float((nw == 0).mean()), min_words=MIN_WORDS))
     df = df[df["transcript"].map(lambda t: len(norm_words(t))) >= MIN_WORDS].copy()
     df["h"] = df["sample_id"].map(lambda s: hashlib.sha256(s.encode()).hexdigest())
     df = df.sort_values("h").reset_index(drop=True)
@@ -168,8 +181,17 @@ def main() -> None:
             raise SystemExit(f"{c}：条件を満たす発話が {len(df)} 本しか無い")
         _PICKED[c] = (df["sample_id"].tolist(), df["transcript"].tolist())
         f0 = [f0_yin(w) for w in dec]
+        if c == "IEMOCAP":                                         # 性別ごとの F0（性別の注釈があるのは IEMOCAP だけ．実験 14 の corpus_meta と同じ列）
+            man = pd.read_csv(common.META_DIR / "iemocap_utterance_manifest.csv", keep_default_na=False).set_index("sample_id")
+            sex = man["utterance_speaker"].reindex(df["sample_id"]).astype(str).to_numpy()
+            for sx in sorted(set(sex)):
+                fx = [x for x, s_ in zip(f0, sex) if s_ == sx and len(x)]
+                ax = np.concatenate(fx) if fx else np.array([])
+                f0rows.append(dict(corpus=c, sex=sx, n_utt=int((sex == sx).sum()), n_voiced=len(ax),
+                                   f0_median=float(np.median(ax)) if len(ax) else np.nan,
+                                   **{f"share_above_0.8x{fc}": float((ax > 0.8 * fc).mean()) if len(ax) else np.nan for fc in FCS}))
         allf = np.concatenate([x for x in f0 if len(x)]) if any(len(x) for x in f0) else np.array([])
-        f0rows.append(dict(corpus=c, n_utt=len(dec), n_voiced=len(allf), f0_median=float(np.median(allf)) if len(allf) else np.nan,
+        f0rows.append(dict(corpus=c, sex="all", n_utt=len(dec), n_voiced=len(allf), f0_median=float(np.median(allf)) if len(allf) else np.nan,
                            **{f"share_above_0.8x{fc}": float((allf > 0.8 * fc).mean()) if len(allf) else np.nan for fc in FCS},
                            **{f"utt_share_any_above_0.8x{fc}": float(np.mean([(x > 0.8 * fc).any() for x in f0 if len(x)])) for fc in FCS}))
         for cond in conds:
@@ -196,6 +218,7 @@ def main() -> None:
     summ["excess"] = summ["hit_mean"] - summ["hit_chance"]
     summ.to_csv(out / "asr_check_summary.csv", index=False)
     pd.DataFrame(f0rows).to_csv(out / "f0_check.csv", index=False)
+    pd.DataFrame(_SCOPE).to_csv(out / "sample_scope.csv", index=False)
     chosen, met = 300, False
     for fc in FCS:
         m = summ[summ.condition == f"lp{fc}"].set_index("corpus")["excess"]
@@ -207,10 +230,11 @@ def main() -> None:
     import transformers
     import subprocess
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    dirty = bool(subprocess.run(["git", "status", "--porcelain", "features", "exp"], cwd=ROOT, capture_output=True, text=True).stdout.strip())
     asr_sha = hashlib.sha256(open(out / "asr_check.csv", "rb").read()).hexdigest()
-    json.dump(dict(fc=chosen, rule_met=met, code_commit=commit, asr_check_sha256=asr_sha, rev_ok=bool(len(rv) == len(TARGETS) and (rv <= EXCESS_MAX).all()),
+    json.dump(dict(fc=chosen, rule_met=met, code_commit=commit, code_dirty=dirty, asr_check_sha256=asr_sha, rev_ok=bool(len(rv) == len(TARGETS) and (rv <= EXCESS_MAX).all()),
                    excess_max=EXCESS_MAX, n_per_corpus=args.n, max_sec=MAX_SEC, min_words=MIN_WORDS, order="sha256(sample_id)",
-                   norm_rule="lower; drop [..] (..) {..}; non [a-z0-9'] -> space; strip apostrophes", hit="LCS / n_ref",
+                   norm_rule="fix_mojibake; quotes to ' and \"; lower; drop [..] (..) {..}; non [a-z0-9'] -> space; strip apostrophes (both ref and hyp)", hit="LCS / n_ref",
                    chance="mean over all mismatched (ref i, hyp j), i != j, same corpus and condition",
                    model=MODEL, model_revision=getattr(model.config, "_commit_hash", ""), transformers=transformers.__version__,
                    scipy=scipy.__version__, filter="butter4 sosfiltfilt zero phase",

@@ -48,6 +48,7 @@ LIMIT_MAX = 256            # 試しの本数の上限（規則で選んでいな
 FILTER = "butter4_sosfiltfilt_zero_phase"
 import subprocess as _sp
 CODE_COMMIT = _sp.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True).stdout.strip()
+CODE_DIRTY = bool(_sp.run(["git", "status", "--porcelain", "features"], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True).stdout.strip())
 
 
 def lowpass(w: np.ndarray, fc: int | None) -> np.ndarray:
@@ -107,7 +108,7 @@ def process_chunk(df: pd.DataFrame, model, args, op: str | None, fc: int | None)
         "op": np.full(n, op or "", dtype="<U8"), "lowpass_fc": np.full(n, -1 if fc is None else fc, dtype=np.int16),
         "lowpass_order": np.full(n, ORDER, dtype=np.int8), "filter": np.full(n, FILTER if op == "lp" else "", dtype="<U40"),
         "model_revision": np.full(n, getattr(model.config, "_commit_hash", "") or "", dtype="<U64"),
-        "code_commit": np.full(n, CODE_COMMIT, dtype="<U40"),
+        "code_commit": np.full(n, CODE_COMMIT, dtype="<U40"), "code_dirty": np.full(n, CODE_DIRTY, dtype=bool),
     }
 
 
