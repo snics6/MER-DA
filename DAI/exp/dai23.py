@@ -198,9 +198,12 @@ def run_unit(T: str, f: int, r: int, fzT: dict, out: Path, kinds: dict, verify: 
     tg_true[(K, "label")] = y
     tg_all = {((K, nm), ver): TG[(nm, ver)] for nm in names for ver in VERS_L}
     tg_all[((K, "label"), "true")] = y
+    gk = [((K, nm), v) for nm in JUDG for v in ("true", "shufcl")]      # C′ を固定した感度のための格子の予測（実験 14 の R1fixC と同じ範囲）
     for X in kinds:
-        res, curves, _ = D14.fit_r1(Z[X], cl, halves, tg_true, tg_all)
+        res, curves, grid = D14.fit_r1(Z[X], cl, halves, tg_true, tg_all, gk)
         add_rows(X, res, "main", curves, PCA[X])
+        for ((_, nm), ver), ic in grid:
+            arr[f"K{K}__grid{ic}__R1__{X}__{nm}__{ver}"] = grid[(((K, nm), ver), ic)]
     # A：本当の感情 y だけ（J_m の予測は実験 14 の保存を使う）
     resA, curvesA, _ = D14.fit_r1(Z["A"], cl, halves, {(K, "label"): y}, {((K, "label"), "true"): y})
     add_rows("A", resA, "main", curvesA, PCA["A"])
@@ -236,6 +239,8 @@ def run_unit(T: str, f: int, r: int, fzT: dict, out: Path, kinds: dict, verify: 
         df[f"verify_agree_{k_}"] = v_
     np.savez_compressed(f"{base}.npz", **arr)
     df.to_csv(f"{base}.csv", index=False)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return df
 
 
@@ -326,6 +331,14 @@ def stage_summary(out: Path, targets: list) -> None:
         if not RUN["partial"] and (csvs.commit.nunique() != 1 or csvs.dirty.astype(str).ne("False").any()):
             raise SystemExit(f"{T}：単位のコミットが 1 つでないか，汚れた作業木の単位がある")
         conv.append(csvs)
+        for (f, r), a in U.items():                                   # 単位ごとの行の数（L・B は 4 目標 × 3 版 + y で各 13 行，A は y の 1 行，r = 0 は別の分け方 × 2 × 9 行）
+            n_alt = int(a["n_alt"]) if r == 0 else 0
+            exp_rows = len(OPS) * 13 + 1 + n_alt * len(OPS) * 9
+            got_rows = int(((csvs.fold == f) & (csvs.seed == r)).sum())
+            if got_rows != exp_rows:
+                raise SystemExit(f"{T}_f{f}_r{r}：行の数 {got_rows}（見込み {exp_rows}）")
+        c14 = pd.concat([pd.read_csv(OUT14 / "units" / f"{T}_f{f}_r{r}.csv") for f, r in sorted(U)])
+        ic_fix = D14.fixed_c_index(c14)                              # 実験 14 の R1fixC と同じ格子の点（A と X に同じ点を当てる）
         main_nm = "prop_" + fz1[T]["main"][str(K)]
         g_eff, _ = ST.g_eff_of(T)
         rng = np.random.default_rng([RNG_SEED, DD.CORPUS_ID[T]])
@@ -367,6 +380,16 @@ def stage_summary(out: Path, targets: list) -> None:
             # 記述：2 つの操作の M3 の差（M3_L − M3_B = κ [D(L ← V) − D(B ← V)] − [D(L ← T) − D(B ← T)]）
             run_q("M3_L-B", [("L", "single_T", "true", -1), ("L", "single_T", "shufcl", 1), ("B", "single_T", "true", 1), ("B", "single_T", "shufcl", -1),
                              ("L", "single_V", "true", kp), ("L", "single_V", "shufcl", -kp), ("B", "single_V", "true", -kp), ("B", "single_V", "shufcl", kp)], False)
+            # 記述：C′ を固定した版（実験 14 の R1fixC と同じ点を A と X に当てる．分け方の揺れは足さない）
+            if subset != "nomarker":
+                for X in OPS:
+                    for q in ("M1", "M2", "M3"):
+                        terms = quant(X, kp)[f"{q}_{X}"]
+                        cells = [D14.fixc_cell(U, ic_fix, s_, nm, ver, subset) for s_, nm, ver, _ in terms]
+                        e = D14.combo_stats(cells, [t[-1] for t in terms], g_eff, rng)
+                        mains.append(dict(T=T, K=K, subset=subset, quantity=f"{q}_{X}_fixC", kappa=kp, primary=False,
+                                          fixC0=D14.GRID_C[ic_fix[0]], fixC1=D14.GRID_C[ic_fix[1]]) | e |
+                                     dict(verdict=D14.verdict(e["lo"], e["hi"]), verdict_ns=D14.verdict(e["lo_ns"], e["hi_ns"])))
             if subset == "nomarker":
                 continue
             # 記述：L・B の R と D（全部の目標），R(X ← y)，R(A ← y)
@@ -396,21 +419,20 @@ def stage_summary(out: Path, targets: list) -> None:
             dxv = float(m_[m_.quantity == f"D{X}V"].effect.iloc[0])
             asm.append(dict(kind="retained_share", T=T, student=X, DAT=dat, DAV=dav, DXT=dxt, DXV=dxv,
                             retained_T=dxt / dat if dat else np.nan, retained_V=dxv / dav if dav else np.nan, flag=False))
-            x = csvs[(csvs.split == "main") & (csvs.student == X) & (csvs.version == "true")]
-            for tg, g in x.groupby("target"):
-                lo = float(((g.C0 == D14.GRID_C[0]) | (g.C1 == D14.GRID_C[0])).mean())
-                hi = float(((g.C0 == D14.GRID_C[-1]) | (g.C1 == D14.GRID_C[-1])).mean())
-                asm.append(dict(kind="C_edge", T=T, student=X, target=tg, share_low=lo, share_high=hi, flag=bool(hi > D14.EDGE_SHARE)))
+            # C′ の端（実験 14 の 8 節と dai14.py の数えと同じ：単位 × 組ごとに選んだ点を数え，目標ごとに flag = max(上端, 平らでない下端) > 0.25）
             plateau = []
             for (f, r), a in U.items():
                 for kk in [k for k in a if k.startswith(f"inner__main__{X}__")]:
                     cur = a[kk].mean(1)
                     for hh in (0, 1):
-                        j = int(np.argmax(cur[hh] > cur[hh].max() - 1e-12))
-                        plateau.append(dict(chosen=D14.GRID_C[j], low_plateau=bool(j == 0 and abs(cur[hh][0] - cur[hh][1]) < 1e-9)))
-            P = pd.DataFrame(plateau)
-            lo_np = float(((P.chosen == D14.GRID_C[0]) & ~P.low_plateau).mean())
-            asm.append(dict(kind="C_low_nonplateau", T=T, student=X, share_low_nonplateau=lo_np, flag=bool(lo_np > D14.EDGE_SHARE)))
+                        j_ = int(np.argmax(cur[hh] > cur[hh].max() - 1e-12))
+                        plateau.append(dict(target=kk.split("__")[-1], chosen=D14.GRID_C[j_],
+                                            low_plateau=bool(j_ == 0 and abs(cur[hh][0] - cur[hh][1]) < 1e-9)))
+            for tg, x in pd.DataFrame(plateau).groupby("target"):
+                lo = float((x.chosen == D14.GRID_C[0]).mean()); hi = float((x.chosen == D14.GRID_C[-1]).mean())
+                lo_np = float(((x.chosen == D14.GRID_C[0]) & ~x.low_plateau).mean())
+                asm.append(dict(kind="C_edge", T=T, student=X, target=tg, share_low=lo, share_high=hi, share_low_nonplateau=lo_np,
+                                share_low_plateau=lo - lo_np, flag=bool(max(hi, lo_np) > D14.EDGE_SHARE)))
         fr = csvs[(csvs.split == "main") & (csvs.student == OPS[0]) & (csvs.version == "shufcl")]
         for tg, g in fr.groupby("target"):
             asm.append(dict(kind="frac_changed", T=T, target=tg, frac_mean=float(g.frac_changed.mean()), flag=bool(g.frac_changed.mean() < D14.FRAC_LOW)))
@@ -535,12 +557,13 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     (out / "units").mkdir(exist_ok=True)
     cache = {f"{X}_{T}": ROOT / "data" / "cache" / f"{kd}_{T}.npz" for X, kd in kinds.items() for T in args.targets}
+    cache.update({f"{m}_{T}": ROOT / "data" / "cache" / f"{kd}_{T}.npz" for m, kd in DD.ENC1.items() for T in args.targets})
     prov = dict(stage=args.stage, argv=sys.argv, commit=commit, dirty=dirty, time=time.strftime("%Y-%m-%d %H:%M:%S"),
                 host=platform.node(), gpu=(torch.cuda.get_device_name(0) if torch.cuda.is_available() else ""),
                 python=platform.python_version(), torch=torch.__version__, numpy=np.__version__, pandas=pd.__version__,
                 scipy=__import__("scipy").__version__, transformers=__import__("transformers").__version__,
                 ffmpeg=subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.splitlines()[0],
-                scripts=script_shas(), design_sha256=sha(DESIGN), fc_json=fcj, fc_json_sha256=(sha(FC_JSON) if FC_JSON.exists() else ""), kinds=kinds, kappa_design=KAPPA_DESIGN,
+                scripts=script_shas(), design_sha256=sha(DESIGN), fc_json=fcj, fc_json_sha256=(sha(FC_JSON) if FC_JSON.exists() else ""), kinds=kinds, kappa_design={f"{k[0]}/{k[1]}": v for k, v in KAPPA_DESIGN.items()}, wavlm_model="microsoft/wavlm-large",
                 cache_sha256={k: (sha(p) if p.exists() else "") for k, p in cache.items()},
                 dai1_frozen_sha256=fz1_sha, K=K, grid_c=D14.GRID_C, cb_r1=D14.CB_R1, dim_r1=D14.DIM_R1, rng_seed=RNG_SEED,
                 dai14_rng_seed=D14.RNG_SEED, n_boot=D14.N_BOOT, mem_frac=MEM_FRAC, verify_agree=VERIFY_AGREE, ratio_min=RATIO_MIN)

@@ -46,6 +46,8 @@ TARGETS = ("IEMOCAP", "MOSEI", "MELD")
 TOL_IDENTITY = 2e-3        # 既存の特徴との差の上限（実験 13 の照合の最大 9.16e-04 の約 2 倍）
 LIMIT_MAX = 256            # 試しの本数の上限（規則で選んでいない fc の特徴を全発話ぶん作らないため）
 FILTER = "butter4_sosfiltfilt_zero_phase"
+import subprocess as _sp
+CODE_COMMIT = _sp.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True).stdout.strip()
 
 
 def lowpass(w: np.ndarray, fc: int | None) -> np.ndarray:
@@ -101,8 +103,11 @@ def process_chunk(df: pd.DataFrame, model, args, op: str | None, fc: int | None)
         **{c: df[c].astype(str).to_numpy(dtype=np.str_) for c in
            ("sample_id", "corpus", "split", "speaker_id", "dialog_type")},
         "label_4": df["label_4"].to_numpy(dtype=np.int8),
-        "op": np.array(op or ""), "lowpass_fc": np.array(-1 if fc is None else fc), "lowpass_order": np.array(ORDER),
-        "filter": np.array(FILTER if op == "lp" else ""), "model_revision": np.array(getattr(model.config, "_commit_hash", "") or ""),
+        # 操作の記録は発話ごとの列にする（途中保存をつなぐ common.merge_npz と load_cache が 0 次元の配列をつなげないため）
+        "op": np.full(n, op or "", dtype="<U8"), "lowpass_fc": np.full(n, -1 if fc is None else fc, dtype=np.int16),
+        "lowpass_order": np.full(n, ORDER, dtype=np.int8), "filter": np.full(n, FILTER if op == "lp" else "", dtype="<U40"),
+        "model_revision": np.full(n, getattr(model.config, "_commit_hash", "") or "", dtype="<U64"),
+        "code_commit": np.full(n, CODE_COMMIT, dtype="<U40"),
     }
 
 

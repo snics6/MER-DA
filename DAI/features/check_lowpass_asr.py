@@ -205,7 +205,10 @@ def main() -> None:
     rv = summ[summ.condition == "rev"].set_index("corpus")["excess"]
     import scipy
     import transformers
-    json.dump(dict(fc=chosen, rule_met=met, rev_ok=bool(len(rv) == len(TARGETS) and (rv <= EXCESS_MAX).all()),
+    import subprocess
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    asr_sha = hashlib.sha256(open(out / "asr_check.csv", "rb").read()).hexdigest()
+    json.dump(dict(fc=chosen, rule_met=met, code_commit=commit, asr_check_sha256=asr_sha, rev_ok=bool(len(rv) == len(TARGETS) and (rv <= EXCESS_MAX).all()),
                    excess_max=EXCESS_MAX, n_per_corpus=args.n, max_sec=MAX_SEC, min_words=MIN_WORDS, order="sha256(sample_id)",
                    norm_rule="lower; drop [..] (..) {..}; non [a-z0-9'] -> space; strip apostrophes", hit="LCS / n_ref",
                    chance="mean over all mismatched (ref i, hyp j), i != j, same corpus and condition",
