@@ -6,8 +6,8 @@ cd "$(dirname "$0")"
 HERE="$(pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-FILES=(00_要旨.md 01_序論.md 02_関連研究.md 03_データ.md 04_誤りの分け方.md 05_Q1.md 06_Q2.md
-       07_Q3.md 08_考察.md 09_限界.md 10_結論.md 99_申告.md)
+FILES=(00_要旨.md 01_序論.md 02_関連研究.md 03_データ.md 04_誤りの分け方.md 05_問い1a.md 06_問い1b.md
+       07_問い2.md 08_考察.md 09_限界.md 10_結論.md 99_申告.md)
 pandoc "${FILES[@]}" --standalone \
   --from markdown+tex_math_dollars+pipe_tables \
   --pdf-engine=lualatex \

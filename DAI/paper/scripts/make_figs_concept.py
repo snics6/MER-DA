@@ -60,7 +60,7 @@ MOD = {
     "T": dict(color="#009E73", marker="^", name="Text"),
 }
 # research questions: colour + line style (Fig. 1)
-QCOL = {"Q1": "#882255", "Q2": "#332288", "Q3": "#8C510A"}
+QCOL = {"RQ1(a)": "#882255", "RQ1(b)": "#882255", "RQ2": "#8C510A"}
 GREY = "#666666"
 EMO = ["Neu", "Hap", "Sad", "Ang"]
 
@@ -279,7 +279,7 @@ def fig1():
 
     # ---- pseudo-labels (fusion)
     px, py, pw, ph = 93.5, 61, 28.5, 22
-    box(ax, px, py, pw, ph, fc="#F3ECE2", ec=QCOL["Q3"], lw=1.2)
+    box(ax, px, py, pw, ph, fc="#F3ECE2", ec=QCOL["RQ2"], lw=1.2)
     ax.text(px + pw / 2, py + ph - 3.2, "Pseudo-labels", ha="center", va="center",
             fontsize=FS, weight="bold", zorder=6)
     ax.text(px + pw / 2, py + ph - 6.0,
@@ -287,23 +287,23 @@ def fig1():
             ha="center", va="top", fontsize=FS, linespacing=1.1, zorder=6)
     ends = {"A": py + 16, "V": py + 11, "T": py + 6}
     for m in "AVT":
-        arrow(ax, (cx0 + cwid, clf_y[m] + 5), (px, ends[m]), color=QCOL["Q3"], lw=1.3,
+        arrow(ax, (cx0 + cwid, clf_y[m] + 5), (px, ends[m]), color=QCOL["RQ2"], lw=1.3,
               ls=(0, (5, 1.6, 1, 1.6)), head=7)
 
     # ---- retrained classifiers
     rx, ry, rw, rh = 128, 61, 44, 22
-    box(ax, rx, ry, rw, rh, fc="#F5E9EF", ec=QCOL["Q1"], lw=1.2)
+    box(ax, rx, ry, rw, rh, fc="#F5E9EF", ec=QCOL["RQ1(b)"], lw=1.2)
     ax.text(rx + rw / 2, ry + rh - 3.2, "Retrained classifiers", ha="center",
             va="center", fontsize=FS, weight="bold", zorder=6)
     ax.text(rx + rw / 2, ry + rh - 6.0,
             "audio, visual, text and\nAVT (concatenated),\ntrained on the K labels\nand the pseudo-labels",
             ha="center", va="top", fontsize=FS, linespacing=1.1, zorder=6)
-    arrow(ax, (px + pw, py + ph / 2), (rx, ry + rh / 2), color=QCOL["Q1"], lw=2.0,
+    arrow(ax, (px + pw, py + ph / 2), (rx, ry + rh / 2), color=QCOL["RQ1(b)"], lw=2.0,
           head=9)
 
     # ---- two parts of the error
     ex, ey, ew, eh = 128, 3, 44, 35
-    box(ax, ex, ey, ew, eh, fc="#ECEBF4", ec=QCOL["Q2"], lw=1.2)
+    box(ax, ex, ey, ew, eh, fc="#ECEBF4", ec=QCOL["RQ1(a)"], lw=1.2)
     ax.text(ex + ew / 2, ey + eh - 3.3, "Two parts of the error", ha="center",
             va="center", fontsize=FS, weight="bold", zorder=6)
     box(ax, ex + 1.5, ey + 16.2, ew - 3, 12.4, fc="white", ec="#999999", lw=0.5, r=0.6,
@@ -316,7 +316,7 @@ def fig1():
     icon_direction(ax, ex + 2.6, ey + 3.8, w=12, h=8)
     ax.text(ex + 15.2, ey + 7.8, "Remaining error\n(weight direction)", ha="left",
             va="center", fontsize=FS, linespacing=1.1, zorder=6)
-    double_arrow_v(ax, 150, ry, ey + eh, QCOL["Q2"])
+    double_arrow_v(ax, 150, ry, ey + eh, QCOL["RQ1(a)"])
 
     # ---- previous approaches (dashed)
     xr = 98.5
@@ -329,20 +329,20 @@ def fig1():
             ha="center", va="top", fontsize=FS, color=GREY, linespacing=1.15)
 
     # ---- question texts with leaders to their arrows
-    yq = qtext(ax, 60.5, 111.5, "Q3", 7,
+    yq = qtext(ax, 60.5, 111.5, "RQ2", 7,
                "How should the classifiers’ answers be combined into pseudo-labels "
                "(late fusion)?", 58)
     xa = 89.5  # point on the arrow from the audio classifier
     ya = (clf_y["A"] + 5) + (ends["A"] - clf_y["A"] - 5) * (xa - cx0 - cwid) / (px - cx0 - cwid)
-    leader(ax, xa, yq - 0.6, ya, QCOL["Q3"])
+    leader(ax, xa, yq - 0.6, ya, QCOL["RQ2"])
 
-    yq = qtext(ax, 121.5, 111.5, "Q1", 5,
-               "Do pseudo-labels from classifiers that include other modalities improve "
-               "each classifier when only a few target labels are available?", 50)
-    leader(ax, 123.5, yq - 0.6, py + ph / 2, QCOL["Q1"])
+    yq = qtext(ax, 121.5, 111.5, "RQ1(b)", 6,
+               "With only a few target labels, for which classifiers and when do pseudo-labels "
+               "from classifiers that include other modalities raise UAR?", 50)
+    leader(ax, 123.5, yq - 0.6, py + ph / 2, QCOL["RQ1(b)"])
 
-    qtext(ax, 102.5, 59.0, "Q2", 6,
-          "Which part of the error do they correct, and for which classifiers?", 44,
+    qtext(ax, 102.5, 59.0, "RQ1(a)", 5,
+          "Which part of the error do they correct?", 44,
           extra="compared with the K labels, source corpora and unlabelled "
                 "utterances of the same modality")
     save(fig, "fig1_questions")
