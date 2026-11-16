@@ -126,19 +126,6 @@ $A(d,o)$：今の分類器 & 0.747 \\
 \fnote{出所：原稿 4.3 節（表 2，表 3），5.1〜5.3 節．}
 \end{frame}
 
-\begin{frame}{問い 1(a) の設定（4）：全ソース設定（原稿 5.4 節）}
-\centering
-\includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_all_ja.pdf}
-\par\raggedright\scriptsize
-\begin{itemize}\setlength\itemsep{2pt}
-\item \key{K 本の基準の分類器}：ソースから作った分類器（\key{アンカー}．全ソース設定ではターゲット以外の全群から作る）から，ターゲットの K 本だけで学び直した分類器．疑似ラベルは使わない．
-\item 偏りを除いても残る誤りの大きさ（\key{向きの損}．4.2 節）を，K 本の基準の分類器と各手法で測り，手法が減らしたかを数える．
-\item \textbf{疑似ラベルによる学び直し}：声・顔・言葉の組（3 コーパス）と声・顔の組（5 コーパス）の各分類器，K = 0，5，25 の 81 条件．
-\item \textbf{同じモダリティのラベル無しの発話を使う 8 手法}：エントロピー最小化，自己学習，IM，T3A，ラベル伝播，CORAL，DANN，MME（単一のモダリティ，K = 0，5）の 210 条件．
-\end{itemize}
-\fnote{2 つの数は条件の集合が違うので，同じ条件の比べではない．出所：原稿 4.3 節（表 2），5.4 節．}
-\end{frame}
-
 \begin{frame}{問い 1(a) の答え（1）：声と顔では，K 本の得た分の大部分が切片の直しで得られた}
 \footnotesize
 5.1：合併 − ターゲットだけの gain は，K = 1 で 8 種類の特徴すべてで正（顔の 6.9 点〜AV の 13.4 点）で，ターゲットの学習用のラベルを全部使うと 8 種類すべてで負（$-$2.1〜$-$4.8 点）だった．\par\medskip
@@ -175,6 +162,19 @@ $A(d,o)$：今の分類器 & 0.747 \\
 $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 つの感情の離れ方 $d_T$ を，線形判別分析の向きでの離れ方 $D$ で割った比である．6 つの感情の対で平均し，ターゲットの中央値を取った．$D$ は線形の向きの中で最大の離れ方ではないので，比は 1 を超えうる（顔の K = 25 は 1.10）．
 \takeaway{声と言葉では，K 本を 25 本にしても $d_T/D$ は 0.77 と 0.58 で，残りの誤りは K 本ではゆっくりとしか直らなかった．顔は K = 10 で 1.01 に達した．}
 \fnote{出所：原稿 5.3 節，図 5(b) の数値（paper/figures/data/fig5\_bias\_and\_direction.csv．K = 25 は式の当てはめに使っていない点）．}
+\end{frame}
+
+\begin{frame}{問い 1(a) の設定（4）：全ソース設定（原稿 5.4 節）}
+\centering
+\includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_all_ja.pdf}
+\par\raggedright\scriptsize
+\begin{itemize}\setlength\itemsep{2pt}
+\item \key{K 本の基準の分類器}：ソースから作った分類器（\key{アンカー}．全ソース設定ではターゲット以外の全群から作る）から，ターゲットの K 本だけで学び直した分類器．疑似ラベルは使わない．
+\item 偏りを除いても残る誤りの大きさ（\key{向きの損}．4.2 節）を，K 本の基準の分類器と各手法で測り，手法が減らしたかを数える．
+\item \textbf{疑似ラベルによる学び直し}：声・顔・言葉の組（3 コーパス）と声・顔の組（5 コーパス）の各分類器，K = 0，5，25 の 81 条件．
+\item \textbf{同じモダリティのラベル無しの発話を使う 8 手法}：エントロピー最小化，自己学習，IM，T3A，ラベル伝播，CORAL，DANN，MME（単一のモダリティ，K = 0，5）の 210 条件．
+\end{itemize}
+\fnote{2 つの数は条件の集合が違うので，同じ条件の比べではない．出所：原稿 4.3 節（表 2），5.4 節．}
 \end{frame}
 
 \begin{frame}{問い 1(a) の答え（3）：疑似ラベルは残りの誤りを 81 条件のうち 38 で減らした}
