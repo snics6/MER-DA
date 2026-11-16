@@ -262,15 +262,21 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{計算の後に組んだ記述の解析で，数えと順位相関は検定ではない（点どうしは候補とテストの発話を共有する）．AVT を AVT 自身の予測で学び直す点などは除いた．除いた K = 25 の MOSEI の AVT の 1 点は，当たる幅が作りの上で 0 で，gain は +0.30 [+0.07, +0.54] だった．散布図は補足（原稿の図 8）．出所：原稿 6.6 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b) の答え（5）：AFEW を除く 3 コーパスで，声は言葉の判定を顔より良く再現した}
+\begin{frame}{問い 1(b) の答え（5）：声で言葉の分類器の答えを真似できる度合い D の測り方（例）}
+\centering
+\includegraphics[width=\linewidth,height=0.70\textheight,keepaspectratio]{figures/fig_D_toy_ja.pdf}
+\fnote{積の疑似ラベルの作り方は「問い 1(b) の設定（3）」のページ．出所：原稿 6.5 節．}
+\end{frame}
+
+\begin{frame}{問い 1(b) の答え（6）：声の特徴は，言葉の分類器の答えを顔の特徴より真似できた}
 \centering
 \includegraphics[width=\linewidth,height=0.55\textheight,keepaspectratio]{figures/fig_D_def_ja.pdf}
 \par\raggedright\scriptsize
-D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，どれも区間が 0 を上回った．声の分類器が積の疑似ラベルで上がった理由の候補として調べた．D には覚醒度，話者の属性，発話の長さ，録音の場面による一致も含まれうる．
+D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，どれも区間が 0 を上回った．AFEW の言葉は人の書き起こしではなく同じ音声を Whisper で書き起こしたものなので，この比べから外した．声の分類器が積の疑似ラベルで上がった理由の候補として調べた．D には覚醒度，話者の属性，発話の長さ，録音の場面による一致も含まれうる．
 \fnote{K = 5，R1 の読み出し．数えの規則は計算の前に固定した．棒の値は実験 23 の結果ファイル（results/dai23/summary/main.csv）．出所：原稿 6.5 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b) の答え（6）：逆再生で言葉を聞き取れなくしても，再現は一部が残った}
+\begin{frame}{問い 1(b) の答え（7）：逆再生で言葉を聞き取れなくしても，再現は一部が残った}
 \centering
 \includegraphics[width=\linewidth,height=0.46\textheight,keepaspectratio]{figures/fig_reverse_ja.pdf}
 \par\raggedright\scriptsize
