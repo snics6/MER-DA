@@ -393,9 +393,185 @@ def fig_example(lang):
     save(fig, "fig_fusion_example" + ("_ja" if lang == "ja" else ""))
 
 
+# ------------------------------------------------------------------ Q1 model: what is learned where, and how it is retrained
+TQ = {
+    "ja": dict(
+        src_t="① ソース：残る 3 コーパス（全部にラベル）",
+        srcs=["ソース 1（例：IEMOCAP）", "ソース 2（例：MOSEI）", "ソース 3（例：MELD）"],
+        src_note="コーパスごとに，凍結した特徴の上の\n線形分類器を 4 つ学ぶ",
+        anc_t="② アンカー",
+        anc_note="3 つのソースの分類器の重みと切片を\nモダリティごとに平均する",
+        ancs=["声のアンカー", "顔のアンカー", "言葉のアンカー", "AVT のアンカー"],
+        tgt_t="③④ ターゲット（例：AFEW）で学び直す",
+        klab="感情ごとに K 本のラベル",
+        pl="候補（ラベル無し）の疑似ラベル\n＝ 積（次のページ）",
+        base="③ K 本の基準の分類器\nアンカーから，K 本\nだけで学び直す",
+        retr="④ 疑似ラベルで学び\n直した分類器\nアンカーから，K 本 ＋\n疑似ラベルで学び直す",
+        reg="③④ とも，重みと切片がアンカーから離れすぎないように，アンカーとの差の 2 乗を罰則にして学ぶ",
+        test="⑤ テストの発話の UAR を比べる\ngain ＝ ④ − ③",
+        each="声・顔・言葉・AVT の 4 つの分類器で，それぞれ自分のアンカーから同じ手順で学び直す（図は声の例）",
+        note="模式図",
+    ),
+    "en": dict(
+        src_t="(1) Sources: the other 3 corpora (all labelled)",
+        srcs=["Source 1 (e.g. IEMOCAP)", "Source 2 (e.g. MOSEI)", "Source 3 (e.g. MELD)"],
+        src_note="Per corpus, train 4 linear classifiers\non frozen features",
+        anc_t="(2) Anchor",
+        anc_note="Average the weights and biases of\nthe 3 source classifiers per modality",
+        ancs=["Audio anchor", "Visual anchor", "Text anchor", "AVT anchor"],
+        tgt_t="(3)(4) Retrain on the target (e.g. AFEW)",
+        klab="K labels per emotion",
+        pl="Pseudo-labels on the unlabelled\ncandidates = product (next page)",
+        base="(3) K-label baseline:\nretrain from the\nanchor on K labels",
+        retr="(4) Pseudo-label\nretraining: from the\nanchor on K labels\n+ pseudo-labels",
+        reg="Both (3) and (4) penalise the squared distance of the weights and biases from the anchor",
+        test="(5) Compare the test UAR\ngain = (4) − (3)",
+        each="The audio, visual, text and AVT classifiers are each retrained from their own anchor in the same way (audio shown)",
+        note="Schematic",
+    ),
+}
+
+
+def clf_icons(ax, x, y, gap=6.0, size=3.6):
+    for j, m in enumerate("AVT"):
+        mark(ax, x + j * gap, y, m, size=size)
+    txt(ax, x + 3 * gap - 1.2, y, "AVT", va="center", size=FS - 1.6, weight="bold")
+
+
+def fig_q1_model(lang):
+    setup(lang)
+    t = TQ[lang]
+    H = 80
+    fig, ax = canvas(H)
+    # sources
+    txt(ax, 2, H - 2, t["src_t"], weight="bold", color=C_SRC, size=FS - 0.4)
+    for i, nm in enumerate(t["srcs"]):
+        y = H - 17 - i * 14
+        box(ax, 2, y, 44, 11, fc="#EDE7F3", ec=C_SRC, lw=0.7)
+        txt(ax, 4, y + 9.5, nm, size=FS - 1.1, color=C_SRC)
+        clf_icons(ax, 8, y + 3.4)
+        arrow(ax, (46, y + 5.5), (56, H - 40 + 5), lw=0.5, color=C_SRC, head=5)
+    txt(ax, 2, H - 61, t["src_note"], size=FS - 1.3, color=GREY, ls=1.1)
+    # anchors
+    txt(ax, 57, H - 2, t["anc_t"], weight="bold", size=FS - 0.4)
+    box(ax, 56, H - 58, 30, 50, fc="#F5F5F5", ec="black", lw=0.7)
+    for j, (m, nm) in enumerate(zip(["A", "V", "T", None], t["ancs"])):
+        yy = H - 15 - j * 11
+        box(ax, 58, yy - 3.5, 26, 8, fc="white", ec=MOD[m][0] if m else "black", lw=0.9, z=2)
+        if m:
+            mark(ax, 61, yy + 0.5, m, size=3.6)
+        txt(ax, 64 if m else 60, yy + 0.5, nm, va="center", size=FS - 1.1, weight="bold" if j == 0 else "normal")
+    txt(ax, 56, H - 61, t["anc_note"], size=FS - 1.3, color=GREY, ls=1.1)
+    # target: audio example
+    xt = 92
+    txt(ax, xt, H - 2, t["tgt_t"], weight="bold", size=FS - 0.4)
+    box(ax, xt, H - 15, 36, 8, fc="white", ec=C_K, lw=0.9)
+    txt(ax, xt + 18, H - 11, t["klab"], ha="center", va="center", size=FS - 1.1, color=C_K)
+    box(ax, xt + 40, H - 17, 40, 10, fc="white", ec=C_U, lw=0.9)
+    txt(ax, xt + 60, H - 12, t["pl"], ha="center", va="center", size=FS - 1.2, color=GREY, ls=1.1)
+    box(ax, xt, H - 38, 38, 15, fc="#EAF2FA", ec=C_K, lw=0.9)
+    mark(ax, xt + 3, H - 26, "A", size=3.6)
+    txt(ax, xt + 6, H - 24.2, t["base"], size=FS - 1.15, ls=1.15)
+    box(ax, xt + 42, H - 38, 38, 15, fc="#FDF0E8", ec=C_PROP, lw=0.9)
+    mark(ax, xt + 45, H - 26, "A", size=3.6)
+    txt(ax, xt + 48, H - 24.2, t["retr"], size=FS - 1.15, ls=1.15)
+    # arrows into the two classifiers
+    arrow(ax, (xt + 10, H - 15), (xt + 10, H - 23), lw=0.7, color=C_K)
+    arrow(ax, (xt + 30, H - 15), (xt + 52, H - 23), lw=0.7, color=C_K)
+    arrow(ax, (xt + 62, H - 17), (xt + 62, H - 23), lw=0.7, color=GREY)
+    # from the audio anchor
+    ax.plot([84, 89], [H - 14.5, H - 14.5], color=MOD["A"][0], lw=1.0, zorder=3)
+    ax.plot([89, 89], [H - 14.5, H - 42], color=MOD["A"][0], lw=1.0, zorder=3)
+    ax.plot([89, xt + 70], [H - 42, H - 42], color=MOD["A"][0], lw=1.0, zorder=3)
+    arrow(ax, (xt + 28, H - 42), (xt + 28, H - 38), lw=1.0, color=MOD["A"][0])
+    arrow(ax, (xt + 70, H - 42), (xt + 70, H - 38), lw=1.0, color=MOD["A"][0])
+
+    # test
+    box(ax, xt + 20, H - 64, 42, 11, fc="white", ec="black", lw=0.9)
+    txt(ax, xt + 41, H - 58.5, t["test"], ha="center", va="center", size=FS - 1.0, ls=1.15)
+    arrow(ax, (xt + 12, H - 38), (xt + 26, H - 53), lw=0.7)
+    arrow(ax, (xt + 56, H - 38), (xt + 56, H - 53), lw=0.7)
+    txt(ax, 2, 10.0, t["each"], size=FS - 0.9, weight="bold")
+    txt(ax, 2, 5.0, t["reg"], size=FS - 0.9)
+    txt(ax, W - 1, 0.6, t["note"], ha="right", va="bottom", size=FS - 1.6, color=GREY)
+    save(fig, "fig_q1_model" + ("_ja" if lang == "ja" else ""))
+
+
+# ------------------------------------------------------------------ how the product pseudo-labels are made (Sec. 5.1)
+TP = {
+    "ja": dict(
+        s1="1 段目：AVT の K 本の基準の分類器で，\n候補（ラベル無しの発話）に確率を付ける",
+        s2="2 段目：声・顔・言葉の分類器を，それぞれのアンカーから\nK 本のラベル ＋ 1 段目の確率で学び直す",
+        clf=["声の分類器", "顔の分類器", "言葉の分類器"],
+        mult="3 つの確率を発話ごとに掛けて，\n合計が 1 になるように割る",
+        q="積 q(x)\n＝ Q1・Q2 の疑似ラベル",
+        use="q を疑似ラベルにして，声・顔・言葉・AVT の\n各分類器をアンカーから学び直す（前のページの ④）",
+        own="q には，学び直す分類器自身のモダリティの答えも入っている",
+        note="模式図．棒は説明のための例",
+    ),
+    "en": dict(
+        s1="Stage 1: the AVT K-label baseline gives\nprobabilities on the candidates (unlabelled)",
+        s2="Stage 2: retrain the audio, visual and text classifiers from\ntheir anchors on K labels + the stage-1 probabilities",
+        clf=["Audio classifier", "Visual classifier", "Text classifier"],
+        mult="Multiply the 3 probabilities per\nutterance and renormalise",
+        q="Product q(x)\n= Q1–Q2 pseudo-labels",
+        use="Retrain each of the audio, visual, text and AVT\nclassifiers from its anchor on q (step (4))",
+        own="q contains the answer of the retrained classifier's own modality",
+        note="Schematic; bars are illustrative",
+    ),
+}
+
+
+def fig_product_pl(lang):
+    setup(lang)
+    t = TP[lang]
+    H = 66
+    fig, ax = canvas(H)
+    box(ax, 2, H - 13, 62, 10, fc="#EAF2FA", ec=C_K, lw=0.9)
+    txt(ax, 4, H - 5, t["s1"], size=FS - 0.9, ls=1.15)
+    box(ax, 2, H - 31, 86, 12, fc="white", ec="black", lw=0.8)
+    txt(ax, 4, H - 21.5, t["s2"], size=FS - 0.9, ls=1.15)
+    arrow(ax, (30, H - 13), (30, H - 19), lw=0.7)
+    vals = {"A": [0.45, 0.25, 0.2, 0.1], "V": [0.2, 0.5, 0.15, 0.15], "T": [0.4, 0.35, 0.15, 0.1]}
+    for j, m in enumerate("AVT"):
+        x = 4 + j * 29
+        bx = x + 2
+        box(ax, x, 6, 26, 21, fc="white", ec=MOD[m][0], lw=0.8)
+        mark(ax, x + 3, 23.5, m, size=3.6)
+        txt(ax, x + 6, 23.5, t["clf"][j], va="center", size=FS - 1.3)
+        for c, v in enumerate(vals[m]):
+            ax.add_patch(__import__("matplotlib").patches.Rectangle((bx + 1 + c * 5.5, 10), 3.6, v * 18, fc=MOD[m][0], ec="none", zorder=3))
+            txt(ax, bx + 2.8 + c * 5.5, 9.6, EMO[c], ha="center", size=FS - 2.0, color=GREY)
+        ax.plot([bx, bx + 22], [10, 10], color="black", lw=0.4, zorder=4)
+        arrow(ax, (x + 13, H - 31), (x + 13, 27), lw=0.6)
+    box(ax, 96, 30, 36, 12, fc="white", ec="black", lw=0.8)
+    txt(ax, 98, 39.5, t["mult"], size=FS - 1.0, ls=1.15)
+    for j in range(3):
+        ax.plot([4 + j * 29 + 13, 4 + j * 29 + 13], [6, 2.5], color="black", lw=0.6, zorder=3)
+    ax.plot([17, 92], [2.5, 2.5], color="black", lw=0.6, zorder=3)
+    ax.plot([92, 92], [2.5, 34], color="black", lw=0.6, zorder=3)
+    arrow(ax, (92, 34), (96, 34), lw=0.6)
+    pa = np.array(vals["A"]) * np.array(vals["V"]) * np.array(vals["T"])
+    pa = pa / pa.sum()
+    box(ax, 138, 22, 34, 22, fc="#F5F5F5", ec="black", lw=1.0)
+    txt(ax, 140, 41.5, t["q"], size=FS - 0.8, weight="bold", ls=1.15)
+    for c, v in enumerate(pa):
+        ax.add_patch(__import__("matplotlib").patches.Rectangle((143 + c * 6.5, 25), 4.2, v * 10, fc="#555555", ec="none", zorder=3))
+        txt(ax, 145.1 + c * 6.5, 24.6, EMO[c], ha="center", size=FS - 2.0, color=GREY)
+    arrow(ax, (132, 36), (138, 36), lw=0.8)
+    box(ax, 96, 5, 76, 12, fc="#FDF0E8", ec=C_PROP, lw=0.9)
+    txt(ax, 98, 14.5, t["use"], size=FS - 0.9, ls=1.15)
+    arrow(ax, (155, 22), (155, 17), lw=0.8)
+    txt(ax, 96, H - 5, t["own"], size=FS - 1.2, color=GREY)
+    txt(ax, W - 1, 0.4, t["note"], ha="right", va="bottom", size=FS - 1.6, color=GREY)
+    save(fig, "fig_product_pl" + ("_ja" if lang == "ja" else ""))
+
+
 if __name__ == "__main__":
     for lang in ("ja", "en"):
         fig_setup(lang)
         fig_glyphs(lang)
         fig_method(lang)
         fig_example(lang)
+        fig_q1_model(lang)
+        fig_product_pl(lang)
