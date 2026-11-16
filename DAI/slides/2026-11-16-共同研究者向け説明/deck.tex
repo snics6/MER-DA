@@ -66,7 +66,38 @@
 %% =====================================================================
 \section{問い 1(a)：4 つの情報源は誤りのどの部分を直すか}
 
-\begin{frame}{問い 1(a) の設定（1）：分類器の 2 つの誤り（答えの偏りと残りの誤り）}
+\begin{frame}{問い 1(a) の設定（1）：単一ソース設定（原稿 5.1〜5.3 節）}
+\centering
+\includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_single_ja.pdf}
+\par\raggedright\scriptsize
+\begin{itemize}\setlength\itemsep{2pt}
+\item \textbf{5.1}：合併の分類器 − ターゲットだけの分類器．ほかのコーパスを混ぜると UAR がどれだけ上がるか．
+\item \textbf{5.2}（K = 5）：合併の分類器，\key{切片だけを直す方法}（ソースだけの分類器の重みを固定し，K 本で 4 つの切片だけを学ぶ），\key{平均を引く方法}（ソースとターゲットの特徴から，それぞれの全発話の平均を引いて学び直す．ターゲットのラベルを使わない）のそれぞれ − ソースだけの分類器（平均を引いた後に切片を直す方法は，平均を引く方法に対する差）．答えの偏りを直すだけでどれだけ得られるか．
+\item \textbf{5.3}：ターゲットだけの分類器の重みの向きは，K 本を増やすとどれだけ良くなるか（残りの誤り）．
+\end{itemize}
+\fnote{出所：原稿 4.3 節（表 2，表 3），5.1〜5.3 節．}
+\end{frame}
+
+\begin{frame}{問い 1(a) の答え（1）：声と顔では，K 本の得た分の大部分が切片の直しで得られた}
+\footnotesize
+5.1：合併 − ターゲットだけの gain は，K = 1 で 8 種類の特徴すべてで正（顔の 6.9 点〜AV の 13.4 点）で，ターゲットの学習用のラベルを全部使うと 8 種類すべてで負（$-$2.1〜$-$4.8 点）だった．\par\medskip
+\textbf{5.2　単一ソース設定，K = 5．UAR の差（点）と比}\par\smallskip
+{\centering\scriptsize
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{2}{c}{− ソースだけの分類器} & 比 & − 平均を引く方法 \\
+特徴 & 合併の分類器 & 平均を引く方法 & 切片だけの直し ÷ 合併 & 平均の後に K 本で切片を直す方法 \\
+\midrule
+声（WavLM） & +5.26 & +4.69 & 0.91 & +0.38 [$-$0.12, +0.88] \\
+声（HuBERT） & +4.73 & +4.18 & 0.90 & +0.18 [$-$0.42, +0.77] \\
+顔 & +2.47 & +2.40 & 0.78 & $-$0.39 [$-$0.78, +0.02] \\
+\bottomrule
+\end{tabular}\par}
+\takeaway{声と顔の特徴では，答えの偏りは K 本で切片を直すか，ラベル無しで平均を引くだけで主に直った．平均を引いた後に K 本で切片を直しても，区間は 0 を超えなかった．}
+\fnote{切片だけの直し ÷ 合併は，組ごとの差（− ソースだけの分類器）の和の比．言葉を含む特徴の値は補足（5.2・5.3）．出所：原稿 5.1〜5.2 節，図 4・5 の数値（paper/figures/data/fig4\_mixing\_gain.csv，fig5\_bias\_and\_direction.csv）．}
+\end{frame}
+
+\begin{frame}{問い 1(a) の設定（2）：分類器の 2 つの誤り（答えの偏りと残りの誤り）}
 \centering
 \includegraphics[width=\linewidth,height=0.47\textheight,keepaspectratio]{figures/fig_two_errors_ja.pdf}
 \par\raggedright\scriptsize
@@ -78,7 +109,7 @@
 \fnote{出所：原稿 4.1〜4.2 節．}
 \end{frame}
 
-\begin{frame}{問い 1(a) の設定（2）：2 つの誤りの式（感情の対の正解率の損）}
+\begin{frame}{問い 1(a) の設定（3）：2 つの誤りの式（感情の対の正解率の損）}
 \scriptsize\setlength{\abovedisplayskip}{1pt}\setlength{\belowdisplayskip}{1pt}\setlength{\abovedisplayshortskip}{0pt}\setlength{\belowdisplayshortskip}{1pt}
 \begin{columns}[T]
 \begin{column}{0.58\textwidth}
@@ -112,37 +143,6 @@ $A(d,o)$：今の分類器 & 0.747 \\
 \end{column}
 \end{columns}
 \fnote{損は 6 つの感情の対で平均する．出所：原稿 4.1〜4.2 節，図 3(c)．}
-\end{frame}
-
-\begin{frame}{問い 1(a) の設定（3）：単一ソース設定（原稿 5.1〜5.3 節）}
-\centering
-\includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_single_ja.pdf}
-\par\raggedright\scriptsize
-\begin{itemize}\setlength\itemsep{2pt}
-\item \textbf{5.1}：合併の分類器 − ターゲットだけの分類器．ほかのコーパスを混ぜると UAR がどれだけ上がるか．
-\item \textbf{5.2}（K = 5）：合併の分類器，\key{切片だけを直す方法}（ソースだけの分類器の重みを固定し，K 本で 4 つの切片だけを学ぶ），\key{平均を引く方法}（ソースとターゲットの特徴から，それぞれの全発話の平均を引いて学び直す．ターゲットのラベルを使わない）のそれぞれ − ソースだけの分類器（平均を引いた後に切片を直す方法は，平均を引く方法に対する差）．答えの偏りを直すだけでどれだけ得られるか．
-\item \textbf{5.3}：ターゲットだけの分類器の重みの向きは，K 本を増やすとどれだけ良くなるか（残りの誤り）．
-\end{itemize}
-\fnote{出所：原稿 4.3 節（表 2，表 3），5.1〜5.3 節．}
-\end{frame}
-
-\begin{frame}{問い 1(a) の答え（1）：声と顔では，K 本の得た分の大部分が切片の直しで得られた}
-\footnotesize
-5.1：合併 − ターゲットだけの gain は，K = 1 で 8 種類の特徴すべてで正（顔の 6.9 点〜AV の 13.4 点）で，ターゲットの学習用のラベルを全部使うと 8 種類すべてで負（$-$2.1〜$-$4.8 点）だった．\par\medskip
-\textbf{5.2　単一ソース設定，K = 5．UAR の差（点）と比}\par\smallskip
-{\centering\scriptsize
-\begin{tabular}{@{}lcccc@{}}
-\toprule
- & \multicolumn{2}{c}{− ソースだけの分類器} & 比 & − 平均を引く方法 \\
-特徴 & 合併の分類器 & 平均を引く方法 & 切片だけの直し ÷ 合併 & 平均の後に K 本で切片を直す方法 \\
-\midrule
-声（WavLM） & +5.26 & +4.69 & 0.91 & +0.38 [$-$0.12, +0.88] \\
-声（HuBERT） & +4.73 & +4.18 & 0.90 & +0.18 [$-$0.42, +0.77] \\
-顔 & +2.47 & +2.40 & 0.78 & $-$0.39 [$-$0.78, +0.02] \\
-\bottomrule
-\end{tabular}\par}
-\takeaway{声と顔の特徴では，答えの偏りは K 本で切片を直すか，ラベル無しで平均を引くだけで主に直った．平均を引いた後に K 本で切片を直しても，区間は 0 を超えなかった．}
-\fnote{切片だけの直し ÷ 合併は，組ごとの差（− ソースだけの分類器）の和の比．言葉を含む特徴の値は補足（5.2・5.3）．出所：原稿 5.1〜5.2 節，図 4・5 の数値（paper/figures/data/fig4\_mixing\_gain.csv，fig5\_bias\_and\_direction.csv）．}
 \end{frame}
 
 \begin{frame}{問い 1(a) の答え（2）：声と言葉では，残りの誤りは K 本でゆっくりしか直らなかった}
