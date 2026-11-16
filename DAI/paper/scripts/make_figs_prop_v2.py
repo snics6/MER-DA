@@ -126,29 +126,36 @@ def corp_box(ax, x, y, w, h, name, role, fs):
 
 def fig_episode():
     setup("ja")
-    H = 92
+    H = 96
     fig, ax = canvas(H)
     fs = FS + 0.4
-    txt(ax, 2, H - 2, "練習（ターゲットが AFEW のとき．AFEW は使わない）", size=fs + 0.6, weight="bold", va="top")
+    txt(ax, 2, H - 2, "ハイパーパラメータの選択：ソースを 1 つずつ仮のターゲットにした 3 つのエピソード（ターゲットが AFEW のとき．AFEW は使わない）",
+        size=fs - 0.2, weight="bold", va="top")
     eps = [("IEMOCAP", ["MOSEI", "MELD"]), ("MOSEI", ["IEMOCAP", "MELD"]), ("MELD", ["IEMOCAP", "MOSEI"])]
     for k, (pt, ss) in enumerate(eps):
-        x = 2 + k * 44
-        box(ax, x, 40, 41, 41, fc="white", ec="#888888", lw=0.8)
-        txt(ax, x + 2, 78.5, f"練習 {k + 1}", size=fs, weight="bold", va="top")
-        corp_box(ax, x + 2, 59, 18, 9, pt, "t", fs - 0.6)
-        txt(ax, x + 11, 57.5, "仮のターゲット", ha="center", va="top", size=fs - 2.0, color=C_K)
+        x = 2 + k * 37
+        box(ax, x, 42, 35, 43, fc="white", ec="#888888", lw=0.8)
+        txt(ax, x + 2, 83, f"エピソード {k + 1}", size=fs, weight="bold", va="top")
+        corp_box(ax, x + 1.5, 63, 15.5, 9, pt, "t", fs - 1.4)
+        txt(ax, x + 9.2, 61.5, "仮のターゲット", ha="center", va="top", size=fs - 2.2, color=C_K)
         for j, s in enumerate(ss):
-            corp_box(ax, x + 23, 64 - j * 10.5, 16, 8, s, "s", fs - 1.0)
-        txt(ax, x + 31, 50.5, "ソース", ha="center", va="top", size=fs - 2.0, color=C_SRC)
-        txt(ax, x + 2, 48, "強さ：K 本で　形：ソースで\n→ 設定ごとにテストの UAR", size=fs - 1.6, va="top", ls=1.3)
-    # aggregate
-    box(ax, 134, 40, 38, 41, fc="#FDF0E8", ec=C_PROP, lw=1.1)
-    txt(ax, 136, 78.5, "練習で決める設定", size=fs, weight="bold", color=C_PROP, va="top")
-    txt(ax, 136, 72, "3 つの練習（30 反復）の\nUAR の平均が最大の設定\n\n・K 本の強さをどれだけ\n　信じるか（n0）\n・形を使うか（β）\n・強さの戻し先",
-        size=fs - 1.3, va="top", ls=1.3)
-    arrow(ax, (131.5, 60), (133.5, 60), lw=0.9, head=7, color="#555555")
-    arrow(ax, (153, 39.5), (153, 34.5), lw=1.0, head=8, color=C_PROP)
-    txt(ax, 155, 37, "この設定で", size=fs - 1.6, color=C_PROP, va="center")
+            corp_box(ax, x + 19.5, 68 - j * 10, 14, 8, s, "s", fs - 1.8)
+        txt(ax, x + 26.5, 55.5, "ソース", ha="center", va="top", size=fs - 2.2, color=C_SRC)
+        txt(ax, x + 2, 51, "強さ：K 本で　形：ソースで\n→ ハイパーパラメータの候補\n　ごとにテストの UAR", size=fs - 1.9, va="top", ls=1.3)
+    arrow(ax, (113, 63), (116.5, 63), lw=0.9, head=7, color="#555555")
+    box(ax, 117, 42, 55, 43, fc="#FDF0E8", ec=C_PROP, lw=1.1)
+    txt(ax, 119, 83, "選ぶハイパーパラメータ", size=fs, weight="bold", color=C_PROP, va="top")
+    txt(ax, 119, 77.5, "3 つのエピソード（30 反復）の UAR の平均が\n最大の組を選ぶ（16 通りから 1 つ）", size=fs - 1.7, va="top", ls=1.3)
+    items = [("n0：K 本の強さに既定の強さをどれだけ混ぜるか", "ラベル何本ぶん混ぜるか（0，20，80，∞）．\n0 なら K 本の値だけ，∞ なら既定の値だけ"),
+             ("戻し先：混ぜる既定の強さは何か", "3 つの分類器の強さの平均（3 つを同じ強さ\nに近づける）か，ソースで測った強さか"),
+             ("β：感情ごとの形を使うか", "1 なら使う，0 なら使わない（感情に共通の重み）")]
+    y = 70.5
+    for name, body in items:
+        txt(ax, 119, y, "・" + name, size=fs - 1.8, weight="bold", va="top", color=C_PROP)
+        txt(ax, 121.5, y - 3.6, body, size=fs - 2.1, va="top", ls=1.25)
+        y -= 9.8
+    arrow(ax, (147, 41.5), (147, 36.5), lw=1.0, head=8, color=C_PROP)
+    txt(ax, 149, 39, "選んだ値で", size=fs - 1.6, color=C_PROP, va="center")
     # eta inset
     box(ax, 2, 3, 74, 31, fc="#F7F7F7", ec="#999999", lw=0.6)
     txt(ax, 4, 31.5, "形がほかのコーパスでどれだけ残るか（η）", size=fs - 0.2, weight="bold", va="top")
@@ -160,12 +167,12 @@ def fig_episode():
     txt(ax, 4, 5.5, "η ＝ Σ d_out ÷ Σ d_in を形に掛ける（ソースどうしで測る）", size=fs - 1.8)
     # final
     box(ax, 82, 3, 90, 31, fc="#E8F0F8", ec=C_K, lw=1.1)
-    txt(ax, 84, 31.5, "本番：AFEW", size=fs, weight="bold", color=C_K, va="top")
+    txt(ax, 84, 31.5, "評価：AFEW", size=fs, weight="bold", color=C_K, va="top")
     corp_box(ax, 86, 10, 20, 10, "AFEW", "t", fs - 0.4)
     for j, s in enumerate(["IEMOCAP", "MOSEI", "MELD"]):
         corp_box(ax, 112, 21.5 - j * 6.6, 18, 5.6, s, "s", fs - 1.8)
-    txt(ax, 134, 26, "強さ：AFEW の K 本で\n形：3 つのソースで\n設定：練習で決めた値\n\n→ 疑似ラベルで AVT を学び直し，\n　テストで 1 回だけ評価",
-        size=fs - 1.4, va="top", ls=1.3)
+    txt(ax, 134, 26, "強さ：AFEW の K 本で\n形：3 つのソースで\nハイパーパラメータ：\n　エピソードで選んだ値\n→ 疑似ラベルで AVT を学び\n　直し，テストで 1 回だけ評価",
+        size=fs - 1.7, va="top", ls=1.3)
     save(fig, "fig_prop_episode_ja")
 
 
