@@ -178,7 +178,7 @@ def fig_reliability():
     txt(ax, x + 2, 30.5, f"③ 信頼度 d ＝ √2 × $\\Phi^{{-1}}$(AUC) ＝ {dval:.2f}", size=fs + 0.2, va="top", weight="bold", color=C_PROP)
     txt(ax, x + 2, 24, "$\\Phi^{-1}$ は標準正規分布の分位点．AUC が 0.5（でたらめ）なら 0，\n大きいほど Happy をよく見分ける．上限は 2.90（AUC を 0.98 で切る）．\n点の順位だけを使うので，切片やターゲットの感情の割合に左右されない",
         size=fs - 1.1, va="top", ls=1.35)
-    txt(ax, 2, 6, "④ これを 3 つの分類器 × 4 感情で測ると，12 個の信頼度の表になる．水準 ＝ 4 感情の平均，相性 ＝ 信頼度 − 水準",
+    txt(ax, 2, 6, "④ これを 3 つの分類器 × 4 感情で測ると，12 個の信頼度になる．次のページで，これを強さと感情ごとの形に分ける",
         size=fs - 0.4, weight="bold")
     txt(ax, W - 1, 0.2, "点の分布は説明のために作った例で，実験の値ではない", ha="right", va="bottom", size=FS - 1.6, color=GREY)
     save(fig, "fig_prop_reliability_ja")

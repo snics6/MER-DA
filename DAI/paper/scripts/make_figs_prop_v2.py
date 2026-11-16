@@ -105,7 +105,7 @@ def fig_decomp():
     # where from
     box(ax, 52, 3, 40, 22, fc="#E8F0F8", ec=C_K, lw=1.1)
     txt(ax, 54, 22.5, "ターゲットの K 本で測る", size=fs - 0.2, weight="bold", color=C_K, va="top")
-    txt(ax, 54, 16.5, "コーパスごとに入れ替わるので，\nターゲットで測る．K 本から\n推すのは 3 つの数だけ", size=fs - 1.3, va="top", ls=1.3)
+    txt(ax, 54, 16.5, "コーパスごとに入れ替わるので，\nターゲットで測る．K 本から\n決める数は 3 つだけ", size=fs - 1.3, va="top", ls=1.3)
     box(ax, 95, 3, 41, 22, fc="#F0EAF5", ec=C_SRC, lw=1.1)
     txt(ax, 97, 22.5, "ソースのコーパスで測る", size=fs - 0.2, weight="bold", color=C_SRC, va="top")
     txt(ax, 97, 16.5, "12 マスは K 本では測れない．\nラベルの多いソースで測る", size=fs - 1.3, va="top", ls=1.3)
@@ -169,7 +169,71 @@ def fig_episode():
     save(fig, "fig_prop_episode_ja")
 
 
+def bars(ax, x0, y0, vals, col, bw=5.0, gap=1.6, scale=8.0, fs=FS, signed=False, hatch=""):
+    for i, v in enumerate(vals):
+        x = x0 + i * (bw + gap)
+        if signed:
+            ax.add_patch(mp.Rectangle((x, y0 if v >= 0 else y0 + v * scale), bw, abs(v) * scale, fc=col, ec="black", lw=0.3, hatch=hatch))
+            txt(ax, x + bw / 2, y0 + v * scale + (1.0 if v >= 0 else -1.0), f"{v:+.2f}".replace("-", "−"), ha="center",
+                va="bottom" if v >= 0 else "top", size=fs - 1.6)
+        else:
+            ax.add_patch(mp.Rectangle((x, y0), bw, v * scale, fc=col, ec="black", lw=0.3, hatch=hatch))
+            txt(ax, x + bw / 2, y0 + v * scale + 0.8, f"{v:.2f}", ha="center", va="bottom", size=fs - 1.6)
+        txt(ax, x + bw / 2, y0 - (0.8 if not signed else 7.5), "NHSA"[i], ha="center", va="top", size=fs - 1.2, color=GREY)
+    ax.plot([x0 - 1, x0 + 4 * (bw + gap) - gap + 1], [y0, y0], color="black", lw=0.5)
+
+
+def fig_calc():
+    setup("ja")
+    H = 84
+    fig, ax = canvas(H)
+    fs = FS + 0.4
+    colV = MOD["V"][0]
+    # left: strength from K labels
+    box(ax, 2, 2, 84, H - 4, fc="#F4F8FC", ec=C_K, lw=1.1)
+    txt(ax, 4, H - 4.5, "① 強さ：ターゲットの K 本だけで計算（例：顔の分類器，K = 5）", size=fs - 0.2, weight="bold", color=C_K, va="top")
+    # 4 x 5 grid of K-labelled utterances coloured by group
+    gcol = ["#CFE3F3", "#F9E0C7", "#D8EFD6", "#EADCF0", "#F3D3D8"]
+    gx, gy, cw, ch = 6, H - 34, 5.2, 4.6
+    for e in range(4):
+        txt(ax, gx - 1, gy + (3 - e) * ch + ch / 2, "NHSA"[e], ha="right", va="center", size=fs - 1.2, color=GREY)
+        for g in range(5):
+            ax.add_patch(mp.Rectangle((gx + g * cw, gy + (3 - e) * ch), cw - 0.6, ch - 0.6, fc=gcol[g], ec="#888888", lw=0.4))
+    for g in range(5):
+        txt(ax, gx + g * cw + cw / 2, gy - 1.2, f"組{g + 1}", ha="center", va="top", size=fs - 2.2, color=GREY)
+    txt(ax, gx, gy + 4 * ch + 2, "K 本 ＝ 4 感情 × 5 本 ＝ 20 本", size=fs - 1.4)
+    txt(ax, 40, H - 13, "1. 20 本を 5 組に分ける（各組に\n　 各感情 1 本）\n2. 4 組で分類器を学び直し，\n　 残る 1 組に答えを付ける．\n　 これを 5 回くり返す\n3. 20 本すべてに，その発話を\n　 学びに使っていない答えが付く",
+        size=fs - 1.6, va="top", ls=1.3)
+    dK = [1.40, 2.55, 1.60, 2.05]
+    txt(ax, 6, 33, "4. その答えで感情ごとに d を求める（前のページの方法）", size=fs - 1.4)
+    bars(ax, 10, 9, dK, colV, scale=7.0, fs=fs, hatch="///")
+    m = float(np.mean(dK))
+    ax.plot([8.5, 37.5], [9 + m * 7.0] * 2, color=C_K, lw=1.2, ls="--")
+    txt(ax, 39, 9 + m * 7.0, f"平均 ＝ 強さ {m:.2f}", va="center", size=fs - 0.6, color=C_K, weight="bold")
+    txt(ax, 40, 18.5, "意味：このターゲットで，\n顔の分類器が感情全体を\nどれだけよく見分けるか", size=fs - 1.6, va="top", ls=1.3)
+    txt(ax, 40, 8.5, "K 本が少ないとぶれるので，\nn0 本ぶん既定の値に寄せる", size=fs - 1.8, va="top", ls=1.3, color=GREY)
+    # right: shape from sources
+    box(ax, 90, 2, 82, H - 4, fc="#F8F4FA", ec=C_SRC, lw=1.1)
+    txt(ax, 92, H - 4.5, "② 感情ごとの形：ソースのコーパスで計算（K 本は使わない）", size=fs - 0.2, weight="bold", color=C_SRC, va="top")
+    txt(ax, 93, H - 12, "1. 各ソースの中で，話者を分けた交差検証で\n　 顔の分類器の 4 感情の d を求め，ソースどうしで\n　 平均する（ほかのコーパスで残る割合 η も掛ける）",
+        size=fs - 1.6, va="top", ls=1.3)
+    dS = [0.95, 1.95, 1.25, 1.45]
+    bars(ax, 98, 45, dS, colV, scale=7.0, fs=fs, hatch="///")
+    ms = float(np.mean(dS))
+    ax.plot([96.5, 125.5], [45 + ms * 7.0] * 2, color=C_SRC, lw=1.0, ls="--")
+    txt(ax, 127, 45 + ms * 7.0, f"平均 {ms:.2f}", va="center", size=fs - 0.8, color=C_SRC)
+    arrow(ax, (112, 42), (112, 35), lw=0.9, head=7, color=C_SRC)
+    txt(ax, 114, 38.5, "2. 平均を引く", size=fs - 1.2, color=C_SRC, va="center")
+    r = [v - ms for v in dS]
+    bars(ax, 98, 22, r, "#C9B8DA", scale=7.0, fs=fs, signed=True)
+    txt(ax, 128, 28, "＝ 感情ごとの形", size=fs - 0.4, color=C_SRC, weight="bold", va="center")
+    txt(ax, 128, 21, "意味：顔は自分の平均\nより Happy が得意で，\nNeutral が苦手．\n強さの情報は持たない", size=fs - 1.6, va="top", ls=1.3)
+    txt(ax, W - 4, 5.0, "数値は説明のための例", ha="right", size=FS - 1.6, color=GREY)
+    save(fig, "fig_prop_calc_ja")
+
+
 if __name__ == "__main__":
+    fig_calc()
     fig_idea()
     fig_decomp()
     fig_episode()

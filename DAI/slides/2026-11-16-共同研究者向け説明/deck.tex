@@ -329,19 +329,32 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{顔・声・言葉と積の UAR は原稿 7.4 節にある．「17.5〜18.6」という範囲と積 − 顔の差の形は原稿に無く，結果の文（提案が効くコーパスの型）第 3 版の要点 19 から写した．図の確率は説明のための例で，重みは原稿 7.4 節の AFEW の K = 10 の提案の重み（4 感情の平均）．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（3）：提案．重みの表を「強さ」と「感情ごとの形」に分けて測る}
+
+\begin{frame}{問い 2 の設定（3）：信頼度 d．分類器がある感情をどれだけ見分けるか}
+\centering
+\includegraphics[width=\linewidth,height=0.70\textheight,keepaspectratio]{figures/fig_prop_reliability_ja.pdf}
+\fnote{出所：原稿 7.2 節の式 (7.1)，(7.2)．}
+\end{frame}
+
+\begin{frame}{問い 2 の設定（4）：提案．重みの表を「強さ」と「感情ごとの形」に分けて測る}
 \centering
 \includegraphics[width=\linewidth,height=0.66\textheight,keepaspectratio]{figures/fig_prop_decomp_ja.pdf}
 \fnote{強さは 4 感情の信頼度の平均（水準），形は信頼度 − 強さ（相性）．出所：原稿 7.1〜7.2 節．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（4）：ソースで使い方を練習する（メタ学習に近い手順）}
+\begin{frame}{問い 2 の設定（5）：強さと感情ごとの形の計算}
+\centering
+\includegraphics[width=\linewidth,height=0.74\textheight,keepaspectratio]{figures/fig_prop_calc_ja.pdf}
+\fnote{強さは K 本を 5 組に分けた交差の答えから求める（式 (7.4) の $L^K$）．形はソースの中の交差検証の信頼度の平均に η を掛けて平均を引く（式 (7.3)）．出所：原稿 7.2 節．}
+\end{frame}
+
+\begin{frame}{問い 2 の設定（6）：ソースで使い方を練習する（メタ学習に近い手順）}
 \centering
 \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{figures/fig_prop_episode_ja.pdf}
 \fnote{練習の 30 反復 ＝ 3 コーパス × 5 分割 × 種 2．選ばれた設定はどの条件でも「形を使う」（β = 1）で，n0 は 12 条件のうち 8 で 0．出所：原稿 7.2〜7.3 節．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（5）：提案手法の全体（原稿 7.2 節）}
+\begin{frame}{問い 2 の設定（7）：提案手法の全体（原稿 7.2 節）}
 \centering
 \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/fig_method_flow_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -350,13 +363,13 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \end{frame}
 
 
-\begin{frame}{問い 2 の設定（6）：表から疑似ラベルを作る（数値の例）}
+\begin{frame}{問い 2 の設定（8）：表から疑似ラベルを作る（数値の例）}
 \centering
 \includegraphics[width=\linewidth,height=0.74\textheight,keepaspectratio]{figures/fig_prop_table_ja.pdf}
 \fnote{出所：原稿 7.2 節の式 (7.4)〜(7.6)．β（相性を使うか）は仮のターゲットの回で選び，12 条件すべてで「使う」が選ばれた．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（7）：比べる相手 F1〜F10（原稿 7.3 節）}
+\begin{frame}{問い 2 の設定（9）：比べる相手 F1〜F10（原稿 7.3 節）}
 \centering
 \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{figures/fig_fusion_glyphs_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -453,12 +466,6 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \centering
 \includegraphics[width=\linewidth,height=0.74\textheight,keepaspectratio]{figures/fig_prop_corpora_ja.pdf}
 \fnote{出所：原稿 4.3〜4.4 節，7.2〜7.3 節．}
-\end{frame}
-
-\begin{frame}{補足：提案の信頼度 d の測り方（分類器 1 つ × 感情 1 つ）}
-\centering
-\includegraphics[width=\linewidth,height=0.70\textheight,keepaspectratio]{figures/fig_prop_reliability_ja.pdf}
-\fnote{出所：原稿 7.2 節の式 (7.1)，(7.2)．}
 \end{frame}
 
 \begin{frame}{1 序論：問いごとの調べ方（原稿の図 1 にあたる図）}
