@@ -159,6 +159,12 @@ def draw(d, lang):
     ax.legend(handles=hb, loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=FS - 0.4, frameon=False)
     fig.text(0.065, 0.455, t["title_b"], ha="left", va="center", fontsize=FS + 0.6, weight="bold")
     name = "fig_corpus_types" + ("_ja" if lang == "ja" else "")
+    from matplotlib.transforms import Bbox                      # slide versions: panel (a) and panel (b) as separate files
+    Hf = 132 * MM
+    for part, (fa, fb) in {"a": (0.505, 1.0), "b": (0.0, 0.475)}.items():
+        bb = Bbox([[0, fa * Hf], [174 * MM, fb * Hf]])
+        fig.savefig(OUT / f"fig_corpus_types_{part}{'_ja' if lang == 'ja' else ''}.pdf", bbox_inches=bb)
+        fig.savefig(OUT / f"fig_corpus_types_{part}{'_ja' if lang == 'ja' else ''}.png", dpi=300, bbox_inches=bb)
     fig.savefig(OUT / f"{name}.pdf")
     fig.savefig(OUT / f"{name}.png", dpi=300)
     plt.close(fig)

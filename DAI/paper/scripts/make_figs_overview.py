@@ -180,7 +180,7 @@ def fig_overview(lang):
         # the encoder caption is long in Japanese; replace the multi-line label
         pass
     # ---------------- two parts
-    yb, hb = 2, 66
+    yb, hb = 2, 64
     xl, wl = 1, 84
     xr, wr = 89, 84
     box(ax, xl, yb, wl, hb, fc="white", ec=C_P1, lw=1.0)
@@ -215,7 +215,14 @@ def fig_overview(lang):
     arrow(ax, (157, y0 - 6), (157, yb + hb), lw=0.8)
     arrow(ax, (43, y0), (43, yb + hb), lw=0.8)
     txt(ax, 3, y0 + 4.5, t["eval"], ha="left", va="center", size=FS - 0.4, color=GREY)
-    save(fig, "fig_overview_study" + ("_ja" if lang == "ja" else ""))
+    # slide versions: the setting band and the two parts as separate files (the full figure is too tall for a 16:9 slide)
+    from matplotlib.transforms import Bbox
+    sfx = "_ja" if lang == "ja" else ""
+    for part, (ya, yb_) in {"setting": (y0 - 6.9, H), "parts": (0, yb + hb + 0.6)}.items():
+        bb = Bbox([[0, ya * MM], [W * MM, yb_ * MM]])
+        fig.savefig(OUT / f"fig_overview_study_{part}{sfx}.pdf", bbox_inches=bb)
+        fig.savefig(OUT / f"fig_overview_study_{part}{sfx}.png", dpi=300, bbox_inches=bb)
+    save(fig, "fig_overview_study" + sfx)
 
 
 # ------------------------------------------------------------------ Fig. B
