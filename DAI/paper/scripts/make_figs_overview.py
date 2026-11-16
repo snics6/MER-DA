@@ -1,7 +1,7 @@
 """Overview figures (2026-11-16, researcher's request: Ishii/Okada-style figures that show the
 setting, the two parts of the study, the proposed fusion and what it is compared with).
 
-Fig. A  fig_overview_study      : setting + Part I (analysis tools and the naive approach) + Part II (proposed fusion)
+Fig. A  fig_overview_study      : setting + Q1-Q2 (retraining on the product pseudo-labels, analysis tools) + Q3 (proposed fusion)
 Fig. B  fig_fusion_map          : where each fusion method takes its weights from (schematic map; no result values)
 
 Both are schematic. Text only, no measured values. Japanese versions (suffix _ja) are written for the slides.
@@ -99,21 +99,21 @@ T = {
         enc="Frozen encoders → one linear classifier per modality",
         mods=["audio (WavLM)", "visual (video)", "text (RoBERTa)"],
         avt="+ AVT: the three\nfeatures concatenated",
-        p1="Part I (Sec. 4–6): analysis tools and the naive approach",
-        p2="Part II (Sec. 7): proposed fusion for pseudo-labelling",
-        naive_t="Naive approach",
+        p1="Q1–Q2 (Sec. 5–6): which classifiers gain, and why?",
+        p2="Q3 (Sec. 7): how to fuse the answers into pseudo-labels",
+        naive_t="Retraining on the product pseudo-labels (Sec. 5)",
         naive="Multiply the three classifiers’ probabilities\n(same weight) → pseudo-labels on the unlabelled\nutterances → retrain each classifier on\nthe K labels + pseudo-labels",
-        tool_t="Two analysis tools",
+        tool_t="Two analysis tools (Sec. 6)",
         tool1="(1) Split the error: bias towards some emotions\n      + remaining error (weight direction)",
         tool2="(2) Split the gain into three quantities: room,\n      margin of the pseudo-labels over the classifier,\n      part of the pseudo-labels the classifier can imitate",
-        q1="Which classifiers gain, and why?\n(audio vs visual, text, AVT; per emotion)",
+        q1="Q1: Whose UAR rises?  Q2: Why?\n(audio vs visual, text, AVT; per emotion)",
         prop_t="Proposed fusion",
         prop1="Strength of each classifier  ←  K target labels (3 numbers)",
         prop2="Per-emotion profile  ←  source corpora",
         prop3="Reliability-weighted late fusion → pseudo-labels",
-        cmp_t="Compared with (Fig. B)",
-        cmp="• equal weights (product, mean)\n• weights chosen on other corpora\n• weights fitted on the K labels (temperature scaling)\n• weight tables searched or measured on the K labels",
-        q2="Which corpora and modalities gain, and why do\nexisting fusions fall short?",
+        cmp_t="Compared with (F1–F10)",
+        cmp="• equal weights (F1 product, F2 mean, F4 confidence)\n• exponents chosen on other corpora (F3)\n• 3 weights fitted on the K labels (F5, F8, F9)\n• weight tables measured or searched on the K labels (F6, F7, F10)",
+        q2="On which corpora is it above the product, and why?\nWhere are the other fusions below it?",
         eval="Evaluation: UAR on the test utterances, leave-one-corpus-out",
     ),
     "ja": dict(
@@ -125,21 +125,21 @@ T = {
         enc="凍結した\nエンコーダ\n→ モダリティ\nごとの線形\n分類器",
         mods=["声（WavLM）", "顔（動画）", "言葉（RoBERTa）"],
         avt="＋ AVT：3 つの特徴を\nつないだ分類器",
-        p1="前半（4〜6 節）：解析の道具と，素朴なやり方",
-        p2="後半（7 節）：疑似ラベルのための答えのまとめ方（提案）",
-        naive_t="素朴なやり方",
+        p1="Q1・Q2（5・6 節）：どの分類器が上がり，なぜか",
+        p2="Q3（7 節）：疑似ラベルのために答えをどうまとめるか",
+        naive_t="積の疑似ラベルによる学び直し（5 節）",
         naive="3 つの分類器の確率を同じ重みで掛ける\n→ ラベル無しの発話の疑似ラベル\n→ K 本と疑似ラベルで各分類器を学び直す",
-        tool_t="2 つの解析の道具",
+        tool_t="2 つの解析の道具（6 節）",
         tool1="① 誤りを分ける：答えの偏り ＋ 残りの誤り（重みの向き）",
         tool2="② 得を 3 つの量に分ける：余地，\n     疑似ラベルの当たる幅，分類器がまねできる分",
-        q1="どの分類器が得をし，なぜか？\n（声と顔・言葉・AVT．感情ごと）",
+        q1="Q1：どの分類器の UAR が上がるか？\nQ2：なぜ上がるか？（声と顔・言葉・AVT．感情ごと）",
         prop_t="提案のまとめ方",
         prop1="分類器ごとの強さ  ←  ターゲットの K 本（3 つの数）",
         prop2="感情ごとの得意・不得意  ←  ソース",
         prop3="信頼度で重みづけた late fusion → 疑似ラベル",
-        cmp_t="比べる相手（図 B）",
-        cmp="・同じ重み（積，平均）\n・ほかのコーパスで選んだ重み\n・K 本で合わせた重み（温度の較正）\n・K 本で選ぶ／測る重みの表",
-        q2="どのコーパス・モダリティで得をし，なぜか？\n既存のまとめ方はなぜ足りないか？",
+        cmp_t="比べる方法（F1〜F10）",
+        cmp="・同じ重み（F1 積，F2 平均，F4 確信度）\n・別のコーパスで選んだ指数（F3）\n・K 本で合わせる 3 つの重み（F5，F8，F9）\n・K 本で測る・探す重みの表（F6，F7，F10）",
+        q2="どのコーパスで提案が積より高く，なぜか？\nほかの方法はどこで提案より低いか？",
         eval="評価：テストの発話の UAR（1 つのコーパスを新しいコーパスにする）",
     ),
 }
@@ -190,8 +190,8 @@ def fig_overview(lang):
     # Part I contents
     yy = yb + hb - 9
     txt(ax, xl + 2, yy, t["naive_t"], weight="bold", color=C_P1)
-    box(ax, xl + 2, yy - 17, wl - 4, 14, fc="#FBF3F7", ec=C_P1, lw=0.6, z=2)
-    txt(ax, xl + 4, yy - 4.5, t["naive"], ls=1.15)
+    box(ax, xl + 2, yy - 18, wl - 4, 14, fc="#FBF3F7", ec=C_P1, lw=0.6, z=2)
+    txt(ax, xl + 4, yy - 5.5, t["naive"], ls=1.15)
     yy -= 21
     txt(ax, xl + 2, yy, t["tool_t"], weight="bold", color=C_P1)
     txt(ax, xl + 4, yy - 4.5, t["tool1"], ls=1.15)

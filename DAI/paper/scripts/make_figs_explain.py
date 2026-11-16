@@ -1,0 +1,401 @@
+"""Explanatory figures (2026-11-16, researcher's request: show the experimental setting, the proposed fusion and the
+compared fusion methods as figures).
+
+fig_setup_loco      : leave-one-corpus-out evaluation (4 runs) and the steps inside one run (Sec. 4.3, 5.1)
+fig_method_flow     : the proposed fusion, step by step (Sec. 7.2)
+fig_fusion_glyphs   : where each compared fusion method (F1-F10, Table 10) takes its weights from, drawn as a
+                      3 x 4 weight table (rows: audio, visual, text classifiers; columns: N, H, S, A)
+
+All three are schematic: no measured values. Japanese versions (suffix _ja) are for the co-researcher slides.
+Output: ../figures/<name>{,_ja}.pdf and .png (300 dpi), width 174 mm.
+Run:  /home/snics/MER-DA/.venv/bin/python make_figs_explain.py
+"""
+import numpy as np
+
+from make_figs_overview import (C_K, C_PROP, C_SRC, C_U, FS, GREY, MOD, W, arrow, box, canvas, mark, save, setup,
+                                txt)
+
+CORP = ["AFEW", "IEMOCAP", "MOSEI", "MELD"]
+C_EQ = "#BDBDBD"     # equal / fixed weights
+C_UTT = "#9E9E9E"    # per-utterance weights
+
+
+def circ(i, lang="ja"):
+    return "①②③④⑤⑥"[i] if lang == "ja" else f"({i + 1})"
+
+
+def en_digits(d):
+    """Arial has no circled digits: write (1)...(5) in the English texts."""
+    def f(v):
+        if isinstance(v, str):
+            for i, c in enumerate("①②③④⑤"):
+                v = v.replace(c, f"({i + 1})")
+            return v
+        if isinstance(v, list):
+            return [f(x) for x in v]
+        if isinstance(v, dict):
+            return {k: f(x) for k, x in v.items()}
+        return v
+    return f(d)
+
+
+# ------------------------------------------------------------------ setting
+TS = {
+    "ja": dict(
+        left="LOCO 評価：4 コーパスを 1 つずつターゲットにする",
+        tgt="ターゲット", src="ソース", run="回",
+        uar="→ UAR",
+        legend_t="ターゲット（感情ごとに K 本のラベル，\nラベル無しの発話，テストの発話）",
+        legend_s="ソース（全部の発話にラベル）",
+        crema="Q3 では CREMA-D（声と顔）をターゲットにした回も\n加えた（ソースは 4 コーパス）",
+        right="1 回の中の手順",
+        steps=[
+            "ソースのコーパスごとに，声・顔・言葉・AVT の線形分類器を学ぶ．\n同じモダリティの分類器の重みと切片を平均して「アンカー」にする",
+            "ターゲットを話者で 5 つに分け，1 つをテストにする\n（MOSEI はチャンネルか動画で分ける）．残り（候補）から感情ごとに\nK 本を抜いてラベルを使い，ほかの候補はラベル無しとして使う",
+            "K 本の基準の分類器：アンカーから K 本だけで学び直す",
+            "疑似ラベルによる学び直し：声・顔・言葉の分類器の答えをまとめた\n疑似ラベルを候補に付け，K 本と疑似ラベルで学び直す（Q1 は積，\nQ3 は積と提案．F1〜F10 は学び直す前のまとめた答えで比べた）",
+            "テストの発話の UAR を比べる（Q1 の gain ＝ ④ − ③）．\n5 分割 × K 本の抜き方 10 ＝ 50 反復の平均（K = 0 は 5 反復）",
+        ],
+        hp="ハイパーパラメータは，ソースのコーパスを 1 つずつ\n仮のターゲットにした計算で選んで固定した",
+        note="模式図",
+    ),
+    "en": dict(
+        left="Leave-one-corpus-out: each corpus is the target once",
+        tgt="target", src="source", run="run",
+        uar="→ UAR",
+        legend_t="Target (K labels per emotion,\nunlabelled and test utterances)",
+        legend_s="Source (all utterances labelled)",
+        crema="Q3 adds a run with CREMA-D (audio and visual)\nas the target (sources: the 4 corpora)",
+        right="Steps inside one run",
+        steps=[
+            "Train linear audio, visual, text and AVT classifiers on each source\ncorpus. Average the weights and biases per modality: the anchor",
+            "Split the target into 5 speaker-disjoint folds; one is the test fold\n(MOSEI: by channel or video). From the rest (candidates), use the labels\nof K utterances per emotion; the other candidates stay unlabelled",
+            "K-label baseline: retrain from the anchor on the K labels only",
+            "Pseudo-label retraining: label the candidates with the fused answer\nof the audio, visual and text classifiers; retrain on K labels + pseudo-\nlabels (Q1: product; Q3: product and proposed; F1–F10 compared as fused answers)",
+            "Compare the test UAR (Q1 gain = ④ − ③). Mean of 50 repetitions\n(5 folds × 10 draws of the K labels; K = 0: 5 repetitions)",
+        ],
+        hp="Hyperparameters were chosen on runs that used each source corpus\nas a provisional target, then fixed",
+        note="Schematic",
+    ),
+}
+
+
+def fig_setup(lang):
+    setup(lang)
+    t = TS[lang] if lang == "ja" else en_digits(TS[lang])
+    H = 76
+    fig, ax = canvas(H)
+    # left: LOCO rows
+    txt(ax, 2, H - 2, t["left"], weight="bold")
+    bw, bh, gap = 12.6, 6.5, 1.0
+    x0, ytop = 9, H - 10
+    for r, tc in enumerate(CORP):
+        y = ytop - r * (bh + 3.2) - bh
+        txt(ax, 2, y + bh / 2, f"{t['run']} {r + 1}" if lang == "en" else f"{r + 1} 回目", va="center", size=FS - 0.8, color=GREY)
+        for j, c in enumerate(CORP):
+            x = x0 + j * (bw + gap)
+            if c == tc:
+                box(ax, x, y, bw, bh, fc="white", ec="black", lw=1.3, z=2)
+                txt(ax, x + bw / 2, y + bh / 2, c, ha="center", va="center", size=FS - 0.8, weight="bold")
+            else:
+                box(ax, x, y, bw, bh, fc="#EDE7F3", ec=C_SRC, lw=0.6, z=2)
+                txt(ax, x + bw / 2, y + bh / 2, c, ha="center", va="center", size=FS - 0.8, color=C_SRC)
+        xe = x0 + 4 * (bw + gap)
+        txt(ax, xe - 0.3, y + bh / 2, t["uar"], va="center", size=FS - 0.9)
+    yl = ytop - 4 * (bh + 3.2) - 1.5
+    box(ax, 2, yl - 3.2, 4.5, 3.2, fc="white", ec="black", lw=1.3, z=2)
+    txt(ax, 7.5, yl - 1.6, t["legend_t"], va="center", size=FS - 1.0, ls=1.1)
+    box(ax, 2, yl - 10.0, 4.5, 3.2, fc="#EDE7F3", ec=C_SRC, lw=0.6, z=2)
+    txt(ax, 7.5, yl - 8.4, t["legend_s"], va="center", size=FS - 1.0)
+    txt(ax, 2, yl - 13.0, t["crema"], size=FS - 1.0, color=GREY, ls=1.1)
+    # right: steps
+    xr = 76
+    txt(ax, xr, H - 2, t["right"], weight="bold")
+    y = H - 8
+    hs = [8.6, 11.6, 5.0, 11.6, 8.6]
+    for i, (st, h) in enumerate(zip(t["steps"], hs)):
+        ec = C_PROP if i == 3 else ("black" if i != 2 else C_K)
+        box(ax, xr, y - h, W - xr - 1, h, fc="white" if i != 3 else "#FDF0E8", ec=ec, lw=0.7, z=2)
+        txt(ax, xr + 1.2, y - 1.0, circ(i, lang), size=FS + 0.6 if lang == "ja" else FS - 0.6, weight="bold")
+        txt(ax, xr + 5.5, y - 1.2, st, size=FS - 1.15, ls=1.15)
+        if i < 4:
+            arrow(ax, (xr + 3, y - h), (xr + 3, y - h - 1.6), lw=0.6, head=5)
+        y -= h + 1.6
+    txt(ax, xr, y - 0.6, t["hp"], size=FS - 1.15, color=GREY)
+    txt(ax, W - 1, 0.8, t["note"], ha="right", va="bottom", size=FS - 1.2, color=GREY)
+    save(fig, "fig_setup_loco" + ("_ja" if lang == "ja" else ""))
+
+
+# ------------------------------------------------------------------ weight-table glyph
+EMO = ["N", "H", "S", "A"]
+
+
+def glyph(ax, x, y, kind, cw=3.4, ch=2.9, show_labels=True, seed=0):
+    """3 x 4 weight table. kind: equal | utter | src_row | k_row | k_all | prop."""
+    rng = np.random.default_rng(seed)
+    strip = 2.2
+    gx = x + strip + 0.6
+    for r, m in enumerate("AVT"):
+        yy = y + (2 - r) * ch
+        if show_labels:
+            mark(ax, x - 1.6, yy + ch / 2, m, size=3.0)
+        # row strip: where the per-classifier number comes from
+        if kind in ("src_row", "k_row", "prop"):
+            col = C_SRC if kind == "src_row" else C_K
+            box(ax, x, yy + 0.2, strip, ch - 0.4, fc=col, ec=col, lw=0.3, r=0.3, z=3)
+        for c in range(4):
+            if kind == "equal":
+                fc = C_EQ
+            elif kind == "utter":
+                g = 0.45 + 0.4 * rng.random()
+                fc = (g, g, g)
+            elif kind == "src_row":
+                fc = "#D9CDE6"
+            elif kind == "k_row":
+                fc = "#C6DBEF"
+            elif kind == "k_all":
+                a = 0.25 + 0.7 * rng.random()
+                fc = tuple((1 - a) + a * v for v in (0.12, 0.47, 0.71))
+            else:  # prop: shape from the source inside each row
+                v = rng.random()
+                fc = (0.42 + 0.45 * v, 0.24 + 0.55 * v, 0.6 + 0.3 * v)
+            ax.add_patch(__import__("matplotlib").patches.Rectangle((gx + c * cw, yy), cw, ch, fc=fc, ec="white", lw=0.6, zorder=3))
+            if kind == "utter" and r == 1 and c == 0:
+                pass
+    if show_labels:
+        for c, e in enumerate(EMO):
+            txt(ax, gx + c * cw + cw / 2, y + 3 * ch + 0.3, e, ha="center", va="bottom", size=FS - 2.0, color=GREY)
+    return gx + 4 * cw
+
+
+TG = {
+    "ja": dict(
+        rows=["ラベルを使わない\n（同じ重みか確信度）", "別のコーパスで\n決める", "ターゲットの K 本で\n3 つの数を決める", "ターゲットの K 本で\n表を測る・探す"],
+        F={"F1": "F1 積\n（同じ重みで掛ける）", "F2": "F2 確率の平均", "F4": "F4 確信度で重みづける\n平均（発話ごとに変わる）",
+           "F3": "F3 別のコーパスで\n選んだ指数の積",
+           "F5": "F5 水準だけの重み", "F8": "F8 分類器ごとの\n温度の較正", "F9": "F9 K 本で合わせた\nモダリティごとの重み",
+           "F6": "F6 全部を K 本で\n測った表（12 個）", "F7": "F7 取り違えの表で\n読み替えて掛ける", "F10": "F10 1,001 個の表から\nK 本で選ぶ"},
+        utter="発話ごとに変わる",
+        prop_t="提案",
+        prop="行の強さ（3 つの数）← ターゲットの K 本\n行の中の感情ごとの形 ← ソースのコーパス",
+        kcount="K 本で決める数",
+        kc=["0", "0", "3", "12 か表 1 つ"],
+        legend=["同じ重み", "発話ごと", "別のコーパスで決める", "ターゲットの K 本で決める"],
+        axis="表の行は分類器（声・顔・言葉），列は感情（N，H，S，A）．左の細い帯は分類器ごとの 1 つの数",
+        note="模式図．色の濃さは実験の値ではない",
+    ),
+    "en": dict(
+        rows=["No labels used\n(equal or confidence)", "Set on other\ncorpora", "3 numbers set on\nthe K target labels", "Table measured or\nsearched on K labels"],
+        F={"F1": "F1 Product\n(equal weights)", "F2": "F2 Mean of\nprobabilities", "F4": "F4 Confidence-weighted\nmean (per utterance)",
+           "F3": "F3 Product with exponents\nchosen on other corpora",
+           "F5": "F5 Level-only\nweights", "F8": "F8 Per-classifier\ntemperature scaling", "F9": "F9 Modality weights\nfitted on K labels",
+           "F6": "F6 All 12 reliabilities\nfrom K labels", "F7": "F7 Confusion-table\nre-reading", "F10": "F10 Best of 1,001\ntables on K labels"},
+        utter="varies per utterance",
+        prop_t="Proposed",
+        prop="Row strength (3 numbers) ← K target labels\nPer-emotion shape within a row ← source corpora",
+        kcount="Numbers set on K labels",
+        kc=["0", "0", "3", "12 or 1 table"],
+        legend=["equal", "per utterance", "set on other corpora", "set on the K target labels"],
+        axis="Rows: audio, visual, text classifiers; columns: emotions N, H, S, A. Thin strip: one number per classifier",
+        note="Schematic; shades are not measured values",
+    ),
+}
+
+
+def fig_glyphs(lang):
+    setup(lang)
+    t = TG[lang]
+    H = 92
+    fig, ax = canvas(H)
+    rows = [["F1", "F2", "F4"], ["F3"], ["F5", "F8", "F9"], ["F6", "F7", "F10"]]
+    kinds = {"F1": "equal", "F2": "equal", "F4": "utter", "F3": "src_row", "F5": "k_row", "F8": "k_row",
+             "F9": "k_row", "F6": "k_all", "F7": "k_all", "F10": "k_all"}
+    rh = 20.5
+    ytop = H - 4
+    xl, cardw = 30, 30
+    for r, (lab, fs, kc) in enumerate(zip(t["rows"], rows, t["kc"])):
+        y = ytop - (r + 1) * rh
+        box(ax, 1, y + 0.6, W - 2 - 52, rh - 1.2, fc="#FAFAFA", ec="#DDDDDD", lw=0.5, z=1)
+        txt(ax, 3, y + rh - 2.2, lab, size=FS - 0.6, weight="bold", ls=1.1)
+        txt(ax, 3, y + rh - 9.6, f"{t['kcount']}：\n{kc}" if lang == "ja" else f"{t['kcount']}:\n{kc}", size=FS - 1.4, color=C_K if r >= 2 else GREY, ls=1.1)
+        for j, f in enumerate(fs):
+            x = xl + j * cardw
+            gy = y + 8.2
+            glyph(ax, x + 3, gy, kinds[f], seed=j + 3 * r)
+            txt(ax, x + 1.2, gy - 0.6, t["F"][f], size=FS - 1.3, ls=1.05)
+    # proposed card (right)
+    xp, wp = W - 50, 49
+    yp0 = ytop - 4 * rh + 0.6
+    box(ax, xp, yp0, wp, 4 * rh - 1.2, fc="#FDF0E8", ec=C_PROP, lw=1.2, z=1)
+    txt(ax, xp + 2, ytop - 2.0, t["prop_t"], weight="bold", color=C_PROP, size=FS + 1.0)
+    gx_end = glyph(ax, xp + 14, ytop - 22, "prop", cw=5.2, ch=4.4, seed=11)
+    txt(ax, xp + 2, ytop - 25, t["prop"], size=FS - 1.0, ls=1.25)
+    txt(ax, xp + 2, ytop - 33, f"{t['kcount']}：3" if lang == "ja" else f"{t['kcount']}: 3", size=FS - 1.0, color=C_K)
+    # legend
+    ly = ytop - 42
+    for i, (lab, col) in enumerate(zip(t["legend"], [C_EQ, C_UTT, C_SRC, C_K])):
+        yy = ly - i * 4.6
+        box(ax, xp + 2, yy - 2.6, 4, 2.6, fc=col, ec=col, lw=0.3, r=0.3, z=3)
+        txt(ax, xp + 7.5, yy - 1.3, lab, va="center", size=FS - 1.1)
+    txt(ax, xp + 2, ly - 19.5, t["axis"], size=FS - 1.5, color=GREY, ls=1.15) if lang == "en" else \
+        txt(ax, xp + 2, ly - 19.5, "表の行は分類器（声・顔・言葉），\n列は感情（N，H，S，A）．\n左の細い帯は分類器ごとの 1 つの数", size=FS - 1.5, color=GREY, ls=1.15)
+    txt(ax, W - 1, 0.6, t["note"], ha="right", va="bottom", size=FS - 1.4, color=GREY)
+    save(fig, "fig_fusion_glyphs" + ("_ja" if lang == "ja" else ""))
+
+
+# ------------------------------------------------------------------ proposed fusion, step by step
+TM = {
+    "ja": dict(
+        x="ラベル無しの発話 x\n（候補）",
+        clf="積を作る分類器の点\nz_k(i | x)（中心化した対数確率）",
+        s1="① 感情ごとの形（相性）\nソースのコーパスで，分類器 × 感情の\n信頼度を測り，行の平均を引く",
+        s2="② 強さ（水準）\nターゲットの K 本で，\n分類器ごとに 1 つ測る",
+        s3="③ 重みの表 W(k, i)\n＝ 強さ ＋ 形",
+        s4="④ 感情ごとに重みを掛けて足す\ns(i | x) ＝ Σ_k W(k, i) · z_k(i | x)\nラベルを使わずに切片をずらし，\n答えが一方の感情に寄らないようにする",
+        s5="⑤ まとめた答えを疑似ラベル（soft label）にし，\nAVT の分類器を K 本と疑似ラベルで学び直す",
+        note="模式図．棒と色の濃さは実験の値ではない",
+    ),
+    "en": dict(
+        x="Unlabelled utterance x\n(candidate)",
+        clf="Scores z_k(i | x) of the\nclassifiers that form the product\n(centred log-probabilities)",
+        s1="① Per-emotion shape (profile)\nreliability of classifier × emotion on\nthe source corpora, row mean removed",
+        s2="② Strength (level):\none number per\nclassifier, from the\nK target labels",
+        s3="③ Weight table W(k, i)\n= strength + shape",
+        s4="④ Weight and add per emotion\ns(i | x) = Σ_k W(k, i) · z_k(i | x)\nshift the intercepts without labels so that\nthe answers do not drift to one emotion",
+        s5="⑤ Use the fused answer as soft pseudo-labels and\nretrain the AVT classifier on K labels + pseudo-labels",
+        note="Schematic; bars and shades are not measured values",
+    ),
+}
+
+
+def fig_method(lang):
+    setup(lang)
+    t = TM[lang] if lang == "ja" else en_digits(TM[lang])
+    H = 74
+    fig, ax = canvas(H)
+    # input utterance and three classifiers with score bars
+    box(ax, 2, H - 13, 34, 10, fc="white", ec=C_U, lw=0.8)
+    txt(ax, 19, H - 4.5, t["x"], ha="center", color=C_U, size=FS - 0.6)
+    vals = {"A": [0.2, -0.6, 0.1, 0.4], "V": [-0.3, 0.9, -0.2, -0.4], "T": [0.5, -0.1, -0.5, 0.1]}
+    for r, m in enumerate("AVT"):
+        y = H - 27 - r * 13
+        box(ax, 2, y - 1, 34, 11, fc="white", ec=MOD[m][0], lw=0.8)
+        mark(ax, 5, y + 7.5, m, size=4.0)
+        base = y + 3.8
+        for c, (e, v) in enumerate(zip(EMO, vals[m])):
+            bx = 12 + c * 5.5
+            ax.add_patch(__import__("matplotlib").patches.Rectangle((bx, base), 3.6, v * 4.2, fc=MOD[m][0], ec="none", zorder=3))
+            txt(ax, bx + 1.8, y + 0.0, e, ha="center", va="bottom", size=FS - 2.0, color=GREY)
+        ax.plot([11, 34], [base, base], color="black", lw=0.4, zorder=4)
+        arrow(ax, (19, H - 13), (19, H - 15.2), lw=0.5, head=4) if r == 0 else None
+    txt(ax, 2, H - 63, t["clf"], size=FS - 1.4, color=GREY, ls=1.1)
+    # table in the middle
+    gx0, gy0 = 58, H - 46
+    cwm = 4.6
+    box(ax, 42, H - 16, 54, 13, fc="#F4F0F8", ec=C_SRC, lw=0.8)
+    txt(ax, 44, H - 4.6, t["s1"], size=FS - 1.0, color=C_SRC, ls=1.15)
+    box(ax, 44, H - 72, 27, 15, fc="#EAF2FA", ec=C_K, lw=0.8)
+    txt(ax, 45.5, H - 58.5, t["s2"], size=FS - 1.2, color=C_K, ls=1.15)
+    glyph(ax, gx0, gy0, "prop", cw=cwm, ch=cwm, seed=11, show_labels=True)
+    xs = gx0 + 2.8  # first column of the cells
+    txt(ax, 70, gy0 - 3.0, t["s3"], size=FS - 0.6, weight="bold", color=C_PROP, ls=1.1)
+    arrow(ax, (xs + 2 * cwm, H - 16), (xs + 2 * cwm, gy0 + 3 * cwm + 3.2), color=C_SRC, lw=0.8)
+    arrow(ax, (57, H - 57), (gx0 + 1.1, gy0 - 0.4), color=C_K, lw=0.8)
+    # from classifiers to the table
+    arrow(ax, (36, H - 35), (gx0 - 3.2, gy0 + 1.5 * cwm), lw=0.7)
+    # right column
+    box(ax, 100, H - 25, 72, 19, fc="#FDF0E8", ec=C_PROP, lw=1.0)
+    txt(ax, 102, H - 7.6, t["s4"], size=FS - 0.9, ls=1.25)
+    arrow(ax, (xs + 4 * cwm + 0.8, gy0 + 1.5 * cwm), (100, H - 18), lw=0.8)
+    box(ax, 100, H - 42, 72, 11, fc="white", ec="black", lw=0.8)
+    txt(ax, 102, H - 33.2, t["s5"], size=FS - 0.9, ls=1.25)
+    arrow(ax, (136, H - 25), (136, H - 31), lw=0.8)
+    txt(ax, W - 1, 0.8, t["note"], ha="right", va="bottom", size=FS - 1.3, color=GREY)
+    save(fig, "fig_method_flow" + ("_ja" if lang == "ja" else ""))
+
+
+# ------------------------------------------------------------------ worked example: why the fusion matters
+TX = {
+    "ja": dict(
+        head="例：正解が Happy の 1 つの発話（顔の分類器が最も強いコーパス）",
+        clf=["声の分類器", "顔の分類器（最も強い）", "言葉の分類器"],
+        eq="同じ重みで掛ける（積．Q1 の疑似ラベル）",
+        wt="顔の重みを大きくして掛ける（提案の考え方）\n重み：声 0.87，顔 1.32，言葉 0.81",
+        ans_eq="答え：Neutral（外れ）", ans_wt="答え：Happy（当たり）",
+        true="正解",
+        note="模式図．確率は説明のための例．重みは AFEW の K = 10 の提案の重み（4 感情の平均）を，感情に共通の重みとして使った",
+    ),
+    "en": dict(
+        head="Example: one utterance whose true emotion is Happy (the visual classifier is the strongest)",
+        clf=["Audio classifier", "Visual classifier (strongest)", "Text classifier"],
+        eq="Multiply with equal weights (product; Q1 pseudo-labels)",
+        wt="Multiply with a larger visual weight (idea of the proposal)\nweights: audio 0.87, visual 1.32, text 0.81",
+        ans_eq="Answer: Neutral (wrong)", ans_wt="Answer: Happy (correct)",
+        true="true",
+        note="Schematic. Probabilities are illustrative; weights are the AFEW K = 10 proposed weights (mean over emotions) used as emotion-common weights",
+    ),
+}
+PX = {"A": [0.50, 0.25, 0.15, 0.10], "V": [0.15, 0.55, 0.15, 0.15], "T": [0.50, 0.25, 0.15, 0.10]}
+WX = {"A": 0.87, "V": 1.32, "T": 0.81}
+
+
+def bars(fig, x, y, w, h, vals, color, title, true_i=1, hl=None, ylim=0.7):
+    ax = fig.add_axes([x / W, y / HX, w / W, h / HX])
+    ax.patch.set_alpha(0)
+    cols = [color] * 4
+    if hl is not None:
+        cols = ["#CCCCCC"] * 4
+        cols[hl] = color
+    ax.bar(range(4), vals, color=cols, width=0.65, edgecolor="none")
+    for i, v in enumerate(vals):
+        ax.text(i, v + 0.02, f"{v:.2f}", ha="center", va="bottom", fontsize=FS - 1.6)
+    ax.set_xticks(range(4))
+    ax.set_xticklabels(EMO, fontsize=FS - 1.2)
+    ax.set_ylim(0, ylim)
+    ax.set_yticks([])
+    for sp in ["top", "right", "left"]:
+        ax.spines[sp].set_visible(False)
+    ax.spines["bottom"].set_linewidth(0.5)
+    ax.tick_params(length=0, pad=1.5)
+    ax.get_xticklabels()[true_i].set_fontweight("bold")
+    ax.set_title(title, fontsize=FS - 0.8, pad=2)
+    return ax
+
+
+HX = 88
+
+
+def fig_example(lang):
+    setup(lang)
+    t = TX[lang]
+    fig, ax = canvas(HX)
+    txt(ax, 2, HX - 2, t["head"], weight="bold")
+    cw = 46
+    for j, m in enumerate("AVT"):
+        x = 8 + j * (cw + 10)
+        bars(fig, x, HX - 36, cw, 24, PX[m], MOD[m][0], t["clf"][j])
+    pa = np.array(PX["A"]) * np.array(PX["V"]) * np.array(PX["T"])
+    pa = pa / pa.sum()
+    sc = sum(WX[m] * np.log(PX[m]) for m in "AVT")
+    pw = np.exp(sc - sc.max())
+    pw = pw / pw.sum()
+    box(ax, 4, 6, 80, 40, fc="white", ec="#444444", lw=0.8)
+    box(ax, 90, 6, 82, 40, fc="#FDF0E8", ec=C_PROP, lw=1.0)
+    txt(ax, 6, 44.5, t["eq"], size=FS - 0.6, weight="bold")
+    txt(ax, 92, 44.5, t["wt"], size=FS - 0.6, weight="bold", color=C_PROP, ls=1.15)
+    bars(fig, 18, 17, 50, 18, list(pa), "#555555", "", hl=int(np.argmax(pa)))
+    bars(fig, 104, 17, 50, 18, list(pw), C_PROP, "", hl=int(np.argmax(pw)))
+    txt(ax, 44, 11.0, t["ans_eq"], ha="center", size=FS, weight="bold", color="#B2182B")
+    txt(ax, 129, 11.0, t["ans_wt"], ha="center", size=FS, weight="bold", color="#2166AC")
+    arrow(ax, (60, HX - 40), (44, 46.5), lw=0.8)
+    arrow(ax, (110, HX - 40), (129, 46.5), lw=0.8, color=C_PROP)
+    txt(ax, W - 1, 0.6, t["note"], ha="right", va="bottom", size=FS - 1.8, color=GREY)
+    save(fig, "fig_fusion_example" + ("_ja" if lang == "ja" else ""))
+
+
+if __name__ == "__main__":
+    for lang in ("ja", "en"):
+        fig_setup(lang)
+        fig_glyphs(lang)
+        fig_method(lang)
+        fig_example(lang)
