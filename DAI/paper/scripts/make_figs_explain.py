@@ -567,6 +567,79 @@ def fig_product_pl(lang):
     save(fig, "fig_product_pl" + ("_ja" if lang == "ja" else ""))
 
 
+# ------------------------------------------------------------------ the three settings (Sec. 4.3, Table 2)
+T3 = {
+    "ja": dict(
+        cols=[("単一ソース設定", "6.1〜6.3 節"), ("全ソース設定", "6.4 節"), ("LOCO 設定", "5 節，6.5〜6.7 節，7 節")],
+        src=["ソース：1 つの群\n（全発話にラベル）", "ソース：ターゲット以外の\n全部の群", "ソース：残る 3 コーパス"],
+        tgt=["ターゲット：1 つの群", "ターゲット：1 つの群", "ターゲット：AFEW，IEMOCAP（即興），\nMOSEI，MELD の 1 つ（7 節は CREMA-D も）"],
+        how=["ソースの全発話と K 本を\nまとめて学ぶ（合併の分類器）",
+             "全部の群から作ったアンカーを\nK 本で学び直す",
+             "3 つのソースの分類器の平均を\nアンカーにし，K 本で学び直す"],
+        clfs=["合併の分類器\nターゲットだけの分類器（K 本だけ）\nソースだけの分類器（ソースだけ）",
+              "K 本の基準の分類器\n疑似ラベルによる学び直し\nラベル無しの発話を使う 8 手法",
+              "K 本の基準の分類器\n疑似ラベルによる学び直し"],
+        ks=["K = 1，5，10，25，50，全件", "K = 0，5，25", "K = 0，5，10，25"],
+        ask=["ほかのコーパスと K 本が\n誤りのどの部分を直すか", "疑似ラベルと同じモダリティの\nラベル無しの発話が何を直すか", "疑似ラベルで UAR が上がるか（Q1），\nなぜか（Q2-c），まとめ方（Q3）"],
+        note="模式図．原稿の表 2 を図にした",
+    ),
+    "en": dict(
+        cols=[("Single-source", "Sec. 6.1–6.3"), ("All-source", "Sec. 6.4"), ("LOCO", "Sec. 5, 6.5–6.7, 7")],
+        src=["Source: one group\n(all labelled)", "Source: all groups\nexcept the target", "Source: the other 3 corpora"],
+        tgt=["Target: one group", "Target: one group", "Target: one of AFEW, IEMOCAP (impro.),\nMOSEI, MELD (Sec. 7 adds CREMA-D)"],
+        how=["train on the source + K labels\ntogether (pooled classifier)",
+             "retrain an anchor built from\nall groups on K labels",
+             "average of the 3 source classifiers\nas anchor; retrain on K labels"],
+        clfs=["pooled classifier\ntarget-only (K labels)\nsource-only",
+              "K-label baseline\npseudo-label retraining\n8 methods using unlabelled data",
+              "K-label baseline\npseudo-label retraining"],
+        ks=["K = 1, 5, 10, 25, 50, all", "K = 0, 5, 25", "K = 0, 5, 10, 25"],
+        ask=["which part of the error do other\ncorpora and K labels correct?", "what do pseudo-labels and same-modality\nunlabelled data correct?", "does UAR rise (Q1), why (Q2-c),\nhow to fuse (Q3)?"],
+        note="Schematic of Table 2",
+    ),
+}
+
+
+def fig_three_settings(lang):
+    """Slide-readable version: few words, large type (the figure is shown about 0.85 times its size)."""
+    setup(lang)
+    big = {"ja": dict(
+        cols=[("単一ソース設定", "6.1〜6.3 節"), ("全ソース設定", "6.4 節"), ("LOCO 設定", "5，6.5〜7 節")],
+        src=["ソース：1 つの群", "ソース：ターゲット\n以外の全部の群", "ソース：残る 3 コーパス"],
+        tgt=["ターゲット：1 つの群", "ターゲット：1 つの群", "ターゲット：4 コーパスの 1 つ\n（7 節は CREMA-D も．ソース 4 つ）"],
+        how=["ソースの全発話と K 本を\nまとめて学ぶ", "全部の群のアンカーを\nK 本で学び直す", "3 つのソースの平均を\nアンカーに K 本で学び直す"],
+        clfs=["合併の分類器\nターゲットだけの分類器\nソースだけの分類器", "K 本の基準の分類器\n疑似ラベルで学び直し\n同じモダリティの 8 手法", "K 本の基準の分類器\n疑似ラベルで学び直し"],
+        ks=["K = 1〜全件", "K = 0，5，25", "K = 0，1，5，10，25"],
+        note="模式図．原稿の表 2 を図にした（6.7 節も LOCO 設定の出力を使う）"),
+        "en": dict(
+        cols=[("Single-source", "Sec. 6.1–6.3"), ("All-source", "Sec. 6.4"), ("LOCO", "Sec. 5, 6.5–7")],
+        src=["Source: one group", "Source: all groups\nexcept the target", "Source: the other 3 corpora"],
+        tgt=["Target: one group", "Target: one group", "Target: one of 4 corpora\n(Sec. 7 adds CREMA-D)"],
+        how=["train on source + K labels\ntogether", "retrain the all-group\nanchor on K labels", "anchor = mean of 3 sources;\nretrain on K labels"],
+        clfs=["pooled classifier\ntarget-only\nsource-only", "K-label baseline\npseudo-label retraining\n8 same-modality methods", "K-label baseline\npseudo-label retraining"],
+        ks=["K = 1 to all", "K = 0, 5, 25", "K = 0, 5, 10, 25"],
+        note="Schematic of Table 2")}[lang]
+    H = 69
+    fig, ax = canvas(H)
+    cw = 56
+    fs = FS + 1.6
+    for i in range(3):
+        x = 1 + i * (cw + 2)
+        box(ax, x, 4, cw, H - 5, fc="#FAFAFA", ec="black", lw=0.9)
+        txt(ax, x + 2, H - 3.2, big["cols"][i][0], weight="bold", size=fs + 1.2)
+        txt(ax, x + cw - 2, H - 3.6, big["cols"][i][1], ha="right", size=fs - 2.2, color=GREY)
+        box(ax, x + 2, H - 20, cw - 4, 10, fc="#EDE7F3", ec=C_SRC, lw=0.8, z=2)
+        txt(ax, x + 3.5, H - 11.3, big["src"][i], size=fs, color=C_SRC, ls=1.1)
+        box(ax, x + 2, H - 32, cw - 4, 10, fc="white", ec=C_K, lw=1.0, z=2)
+        txt(ax, x + 3.5, H - 23.3, big["tgt"][i], size=fs, color=C_K, ls=1.1)
+        txt(ax, x + 2, H - 34.3, big["how"][i], size=fs - 0.4, ls=1.1)
+        box(ax, x + 2, H - 56, cw - 4, 13.5, fc="white", ec="black", lw=0.8, z=2)
+        txt(ax, x + 3.5, H - 44.3, big["clfs"][i], size=fs - 0.4, ls=1.15)
+        txt(ax, x + 2, H - 57.5, big["ks"][i], size=fs, weight="bold")
+    txt(ax, W - 1, 0.4, big["note"], ha="right", va="bottom", size=FS - 1.6, color=GREY)
+    save(fig, "fig_three_settings" + ("_ja" if lang == "ja" else ""))
+
+
 if __name__ == "__main__":
     for lang in ("ja", "en"):
         fig_setup(lang)
@@ -575,3 +648,4 @@ if __name__ == "__main__":
         fig_example(lang)
         fig_q1_model(lang)
         fig_product_pl(lang)
+        fig_three_settings(lang)
