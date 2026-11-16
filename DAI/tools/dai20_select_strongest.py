@@ -3,7 +3,7 @@
 動機（研究者との相談，2026-11-16 夜）：論文の問い 2 の比べる相手（実験 20 の A の組）には，「K 本のラベルで最も強い分類器を
 1 つ選び，その分類器の答えだけを使う」相手が無い．AFEW では顔の分類器 1 つの UAR が積より高い K があったので（論文の下書き 7.4 節），
 査読者は「最強の 1 つを選べば済むのでは」と問いうる．この台本は，保存した出力だけでこの相手の UAR を作り，提案（推定時の答え）と比べる．
-第 2 版は台本の検査 checks/dai20_select_strongest/code.md（条件つき OK）を受けて直した：切片のずらしを両者にそろえた層を主にし，
+第 2 版は台本の検査 checks/dai20_select_strongest/code.md（条件つき OK）を受けて直した（第 2 版の再検査 code_v2.md を受けて，ret の raw の判定の照合で float32 の丸めによる同点を一致と数え，感情ごとの出力に件数の列を足した）：切片のずらしを両者にそろえた層を主にし，
 選び方を 2 つ足し，感情ごと・種の部分集合・単位ごとの選びを書き出し，出力の安全の仕組みを足した．
 
 範囲：積を作る声・顔・言葉の分類器（融合の分類器の疑似ラベルで学び直した ret_A，ret_V，ret_T）からの選びに限る．K 本だけで学んだ
@@ -101,6 +101,7 @@ def main() -> None:
     ucommits = set()
     cells, picks, used = {}, [], []
     dev_avg = 0
+    n_argmax_tie = 0
     for T in targets:
         files = sorted(UNITS.glob(f"{T}_ALL_f*_r*.npz"))
         if len(files) != 50:
@@ -129,9 +130,12 @@ def main() -> None:
                 rec = adj(P16.lg(np.mean(Pt, 0)), P16.lg(np.mean(Pp, 0)))
                 dev_avg = max(dev_avg, int((rec != z[f"pred_adj_K{K}_avg"].astype(int)).sum()))
                 raw = {m: z[f"pred_raw_K{K}_ret_{m}"].astype(int) for m in MODS}
-                for j, m in enumerate(MODS):
-                    if not (raw[m] == Pt[j].argmax(1)).all():
+                for j, m in enumerate(MODS):                                   # float32 に丸めた確率で最大と並ぶだけの発話は一致として数え，数を記録する
+                    hit = raw[m] == Pt[j].argmax(1)
+                    tie_ok = Pt[j][np.arange(len(raw[m])), raw[m]] == Pt[j].max(1)
+                    if not (hit | tie_ok).all():
                         raise SystemExit(f"{p.name} K{K}：ret_{m} の raw の判定が確率の argmax と違う")
+                    n_argmax_tie += int((~hit & tie_ok).sum())
                 shifted = {m: adj(P16.lg(Pt[j]), P16.lg(Pp[j])) for j, m in enumerate(MODS)}
                 dk = z[f"D_M_K_K{K}"].astype(float).mean(1)
                 strength = {"sel_K": dk, "sel_ext": z["SR_M_ext"].astype(float).mean(1), "sel_orc": z[f"D_M_orc_K{K}"].astype(float).mean(1)}
@@ -250,7 +254,8 @@ def main() -> None:
                 for i in range(4):
                     r_ = eff(only(dd, i), zero(dd), c, ("E", c, K, v, i)) if full else None
                     emrows.append(dict(c=c, K=K, version=v, emotion=i, recall=(4 * r_["est"] if full else np.nan),
-                                       lo=(4 * r_["lo"] if full else np.nan), hi=(4 * r_["hi"] if full else np.nan)))
+                                       lo=(4 * r_["lo"] if full else np.nan), hi=(4 * r_["hi"] if full else np.nan),
+                                       n_fr=(r_["n_fr"] if full else 0), n_units=len(dd), n=float(sum(x[2][:, i].sum() for x in dd.values()))))
     cm, dt = E.dai1.git_commit()
     tagd = dict(commit=cm, dirty=dt, units_commit=units_commit)
     pd.DataFrame(erows).assign(**tagd).to_csv(out / NAMES[0], index=False)
@@ -262,7 +267,7 @@ def main() -> None:
                 units_sha256_of_names=hashlib.sha256("".join(sorted(p.name + sha16(p) for p in used)).encode()).hexdigest()[:16],
                 inputs={str(x.relative_to(ROOT)): sha16(x) for x in (SUMM / "effects.csv", SUMM / "levels.csv", POST / "strongest_from_k.csv",
                                                                        ROOT / "exp" / "dai20_eval.py")},
-                selfcheck_max_dev=dev, selfcheck_avg_adj_mismatch=dev_avg, main_contrast=list(MAIN))
+                selfcheck_max_dev=dev, selfcheck_avg_adj_mismatch=dev_avg, ret_raw_argmax_float32_ties=n_argmax_tie, main_contrast=list(MAIN))
     (out / NAMES[4]).write_text(json.dumps(prov, ensure_ascii=False, indent=1))
     print(f"書いた：{out}（{', '.join(NAMES)}）", flush=True)
 
