@@ -324,7 +324,7 @@ def fig1():
     ax.plot(*zip(*prev), color=GREY, lw=0.9, ls=(0, (4, 2)), zorder=2)
     arrow(ax, (xr, 35.5), (xr, py), color=GREY, lw=0.9, ls=(0, (4, 2)), head=7)
     ax.text(89.0, 33.2,
-            wrap("Previous: product of the classifiers’ probabilities / "
+            wrap("Compared with: product of the classifiers’ probabilities / "
                  "pseudo-labels from one modality", 70),
             ha="center", va="top", fontsize=FS, color=GREY, linespacing=1.15)
 

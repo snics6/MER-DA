@@ -640,6 +640,97 @@ def fig_three_settings(lang):
     save(fig, "fig_three_settings" + ("_ja" if lang == "ja" else ""))
 
 
+# ------------------------------------------------------------------ pipeline of the experiments (Ryumina et al. 2025, Fig. 1 style)
+TPL = {
+    "ja": dict(
+        heads=["コーパス（LOCO）", "モダリティの切り出し", "凍結した特徴（発話で平均）", "線形分類器", "ターゲットで学び直す"],
+        corp_note="1 つをターゲット，\n残る 3 つをソースに\nする（4 回）",
+        mods=["声", "顔", "言葉"],
+        cut=["16 kHz の波形\n（先頭 60 秒）", "顔検出（YOLOv8n-face）\n1 秒に 5〜6 枚，最も大きい顔", "書き起こし\n（AFEW は Whisper large-v3）"],
+        enc=["WavLM-large 最終層\n→ 1,024 次元", "ResNet-50 表情モデル\n→ 512 次元", "RoBERTa-base 最終層\n→ 768 次元"],
+        avt="AVT：3 つをつなぐ（2,304 次元）",
+        clf_note="ソースごとに学び，3 つの\n平均をアンカーにする",
+        clfs=["声の分類器", "顔の分類器", "言葉の分類器", "AVT の分類器"],
+        tgt=["K 本の基準の分類器\nアンカーから K 本だけで", "疑似ラベルによる学び直し\nK 本 ＋ 候補の疑似ラベル\n（6 節は積，7 節は提案など）", "テストの発話の UAR\n（話者かクラスタで分ける．50 反復）"],
+        note="実験の流れ（模式図）．CREMA-D（7 節）は声と顔だけで，ソースは 4 コーパス",
+    ),
+    "en": dict(
+        heads=["Corpora (LOCO)", "Modality separation", "Frozen features (utterance mean)", "Linear classifiers", "Retraining on the target"],
+        corp_note="one corpus is the target,\nthe other 3 are sources\n(4 runs)",
+        mods=["Audio", "Visual", "Text"],
+        cut=["16 kHz waveform\n(first 60 s)", "face detection (YOLOv8n-face),\n5–6 frames/s, largest face", "transcript\n(AFEW: Whisper large-v3)"],
+        enc=["WavLM-large last layer\n→ 1,024 dims", "ResNet-50 emotion model\n→ 512 dims", "RoBERTa-base last layer\n→ 768 dims"],
+        avt="AVT: concatenation (2,304 dims)",
+        clf_note="trained per source; the\nmean of the 3 is the anchor",
+        clfs=["Audio classifier", "Visual classifier", "Text classifier", "AVT classifier"],
+        tgt=["K-label baseline\nfrom the anchor on K labels", "Pseudo-label retraining\nK labels + pseudo-labels\n(Sec. 6: product;\nSec. 7: proposed, etc.)", "Test UAR\n(speaker/cluster-disjoint, 50 reps)"],
+        note="Pipeline of the experiments (schematic). CREMA-D (Sec. 7): audio and visual only; 4 source corpora",
+    ),
+}
+
+
+def fig_pipeline(lang):
+    setup(lang)
+    t = TPL[lang]
+    H = 80
+    fig, ax = canvas(H)
+    xs = [1, 27, 63, 103, 136]
+    ws = [24, 34, 38, 31, 37]
+    hcol = ["#EEEEEE", "#FCEFD9", "#E3EEF7", "#ECE6F2", "#FDF0E8"]
+    ecol = ["#777777", "#C98A1B", "#2F6FA6", C_SRC, C_PROP]
+    top = H - 2
+    for x, w, h, fc, ec in zip(xs, ws, t["heads"], hcol, ecol):
+        box(ax, x, 8, w, top - 8, fc=fc, ec=ec, lw=0.9, r=1.2)
+        box(ax, x, top - 6, w, 6, fc=ec, ec=ec, lw=0.9, r=1.0, z=2)
+        txt(ax, x + w / 2, top - 3, h, ha="center", va="center", size=FS - 1.4, color="white", weight="bold")
+    # corpora
+    cs = ["AFEW", "IEMOCAP", "MOSEI", "MELD"]
+    for i, c in enumerate(cs):
+        y = top - 15 - i * 9
+        tgt = i == 0
+        box(ax, xs[0] + 2, y, ws[0] - 4, 7, fc="white" if tgt else "#EDE7F3", ec="black" if tgt else C_SRC, lw=1.2 if tgt else 0.6, z=3)
+        txt(ax, xs[0] + ws[0] / 2, y + 3.5, c, ha="center", va="center", size=FS - 1.2, weight="bold" if tgt else "normal", color="black" if tgt else C_SRC)
+    txt(ax, xs[0] + 2, top - 52, t["corp_note"], size=FS - 1.9, color=GREY, ls=1.1)
+    # rows: audio, visual, text
+    rows_y = [top - 18, top - 33, top - 48]
+    for r, m in enumerate("AVT"):
+        y = rows_y[r]
+        col = MOD[m][0]
+        box(ax, xs[1] + 2, y - 5.5, ws[1] - 4, 11, fc="white", ec=col, lw=1.0, z=3)
+        mark(ax, xs[1] + 4.5, y + 3, m, size=3.4)
+        txt(ax, xs[1] + 7, y + 3, t["mods"][r], va="center", size=FS - 1.0, weight="bold", color=col)
+        txt(ax, xs[1] + 4, y + 0.3, t["cut"][r], size=FS - 2.1, ls=1.1)
+        box(ax, xs[2] + 2, y - 5.5, ws[2] - 4, 11, fc="white", ec=col, lw=1.0, z=3)
+        txt(ax, xs[2] + 4, y + 3.6, t["enc"][r], size=FS - 1.5, ls=1.15)
+        arrow(ax, (xs[0] + ws[0], y), (xs[1] + 2, y), lw=0.6, head=5)
+        arrow(ax, (xs[1] + ws[1] - 2, y), (xs[2] + 2, y), lw=0.7, head=5, color=col)
+        arrow(ax, (xs[2] + ws[2] - 2, y), (xs[3] + 2, y), lw=0.7, head=5, color=col)
+    # AVT concat
+    ya = top - 61
+    box(ax, xs[2] + 2, ya - 3.5, ws[2] - 4, 7, fc="#F5F5F5", ec="black", lw=0.8, z=3)
+    txt(ax, xs[2] + ws[2] / 2, ya, t["avt"], ha="center", va="center", size=FS - 1.6)
+    arrow(ax, (xs[2] + ws[2] - 2, ya), (xs[3] + 2, ya), lw=0.7, head=5)
+    # classifiers
+    for r, (yy, lab) in enumerate(zip(rows_y + [ya], t["clfs"])):
+        col = MOD["AVT"[r]][0] if r < 3 else "black"
+        box(ax, xs[3] + 2, yy - 3.2, ws[3] - 4, 6.4, fc="white", ec=col, lw=1.0, z=3)
+        txt(ax, xs[3] + ws[3] / 2, yy, lab, ha="center", va="center", size=FS - 1.4)
+        ax.plot([xs[3] + ws[3] - 2, xs[3] + ws[3] + 0.6], [yy, yy], color=GREY, lw=0.6, zorder=2)
+    ax.plot([xs[3] + ws[3] + 0.6, xs[3] + ws[3] + 0.6], [ya, rows_y[0]], color=GREY, lw=0.6, zorder=2)
+    arrow(ax, (xs[3] + ws[3] + 0.6, top - 30), (xs[4] + 2, top - 30), lw=1.0, head=6, color=GREY)
+    txt(ax, xs[3] + 2, top - 7.5, t["clf_note"], size=FS - 2.0, color=C_SRC, ls=1.1)
+    # target retraining
+    hs = [11, 15, 10]
+    y = top - 10
+    for i, (lab, h) in enumerate(zip(t["tgt"], hs)):
+        ec = C_K if i == 0 else (C_PROP if i == 1 else "black")
+        box(ax, xs[4] + 2, y - h, ws[4] - 4, h, fc="white", ec=ec, lw=1.0, z=3)
+        txt(ax, xs[4] + 3.5, y - 1.2, lab, size=FS - 1.8, ls=1.15)
+        y -= h + 3
+    txt(ax, W - 1, 1.0, t["note"], ha="right", va="bottom", size=FS - 1.6, color=GREY)
+    save(fig, "fig_pipeline" + ("_ja" if lang == "ja" else ""))
+
+
 if __name__ == "__main__":
     for lang in ("ja", "en"):
         fig_setup(lang)
@@ -649,3 +740,4 @@ if __name__ == "__main__":
         fig_q1_model(lang)
         fig_product_pl(lang)
         fig_three_settings(lang)
+        fig_pipeline(lang)
