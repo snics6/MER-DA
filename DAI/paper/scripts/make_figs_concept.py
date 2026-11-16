@@ -342,9 +342,9 @@ def fig1():
     leader(ax, 123.5, yq - 0.6, py + ph / 2, QCOL["RQ1(b)"])
 
     qtext(ax, 102.5, 59.0, "RQ1(a)", 5,
-          "Which part of the error do they correct?", 44,
-          extra="compared with the K labels, source corpora and unlabelled "
-                "utterances of the same modality")
+          "Which part of the error does each information source correct?", 44,
+          extra="source corpora, K target labels, unlabelled utterances of the "
+                "same modality, pseudo-labels from other modalities")
     save(fig, "fig1_questions")
 
 
