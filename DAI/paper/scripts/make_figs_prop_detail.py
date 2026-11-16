@@ -215,22 +215,21 @@ def fig_table():
             txt(ax, x, y - 3 - 3 * ch - 3.5, note, size=fs - 1.6, color=GREY, va="top", ls=1.2)
 
     # row 1: profile + level -> table -> weights
-    table(2, H - 6, "① 相性 r_src（ソースで測る）", prof, C_SRC, note="行の平均は 0．どの感情が\n得意かの形だけを持つ")
+    table(2, H - 6, "① 感情ごとの形 r（ソースで測る）", prof, C_SRC, note="行の平均は 0")
     txt(ax, 54.5, H - 19, "＋", size=fs + 4, va="center")
     # level column
     x = 58
-    txt(ax, x, H - 2.8, "② 水準 L（K 本で測る）", size=fs - 0.2, weight="bold", color=C_K)
+    txt(ax, x, H - 2.8, "② 強さ L（K 本で）", size=fs - 0.2, weight="bold", color=C_K)
     for r, m in enumerate(mods):
         yy = H - 9 - (r + 1) * 5.2
         txt(ax, x, yy + 2.3, MODN[m], va="center", size=fs - 0.8)
         box(ax, x + 9, yy, 12, 4.6, fc="white", ec="#AAAAAA", lw=0.4, r=0.4)
         txt(ax, x + 15, yy + 2.3, f"{level[m]:.1f}", ha="center", va="center", size=fs - 1.0)
-    txt(ax, x, H - 9 - 3 * 5.2 - 3.5, "K 本を 5 組に分けて交差で\n測り，n0 本ぶん戻す", size=fs - 1.6, color=GREY, va="top", ls=1.2)
     arrow(ax, (82, H - 22), (88, H - 22), lw=0.9, head=7)
     table(89, H - 6, "③ 信頼度の表 D ＝ max(0, L ＋ r)", Dt, "black", fmt="{:.2f}")
     arrow(ax, (142, H - 22), (146, H - 22), lw=0.9, head=7)
     txt(ax, 147, H - 2.8, "④ 重み W", size=fs - 0.2, weight="bold", color=C_PROP)
-    txt(ax, 147, H - 9, "D を 12 個の平均で\n割る．例：\n顔の H " + f"{Wt['V'][1]:.2f}" + "\n声の H " + f"{Wt['A'][1]:.2f}" + "\n言葉の H " + f"{Wt['T'][1]:.2f}",
+    txt(ax, 147, H - 9, "D を 12 個の\n平均で割る\n\n顔の H " + f"{Wt['V'][1]:.2f}" + "\n声の H " + f"{Wt['A'][1]:.2f}" + "\n言葉の H " + f"{Wt['T'][1]:.2f}",
         size=fs - 1.0, va="top", ls=1.3)
     # row 2: one utterance
     y2 = H - 44
@@ -247,11 +246,11 @@ def fig_table():
     txt(ax, 116, y2 - 11, "→ " + EMO[int(np.argmax(s))], size=fs, weight="bold", color=C_PROP)
     txt(ax, 116, y2 - 16.5, "→ " + EMO[int(np.argmax(s_eq))], size=fs, color=GREY)
     txt(ax, 56, y2 - 16.5, "同じ重み", size=fs - 1.0, color=GREY)
-    txt(ax, 56, y2 - 21, "同じ重みで足すと，積と同じ答えになる（積は対数\n確率を足すことにあたる）．声と言葉が N を推すので\n積は N と答える．提案は強い顔の H を重く数え，\nH と答える",
+    txt(ax, 56, y2 - 21, "同じ重み（積と同じ答え）は声と言葉に引かれて N．\n提案は強い顔の H を重く数えて H",
         size=fs - 1.3, color="#333333", va="top", ls=1.3)
-    box(ax, 126, y2 - 40, 46, 47, fc="#FDF0E8", ec=C_PROP, lw=1.0)
+    box(ax, 126, y2 - 26, 46, 33, fc="#FDF0E8", ec=C_PROP, lw=1.0)
     txt(ax, 128, y2 + 4.5, "⑦ 切片をずらして疑似ラベルに", size=fs - 0.2, weight="bold", color=C_PROP, va="top")
-    txt(ax, 128, y2 - 1.5, "重みが感情ごとに違うと，答え\nが特定の感情に寄る．ラベル\nを使わずに，候補の全体で\nsoftmax(s ＋ c) の平均が積の\n確率の平均と等しくなる c を\n求める．\n\nq ＝ softmax(s ＋ c) を候補に\n付けて疑似ラベル（soft label）\nにし，AVT の分類器を 4.4 節\nと同じ損失で学び直す",
+    txt(ax, 128, y2 - 1.5, "答えが 1 つの感情に寄らない\nように，ラベルを使わずに\n切片 c をずらす\n\nq ＝ softmax(s ＋ c) を\n候補に付けて疑似ラベルにし，\nAVT を学び直す",
         size=fs - 1.2, va="top", ls=1.3)
     txt(ax, W - 1, 0.2, "表と点の値は説明のための例で，実験の値ではない．N：Neutral，H：Happy，S：Sad，A：Angry", ha="right", va="bottom",
         size=FS - 1.6, color=GREY)
