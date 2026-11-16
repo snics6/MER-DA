@@ -4,6 +4,7 @@
 %%  第 2 版の依頼（2026-11-16 午後）：実験設定と提案と比べる相手が直観的に分かる石井・岡田型の図を足す．
 %%  第 3 版の依頼（2026-11-16 夕方）：「文章全体を石井岡田メソッドで修正．今２ページのスライドを２枚に分けて図を用いて直感的に説明．
 %%  あと，素朴なやりかた，とかの日本語はいらない．実験設定，提案手法，比較手法とかを図で伝えよう．」
+%%  第 9 版（2026-11-16 夜．研究者「問いだけを３つ先に説明ーー＞問いの設定ーー＞問いの答え　の順に」）：序論の問いのページを 3 つの問いだけにし（答えを外した），問いごとに「設定 → 答え」の順に並べ，題に「問い X の設定（n）」「問い X の答え（n）」を付けた．実験の流れと疑似ラベルの作り方は問い 1(b) の設定に入れ，貢献のページは補足に移した．
 %%  第 8 版（2026-11-16 夜．研究者「設定は対応する実験の直前で説明」「5.x の結果は表で」「当たる幅と逆再生のページは新しい図で」「疑似ラベルの学び方も流れの図に」）：設定のページを 3 つに分けて各実験の直前に置き，疑似ラベルの流れの図，5.1〜5.4 の表，当たる幅の図 2 枚，D と逆再生の図 2 枚を足した．
 %%  第 7 版（2026-11-16 夜．研究者「資料の PDF ももっとわかりやすく．ポイントは絞っていいかも」）：本編を約 20 枚に絞り，ほかは補足に回した．原稿の 2 回目の付け替え（6.6 節を削り 6.7→6.6，図 2 に流れの図，表 15 を削った）に合わせた．
 %%  第 5 版（2026-11-16 夜．研究者「Q1,Q2 をまとめて，そこの解析，という問いと貢献にまとめられる？」→「よい」）：原稿の組み替え（問い 1（解析）＝ 5・6 節，問い 2（手法）＝ 7 節．番号の対応は DAI/paper/notes/番号の対応_2026-11-16.md）に合わせた．
@@ -32,7 +33,7 @@
 \subtitle{半教師ありのドメイン適応の情報源は誤りのどの部分を直すか．ほかのモダリティの疑似ラベルはいつ UAR を上げ，どう作るとよいか}
 \author{杉浦 伸一}
 \institute{北陸先端科学技術大学院大学}
-\date{2026年11月16日　共同研究者への説明（論文の日本語の下書きに基づく．第 7 版．本編を絞った版）}
+\date{2026年11月16日　共同研究者への説明（論文の日本語の下書きに基づく．第 9 版．問い → 設定 → 答えの順）}
 
 \begin{document}
 \maketitle
@@ -51,48 +52,21 @@
 \fnote{UAR：感情ごとの正解率の平均（4 感情ででたらめに答えると 25）．出所：原稿 1 節．}
 \end{frame}
 
-\begin{frame}{1 序論：本研究の 2 つの問い}
+\begin{frame}{1 序論：本研究の 3 つの問い}
 \footnotesize
-分類器の誤りを，答えが一部の感情に偏る部分（\key{答えの偏り}）と，それを除いても残る部分（\key{残りの誤り}）に分けて問う．
-\begin{itemize}\setlength\itemsep{5pt}
-\item \textbf{問い 1(a)（解析．5 節）}：4 つの情報源（ソース，K 本，ラベル無しの発話，ほかのモダリティを含む分類器の疑似ラベル）は，それぞれ答えの偏りと残りの誤りのどちらを直すのか．
-\item \textbf{問い 1(b)（解析．6 節）}：疑似ラベルによる学び直しで，声・顔・言葉の分類器と AVT の UAR は上がるか．上がるのはどの分類器で，どんな場合か．
-\item \textbf{問い 2（手法．7 節）}：疑似ラベルを作るために，声・顔・言葉の分類器の答えをどうまとめればよいか．
-\end{itemize}
-\vspace{0.4em}
-\takeaway{なぜ疑似ラベルを扱うのか：問い 1(a) で，全ソース設定で残りの誤りを減らした情報源が，ほかのモダリティを含む分類器の疑似ラベルだったから．問い 1(b) と問い 2 はこの疑似ラベルを扱う．}
+分類器の誤りを，答えが一部の感情に偏る部分（\key{答えの偏り}）と，それを除いても残る部分（\key{残りの誤り}）に分けて問う．\key{疑似ラベル}は，ある分類器の予測をラベル無しの発話に付けた仮の正解である．\par\medskip
+\qbox{qOne}{\textbf{問い 1(a)（解析．原稿 5 節）}　4 つの情報源（ソースのラベル付きの発話，ターゲットの K 本のラベル，ターゲットのラベル無しの発話，ほかのモダリティを含む分類器の疑似ラベル）は，それぞれ答えの偏りと残りの誤りのどちらを直すのか．}
+\qbox{qTwo}{\textbf{問い 1(b)（解析．原稿 6 節）}　ほかのモダリティを含む分類器の疑似ラベルで学び直すと，声・顔・言葉の分類器と，3 つの特徴をつないだ分類器（AVT）の UAR は上がるか．上がるのはどの分類器で，どんな場合か．}
+\qbox{qThree}{\textbf{問い 2（手法．原稿 7 節）}　疑似ラベルを作るために，声・顔・言葉の分類器の答えをどうまとめればよいか．}
+\vspace{0.3em}
+次のページからは，問いごとに，設定を説明してから答えを示す．
 \fnote{出所：原稿 1 節．}
-\end{frame}
-
-\begin{frame}{1 序論：本研究の貢献（3 つ）}
-\footnotesize
-\textbf{アンカー}：3 つのソースの分類器の重みと切片の平均．\textbf{K 本の基準の分類器}：アンカーから K 本だけで学び直した分類器．
-\begin{enumerate}\setlength\itemsep{5pt}
-\item \textbf{問い 1(a)（5 節）}：単一ソース設定の声と顔の特徴では，ターゲットの K 本とラベル無しの特徴の平均の引き算は主に答えの偏りを直した．全ソース設定では，偏りを除いても残る誤りは，同じモダリティのラベル無しの発話ではほとんど減らず，ほかのモダリティを含む分類器の疑似ラベルで減った（減らした条件：疑似ラベル 81 のうち 38，同じモダリティの 8 手法 210 のうち 7）．
-\item \textbf{問い 1(b)（6 節）}：疑似ラベルによる学び直しで UAR が上がった（区間の下端 > 0）のは，疑似ラベルの判定が学び直す前の分類器（K 本の基準の分類器）より当たる場合に限られた（当たる幅と gain の順位相関は K = 5 で 0.80，K = 25 で 0.83）．声の分類器は 12 条件すべてで K 本の基準より高かった（1.4〜4.1 点．点推定）．
-\item \textbf{問い 2（7 節）}：感情ごとの信頼度で声・顔・言葉の答えをまとめる late fusion を提案した．強さは K 本で，感情ごとの形はソースで測る．まとめた答えの UAR は積を 12 条件のうち 11 で上回り，AFEW では 2.1〜3.5 点高かった．
-\end{enumerate}
-\fnote{出所：原稿 1 節の貢献．}
-\end{frame}
-
-%% =====================================================================
-\section{実験の設定}
-
-\begin{frame}{実験の流れ（原稿の図 2）：4 コーパスを 1 つずつターゲットにする}
-\makebox[\linewidth]{\includegraphics[width=1.04\linewidth,height=0.82\textheight,keepaspectratio]{figures/fig_pipeline_ja.pdf}}
-\fnote{出所：原稿 3.3 節，4.3〜4.4 節．}
-\end{frame}
-
-\begin{frame}{4.4 疑似ラベルの作り方：3 つの分類器の確率を掛けて仮の正解にする}
-\centering
-\makebox[\linewidth]{\includegraphics[width=1.04\linewidth,height=0.66\textheight,keepaspectratio]{figures/fig_pl_flow_ja.pdf}}
-\fnote{6 節はこの積 q で学び直す．7 節の提案は ④ を，感情ごとの信頼度で重みづけたまとめ方に替える．5.4 節（全ソース設定）は出所を条件ごとに選んだ（102 の選択のうち 95 が積）．出所：原稿 4.4 節，5.4 節．}
 \end{frame}
 
 %% =====================================================================
 \section{問い 1(a)：4 つの情報源は誤りのどの部分を直すか}
 
-\begin{frame}{5.1〜5.3 節の設定：単一ソース設定}
+\begin{frame}{問い 1(a) の設定（1）：単一ソース設定（原稿 5.1〜5.3 節）}
 \centering
 \includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_single_ja.pdf}
 \par\raggedright\scriptsize
@@ -104,7 +78,20 @@
 \fnote{出所：原稿 4.3 節（表 2，表 3），5.1〜5.3 節．}
 \end{frame}
 
-\begin{frame}{問い 1(a)（1）：声と顔では，K 本の得た分の大部分が切片の直しで得られた}
+\begin{frame}{問い 1(a) の設定（2）：全ソース設定（原稿 5.4 節）}
+\centering
+\includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_all_ja.pdf}
+\par\raggedright\scriptsize
+\begin{itemize}\setlength\itemsep{2pt}
+\item \key{K 本の基準の分類器}：ソースから作った分類器（\key{アンカー}．全ソース設定ではターゲット以外の全群から作る）から，ターゲットの K 本だけで学び直した分類器．疑似ラベルは使わない．
+\item 偏りを除いても残る誤りの大きさ（\key{向きの損}．4.2 節）を，K 本の基準の分類器と各手法で測り，手法が減らしたかを数える．
+\item \textbf{疑似ラベルによる学び直し}：声・顔・言葉の組（3 コーパス）と声・顔の組（5 コーパス）の各分類器，K = 0，5，25 の 81 条件．
+\item \textbf{同じモダリティのラベル無しの発話を使う 8 手法}：エントロピー最小化，自己学習，IM，T3A，ラベル伝播，CORAL，DANN，MME（単一のモダリティ，K = 0，5）の 210 条件．
+\end{itemize}
+\fnote{2 つの数は条件の集合が違うので，同じ条件の比べではない．出所：原稿 4.3 節（表 2），5.4 節．}
+\end{frame}
+
+\begin{frame}{問い 1(a) の答え（1）：声と顔では，K 本の得た分の大部分が切片の直しで得られた}
 \footnotesize
 5.1：合併 − ターゲットだけの gain は，K = 1 で 8 種類の特徴すべてで正（顔の 6.9 点〜AV の 13.4 点）で，ターゲットの学習用のラベルを全部使うと 8 種類すべてで負（$-$2.1〜$-$4.8 点）だった．\par\medskip
 \textbf{5.2　単一ソース設定，K = 5．UAR の差（点）と比}\par\smallskip
@@ -123,7 +110,7 @@
 \fnote{切片だけの直し ÷ 合併は，組ごとの差（− ソースだけの分類器）の和の比．言葉を含む特徴の値は補足（5.2・5.3）．出所：原稿 5.1〜5.2 節，図 4・5 の数値（paper/figures/data/fig4\_mixing\_gain.csv，fig5\_bias\_and\_direction.csv）．}
 \end{frame}
 
-\begin{frame}{問い 1(a)（2）：声と言葉では，残りの誤りは K 本でゆっくりしか直らなかった}
+\begin{frame}{問い 1(a) の答え（2）：声と言葉では，残りの誤りは K 本でゆっくりしか直らなかった}
 \footnotesize
 \textbf{5.3　単一ソース設定．ターゲットだけの分類器の向きの良さ $d_T/D$}（大きいほど残りの誤りが小さい）\par\smallskip
 {\centering\scriptsize
@@ -142,19 +129,7 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{出所：原稿 5.3 節，図 5(b) の数値（paper/figures/data/fig5\_bias\_and\_direction.csv．K = 25 は式の当てはめに使っていない点）．}
 \end{frame}
 
-\begin{frame}{5.4 節の設定：全ソース設定}
-\centering
-\includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_all_ja.pdf}
-\par\raggedright\scriptsize
-\begin{itemize}\setlength\itemsep{2pt}
-\item 偏りを除いても残る誤りの大きさ（\key{向きの損}．4.2 節）を，K 本の基準の分類器と各手法で測り，手法が減らしたかを数える．
-\item \textbf{疑似ラベルによる学び直し}：声・顔・言葉の組（3 コーパス）と声・顔の組（5 コーパス）の各分類器，K = 0，5，25 の 81 条件．
-\item \textbf{同じモダリティのラベル無しの発話を使う 8 手法}：エントロピー最小化，自己学習，IM，T3A，ラベル伝播，CORAL，DANN，MME（単一のモダリティ，K = 0，5）の 210 条件．
-\end{itemize}
-\fnote{2 つの数は条件の集合が違うので，同じ条件の比べではない．出所：原稿 4.3 節（表 2），5.4 節．}
-\end{frame}
-
-\begin{frame}{問い 1(a)（3）：疑似ラベルは残りの誤りを 81 条件のうち 38 で減らした}
+\begin{frame}{問い 1(a) の答え（3）：疑似ラベルは残りの誤りを 81 条件のうち 38 で減らした}
 \scriptsize
 {\centering\tiny
 \begin{tabular}{@{}llccc@{}}
@@ -182,19 +157,31 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 %% =====================================================================
 \section{問い 1(b)：疑似ラベルでどの分類器の UAR が，どんな場合に上がるか}
 
-\begin{frame}{6・7 節の設定：LOCO 設定}
+\begin{frame}{問い 1(b) の設定（1）：LOCO 設定（原稿 6・7 節）}
 \centering
 \includegraphics[width=0.92\linewidth,height=0.34\textheight,keepaspectratio]{figures/fig_setting_loco_ja.pdf}
 \par\raggedright\scriptsize
 \begin{itemize}\setlength\itemsep{2pt}
 \item AFEW，IEMOCAP（即興の部），MOSEI，MELD を 1 つずつターゲットにし，残る 3 つをソースにする（7 節は CREMA-D もターゲットにし，ソースは 4 コーパス）．
+\item LOCO 設定のアンカーは 3 つのソースの分類器の重みと切片の平均で，K 本の基準の分類器はアンカーから K 本だけで学び直す（K = 0 ではアンカーそのもの）．
 \item \textbf{gain} ＝ 疑似ラベルによる学び直し − K 本の基準の分類器（テストの発話の UAR の差）．K = 0，5，10，25．K = 5，10，25 は 5 分割 × K 本の抜き方 10 種の 50 反復，K = 0 は 5 分割の 5 反復の平均．
 \item ハイパーパラメータは，評価のターゲット以外の 3 コーパスを 1 つずつ仮のターゲットにした計算で選んで固定し，評価のターゲットでは 1 回だけ計算した．
 \end{itemize}
 \fnote{出所：原稿 4.3 節（表 2），4.4 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b)（1）：声の分類器は 12 条件すべてで基準より高かった（点推定）}
+\begin{frame}{問い 1(b) の設定（2）：実験の流れ（原稿の図 2）}
+\makebox[\linewidth]{\includegraphics[width=1.04\linewidth,height=0.82\textheight,keepaspectratio]{figures/fig_pipeline_ja.pdf}}
+\fnote{出所：原稿 3.3 節，4.3〜4.4 節．}
+\end{frame}
+
+\begin{frame}{問い 1(b) の設定（3）：疑似ラベルの作り方（原稿 4.4 節）}
+\centering
+\makebox[\linewidth]{\includegraphics[width=1.04\linewidth,height=0.66\textheight,keepaspectratio]{figures/fig_pl_flow_ja.pdf}}
+\fnote{6 節はこの積 q で学び直す．7 節の提案は ④ を，感情ごとの信頼度で重みづけたまとめ方に替える．5.4 節（全ソース設定）は出所を条件ごとに選んだ（102 の選択のうち 95 が積）．出所：原稿 4.4 節，5.4 節．}
+\end{frame}
+
+\begin{frame}{問い 1(b) の答え（1）：声の分類器は 12 条件すべてで基準より高かった（点推定）}
 \centering
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{figures/fig_q1_grid_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -203,7 +190,7 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{出所：原稿 6.1〜6.2 節（表 7），8.1 節．図の値は原稿の表 7 と同じ結果ファイル（results/dai1/stats/）．}
 \end{frame}
 
-\begin{frame}{問い 1(b)（2）：当たる幅は，疑似ラベルが何点多く当たるか}
+\begin{frame}{問い 1(b) の答え（2）：疑似ラベルが当たる例では上がり，当たらない例では下がった}
 \centering
 \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{figures/fig_margin_def_ja.pdf}
 \par\raggedright\scriptsize
@@ -211,7 +198,7 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{出所：原稿 6.6 節，図 8 の数値（paper/figures/data/fig10\_teacher\_margin.csv）．}
 \end{frame}
 
-\begin{frame}{問い 1(b)（3）：上がった点はすべて疑似ラベルのほうが当たる側にあった}
+\begin{frame}{問い 1(b) の答え（3）：上がった点はすべて疑似ラベルのほうが当たる側にあった}
 \centering
 \includegraphics[width=\linewidth,height=0.56\textheight,keepaspectratio]{figures/fig_margin_counts_ja.pdf}
 \par\raggedright\scriptsize
@@ -219,7 +206,7 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{計算の後に組んだ記述の解析で，数えと順位相関は検定ではない（点どうしは候補とテストの発話を共有する）．AVT を AVT 自身の予測で学び直す点などは除いた．除いた K = 25 の MOSEI の AVT の 1 点は，当たる幅が作りの上で 0 で，gain は +0.30 [+0.07, +0.54] だった．散布図は補足（原稿の図 8）．出所：原稿 6.6 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b)（4）：声の特徴は，AFEW を除く 3 コーパスで言葉の分類器の判定を顔より良く再現した}
+\begin{frame}{問い 1(b) の答え（4）：AFEW を除く 3 コーパスで，声は言葉の判定を顔より良く再現した}
 \centering
 \includegraphics[width=\linewidth,height=0.55\textheight,keepaspectratio]{figures/fig_D_def_ja.pdf}
 \par\raggedright\scriptsize
@@ -227,7 +214,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{K = 5，R1 の読み出し．数えの規則は計算の前に固定した．棒の値は実験 23 の結果ファイル（results/dai23/summary/main.csv）．出所：原稿 6.5 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b)（5）：逆再生で言葉を聞き取れなくしても，再現は一部が残った}
+\begin{frame}{問い 1(b) の答え（5）：逆再生で言葉を聞き取れなくしても，再現は一部が残った}
 \centering
 \includegraphics[width=\linewidth,height=0.46\textheight,keepaspectratio]{figures/fig_reverse_ja.pdf}
 \par\raggedright\scriptsize
@@ -239,7 +226,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 %% =====================================================================
 \section{問い 2：答えをどうまとめるか}
 
-\begin{frame}{7 問い 2：3 つの分類器の答えをどうまとめるか}
+\begin{frame}{問い 2 の設定（1）：3 つの分類器の答えのまとめ方で疑似ラベルが変わる}
 \centering
 \includegraphics[width=\linewidth,height=0.52\textheight,keepaspectratio]{figures/fig_fusion_example_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -247,7 +234,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{顔・声・言葉と積の UAR は原稿 7.4 節にある．「17.5〜18.6」という範囲と積 − 顔の差の形は原稿に無く，結果の文（提案が効くコーパスの型）第 3 版の要点 19 から写した．図の確率は説明のための例で，重みは原稿 7.4 節の AFEW の K = 10 の提案の重み（4 感情の平均）．}
 \end{frame}
 
-\begin{frame}{7.2 手法：感情ごとの信頼度による late fusion}
+\begin{frame}{問い 2 の設定（2）：提案手法は感情ごとの信頼度による late fusion（原稿 7.2 節）}
 \centering
 \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/fig_method_flow_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -255,7 +242,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{出所：原稿 7.2 節．ハイパーパラメータ（強さを戻す本数 n0 と戻し先，形を使うか β）は，ターゲット以外のコーパスを仮のターゲットにした計算で選んだ（7.3 節）．}
 \end{frame}
 
-\begin{frame}{7.3 比べる相手 F1〜F10：重みをどこから決めるかが違う}
+\begin{frame}{問い 2 の設定（3）：比べる相手 F1〜F10（原稿 7.3 節）}
 \centering
 \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{figures/fig_fusion_glyphs_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -263,7 +250,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{出所：原稿 7.3 節の表 11．F1〜F10 は表 11 の順に付けた番号．}
 \end{frame}
 
-\begin{frame}{7.4 結果（1）：提案は積を 12 条件のうち 11 で上回った（点推定）}
+\begin{frame}{問い 2 の答え（1）：提案は積を 12 条件のうち 11 で上回った（点推定）}
 \centering
 \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/fig_q3_prop_vs_prod_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -271,7 +258,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{出所：原稿 7.4 節（表 12），結果の文（提案が効くコーパスの型）第 3 版の要点 19．まとめた答えで学び直した AVT どうしでも，AFEW では提案が積より +1.01，+1.95，+1.21 点高かった（区間の下端 > 0）．}
 \end{frame}
 
-\begin{frame}{7.4 結果（2）：ほかの方法との比べ（原稿の表 12 を図にした）}
+\begin{frame}{問い 2 の答え（2）：ほかの方法との比べ（原稿の表 12 を図にした）}
 \centering
 \includegraphics[width=\linewidth,height=0.64\textheight,keepaspectratio]{figures/fig_q3_grid_typed_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -282,7 +269,18 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 %% =====================================================================
 \section{まとめ}
 
-\begin{frame}{8.3 新しいコーパスでの手間の回し方}
+\begin{frame}{まとめ：3 つの問いへの答え（原稿 10 節）}
+\footnotesize
+\begin{itemize}\setlength\itemsep{6pt}
+\item \textbf{問い 1(a)}：単一ソース設定の声と顔の特徴では，答えの偏りはターゲットの K 本とラベル無しの特徴の平均の引き算で主に直った．全ソース設定では，偏りを除いても残る誤りは，同じモダリティのラベル無しの発話を使う 8 手法ではほとんど減らず，ほかのモダリティを含む分類器の疑似ラベルで減った．
+\item \textbf{問い 1(b)}：疑似ラベル（積）で学び直すと，声の分類器の UAR は 12 条件すべてで K 本の基準より高かった（+1.4〜+4.1 点．点推定）．顔・言葉・AVT で区間の下端が 0 を超えたのは一部のコーパスだった．UAR が上がった（区間の下端 > 0）のは，疑似ラベルの判定が学び直す前の分類器より当たる場合に限られた．声の特徴は，AFEW を除く 3 コーパスで言葉の分類器の判断を顔の特徴より良く再現した．
+\item \textbf{問い 2}：強さを K 本で，感情ごとの形をソースで測ってまとめる方法（提案）は，積を 12 条件のうち 11 で点推定で上回り，15 条件のどれでも区間で下回らなかった．差は 1 つのモダリティが飛び抜けて強い AFEW で最も大きかった（+2.1〜+3.5 点）．
+\end{itemize}
+\vspace{0.5em}
+\takeaway{これらの結果は，新しいコーパスでは，ラベル無しのマルチモーダルの録画を集めて疑似ラベルで学び直し，数本のラベルを各分類器の強さを測るのに使うことを示唆する．}
+\end{frame}
+
+\begin{frame}{まとめ：新しいコーパスでの手間の回し方（原稿 8.3 節）}
 \footnotesize
 \begin{enumerate}\setlength\itemsep{5pt}
 \item \textbf{ラベル無しのマルチモーダルの録画を集め，疑似ラベルで学び直す．}声の分類器は，ラベル無しの発話と疑似ラベルだけ（K = 0）でも，感情ごとに 5 本と 10 本のラベルで学び直した基準を 4 コーパスすべてで上回った．
@@ -294,18 +292,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{出所：原稿 8.3 節，7.7 節．}
 \end{frame}
 
-\begin{frame}{10 結論}
-\footnotesize
-\begin{itemize}\setlength\itemsep{6pt}
-\item \textbf{問い 1(a)}：単一ソース設定の声と顔の特徴では，答えの偏りはターゲットの K 本とラベル無しの特徴の平均の引き算で主に直った．全ソース設定では，偏りを除いても残る誤りは，同じモダリティのラベル無しの発話を使う 8 手法ではほとんど減らず，ほかのモダリティを含む分類器の疑似ラベルで減った．
-\item \textbf{問い 1(b)}：疑似ラベル（積）で学び直すと，声の分類器の UAR は 12 条件すべてで K 本の基準より高かった（+1.4〜+4.1 点．点推定）．顔・言葉・AVT で区間の下端が 0 を超えたのは一部のコーパスだった．UAR が上がったのは，疑似ラベルのほうが当たり，その判断を学び直す分類器の特徴で再現できるときだった．声の特徴は言葉の分類器の判断を顔の特徴より良く再現した．
-\item \textbf{問い 2}：強さを K 本で，感情ごとの形をソースで測ってまとめる方法（提案）は，積を 12 条件のうち 11 で点推定で上回り，15 条件のどれでも区間で下回らなかった．差は 1 つのモダリティが飛び抜けて強い AFEW で最も大きかった（+2.1〜+3.5 点）．
-\end{itemize}
-\vspace{0.5em}
-\takeaway{これらの結果は，新しいコーパスでは，ラベル無しのマルチモーダルの録画を集めて疑似ラベルで学び直し，数本のラベルを各分類器の強さを測るのに使うことを示唆する．}
-\end{frame}
-
-\begin{frame}{9 限界}
+\begin{frame}{まとめ：限界（原稿 9 節）}
 \footnotesize
 \begin{itemize}\setlength\itemsep{4pt}
 \item \textbf{範囲}：4 つの英語のコーパス（問い 2 は CREMA-D を加えた 5 つ）と，声・顔・言葉に 1 つずつのエンコーダで調べた．
@@ -324,6 +311,17 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 
 \begin{frame}{補足}
 \centering\large 以下は，原稿の節の順の詳しいページである．
+\end{frame}
+
+\begin{frame}{補足：本研究の貢献（原稿 1 節）}
+\footnotesize
+\textbf{アンカー}：3 つのソースの分類器の重みと切片の平均．\textbf{K 本の基準の分類器}：アンカーから K 本だけで学び直した分類器．
+\begin{enumerate}\setlength\itemsep{5pt}
+\item \textbf{問い 1(a)（5 節）}：単一ソース設定の声と顔の特徴では，ターゲットの K 本とラベル無しの特徴の平均の引き算は主に答えの偏りを直した．全ソース設定では，偏りを除いても残る誤りは，同じモダリティのラベル無しの発話ではほとんど減らず，ほかのモダリティを含む分類器の疑似ラベルで減った（減らした条件：疑似ラベル 81 のうち 38，同じモダリティの 8 手法 210 のうち 7）．
+\item \textbf{問い 1(b)（6 節）}：疑似ラベルによる学び直しで UAR が上がった（区間の下端 > 0）のは，疑似ラベルの判定が学び直す前の分類器（K 本の基準の分類器）より当たる場合に限られた（当たる幅と gain の順位相関は K = 5 で 0.80，K = 25 で 0.83）．声の分類器は 12 条件すべてで K 本の基準より高かった（1.4〜4.1 点．点推定）．
+\item \textbf{問い 2（7 節）}：感情ごとの信頼度で声・顔・言葉の答えをまとめる late fusion を提案した．強さは K 本で，感情ごとの形はソースで測る．まとめた答えの UAR は積を 12 条件のうち 11 で上回り，AFEW では 2.1〜3.5 点高かった．
+\end{enumerate}
+\fnote{出所：原稿 1 節の貢献．}
 \end{frame}
 
 \begin{frame}{1 序論：問いごとの調べ方（原稿の図 1 にあたる図）}
