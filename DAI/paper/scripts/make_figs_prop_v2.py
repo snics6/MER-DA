@@ -211,7 +211,7 @@ def fig_calc():
     ax.plot([8.5, 37.5], [9 + m * 7.0] * 2, color=C_K, lw=1.2, ls="--")
     txt(ax, 39, 9 + m * 7.0, f"平均 ＝ 強さ {m:.2f}", va="center", size=fs - 0.6, color=C_K, weight="bold")
     txt(ax, 40, 18.5, "意味：このターゲットで，\n顔の分類器が感情全体を\nどれだけよく見分けるか", size=fs - 1.6, va="top", ls=1.3)
-    txt(ax, 40, 8.5, "K 本が少ないとぶれるので，\n既定の強さを混ぜる（次のページ）", size=fs - 1.8, va="top", ls=1.3, color=GREY)
+    txt(ax, 40, 8.5, "K 本が少ないとぶれるので，\nn0 本ぶん既定の値に寄せる", size=fs - 1.8, va="top", ls=1.3, color=GREY)
     # right: shape from sources
     box(ax, 90, 2, 82, H - 4, fc="#F8F4FA", ec=C_SRC, lw=1.1)
     txt(ax, 92, H - 4.5, "② 感情ごとの形：ソースのコーパスで計算（K 本は使わない）", size=fs - 0.2, weight="bold", color=C_SRC, va="top")

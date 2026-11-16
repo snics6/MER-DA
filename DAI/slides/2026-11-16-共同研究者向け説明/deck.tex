@@ -348,38 +348,13 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{強さは K 本を 5 組に分けた交差の答えから求める（式 (7.4) の $L^K$）．形はソースの中の交差検証の信頼度の平均に η を掛けて平均を引く（式 (7.3)）．出所：原稿 7.2 節．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（6）：K 本で測った強さに，既定の強さを混ぜる（n0）}
-\scriptsize
-K 本が少ないと，K 本で測った強さはぶれる．そこで，既定の強さを混ぜた値を使う（原稿 7.2 節の式 (7.4)）．\par
-{\centering
-\fbox{\parbox{0.86\linewidth}{\centering
-使う強さ ＝ $\dfrac{(\text{K 本の数}) \times (\text{K 本で測った強さ}) + n_0 \times (\text{既定の強さ})}{(\text{K 本の数}) + n_0}$}}\par}
-\smallskip
-\begin{itemize}\setlength\itemsep{0pt}
-\item K 本の数 ＝ 4 感情 × K 本（K = 5 なら 20 本）．\key{n0}：既定の強さを「ラベル何本ぶん」として数えるか．大きいほど既定の強さに近づく．
-\item \key{既定の強さ}：3 つの分類器の強さの平均か，ソースで測った強さ．どちらを使うかも練習で選ぶ．
-\end{itemize}
-{\centering\scriptsize
-\begin{tabular}{@{}lll@{}}
-\toprule
-n0（K = 5，K 本は 20 本の例） & 使う強さ & 意味 \\
-\midrule
-0 & K 本で測った強さそのもの & K 本だけを信じる \\
-20 & K 本の値と既定の値の半々 & 半分だけ信じる \\
-80 & K 本の値 1 に対し既定の値 4 & 少しだけ信じる \\
-∞ & 既定の値だけ & K 本を使わない（既定が平均なら 3 つが同じ強さ） \\
-\bottomrule
-\end{tabular}\par}
-\takeaway{n0 は 0，20，80，∞ から，ソースでの練習（次のページ）で選んだ．12 条件のうち 8 で 0，4 で 20 が選ばれた．}
-\end{frame}
-
-\begin{frame}{問い 2 の設定（7）：ソースで使い方を練習する（メタ学習に近い手順）}
+\begin{frame}{問い 2 の設定（6）：ソースで使い方を練習する（メタ学習に近い手順）}
 \centering
 \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{figures/fig_prop_episode_ja.pdf}
 \fnote{練習の 30 反復 ＝ 3 コーパス × 5 分割 × 種 2．選ばれた設定はどの条件でも「形を使う」（β = 1）で，n0 は 12 条件のうち 8 で 0．出所：原稿 7.2〜7.3 節．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（8）：提案手法の全体（原稿 7.2 節）}
+\begin{frame}{問い 2 の設定（7）：提案手法の全体（原稿 7.2 節）}
 \centering
 \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/fig_method_flow_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
@@ -388,13 +363,13 @@ n0（K = 5，K 本は 20 本の例） & 使う強さ & 意味 \\
 \end{frame}
 
 
-\begin{frame}{問い 2 の設定（9）：表から疑似ラベルを作る（数値の例）}
+\begin{frame}{問い 2 の設定（8）：表から疑似ラベルを作る（数値の例）}
 \centering
 \includegraphics[width=\linewidth,height=0.74\textheight,keepaspectratio]{figures/fig_prop_table_ja.pdf}
 \fnote{出所：原稿 7.2 節の式 (7.4)〜(7.6)．β（相性を使うか）は仮のターゲットの回で選び，12 条件すべてで「使う」が選ばれた．}
 \end{frame}
 
-\begin{frame}{問い 2 の設定（10）：比べる相手 F1〜F10（原稿 7.3 節）}
+\begin{frame}{問い 2 の設定（9）：比べる相手 F1〜F10（原稿 7.3 節）}
 \centering
 \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{figures/fig_fusion_glyphs_ja.pdf}
 \par\vspace{0.1em}\scriptsize\raggedright
