@@ -604,15 +604,15 @@ def fig_three_settings(lang):
     """Slide-readable version: few words, large type (the figure is shown about 0.85 times its size)."""
     setup(lang)
     big = {"ja": dict(
-        cols=[("単一ソース設定", "6.1〜6.3 節"), ("全ソース設定", "6.4 節"), ("LOCO 設定", "5，6.5〜7 節")],
+        cols=[("単一ソース設定", "5.1〜5.3 節"), ("全ソース設定", "5.4 節"), ("LOCO 設定", "6，7 節")],
         src=["ソース：1 つの群", "ソース：ターゲット\n以外の全部の群", "ソース：残る 3 コーパス"],
         tgt=["ターゲット：1 つの群", "ターゲット：1 つの群", "ターゲット：4 コーパスの 1 つ\n（7 節は CREMA-D も．ソース 4 つ）"],
         how=["ソースの全発話と K 本を\nまとめて学ぶ", "全部の群のアンカーを\nK 本で学び直す", "3 つのソースの平均を\nアンカーに K 本で学び直す"],
         clfs=["合併の分類器\nターゲットだけの分類器\nソースだけの分類器", "K 本の基準の分類器\n疑似ラベルで学び直し\n同じモダリティの 8 手法", "K 本の基準の分類器\n疑似ラベルで学び直し"],
         ks=["K = 1〜全件", "K = 0，5，25", "K = 0，1，5，10，25"],
-        note="模式図．原稿の表 2 を図にした（6.7 節も LOCO 設定の出力を使う）"),
+        note="模式図．原稿の表 2 を図にした"),
         "en": dict(
-        cols=[("Single-source", "Sec. 6.1–6.3"), ("All-source", "Sec. 6.4"), ("LOCO", "Sec. 5, 6.5–7")],
+        cols=[("Single-source", "Sec. 5.1–5.3"), ("All-source", "Sec. 5.4"), ("LOCO", "Sec. 6, 7")],
         src=["Source: one group", "Source: all groups\nexcept the target", "Source: the other 3 corpora"],
         tgt=["Target: one group", "Target: one group", "Target: one of 4 corpora\n(Sec. 7 adds CREMA-D)"],
         how=["train on source + K labels\ntogether", "retrain the all-group\nanchor on K labels", "anchor = mean of 3 sources;\nretrain on K labels"],
