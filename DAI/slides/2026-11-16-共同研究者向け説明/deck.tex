@@ -120,17 +120,17 @@ CREMA-D（Q3 だけ） & 決まった文の演技（声と顔） & 演じた感�
 
 \begin{frame}{Q1 の設定（1）：各分類器は，ソースの分類器の平均（アンカー）から学び直す}
 \centering
-\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{figures/fig_q1_model_ja.pdf}
-\par\vspace{0.1em}\scriptsize\raggedright
-Q1 では，ターゲットの各分類器を 2 通りに学び直して比べた．③ は K 本のラベルだけで，④ は K 本に候補（ラベル無しの発話）の疑似ラベルを足して学び直す．③ と ④ は同じアンカーから出発し，同じ罰則を付けるので，違うのは疑似ラベルを使うかどうかだけである．
+\vspace{-0.6em}
+\makebox[\linewidth]{\includegraphics[width=1.04\linewidth,height=0.84\textheight,keepaspectratio]{figures/fig_q1_model_ja.pdf}}
 \fnote{出所：原稿 5.1 節．K = 0 ではアンカーそのものを基準にした．}
 \end{frame}
 
 \begin{frame}{Q1 の設定（2）：疑似ラベル「積」は，声・顔・言葉の分類器の確率を掛けて作る}
 \centering
-\includegraphics[width=\linewidth,height=0.56\textheight,keepaspectratio]{figures/fig_product_pl_ja.pdf}
-\par\vspace{0.1em}\scriptsize\raggedright
-積は 2 段で作った．1 段目で AVT の K 本の基準の分類器が候補に確率を付け，2 段目で声・顔・言葉の分類器をそれぞれのアンカーから K 本とその確率で学び直し，3 つの確率を発話ごとに掛けて合計が 1 になるように割る．この積 q を，前のページの ④ で声・顔・言葉・AVT の各分類器の疑似ラベルにした．q にはほかのモダリティの答えが入るので，「ほかのモダリティを含む分類器の疑似ラベル」と呼ぶ．
+\vspace{-0.4em}
+\makebox[\linewidth]{\includegraphics[width=1.02\linewidth,height=0.74\textheight,keepaspectratio]{figures/fig_product_pl_ja.pdf}}
+\par\vspace{0.2em}\scriptsize\raggedright
+q にはほかのモダリティの答えが入るので，「ほかのモダリティを含む分類器の疑似ラベル」と呼ぶ．
 \fnote{出所：原稿 5.1 節，7.3 節の表 10（積：3 つの確率を同じ重みで掛ける）．}
 \end{frame}
 
