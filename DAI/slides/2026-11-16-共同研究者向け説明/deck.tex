@@ -238,15 +238,23 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{出所：原稿 6.1〜6.2 節（表 7），8.1 節．図の値は原稿の表 7 と同じ結果ファイル（results/dai1/stats/）．}
 \end{frame}
 
-\begin{frame}{問い 1(b) の答え（2）：疑似ラベルが当たる例では上がり，当たらない例では下がった}
+\begin{frame}{問い 1(b) の答え（2）：当たる幅と gain の測り方（説明のための例）}
 \centering
-\includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{figures/fig_margin_def_ja.pdf}
+\includegraphics[width=\linewidth,height=0.64\textheight,keepaspectratio]{figures/fig_margin_toy_ja.pdf}
 \par\raggedright\scriptsize
-例 2 の AFEW では，顔が最も強いモダリティだった．顔の分類器を声と言葉の疑似ラベルで学び直すと，疑似ラベルは顔の分類器より 16.7 点当たらず，UAR は 4.40 点下がった．
-\fnote{出所：原稿 6.6 節，図 8 の数値（paper/figures/data/fig10\_teacher\_margin.csv）．}
+当たる幅は，疑似ラベルが学び直す前の分類器より何点多く当たるかである．候補の正解ラベルは，学び直しには使わず，この解析のときだけ使う．
+\fnote{出所：原稿 6.6 節．8 本の発話と判定は説明のための例．}
 \end{frame}
 
-\begin{frame}{問い 1(b) の答え（3）：上がった点はすべて疑似ラベルのほうが当たる側にあった}
+\begin{frame}{問い 1(b) の答え（3）：疑似ラベルが当たる例では上がり，当たらない例では下がった}
+\centering
+\includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/fig_margin_real_ja.pdf}
+\par\raggedright\scriptsize
+例 1 の MOSEI では，顔と言葉をつないだ分類器の疑似ラベルが声の分類器より 4.6 点多く当たり，声の分類器の UAR は 2.05 点上がった．例 2 の AFEW では，顔が最も強いモダリティで，声と言葉をつないだ分類器の疑似ラベルは顔の分類器より 16.7 点当たらず，顔の分類器の UAR は 4.40 点下がった．
+\fnote{候補の上の UAR は 50 反復の平均．出所：原稿 6.6 節，results/dai1/stats/teacher\_margin.csv（teacher\_uar\_pool，self\_uar\_pool，margin，gain）．}
+\end{frame}
+
+\begin{frame}{問い 1(b) の答え（4）：上がった点はすべて疑似ラベルのほうが当たる側にあった}
 \centering
 \includegraphics[width=\linewidth,height=0.56\textheight,keepaspectratio]{figures/fig_margin_counts_ja.pdf}
 \par\raggedright\scriptsize
@@ -254,7 +262,7 @@ $d_T/D$ は，ターゲットだけの分類器の重みの向きで測った 2 
 \fnote{計算の後に組んだ記述の解析で，数えと順位相関は検定ではない（点どうしは候補とテストの発話を共有する）．AVT を AVT 自身の予測で学び直す点などは除いた．除いた K = 25 の MOSEI の AVT の 1 点は，当たる幅が作りの上で 0 で，gain は +0.30 [+0.07, +0.54] だった．散布図は補足（原稿の図 8）．出所：原稿 6.6 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b) の答え（4）：AFEW を除く 3 コーパスで，声は言葉の判定を顔より良く再現した}
+\begin{frame}{問い 1(b) の答え（5）：AFEW を除く 3 コーパスで，声は言葉の判定を顔より良く再現した}
 \centering
 \includegraphics[width=\linewidth,height=0.55\textheight,keepaspectratio]{figures/fig_D_def_ja.pdf}
 \par\raggedright\scriptsize
@@ -262,7 +270,7 @@ D の差（声 − 顔）は IEMOCAP +17.3，MOSEI +10.2，MELD +13.9 点で，�
 \fnote{K = 5，R1 の読み出し．数えの規則は計算の前に固定した．棒の値は実験 23 の結果ファイル（results/dai23/summary/main.csv）．出所：原稿 6.5 節．}
 \end{frame}
 
-\begin{frame}{問い 1(b) の答え（5）：逆再生で言葉を聞き取れなくしても，再現は一部が残った}
+\begin{frame}{問い 1(b) の答え（6）：逆再生で言葉を聞き取れなくしても，再現は一部が残った}
 \centering
 \includegraphics[width=\linewidth,height=0.46\textheight,keepaspectratio]{figures/fig_reverse_ja.pdf}
 \par\raggedright\scriptsize
