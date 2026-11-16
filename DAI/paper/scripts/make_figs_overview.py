@@ -20,6 +20,7 @@ from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 OUT = Path(__file__).resolve().parent.parent / "figures"
 MM = 1 / 25.4
 W = 174
+W_EN = 372 / 72 * 25.4   # text width of the manuscript (sn-jnl, 372 pt = 131.2 mm): the English figures are drawn at this width
 FS = 7.6
 
 ARIAL_DIR = Path("/mnt/c/Windows/Fonts")
@@ -47,10 +48,10 @@ def setup(lang):
                          "pdf.fonttype": 42, "ps.fonttype": 42})
 
 
-def canvas(h):
-    fig = plt.figure(figsize=(W * MM, h * MM))
+def canvas(h, w=W):
+    fig = plt.figure(figsize=(w * MM, h * MM))
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, W)
+    ax.set_xlim(0, w)
     ax.set_ylim(0, h)
     ax.axis("off")
     return fig, ax

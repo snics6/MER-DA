@@ -46,9 +46,9 @@ description: MER-DA の論文（DAI に出す MER の論文．DAI/paper/）の�
 | 6〜7 | 答え（観察） | *"Our results show that ... was removed ..., whereas ... decreased ... but rarely ..."*，過去形 | Kikuchi 2026，エッセンス 5 |
 | 8 | 提案 | *"Based on this, we propose ... late fusion for pseudo-labelling ..."* | Ishii 2022，融合系 |
 | 9 | 範囲と結果 | コーパス名，*"outperformed ... in 11 of 12 conditions, by 2.1–3.5 UAR points on AFEW"* | 融合系，Okada 2019 |
-| 10 | 読者の判断 | *"These results inform whether annotation effort is better spent on ..."* | Hayashi 2025，エッセンス 6 |
 
 - 7〜10 文，150〜249 語（上限 250 語未満）．数値は 2〜3 組．
+- **要旨は 9 の提案の結果で終える．**「これらの結果は〜を示唆する」「〜の判断に役立つ」のような読者への示唆の文を最後に置かない（2026-11-17 研究者：「これが結論ではなくないか？…新たな擬似ラベル作る方法を提案した，とか，あるいは分析の結果になるべき」）．示唆は考察の節に書く．
 - 独自の語（切片のずれ，向きのずれ，gain，余地）は要旨で使わないか，括弧で 1 句の説明を付ける．内部の語（評価の回，条件の数え方，下調べ）は使わない．
 
 ## 2. 序論
@@ -87,7 +87,7 @@ description: MER-DA の論文（DAI に出す MER の論文．DAI/paper/）の�
 
 - 考察は問いへの答えの形（石井の *"Answer to Q1"*）．示唆は *"These findings suggest ..."*．
 - 限界は独立の節．太字の短い見出しの段落を並べ，各段落に「分からないこと，理由，次に試すこと」を書く（Kikuchi 2026，Hayashi 2025）．
-- 結論は何をして何が分かったかを数値つきで 1 段落．
+- 結論は何をして何が分かったかを数値つきで 1 段落．最後の文は提案とその結果（か解析の結果）にし，示唆の文で終えない（2026-11-17 研究者の指示）．
 
 ## 7. 使わないもの
 
