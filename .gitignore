@@ -88,3 +88,6 @@ DAI/archive/checks/*/code_run*/
 
 # 2026-11-15：logs は DAI/logs へのリンク
 /logs
+
+# ---- 公開用のコードの写し（別のリポジトリ．2026-11-17） ----
+/release/
