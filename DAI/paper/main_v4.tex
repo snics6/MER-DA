@@ -1,0 +1,64 @@
+%% Discover Artificial Intelligence (Springer Nature) manuscript, English version of the Japanese draft ver4
+%% (paper/ja_v4/, 2026-11-17; structure of Mensh & Kording 2017 and MIT CommLab). Class: sn-jnl (copied once from the Springer Nature template on 2026-11-14).
+%% Numbers are copied from the checked Japanese draft (each section of ja_v2 lists its sources in comments).
+\documentclass[sn-nature,pdflatex]{sn-jnl}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{placeins}
+
+% Draft markers (remove before submission).
+\newcommand{\TBA}{\textcolor{red}{TBA}}
+\newcommand{\PROV}[1]{\textcolor{orange}{#1}}  % value not yet re-checked
+\newcommand{\pt}{\,points}
+
+\begin{document}
+
+\title[Other modalities make up for missing labels]{Other modalities make up for missing labels: emotion-wise weighted pseudo-labels for multimodal emotion recognition on a new corpus with few labels}
+
+\author*[1]{\fnm{TODO} \sur{TODO}}\email{TODO}
+
+\affil*[1]{\orgdiv{TODO}, \orgname{TODO}, \orgaddress{\city{TODO}, \country{Japan}}}
+
+\abstract{Multimodal emotion recognition (MER) classifiers have been reported to degrade on unseen corpora, and labelling a new corpus is costly because each utterance needs several raters. Domain adaptation and semi-supervised methods use unlabelled data of the same modality, whereas in MER unlabelled utterances also have other modalities whose predictions can serve as pseudo-labels; to our knowledge, which helps more with a few labels per emotion has not been compared. With linear classifiers on frozen audio, visual and text encoders, we show that retraining audio classifiers on pseudo-labels including other modalities gave higher unweighted average recall (UAR) than 11 domain adaptation and semi-supervised methods, and that UAR was higher the more accurate the pseudo-labels were. With the error split into a bias towards some emotions and the remaining error, these pseudo-labels reduced the latter in far more conditions than same-modality unlabelled utterances. As the most accurate modality varied by corpus and emotion, we propose late fusion that weights each modality per emotion using the few labels and other corpora, for more accurate pseudo-labels. On AFEW, IEMOCAP, MOSEI and MELD, also used to design it, the fused predictions were more accurate than equal-weight fusion in 11 of 12 conditions (5, 10, 25 labels per emotion), and classifiers retrained on the method's pseudo-labels outperformed those retrained on equal-weight ones in 11 of 12. Audio classifiers retrained on multimodal pseudo-labels alone outperformed those retrained on 5 or 10 labels per emotion, so the other modalities made up for part of the missing labels.}
+
+\keywords{Multimodal emotion recognition, Cross-corpus transfer, Semi-supervised domain adaptation, Few labels, Pseudo-labels, Distillation, Late fusion}
+
+\maketitle
+
+\input{sections/v4_01_introduction}
+\input{sections/v4_02_related}
+\input{sections/v4_03_methods}
+\input{sections/v4_04_results}
+\input{sections/v4_05_discussion}
+\input{sections/v4_06_limitations}
+\input{sections/v4_07_conclusion}
+
+\backmatter
+
+\bmhead{Acknowledgements}
+TODO
+
+\section*{Declarations}
+
+\begin{itemize}
+\item \textbf{Funding:} TODO (mandatory; state explicitly if none).
+\item \textbf{Competing interests:} The authors declare no competing interests. TODO (confirm)
+\item \textbf{Ethics approval and consent to participate:} This study is a secondary analysis of research corpora distributed for research (IEMOCAP, CMU-MOSEI, MELD, AFEW, CREMA-D, RAVDESS); no new data were collected from people. TODO (state the providers' approvals and consent as documented by each corpus)
+\item \textbf{Consent for publication:} Not applicable.
+\item \textbf{Data availability:} The corpora are available from their distributors \cite{busso2008iemocap,zadeh2018mosei,poria2019meld,dhall2012afew,cao2014cremad,livingstone2018ravdess}; IEMOCAP and AFEW are distributed under licence agreements. Utterance lists, label mappings and splits will be released at TODO. Transcripts of AFEW and of reversed speech are not released because they contain licensed corpus content; the scripts and Whisper settings used to produce them are released with the code.
+\item \textbf{Code availability:} The code, utterance lists, splits and the scripts that produce all tables and figures will be available at TODO (GitHub URL and version DOI); software versions and hardware are listed in the repository.
+\item \textbf{Author contribution:} TODO (CRediT roles).
+\item \textbf{Supplementary information:} Supplementary Information accompanies this article: S1, per-emotion LOCO counts and the settings figure; S2, details of the analysis (error formulas and fit, single-source analysis, verdict rules, excluded variants, per-classifier gains, the 11-method table); S3, predictability of the text classifier's decisions from audio features; S4, details of the distillation loss; S5, method details and the comparator table; S6, further comparisons; S7, CREMA-D results; S8, codes of the compared conditions; S9, the full evaluation table of the proposal.
+\item \textbf{Use of generative AI:} An AI assistant (Claude, Anthropic) was used to check the English translation.
+\end{itemize}
+
+
+
+\bibliography{references}
+
+\end{document}
