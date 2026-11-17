@@ -41,7 +41,7 @@ CREMA-D & 4,899 & 1,087 / 1,271 / 1,270 / 1,271 & 91 (speakers) & 90.98 \\
 \end{figure}
 
 \section{Details of the analysis}\label{sec:s2}
-Figures~\ref{fig:twoerrors}--\ref{fig:margintoy} illustrate the two parts of the error (Sect.~3.5 of the main text), how the pseudo-labels of distillation are made and used, and how the advantage and the gain are measured (Sect.~3.4). Table~\ref{tab:methods} gives the K = 5 UARs of the 11 methods of Sect.~4.1; their references are self-training \cite{lee2013pseudolabel}, entropy minimisation \cite{grandvalet2004}, IM \cite{liang2020,boudiaf2020}, T3A \cite{iwasawa2021}, label propagation \cite{zhou2004,iscen2019}, CORAL \cite{sun2016coral}, DANN \cite{ganin2016dann}, MME \cite{saito2019mme} and xMUDA \cite{jaritz2020xmuda} (solved between unimodal classifiers). The next paragraphs give details of the main text and the single-source analysis moved from it.
+Figure~\ref{fig:twoerrors} illustrates the two parts of the error (Sect.~3.5 of the main text). Table~\ref{tab:methods} gives the K = 5 UARs of the 11 methods of Sect.~4.1; their references are self-training \cite{lee2013pseudolabel}, entropy minimisation \cite{grandvalet2004}, IM \cite{liang2020,boudiaf2020}, T3A \cite{iwasawa2021}, label propagation \cite{zhou2004,iscen2019}, CORAL \cite{sun2016coral}, DANN \cite{ganin2016dann}, MME \cite{saito2019mme} and xMUDA \cite{jaritz2020xmuda} (solved between unimodal classifiers). The next paragraphs give details of the main text and the single-source analysis moved from it.
 
 \textbf{Formulas of the two parts of the error (Sect.~3.5 of the main text).} We quantify the two parts as follows. For the score $s_k(x)=w_k^\top x+b_k$ of emotion $k$, the decision between emotions $k$ and $l$ is the sign of $z_{kl}=(w_k-w_l)^\top x+(b_k-b_l)$. With mean $\hat\mu_k$ and variance $v_k$ of $z_{kl}$ over target test utterances of emotion $k$ (likewise for $l$) and $\sigma=\sqrt{(v_k+v_l)/2}$, we define
 \begin{equation}
@@ -121,18 +121,6 @@ MELD & +3.36 [+0.90, +5.81] & +2.53 [+1.65, +3.42] & +1.87 [+0.94, +2.80] & +1.4
 \centering
 \includegraphics[width=\textwidth]{figures/fig_two_errors_v4_en.pdf}
 \caption{Two parts of the error of a linear classifier, drawn in a two-dimensional feature space. (a) The boundary separates the two emotions. (b) Prediction bias: the direction is right but the boundary is shifted, biasing predictions towards one emotion; correcting only the intercept returns to (a). (c) Remaining error: the boundary is tilted, and no parallel shift brings the errors down to those of (a). The points are illustrative, not experimental data}\label{fig:twoerrors}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_pl_flow_en.pdf}
-\caption{Making and using the pseudo-labels of distillation. The baseline AVT classifier assigns probabilities to the candidate utterances, the audio, visual and text classifiers are retrained on the K labels and these probabilities, their product becomes the pseudo-label, and the classifier is retrained on the K labels and the pseudo-labels and compared on the test UAR. Test utterances are never used before the comparison. The probabilities are illustrative. The proposal (Sect.~3.6 of the main text) replaces the product step with weighted fusion}\label{fig:plflow}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_margin_toy_en.pdf}
-\caption{Measuring the advantage and the gain. For candidate utterances, the true labels (used only for this analysis), the decisions of the pseudo-label provider and those of the classifier before retraining give two UARs; the advantage is their difference. The classifier is then retrained on the pseudo-labels and the gain is measured on test utterances. Utterances and decisions are illustrative, not experimental values}\label{fig:margintoy}
 \end{figure}
 
 \begin{table}[h]
