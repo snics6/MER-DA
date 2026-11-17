@@ -1,4 +1,4 @@
-%% ver4 (2026-11-17): Supplementary Information for main_v4.tex, English version of ja_v4/11_補足資料.md. Built from si_v3.tex by make_si_v4.py (scratchpad); table numbers follow the Japanese version (S1--S6 as in ver3, then S7 codes, S8 per-classifier gains, S9 single-source analysis, S10 full evaluation table), set with \setcounter where the order of appearance differs.
+%% ver4 (2026-11-17): Supplementary Information for main_v4.tex (to be submitted as one file, ESM_1.pdf, cited as Online Resource 1), English version of ja_v4/11_補足資料.md. Built from si_v3.tex by make_si_v4.py (scratchpad); tables are numbered automatically in order of appearance (S1--S10), matching the Japanese version after the renumbering of 2026-11-17.
 \documentclass[sn-nature,pdflatex]{sn-jnl}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
@@ -53,7 +53,7 @@ A(D^{*},0)-A(d,o)=\underbrace{[A(D^{*},0)-A(d,0)]}_{\text{direction loss}}+\unde
 \end{equation}
 Changing only the intercepts shifts $z_{kl}$ equally for all utterances and moves only $o$; a shift $x\to x+\delta$ common to all emotions also moves only $o$, so subtracting each corpus's feature mean does not change the direction loss. $D^{*}$ is used only for evaluation and is not the largest separation over linear directions.
 
-\textbf{Single-source analysis: one source corpus and the K labels mainly corrected prediction bias.} In the single-source setting, for each ordered pair of groups of Table~1 of the main text (target, source), all utterances of one source group and K = 5 target labels per emotion are trained together (merged classifier); classifiers trained on the source only and on the K target labels only (K = 1, 5, 10) are also built. The test set is one of five speaker folds of the target, and repetitions 0--9 change the folds and the test fold. The classifier weights carry an L2 penalty with inverse strength $C$ and the intercepts are unpenalised; $C\in\{0.01,0.1,1,10\}$ is chosen by speaker-split three-fold cross-validation (the merged classifier uses the $C$ of the source-only classifier of the same repetition). Audio features were also built from the last layer of HuBERT-large \cite{hsu2021} (Audio (HuBERT)). AFEW text features were made after these computations and are not used here. The comparisons are as follows (codes in Table~S7).
+\textbf{Single-source analysis: one source corpus and the K labels mainly corrected prediction bias.} In the single-source setting, for each ordered pair of groups of Table~1 of the main text (target, source), all utterances of one source group and K = 5 target labels per emotion are trained together (merged classifier); classifiers trained on the source only and on the K target labels only (K = 1, 5, 10) are also built. The test set is one of five speaker folds of the target, and repetitions 0--9 change the folds and the test fold. The classifier weights carry an L2 penalty with inverse strength $C$ and the intercepts are unpenalised; $C\in\{0.01,0.1,1,10\}$ is chosen by speaker-split three-fold cross-validation (the merged classifier uses the $C$ of the source-only classifier of the same repetition). Audio features were also built from the last layer of HuBERT-large \cite{hsu2021} (Audio (HuBERT)). AFEW text features were made after these computations and are not used here. The comparisons are as follows (codes in Table~S9).
 \begin{itemize}
 \item \textbf{(A2) $-$ (A0):} the gain of adding the K labels to the source-only classifier (hereafter the merged gain).
 \item \textbf{(A3) $-$ (A0) and (A4) $-$ (A0):} neither the intercept-only fix nor mean subtraction changes the direction loss (formulas above); the share of the merged gain that they obtain measures how much correcting prediction bias alone obtains.
@@ -64,7 +64,6 @@ Table~\ref{tab:s-single} shows these differences by feature set. For audio and v
 
 For (A1), which uses no source, $d_T/D^{*}$ (median over targets of the ratio averaged over six emotion pairs) was 0.23, 0.47 and 0.62 for audio (WavLM) at K = 1, 5 and 10, and 0.11, 0.32 and 0.42 for text. Visual reached 1.01 at K = 10 (the ratio can exceed 1 because $D^{*}$ is not the largest linear separation).
 
-\setcounter{table}{8}
 \begin{table}[h]
 \caption{Single-source setting (K = 5): UAR differences in points on test utterances; values are pair means (each pair averaged over repetitions 0--9); ``Ratio'' is $\sum$((A3) $-$ (A0)) $/ \sum$((A2) $-$ (A0)) over pairs; the last column gives 95\% intervals}\label{tab:s-single}
 \footnotesize
@@ -83,7 +82,6 @@ This analysis has two limitations. First, the answer-bias result comes from the 
 
 \textbf{Gains of distillation for visual, text and AVT classifiers (Sect.~4.1 of the main text).} Table~\ref{tab:s-gain} adds the visual, text and AVT classifiers to the audio rows of Table~2 of the main text.
 
-\setcounter{table}{7}
 \begin{table}[h]
 \caption{Classifier retrained by distillation $-$ baseline (UAR points on test utterances) with 95\% intervals without correction; mean of 50 repetitions (5 for K = 0). IEMOCAP: improvised part}\label{tab:s-gain}
 \footnotesize\setlength{\tabcolsep}{3.4pt}
@@ -109,7 +107,6 @@ MELD & +3.36 [+0.90, +5.81] & +2.53 [+1.65, +3.42] & +1.87 [+0.94, +2.80] & +1.4
 \botrule
 \end{tabular}
 \end{table}
-\setcounter{table}{1}
 
 
 \textbf{Fit of the approximation (Sect.~3.5).} When the equal-variance Gaussian approximation was checked on source-only classifiers of the single-source setting, the median approximation error was 0.41--1.27 times the median intercept loss, failing the pre-set criterion (below 1/3), so prediction bias is measured by UAR differences rather than by the approximation (single-source analysis above). For the direction loss the ratio was 0.05--0.13, meeting the criterion except for visual features (0.47).
@@ -139,7 +136,7 @@ MELD & +3.36 [+0.90, +5.81] & +2.53 [+1.65, +3.42] & +1.87 [+0.94, +2.80] & +1.4
 \end{figure}
 
 \begin{table}[h]
-\caption{LOCO setting, K = 5: UAR (points, test utterances; mean of 50 repetitions, 15 for the gradient-based DANN, MME and xMUDA-style methods). Numbers are those of Table~S7. *: interval of (C1) $-$ method above zero; $\dagger$: below zero (the method is higher). ``Own predictions'': the classifier's own (C0) probabilities as pseudo-labels. IEMOCAP: improvised part}\label{tab:methods}
+\caption{LOCO setting, K = 5: UAR (points, test utterances; mean of 50 repetitions, 15 for the gradient-based DANN, MME and xMUDA-style methods). Numbers are those of Table~S9. *: interval of (C1) $-$ method above zero; $\dagger$: below zero (the method is higher). ``Own predictions'': the classifier's own (C0) probabilities as pseudo-labels. IEMOCAP: improvised part}\label{tab:methods}
 \footnotesize\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
@@ -212,7 +209,7 @@ Figure~\ref{fig:decomp} illustrates the weight table of Sect.~3.6 of the main te
 \end{figure}
 
 \begin{table}[h]
-\caption{Comparators. Numbers are those of Table~S7; rows without numbers are the comparators of Sect.~\ref{sec:s6}. ``From K'' is the number of quantities fitted or selected on the K target labels (the proposal: three strengths)}\label{tab:comparators}
+\caption{Comparators. Numbers are those of Table~S9; rows without numbers are the comparators of Sect.~\ref{sec:s6}. ``From K'' is the number of quantities fitted or selected on the K target labels (the proposal: three strengths)}\label{tab:comparators}
 \footnotesize\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lp{2.8cm}p{4.0cm}p{2.5cm}l@{}}
 \toprule
@@ -238,7 +235,7 @@ No. & Comparison & Content & Reference & From K \\
 Against the three comparators that fit weights on the K labels (Table~\ref{tab:s1}), the proposal's fused predictions differed by $-$1.16 to +0.73\pt\ from strength-only weights, with intervals above zero on MOSEI at all K and on IEMOCAP at K = 5, and was higher in point estimates in 9 of 12 conditions than all 12 reliabilities measured on the K labels and in 11 of 12 than selecting one of 1,001 tables.
 
 \begin{table}[h]
-\caption{UAR of the three comparators fitted on the K labels (points, test utterances, mean of 50 repetitions; not in Table~S10). Parentheses: proposal's fused predictions $-$ row with 95\% intervals without correction; * interval above zero, $\dagger$ below zero. Intervals of the weight-table search are conditional on the drawn tables. Strength-only weights gave the same UAR as the proposal without per-emotion profiles (Table~S10) in 8 of the 12 conditions on the four corpora and in all three on CREMA-D (Table~S6)}\label{tab:s1}
+\caption{UAR of the three comparators fitted on the K labels (points, test utterances, mean of 50 repetitions; not in Table~S10). Parentheses: proposal's fused predictions $-$ row with 95\% intervals without correction; * interval above zero, $\dagger$ below zero. Intervals of the weight-table search are conditional on the drawn tables. Strength-only weights gave the same UAR as the proposal without per-emotion profiles (Table~S10) in 8 of the 12 conditions on the four corpora and in all three on CREMA-D (Table~S8)}\label{tab:s1}
 \footnotesize\setlength{\tabcolsep}{2pt}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -329,11 +326,10 @@ AV, product pseudo-labels & 85.32 (+0.31 [+0.1, +0.6]*) & 86.01 (+0.52 [+0.3, +0
 \end{table}
 
 \section{Codes of the compared conditions}\label{sec:s8}
-Tables~S2 and S3 call the compared conditions by the codes of Table~\ref{tab:s-codes}; the main text calls them by name.
+Tables~S4 and S5 call the compared conditions by the codes of Table~\ref{tab:s-codes}; the main text calls them by name.
 
-\setcounter{table}{6}
 \begin{table}[!htbp]
-\caption{Codes of the compared conditions, used in Tables~S2 and S3; the main text calls the conditions by name. \checkmark: the condition uses the information source; --: it does not}\label{tab:s-codes}
+\caption{Codes of the compared conditions, used in Tables~S4 and S5; the main text calls the conditions by name. \checkmark: the condition uses the information source; --: it does not}\label{tab:s-codes}
 \footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}l p{6.3cm} cccc@{}}
 \toprule
@@ -376,7 +372,6 @@ No. & Condition & Source & K & Unl. & Other \\
 \section{Full evaluation table of the proposal}\label{sec:s9}
 Table~\ref{tab:s-full} gives the UARs and differences counted in Table~4 of the main text.
 
-\setcounter{table}{9}
 \begin{table}[!htbp]
 \caption{UARs of the fused predictions and of retrained AVT (points, test utterances, mean of 50 repetitions). Parentheses: for the fused predictions, proposal $-$ row; for retrained AVT, AVT retrained on the proposal's pseudo-labels $-$ row; 95\% intervals without correction. Rows without the proposal's parts give only the difference. * interval above zero (proposal higher); $\dagger$ below zero (proposal lower). The strongest single classifier was added after the evaluation run (Sect.~3.7 of the main text)}\label{tab:s-full}
 \footnotesize\setlength{\tabcolsep}{1pt}
