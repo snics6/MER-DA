@@ -1,28 +1,29 @@
 % English version of paper/ja_v2/03_共通の設定.md (2026-11-17).
-\section{Data, features, classifiers and settings}\label{sec:setup}
+% ver3 draft 2 (2026-11-17): Table 1 gains the LOCO column (per-emotion LOCO counts moved to Table S1), the settings figure moved to Fig. S1, and Sect. 3.6 adds the numbered list of compared conditions (Table 2; the form of Table 1 and conditions (1)--(14) of Ishii et al. 2022), as in paper/ja_v3/03_データと設定.md.
+\section{Data, features, classifiers and compared conditions}\label{sec:setup}
 
-This section describes what the three questions share; settings specific to each question are given at the start of Sects.~\ref{sec:rq1a}--\ref{sec:rq2}.
+This section describes the data, features, classifiers, metric and three settings shared by all analyses and experiments, and lists the compared conditions.
 
 \subsection{Corpora and four emotions}
 We use six corpora that differ in elicitation, recording and annotation as seven groups (Table~\ref{tab:corpora}). IEMOCAP \cite{busso2008iemocap} is split into improvised and scripted groups, because in scripted sessions ten actors read the same lines and a text classifier could succeed by memorising them. The leave-one-corpus-out (LOCO) setting (Sect.~\ref{sec:settings}) uses the four corpora with audio, visual and text (AFEW, the improvised part of IEMOCAP, MOSEI and MELD), and the RQ2 evaluation adds CREMA-D (audio and visual). Labels are mapped to Neutral, Happy, Sad and Angry \cite{ryumina2025}, and utterances of other emotions are not used. In IEMOCAP, happy and excited are merged into Happy and frustration is not mapped to Angry. In MOSEI, an utterance with exactly one emotion of intensity at least 0.5 receives that emotion, one with none receives Neutral, and one with two or more is not used, so MOSEI Neutral is not a neutral rating by annotators.
 
 \begin{table}[t]
-\caption{The seven groups. Speaker and utterance counts are after restricting to four emotions, for the single-source and all-source settings; utterance and per-emotion counts are for the audio (WavLM) set, with differing visual or text counts in parentheses. Mod.: modalities. All corpora are in English (RAVDESS: North American English). Counts of the LOCO setting are in Table~\ref{tab:loco}}\label{tab:corpora}
+\caption{The seven groups. Speaker and utterance counts are after restricting to four emotions, for the single-source and all-source settings; utterance and per-emotion counts are for the audio (WavLM) set, with differing visual or text counts in parentheses. The last column gives, for the LOCO setting (utterances with audio, visual and text; CREMA-D: audio and visual), the utterances, the clusters used to form test folds and their effective number $(\sum_g n_g)^2/\sum_g n_g^2$ for cluster sizes $n_g$; per-emotion LOCO counts are in Table~S1. Mod.: modalities. All corpora are in English (RAVDESS: North American English)}\label{tab:corpora}
 \footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}p{1.75cm}p{2.0cm}p{2.3cm}p{0.95cm}r p{1.75cm}p{1.9cm}@{}}
+\begin{tabular}{@{}p{1.55cm}p{1.7cm}p{1.95cm}p{0.75cm}r p{1.5cm}p{1.7cm}p{1.35cm}@{}}
 \toprule
-Group & Elicitation & Annotation & Mod. & Speakers & Utterances & N / H / S / A \\
+Group & Elicitation & Annotation & Mod. & Speakers & Utterances & N / H / S / A & LOCO (clusters, effective) \\
 \midrule
-AFEW \cite{dhall2012afew,dhall2013emotiw} & Movie acting (partly natural) & Facial-expression category by raters & A, V, T$^{b}$ & 282$^{a}$ & 795 & 207 / 213 / 178 / 197 \\
-IEMOCAP impro.\ \cite{busso2008iemocap} & Improvised acting & Plurality of raters' categories & A, V, T & 10 & 2,943 & 1,099 / 947 / 608 / 289 \\
-IEMOCAP script.\ \cite{busso2008iemocap} & Scripted acting & Same & A, V, T & 10 & 2,588 (V 2,549) & 609 / 689 / 476 / 814 \\
-MOSEI \cite{zadeh2018mosei} & None (opinion monologues) & Crowd intensities of six emotions; our rule & A, V, T & 2,626$^{c}$ & 18,919 (V 18,634) & 8,847 / 6,790 / 1,830 / 1,452 \\
-MELD \cite{poria2019meld} & TV-series acting & Majority of raters' categories & A, V, T & 283 & 11,343 (V 11,308, T 11,344) & 6,430 / 2,305 / 1,002 / 1,606 \\
-CREMA-D \cite{cao2014cremad} & Instructed acting, 12 sentences & Acted emotion; crowd ratings & A, V & 91 & 4,900 (V 4,899) & 1,087 / 1,271 / 1,271 / 1,271 \\
-RAVDESS \cite{livingstone2018ravdess} & Instructed acting, 2 sentences & Acted emotion; validated by raters & A & 24 & 672 & 96 / 192 / 192 / 192 \\
+AFEW \cite{dhall2012afew,dhall2013emotiw} & Movie acting (partly natural) & Facial-expression category by raters & A, V, T$^{b}$ & 282$^{a}$ & 795 & 207 / 213 / 178 / 197 & 790 (51, 14.99) \\
+IEMOCAP impro.\ \cite{busso2008iemocap} & Improvised acting & Plurality of raters' categories & A, V, T & 10 & 2,943 & 1,099 / 947 / 608 / 289 & 2,943 (5, 4.91) \\
+IEMOCAP script.\ \cite{busso2008iemocap} & Scripted acting & Same & A, V, T & 10 & 2,588 (V 2,549) & 609 / 689 / 476 / 814 & -- \\
+MOSEI \cite{zadeh2018mosei} & None (opinion monologues) & Crowd intensities of six emotions; our rule & A, V, T & 2,626$^{c}$ & 18,919 (V 18,634) & 8,847 / 6,790 / 1,830 / 1,452 & 18,634 (2,614, 783.22) \\
+MELD \cite{poria2019meld} & TV-series acting & Majority of raters' categories & A, V, T & 283 & 11,343 (V 11,308, T 11,344) & 6,430 / 2,305 / 1,002 / 1,606 & 11,267 (272, 8.59) \\
+CREMA-D \cite{cao2014cremad} & Instructed acting, 12 sentences & Acted emotion; crowd ratings & A, V & 91 & 4,900 (V 4,899) & 1,087 / 1,271 / 1,271 / 1,271 & 4,899 (91, 90.98) \\
+RAVDESS \cite{livingstone2018ravdess} & Instructed acting, 2 sentences & Acted emotion; validated by raters & A & 24 & 672 & 96 / 192 / 192 / 192 & -- \\
 \botrule
 \end{tabular}
-\footnotetext{$^{a}$Number of actor names. $^{b}$AFEW text features come from Whisper large-v3 transcripts (790 utterances) and were made after the single-source and all-source computations, which therefore do not use them. $^{c}$Number of channels or video IDs (Sect.~\ref{sec:split}). The two IEMOCAP groups share the same ten actors. Concatenated features are built only from utterances that have all of the concatenated modalities}
+\footnotetext{$^{a}$Number of actor names. $^{b}$AFEW text features come from Whisper large-v3 transcripts (790 utterances) and were made after the single-source and all-source computations, which therefore do not use them. $^{c}$Number of channels or video IDs (Sect.~\ref{sec:split}). The two IEMOCAP groups share the same ten actors. Concatenated features are built only from utterances that have all of the concatenated modalities. LOCO clusters: actor/movie links (AFEW), sessions (IEMOCAP), channels or videos (MOSEI), speakers (MELD, CREMA-D)}
 \end{table}
 
 \subsection{Speaker-independent splits}\label{sec:split}
@@ -34,36 +35,58 @@ Features are encoder outputs averaged within each utterance; no encoder is fine-
 Every classifier is a multinomial logistic regression trained on per-dimension standardised features. With $n$ training utterances and $n_k$ of emotion $k$, utterances of emotion $k$ are weighted by $\omega_k=n/(4n_k)$ so that the emotion proportions of the training data do not enter the classifier. In the single-source setting, the classifier weights carry an L2 penalty with inverse strength $C$ and the intercepts are unpenalised; $C\in\{0.01,0.1,1,10\}$ is chosen by speaker-split three-fold cross-validation (the merged classifier uses the $C$ of the source-only classifier of the same repetition). In the all-source and LOCO settings, the classifier weights and intercepts are pulled towards a classifier built from the sources (the \emph{anchor}) with strengths $C'$ and $C_b$, chosen with source groups or corpora as provisional targets (Sect.~\ref{sec:settings}). Test labels are never used to choose hyperparameters.
 
 \subsection{Three settings}\label{sec:settings}
-The three settings differ in how labelled source utterances are used, and each provides the comparisons needed by one question (Fig.~\ref{fig:settings}). The single-source setting separates what one source corpus and the K labels correct (RQ1(a)); the all-source setting uses all groups as sources and compares the information sources that reduce the remaining error (RQ1(a)); the LOCO setting treats each corpus in turn as the new corpus to evaluate distillation and the proposal (RQ1(b), RQ2).
+The three settings differ in how labelled source utterances are used, and each provides the comparisons needed by one question (Fig.~S1). The single-source setting separates what one source corpus and the K labels correct (RQ1(a)); the all-source setting uses all groups as sources and compares the information sources that reduce the remaining error (RQ1(a)); the LOCO setting treats each corpus in turn as the new corpus to evaluate distillation and the proposal (RQ1(b), RQ2).
 \begin{itemize}
-\item \textbf{Single-source setting} (Sect.~\ref{sec:rq1a}): for each ordered pair of groups (target, source), all utterances of one source group and K target labels are trained together (merged classifier); classifiers trained on the source only and on the K target labels only are also built. The test set is one of five speaker folds of the target, and repetitions 0--9 change the folds and the test fold.
-\item \textbf{All-source setting} (Sect.~\ref{sec:rq1a}): a classifier built from all groups except the target is the anchor and is retrained on the K target labels (K-label baseline), with K = 0, 5 and 25.
-\item \textbf{LOCO setting} (Sects.~\ref{sec:rq1b} and \ref{sec:rq2}): one of AFEW, IEMOCAP (improvised), MOSEI and MELD is the target and the other three are sources. The mean of the weights and intercepts of the three source classifiers is the anchor, and the classifier retrained from it on the K target labels is the \emph{K-label baseline} (at K = 0, the anchor itself, i.e., source only). The test set is one of five folds that keep each cluster within one fold (one session for IEMOCAP; utterance and cluster counts in Table~\ref{tab:loco}), and the remaining target utterances are the \emph{candidates}; K labels per emotion are drawn from the candidates and no other candidate labels are used. Values are averaged over 50 repetitions (5 folds $\times$ 10 draws of the K labels; 5 repetitions for K = 0).
+\item \textbf{Single-source setting}: for each ordered pair of groups (target, source), all utterances of one source group and K target labels are trained together (merged classifier); classifiers trained on the source only and on the K target labels only are also built. The test set is one of five speaker folds of the target, and repetitions 0--9 change the folds and the test fold.
+\item \textbf{All-source setting}: a classifier built from all groups except the target is the anchor and is retrained on the K target labels (K-label baseline), with K = 0, 5 and 25.
+\item \textbf{LOCO setting}: one of AFEW, IEMOCAP (improvised), MOSEI and MELD is the target and the other three are sources. The mean of the weights and intercepts of the three source classifiers is the anchor, and the classifier retrained from it on the K target labels is the \emph{K-label baseline} (at K = 0, the anchor itself, i.e., source only). The test set is one of five folds that keep each cluster within one fold (one session for IEMOCAP), and the remaining target utterances are the \emph{candidates}; K labels per emotion are drawn from the candidates and no other candidate labels are used. Values are averaged over 50 repetitions (5 folds $\times$ 10 draws of the K labels; 5 repetitions for K = 0).
 \end{itemize}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_v2_settings_en.pdf}
-\caption{The three settings. The single-source and all-source settings serve RQ1(a) (Sect.~\ref{sec:rq1a}); the LOCO setting serves RQ1(b) (Sect.~\ref{sec:rq1b}) and RQ2 (Sect.~\ref{sec:rq2}). Groups: IEMOCAP improvised and scripted, MOSEI, MELD, AFEW, CREMA-D and RAVDESS}\label{fig:settings}
-\end{figure}
-
-LOCO hyperparameters were selected on runs in which each of the three corpora other than the evaluation target served in turn as a provisional target (with the remaining two corpora as sources; 3 corpora $\times$ 5 folds $\times$ 2 seeds = 30 repetitions) and fixed, and the evaluation target was computed once with the fixed settings (evaluation run). We call each provisional-target computation an \emph{episode}. Outputs inspected before and during the evaluation run are stated in Sects.~\ref{sec:distill} and \ref{sec:hp}.
-
-\begin{table}[t]
-\caption{Utterances of the LOCO setting (utterances with all of audio, visual and text; CREMA-D: audio and visual). ``Effective'' is the effective number of clusters, $(\sum_g n_g)^2/\sum_g n_g^2$ for cluster sizes $n_g$}\label{tab:loco}
-\footnotesize\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lrllr@{}}
-\toprule
-Corpus & Utterances & N / H / S / A & Clusters & Effective \\
-\midrule
-AFEW & 790 & 205 / 211 / 177 / 197 & 51 (actor/movie links) & 14.99 \\
-IEMOCAP (improvised) & 2,943 & 1,099 / 947 / 608 / 289 & 5 (sessions) & 4.91 \\
-MOSEI & 18,634 & 8,637 / 6,734 / 1,814 / 1,449 & 2,614 (channels/videos) & 783.22 \\
-MELD & 11,267 & 6,383 / 2,283 / 999 / 1,602 & 272 (speakers) & 8.59 \\
-CREMA-D & 4,899 & 1,087 / 1,271 / 1,270 / 1,271 & 91 (speakers) & 90.98 \\
-\botrule
-\end{tabular}
-\end{table}
+LOCO hyperparameters were selected on runs in which each of the three corpora other than the evaluation target served in turn as a provisional target (with the remaining two corpora as sources; 3 corpora $\times$ 5 folds $\times$ 2 seeds = 30 repetitions) and fixed, and the evaluation target was computed once with the fixed settings (evaluation run). We call each provisional-target computation an \emph{episode}. Outputs inspected before and during the evaluation run are stated in Sects.~\ref{sec:rq1b-compare} and \ref{sec:hp}.
 
 \subsection{Metric and intervals}
-The main metric is UAR (unweighted average recall over emotions), whose chance level with four emotions is 25\%. Overall accuracy (weighted accuracy) is not reported because it depends on the share of Neutral, which differs across corpora. UAR and its differences are in percentage points, and the difference A $-$ B between two classifiers is called the \emph{gain}; each section states A and B. All intervals are 95\% intervals without multiple-comparison correction; they reflect the sampling of test speakers (clusters for MOSEI and the LOCO setting) and of the K labels, not the choice of source corpora, training utterances, methods or hyperparameters. Intervals of the single-source and all-source settings are described in Sects.~\ref{sec:rq1a-single} and \ref{sec:rq1a-all}. For the LOCO setting, the variance of a cluster jackknife (cluster resampling for MOSEI and CREMA-D) is added to the variance over K-label draws; because inference with few clusters is anti-conservative \cite{cameron2008}, jackknife $t$ intervals are used for corpora with fewer than 20 effective test clusters. Conditions of the same corpus that differ only in K share test utterances and nested K labels and are not independent. We write that UAR \emph{rose} or \emph{fell} only when the 95\% interval of the difference lies above or below zero, and write ``higher in point estimates'' otherwise.
+The main metric is UAR (unweighted average recall over emotions), whose chance level with four emotions is 25\%. Overall accuracy (weighted accuracy) is not reported because it depends on the share of Neutral, which differs across corpora. UAR and its differences are in percentage points, and the difference A $-$ B between two classifiers is called the \emph{gain}; each section states A and B. All intervals are 95\% intervals without multiple-comparison correction; they reflect the sampling of test speakers (clusters for MOSEI and the LOCO setting) and of the K labels, not the choice of source corpora, training utterances, methods or hyperparameters. Intervals of the single-source and all-source settings are described in Sect.~\ref{sec:rq1a-compare}. For the LOCO setting, the variance of a cluster jackknife (cluster resampling for MOSEI and CREMA-D) is added to the variance over K-label draws; because inference with few clusters is anti-conservative \cite{cameron2008}, jackknife $t$ intervals are used for corpora with fewer than 20 effective test clusters. Conditions of the same corpus that differ only in K share test utterances and nested K labels and are not independent. We write that UAR \emph{rose} or \emph{fell} only when the 95\% interval of the difference lies above or below zero, and write ``higher in point estimates'' otherwise.
+
+\subsection{Compared conditions}\label{sec:conditions}
+Table~\ref{tab:conditions} lists the compared conditions with numbers that run consecutively within each comparison group. Condition 0 of each group ((A0), (B0), (C0), (D0), (E0)) is the starting point of the group (the source-only classifier, the K-label baseline or the product), and conditions of one group use the same test utterances in the same repetitions; groups D and E are reported as differences from the proposal, (D4) and (E2). Group D compares \emph{estimation-time decisions}: the argmax of the combined predictions of the three classifiers on test utterances, without retraining any classifier. Groups A and B serve RQ1(a) (Sect.~\ref{sec:rq1a-compare}), group C serves RQ1(b) (Sect.~\ref{sec:rq1b-compare}), and groups D and E serve RQ2 (Sect.~\ref{sec:compare}); each of these sections states what each comparison verifies. In the information-source columns, ``Source'' is labelled source utterances (including the anchor built from them in the all-source and LOCO settings), ``K'' the K target labels, ``Unl.'' unlabelled target utterances and ``Other'' features or predictions of a modality other than that of the classifier being retrained.
+
+\begin{table}[!htbp]
+\caption{Compared conditions. \checkmark: the condition uses the information source; --: it does not}\label{tab:conditions}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l p{6.3cm} cccc@{}}
+\toprule
+No. & Condition & Source & K & Unl. & Other \\
+\midrule
+\multicolumn{6}{@{}p{12.6cm}@{}}{\textbf{A: single-source setting} (ordered pairs of the 7 groups, K = 5; (A1) K = 1, 5, 10)} \\
+(A0) & Source-only classifier & \checkmark & -- & -- & -- \\
+(A1) & Target-only classifier & -- & \checkmark & -- & -- \\
+(A2) & Merged classifier (all source utterances and the K labels trained together) & \checkmark & \checkmark & -- & -- \\
+(A3) & Intercept-only fix (weights of (A0) fixed; only intercepts learned on the K labels) & \checkmark & \checkmark & -- & -- \\
+(A4) & Mean subtraction (the mean of all utterances is subtracted from source and target features before retraining) & \checkmark & -- & \checkmark$^{a}$ & -- \\
+(A5) & Intercepts corrected on the K labels after mean subtraction & \checkmark & \checkmark & \checkmark$^{a}$ & -- \\
+\multicolumn{6}{@{}p{12.6cm}@{}}{\textbf{B: all-source setting} (K = 0, 5, 25; (B2)--(B9) K = 0, 5)} \\
+(B0) & K-label baseline (anchor retrained on the K labels) & \checkmark & \checkmark & -- & -- \\
+(B1) & Distillation (retrained on pseudo-labels from classifiers including other modalities) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(B2)--(B9) & Eight methods that use same-modality unlabelled utterances$^{b}$ & \checkmark & \checkmark & \checkmark & -- \\
+\multicolumn{6}{@{}p{12.6cm}@{}}{\textbf{C: LOCO setting} (AFEW, IEMOCAP, MOSEI, MELD; K = 0, 5, 10, 25; (C2)--(C12) K = 5, 10, 25; (C13) K = 5, 25)} \\
+(C0) & K-label baseline (audio, visual, text, AVT) & \checkmark & \checkmark & -- & -- \\
+(C1) & Distillation (retrained on the product pseudo-labels) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(C2)--(C11) & Ten methods that use no information from other modalities$^{c}$ & \checkmark & \checkmark & \checkmark$^{c}$ & -- \\
+(C12) & xMUDA-style mutual mimicry between unimodal classifiers (no pseudo-labels including other modalities)$^{c}$ & \checkmark & \checkmark & \checkmark & \checkmark \\
+(C13) & Retraining with other pseudo-label providers (360 variants per K) & \checkmark & \checkmark & \checkmark & \checkmark\ or --$^{d}$ \\
+\multicolumn{6}{@{}p{12.6cm}@{}}{\textbf{D: LOCO setting, estimation-time decisions} (K = 5, 10, 25; CREMA-D in the SI)} \\
+(D0) & Product (of the probabilities of the three classifiers that make the pseudo-labels of (C1)) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(D1) & Probability mean (sum rule) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(D2) & Per-classifier temperature calibration (fitted by log-likelihood on the K labels) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(D3) & Decisions of the single classifier strongest on the K labels & \checkmark & \checkmark & \checkmark & \checkmark \\
+(D4) & Proposal (Sect.~\ref{sec:method}) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(D5) & Proposal without per-emotion profiles & \checkmark & \checkmark & \checkmark & \checkmark \\
+(D6) & Proposal without strength differences & \checkmark & \checkmark & \checkmark & \checkmark \\
+\multicolumn{6}{@{}p{12.6cm}@{}}{\textbf{E: LOCO setting, retrained AVT} (K = 5, 10, 25)} \\
+(E0) & K-label baseline AVT (the AVT of (C0)) & \checkmark & \checkmark & -- & -- \\
+(E1) & AVT retrained on the product pseudo-labels (the AVT of (C1)) & \checkmark & \checkmark & \checkmark & \checkmark \\
+(E2) & AVT retrained on the proposal's pseudo-labels & \checkmark & \checkmark & \checkmark & \checkmark \\
+\botrule
+\end{tabular}
+\footnotetext{$^{a}$The target mean is taken over all target utterances including the test utterances; no labels are used. $^{b}$(B2) entropy minimisation, (B3) self-training, (B4) IM, (B5) T3A, (B6) label propagation, (B7) CORAL, (B8) DANN, (B9) MME. $^{c}$(C2) self-training, (C3) entropy minimisation, (C4) IM, (C5) T3A, (C6) label propagation, (C7) pseudo-labels from the retrained classifier's own (C0) probabilities, (C8) training on labelled source utterances and the K labels together (S+T), (C9) CORAL, (C10) DANN, (C11) MME, (C12) xMUDA-style. (C8)--(C11) also train on the source utterances themselves, and (C8) uses no unlabelled target utterances. (C2)--(C12) are the 11 methods that do not use pseudo-labels including other modalities; (C12) was computed only for the audio, visual and text classifiers. For group D, ``Other'' means that predictions of the three modalities are combined; the single classifier of (D3) was retrained on the probabilities of the AVT classifier (Sect.~\ref{sec:rq1b-compare}). $^{d}$Depending on the provider, the pseudo-labels do or do not include predictions of other modalities (providers listed in Sect.~\ref{sec:rq1b-compare})}
+\end{table}

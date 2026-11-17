@@ -1,4 +1,4 @@
-%% Supplementary Information for the ver3 manuscript (main_v3.tex). English version of ja_v3/11_補足資料.md (2026-11-17 night).
+%% ver3 draft 2 (2026-11-17): reordered as S1--S7 following the main text; figures and tables moved from the main text are added (paper/ja_v3/11_補足資料.md). Supplementary Information for the ver3 manuscript (main_v3.tex). English version of ja_v3/11_補足資料.md (2026-11-17 night).
 \documentclass[sn-nature,pdflatex]{sn-jnl}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
@@ -15,13 +15,90 @@
 \author{TODO}
 \maketitle
 
-\section{Can audio features predict the text classifier's decisions?}\label{sec:s1}
-As one candidate reason for the audio gains in Sect. 5 of the main text, we examined whether audio features can predict the text classifier's decisions contained in the product.
+\section{Data and settings}\label{sec:s1}
+Table~\ref{tab:s-loco} gives the per-emotion utterance counts of the LOCO setting summarised in Table~1 of the main text, and Fig.~\ref{fig:settings} shows the three settings of Sect.~3.4 of the main text.
+
+\begin{table}[h]
+\caption{Utterances of the LOCO setting (utterances with all of audio, visual and text; CREMA-D: audio and visual). ``Effective'' is the effective number of clusters, $(\sum_g n_g)^2/\sum_g n_g^2$ for cluster sizes $n_g$}\label{tab:s-loco}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrllr@{}}
+\toprule
+Corpus & Utterances & N / H / S / A & Clusters & Effective \\
+\midrule
+AFEW & 790 & 205 / 211 / 177 / 197 & 51 (actor/movie links) & 14.99 \\
+IEMOCAP (improvised) & 2,943 & 1,099 / 947 / 608 / 289 & 5 (sessions) & 4.91 \\
+MOSEI & 18,634 & 8,637 / 6,734 / 1,814 / 1,449 & 2,614 (channels/videos) & 783.22 \\
+MELD & 11,267 & 6,383 / 2,283 / 999 / 1,602 & 272 (speakers) & 8.59 \\
+CREMA-D & 4,899 & 1,087 / 1,271 / 1,270 / 1,271 & 91 (speakers) & 90.98 \\
+\botrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_v2_settings_en.pdf}
+\caption{The three settings. The single-source and all-source settings serve RQ1(a) (Sects.~4.2--4.3 of the main text); the LOCO setting serves RQ1(b) (Sects.~4.4--4.5) and RQ2 (Sects.~5--6). Groups: IEMOCAP improvised and scripted, MOSEI, MELD, AFEW, CREMA-D and RAVDESS}\label{fig:settings}
+\end{figure}
+
+\section{Figures and table of the analysis}\label{sec:s2}
+Figures~\ref{fig:twoerrors}--\ref{fig:margintoy} illustrate the two parts of the error (Sect.~4.1 of the main text), how the pseudo-labels of distillation are made and used, and how the advantage and the gain are measured (Sect.~4.4). Table~\ref{tab:methods} gives the K = 5 UARs of the 11 methods of Sect.~4.5.2; their references are self-training \cite{lee2013pseudolabel}, entropy minimisation \cite{grandvalet2004}, IM \cite{liang2020,boudiaf2020}, T3A \cite{iwasawa2021}, label propagation \cite{zhou2004,iscen2019}, CORAL \cite{sun2016coral}, DANN \cite{ganin2016dann}, MME \cite{saito2019mme} and xMUDA \cite{jaritz2020xmuda} (solved between unimodal classifiers).
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_two_errors_en.pdf}
+\caption{Two parts of the error of a linear classifier, drawn in a two-dimensional feature space. (a) The boundary separates the two emotions. (b) Answer bias: the direction is right but the boundary is shifted, biasing predictions towards one emotion; correcting only the intercept returns to (a). (c) Remaining error: the boundary is tilted, and no parallel shift brings the errors down to those of (a). The points are illustrative, not experimental data}\label{fig:twoerrors}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_pl_flow_en.pdf}
+\caption{Making and using the pseudo-labels of distillation. The AVT classifier of (C0) assigns probabilities to the candidate utterances, the audio, visual and text classifiers are retrained on the K labels and these probabilities, their product becomes the pseudo-label, and the classifier is retrained on the K labels and the pseudo-labels and compared on the test UAR. Test utterances are never used before the comparison. The probabilities are illustrative. The proposed fusion of RQ2 replaces the product step}\label{fig:plflow}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_margin_toy_en.pdf}
+\caption{Measuring the advantage and the gain. For candidate utterances, the true labels (used only for this analysis), the decisions of the pseudo-label provider and those of the classifier before retraining give two UARs; the advantage is their difference. The classifier is then retrained on the pseudo-labels and the gain is measured on test utterances. Utterances and decisions are illustrative, not experimental values}\label{fig:margintoy}
+\end{figure}
+
+\begin{table}[h]
+\caption{LOCO setting, K = 5: UAR (points, test utterances; mean of 50 repetitions, 15 for the gradient-based DANN, MME and xMUDA-style methods). Numbers are those of Table~2 of the main text. *: interval of (C1) $-$ method above zero; $\dagger$: below zero (the method is higher). ``Own predictions'': the classifier's own (C0) probabilities as pseudo-labels. IEMOCAP: improvised part}\label{tab:methods}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lllllllll@{}}
+\toprule
+ & \multicolumn{4}{c}{Audio} & \multicolumn{4}{c}{AVT} \\
+Method & AFEW & IEMO. & MOSEI & MELD & AFEW & IEMO. & MOSEI & MELD \\
+\midrule
+(C1) Distillation (ref.) & 54.2 & 69.5 & 38.1 & 44.6 & 70.8 & 72.7 & 41.1 & 50.1 \\
+(C0) K-label baseline (ref.) & 50.1 & 67.1 & 34.9 & 41.5 & 69.7 & 72.6 & 41.5 & 47.6 \\
+(C2) Self-training & 50.1* & 67.1 & 32.0* & 40.7* & 72.1 & 71.3 & 40.4* & 46.1* \\
+(C3) Entropy minimisation & 31.8* & 38.4* & 25.0* & 26.9* & 71.3 & 62.1* & 28.3* & 36.9* \\
+(C4) IM & 50.6* & 66.8* & 34.6* & 40.5* & 70.4 & 70.6* & 39.4* & 39.6* \\
+(C5) T3A & 44.3* & 57.1* & 30.7* & 34.0* & 72.0 & 65.5* & 37.4* & 41.7* \\
+(C6) Label propagation & 45.3* & 58.6* & 32.3* & 31.0* & 59.8* & 61.0* & 34.5* & 33.6* \\
+(C7) Own predictions & 50.6* & 66.8 & 35.0* & 41.9* & 69.9 & 71.6 & 41.6 & 47.9* \\
+(C8) S+T & 50.2* & 62.1* & 35.5* & 41.1* & 64.5* & 70.2 & 41.1 & 51.8 \\
+(C9) CORAL & 49.3* & 64.4* & 35.2* & 41.0* & 68.9 & 70.7 & 42.1$\dagger$ & 46.3* \\
+(C10) DANN & 46.5* & 64.6* & 34.5* & 39.3* & 69.7 & 71.6 & 40.5 & 47.1* \\
+(C11) MME & 46.5* & 63.4* & 30.8* & 33.3* & 70.4 & 63.0* & 34.8* & 31.2* \\
+(C12) xMUDA-style & 48.8* & 68.9 & 35.7* & 37.5* & --- & --- & --- & --- \\
+\botrule
+\end{tabular}
+\end{table}
+
+\section{Can audio features predict the text classifier's decisions?}\label{sec:s3}
+As one candidate reason for the audio gains in Sect.~4.5 of the main text (discussed in Sect.~7.2), we examined whether audio features can predict the text classifier's decisions contained in the product.
 
 \subsection{Setting}
-As one candidate reason for the audio gains, we examine the explanation that speech carries both voice quality and the spoken words: the product contains the text classifier's decisions, so if audio features can predict those decisions, the audio classifier can learn that part from the pseudo-labels. The cross-modal predictability $D$ is measured as follows: the decisions $J$ of one modality's K-label baseline (e.g., text) are the target; a linear classifier on another modality's features (e.g., audio) predicts $J$ out of sample, and its UAR with $J$ as truth is $R$; the same is done after permuting $J$ within strata of true emotion and speaker cluster (and gender for IEMOCAP and AFEW), giving $R'$; and $D=R-R'$ is the agreement not explained by emotion and speaker. The decision rule was fixed at K = 5 before computing, and AFEW, whose text is a transcript of its own audio, was excluded from the audio--text comparison. We also rebuilt the last-layer WavLM-large features of time-reversed speech of IEMOCAP (improvised), MOSEI and MELD and measured the same $D$ (predictions and rules fixed before computing; the question was set after seeing the non-reversed results). On reversed speech, Whisper large-v3 transcripts agreed with the original words only 0.005--0.012 above chance (0.79--0.80 for the original speech).
+As one candidate reason for the audio gains, we examine the explanation that speech carries both voice quality and the spoken words: the product contains the text classifier's decisions, so if audio features can predict those decisions, the audio classifier can learn that part from the pseudo-labels. The cross-modal predictability $D$ is measured as follows: the decisions $J$ of one modality's K-label baseline (e.g., text) are the target; a linear classifier on another modality's features (e.g., audio) predicts $J$ out of sample, and its UAR with $J$ as truth is $R$; the same is done after permuting $J$ within strata of true emotion and speaker cluster (and gender for IEMOCAP and AFEW), giving $R'$; and $D=R-R'$ is the agreement not explained by emotion and speaker (Fig.~\ref{fig:dtoy}). The decision rule was fixed at K = 5 before computing, and AFEW, whose text is a transcript of its own audio, was excluded from the audio--text comparison. We also rebuilt the last-layer WavLM-large features of time-reversed speech of IEMOCAP (improvised), MOSEI and MELD and measured the same $D$ (predictions and rules fixed before computing; the question was set after seeing the non-reversed results). On reversed speech, Whisper large-v3 transcripts agreed with the original words only 0.005--0.012 above chance (0.79--0.80 for the original speech).
 
 
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_D_toy_en.pdf}
+\caption{Measuring the predictability $D$ (illustrative example). The text classifier's decisions $J$ are predicted from audio features only ($R$), and so are $J'$, the decisions $J$ shuffled within groups of the same emotion and speaker ($R'$); $D=R-R'$. The example counts the agreement rate; the experiment uses the UAR with $J$ as truth. Utterances and decisions are illustrative}\label{fig:dtoy}
+\end{figure}
 
 \subsection{Results: audio features predicted the text classifier's decisions better than visual features}
 On the three corpora other than AFEW, the predictability $D$ of the text classifier's decisions was 19.3 (IEMOCAP), 10.5 (MOSEI) and 17.7 (MELD) points with audio features and 2.0, 0.3 and 3.8 with visual features; the differences (+17.3, +10.2, +13.9) all had intervals above zero. Audio features did not meet the pre-set rule at K = 5 for predicting the visual classifier's decisions better than text features. $D$ may also include agreement from arousal, speaker attributes, utterance duration and recording conditions. Reversing the speech lowered $D$ to 10.5, 3.1 and 10.5 (differences 8.8 [3.0, 14.7], 7.5 [6.3, 8.6] and 7.2 [4.7, 9.8]) (Fig.~\ref{fig:reverse}), but reversed audio still exceeded visual features (by 8.5 [3.8, 13.1], 2.7 [1.3, 4.1] and 6.7 [3.8, 9.6]). Audio's prediction of the text classifier's decisions was therefore not explained by intelligible words alone; the remainder may come from the average spectrum, the pitch distribution, utterance duration, intensity differences within an emotion label or word information left in WavLM features, which this experiment cannot separate.
@@ -35,10 +112,50 @@ On the three corpora other than AFEW, the predictability $D$ of the text classif
 
 \textbf{Limitation.} Reversed speech was checked with Whisper transcripts, not with human listeners. Reversal also inverts time-directional cues such as intonation contours and produces speech unlike the data WavLM was trained on, so the drop in $D$ should not be attributed to intelligible words alone; measuring $D$ with another manipulation that makes words unintelligible is the next step.
 
-\section{Further comparisons for RQ2}\label{sec:s2}
-\subsection{Comparators fitted on the K labels}
+\section{Other loss forms for retraining on pseudo-labels}\label{sec:s4}
+The loss of distillation in Sect.~4.4 of the main text (form (a), without temperature) was fixed before the evaluation run. For comparison, five other loss forms that take the pseudo-labels were trained in the same way, and for each target, classifier and K the form with the highest provisional-target UAR was compared with form (a): a temperature loss (form (b)) \cite{hinton2015distilling} with $\tau=2$ from Albanie et al.\ \cite{albanie2018}, pseudo-labels on agreeing utterances only \cite{shi2024audioguided}, mixing with the classifier's own predictions \cite{zhang2021combining}, soft co-training (our variant of the idea of \cite{blum1998}) and co-regularisation \cite{sindhwani2005coreg}; each adapts the loss of the original paper to take the pseudo-labels as targets and is not identical to the original method. Replacing form (a) by the form selected on provisional targets (form (b) in all 16 audio conditions with K = 0, 5, 10, 25) changed audio UAR by $-$0.79 to +0.87\pt, and the selected hyperparameters gave the same classifier as the untuned values in all 16 audio conditions. These results suggest that the audio gains did not come from the choice of loss form or of hyperparameters.
+
+\section{Method figures and comparators}\label{sec:s5}
+Figure~\ref{fig:decomp} illustrates the weight table of Sect.~5.2 of the main text, Fig.~\ref{fig:episode} the hyperparameter selection of Sect.~5.3, and Table~\ref{tab:comparators} the content and references of the comparators of Sect.~6 and Sect.~\ref{sec:s6}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_prop_decomp_en.pdf}
+\caption{The 12-cell classifier-by-emotion weight table split into (1) one strength per classifier, measured on the K target labels (three numbers), and (2) per-emotion profiles, measured on the source corpora (each row sums to zero). Numbers are illustrative}\label{fig:decomp}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_prop_episode_en.pdf}
+\caption{Hyperparameter selection (target AFEW). In three episodes, each source corpus serves as a provisional target; strengths are measured on its K labels and profiles on the other two sources, and the hyperparameter setting with the highest mean UAR on the provisional targets' test folds is chosen. The carry-over $\eta$ of the profiles is measured between sources. AFEW is then evaluated once with the selected values}\label{fig:episode}
+\end{figure}
+
 \begin{table}[h]
-\caption{UAR of the three comparators fitted on the K labels (points, test utterances, mean of 50 repetitions; moved from Table 8 of the main text). Parentheses: estimation-time proposal $-$ row with 95\% intervals without correction; * interval above zero, $\dagger$ below zero. Intervals of the weight-table search are conditional on the drawn tables. Strength-only weights gave the same UAR as the proposal without profiles (Table 9 of the main text) in 8 of the 12 conditions on the four corpora and in all three on CREMA-D}\label{tab:s1}
+\caption{Comparators. Numbers are those of Table~2 of the main text; rows without numbers are the comparators of Sect.~\ref{sec:s6}. ``From K'' is the number of quantities fitted or selected on the K target labels (the proposal: three strengths)}\label{tab:comparators}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lp{2.8cm}p{4.0cm}p{2.5cm}l@{}}
+\toprule
+No. & Comparison & Content & Reference & From K \\
+\midrule
+(D0) & Product & Multiply the three probabilities with equal weights & Product rule \cite{kittler1998} & 0 \\
+(D1) & Mean of probabilities & Average the three probabilities & Sum rule \cite{kittler1998} & 0 \\
+-- & Strength-only weights & Sum scores with weights proportional to the K-label strengths, common to emotions & Classifier weights \cite{kuncheva2014} & 3 \\
+-- & Full table from K & All 12 reliabilities measured on the K labels, combined as the proposal & Same number of per-class parameters as a recall combiner \cite{kuncheva2014} & 12 \\
+(D2) & Temperature calibration & Per-classifier inverse temperatures fitted to the K-label log-likelihood, then multiplied & Temperature scaling \cite{guo2017calibration} & 3 \\
+-- & Weight-table search & Among 1,000 random tables and the equal table, the one with the highest K-label UAR & Random search as in Kaya et al.\ \cite{kaya2017} & 1 of 1,001 \\
+(D3) & Strongest single classifier & Predictions of the product component with the highest K-label strength & Added in this study & 1 of 3 \\
+(E0) & K-label baseline (AVT) & Retrain on the K labels without pseudo-labels & Sect.~3.4 & --- \\
+(E1) & Distillation (product) & Retrain AVT on the product's pseudo-labels & Sect.~4.4 & --- \\
+\botrule
+\end{tabular}
+\end{table}
+
+\section{Further comparisons for RQ2}\label{sec:s6}
+\subsection{Comparators fitted on the K labels}
+Against the three comparators that fit weights on the K labels (Table~\ref{tab:s1}), the estimation-time proposal differed by $-$1.16 to +0.73\pt\ from strength-only weights, with intervals above zero on MOSEI at all K and on IEMOCAP at K = 5, and was higher in point estimates in 9 of 12 conditions than all 12 reliabilities measured on the K labels and in 11 of 12 than selecting one of 1,001 tables.
+
+\begin{table}[h]
+\caption{UAR of the three comparators fitted on the K labels (points, test utterances, mean of 50 repetitions; not in Table 5 of the main text). Parentheses: estimation-time proposal $-$ row with 95\% intervals without correction; * interval above zero, $\dagger$ below zero. Intervals of the weight-table search are conditional on the drawn tables. Strength-only weights gave the same UAR as the proposal without per-emotion profiles, (D5) in Table 5 of the main text, in 8 of the 12 conditions on the four corpora and in all three on CREMA-D}\label{tab:s1}
 \footnotesize\setlength{\tabcolsep}{2pt}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -66,7 +183,7 @@ Table search & 49.47 (+0.59 [$-$0.5, +1.7]) & 49.67 (+1.01 [+0.1, +2.0]*) & 51.4
 
 
 \subsection{Four further combinations of the same predictions}
-Table~\ref{tab:extra} compares the estimation-time proposal with four further combinations of the predictions of the same product components, computed in the same evaluation run as Table 8 of the main text; the proposal and each combination use the label-free intercept shift of Sect. 6.1.2 of the main text. \emph{Exponents from other corpora} multiplies the three probabilities raised to one exponent per modality (common to emotions), chosen on provisional targets in Sect. 5.1.1 of the main text and normalised to mean 1; on AFEW the selected exponents were (1, 1, 1), so its decisions equal those of the product. \emph{Confidence-weighted mean} averages the three probabilities, each weighted per utterance by the classifier's maximum probability (a confidence-weighted late fusion used as a baseline by Tellamekala et al.\ \cite{tellamekala2024}; using the maximum probability as the confidence is our choice). \emph{Table re-reading} re-reads each classifier's probabilities with a diagonal confusion table measured on the K labels (off-diagonal entries $(1-\text{diagonal})/3$), shrunk halfway towards a table with the classifier's mean diagonal, and multiplies them; classifiers whose mean diagonal is at most 0.25 are not used. \emph{Modality weights from K} fits three modality weights (common to emotions) jointly to the log-likelihood of the combined prediction on the K labels (a weighted log-linear pool \cite{heskes1997}).
+Table~\ref{tab:extra} compares the estimation-time proposal with four further combinations of the predictions of the same product components, computed in the same evaluation run as Table 5 of the main text; the proposal and each combination use the label-free intercept shift of Sect.~5.2 of the main text. \emph{Exponents from other corpora} (selected separately from the untuned exponents of (C1) and (D0)) multiplies the three probabilities raised to one exponent per modality (common to emotions), chosen on provisional targets in Sect.~4.4 of the main text and normalised to mean 1; on AFEW the selected exponents were (1, 1, 1), so its decisions equal those of the product. \emph{Confidence-weighted mean} averages the three probabilities, each weighted per utterance by the classifier's maximum probability (a confidence-weighted late fusion used as a baseline by Tellamekala et al.\ \cite{tellamekala2024}; using the maximum probability as the confidence is our choice). \emph{Table re-reading} re-reads each classifier's probabilities with a diagonal confusion table measured on the K labels (off-diagonal entries $(1-\text{diagonal})/3$), shrunk halfway towards a table with the classifier's mean diagonal, and multiplies them; classifiers whose mean diagonal is at most 0.25 are not used. \emph{Modality weights from K} fits three modality weights (common to emotions) jointly to the log-likelihood of the combined prediction on the K labels (a weighted log-linear pool \cite{heskes1997}).
 
 \begin{table}[h]
 \caption{Estimation-time proposal $-$ further combinations (UAR points, test utterances, mean of 50 repetitions) with 95\% intervals without correction. * interval above zero (proposal higher); $\dagger$ below zero. IEMOCAP: improvised part}\label{tab:extra}
@@ -101,33 +218,32 @@ MELD & +0.57 [$-$0.6, +1.8] & $-$0.15 [$-$1.4, +1.1] & $-$0.08 [$-$0.7, +0.6] \\
 
 
 
-\section{CREMA-D}\label{sec:s3}
-CREMA-D was added to the evaluation after its values had been seen in six-corpus provisional-target computations (Sect. 6.1.3 of the main text). Estimation-time proposal $-$ product and retrained AV proposal $-$ distillation (product) were +0.31 to +0.63\pt\ with all six intervals excluding zero.
+\section{CREMA-D}\label{sec:s7}
+CREMA-D was added to the evaluation after its values had been seen in six-corpus provisional-target computations (Sect.~5.3 of the main text). Estimation-time (D4) $-$ (D0) and retrained AV (E2) $-$ (E1) were +0.31 to +0.63\pt\ with all six intervals excluding zero, and (D4) $-$ (D5) had intervals above zero at all K.
 
 \begin{table}[h]
-\caption{CREMA-D (audio and visual): UAR (points, test utterances, mean of 50 repetitions; moved from Table 8 of the main text). Rows and marks as in Table 8; the retrained classifier is AV. The strongest single classifier was not computed for CREMA-D}\label{tab:s3}
-\footnotesize\setlength{\tabcolsep}{2pt}
+\caption{CREMA-D (audio and visual): UAR (points, test utterances, mean of 50 repetitions; not in Table 5 of the main text). Rows and marks as in Table 5 of the main text, with AV in place of AVT for (E0)--(E2); rows without numbers are the comparators of Sect.~\ref{sec:s6}. (D3) was not computed for CREMA-D}\label{tab:s3}
+\footnotesize\setlength{\tabcolsep}{1pt}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Row & K = 5 & K = 10 & K = 25 \\
 \midrule
-Proposal (est.) & 85.48 & 86.17 & 87.70 \\
-Product & 85.01 (+0.47 [+0.2, +0.8]*) & 85.54 (+0.63 [+0.3, +0.9]*) & 87.13 (+0.57 [+0.3, +0.9]*) \\
-Mean of probs. & 84.70 (+0.78 [+0.4, +1.2]*) & 85.23 (+0.94 [+0.5, +1.4]*) & 86.92 (+0.77 [+0.3, +1.2]*) \\
+(D4) Proposal (est.) & 85.48 & 86.17 & 87.70 \\
+(D0) Product & 85.01 (+0.47 [+0.2, +0.8]*) & 85.54 (+0.63 [+0.3, +0.9]*) & 87.13 (+0.57 [+0.3, +0.9]*) \\
+(D1) Mean & 84.70 (+0.78 [+0.4, +1.2]*) & 85.23 (+0.94 [+0.5, +1.4]*) & 86.92 (+0.77 [+0.3, +1.2]*) \\
 Strength only & 85.26 (+0.23 [+0.1, +0.4]*) & 85.89 (+0.27 [+0.1, +0.4]*) & 87.46 (+0.23 [+0.05, +0.4]*) \\
 Full table (K) & 85.19 (+0.29 [$-$0.01, +0.6]) & 86.05 (+0.11 [$-$0.1, +0.4]) & 87.71 ($-$0.01 [$-$0.2, +0.2]) \\
-Temperature & 85.26 (+0.22 [$-$0.1, +0.5]) & 86.04 (+0.12 [$-$0.1, +0.4]) & 87.55 (+0.14 [$-$0.1, +0.4]) \\
+(D2) Temp. & 85.26 (+0.22 [$-$0.1, +0.5]) & 86.04 (+0.12 [$-$0.1, +0.4]) & 87.55 (+0.14 [$-$0.1, +0.4]) \\
 Table search & 84.24 (+1.24 [+0.5, +2.0]*) & 85.46 (+0.71 [+0.1, +1.3]*) & 86.75 (+0.94 [+0.5, +1.4]*) \\
-Proposal (retr.) & 85.64 & 86.53 & 87.74 \\
-K-label base. & 82.34 (+3.30 [+2.6, +4.0]*) & 83.35 (+3.18 [+2.5, +3.8]*) & 85.34 (+2.40 [+1.9, +2.9]*) \\
-Distill. (prod.) & 85.32 (+0.31 [+0.1, +0.6]*) & 86.01 (+0.52 [+0.3, +0.8]*) & 87.35 (+0.39 [+0.1, +0.7]*) \\
+(D5) No profile & +0.23 [+0.1, +0.4]* & +0.27 [+0.1, +0.4]* & +0.23 [+0.05, +0.4]* \\
+(D6) Equal str. & +0.19 [$-$0.1, +0.4] & +0.28 [+0.04, +0.5]* & +0.36 [+0.1, +0.6]* \\
+(E2) Proposal (retr.) & 85.64 & 86.53 & 87.74 \\
+(E0) K-label & 82.34 (+3.30 [+2.6, +4.0]*) & 83.35 (+3.18 [+2.5, +3.8]*) & 85.34 (+2.40 [+1.9, +2.9]*) \\
+(E1) Product & 85.32 (+0.31 [+0.1, +0.6]*) & 86.01 (+0.52 [+0.3, +0.8]*) & 87.35 (+0.39 [+0.1, +0.7]*) \\
 
 \botrule
 \end{tabular}
 \end{table}
-
-\section{Other loss forms for retraining on pseudo-labels}\label{sec:s4}
-The main loss (form (a), without temperature) was fixed before the evaluation run. For comparison, five other loss forms that take the pseudo-labels were trained in the same way, and for each target, classifier and K the form with the highest provisional-target UAR was compared with form (a): a temperature loss (form (b)) \cite{hinton2015distilling} with $\tau=2$ from Albanie et al.\ \cite{albanie2018}, pseudo-labels on agreeing utterances only \cite{shi2024audioguided}, mixing with the classifier's own predictions \cite{zhang2021combining}, soft co-training (our variant of the idea of \cite{blum1998}) and co-regularisation \cite{sindhwani2005coreg}; each adapts the loss of the original paper to take the pseudo-labels as targets and is not identical to the original method. Replacing form (a) by the form selected on provisional targets (form (b) in all 16 audio conditions with K = 0, 5, 10, 25) changed audio UAR by $-$0.79 to +0.87\pt, and the selected hyperparameters gave the same classifier as the untuned values in all 16 audio conditions. These results suggest that the audio gains did not come from the choice of loss form or of hyperparameters.
 
 \bibliography{references}
 \end{document}
